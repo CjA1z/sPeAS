@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiled Document</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        :root {
+            --theme-gold: #FDB813;
+            --theme-gold-darker: #EAA10F;
+            --theme-gold-light-bg: rgba(253, 184, 19, 0.2);
+            --theme-gold-lighter-bg: rgba(253, 184, 19, 0.1);
+            --theme-gold-highlight: rgba(253, 184, 19, 0.4);
+            --theme-green-dark: #006A4E;
+            --theme-green-darker-text: #00523D;
+            --theme-green-light-bg: rgba(0, 106, 78, 0.3);
+            --theme-green-lighter-bg: rgba(0, 106, 78, 0.15);
+            --theme-green-border: rgba(0, 106, 78, 0.7);
+            --theme-page-bg: #F9F6EE;
+            --neutral-border-color: #e5e7eb;
+            --primary-text-color: #1f2937;
+            --secondary-text-color: #4b5563;
+            --tertiary-text-color: #6b7280;
+        }
+
+        html, body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--theme-page-bg);
+            color: var(--primary-text-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .page-wrapper {
+            padding-top: 2rem;
+            padding-bottom: 4rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        h1, h2, h3 {
+            color: var(--theme-green-dark);
+        }
+
+        .compiled-header {
+            background-color: var(--theme-green-dark);
+            color: white;
+            padding: 3rem 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .compiled-header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .compiled-content {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .compiled-toc {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .compiled-toc h2 {
+            border-bottom: 2px solid var(--theme-gold);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .toc-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .toc-list li {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s;
+        }
+
+        .toc-list li:hover {
+            background-color: var(--theme-gold-light-bg);
+        }
+
+        .toc-list a {
+            color: var(--theme-green-dark);
+            text-decoration: none;
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--theme-green-dark);
+            color: white;
+            border-radius: 0.375rem;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background-color: var(--theme-green-dark);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--theme-green-darker-text);
+        }
+
+        .btn-secondary {
+            background-color: var(--theme-gold);
+            color: black;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--theme-gold-darker);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem 0;
+            font-size: 1.2rem;
+            color: var(--tertiary-text-color);
+        }
+
+        /* Document metadata styling */
+        .compiled-document {
+            margin-bottom: 2rem;
+        }
+
+        .document-metadata {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--theme-gold-lighter-bg);
+            padding: 1.25rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--theme-gold);
+        }
+
+        .metadata-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            align-items: baseline;
+            gap: 1rem;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: var(--theme-green-dark);
+        }
+
+        .metadata-value {
+            color: var(--secondary-text-color);
+        }
+
+        .document-abstract {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 0.5rem;
+            border: 1px solid var(--neutral-border-color);
+        }
+
+        .document-abstract h3 {
+            margin-top: 0;
+            color: var(--theme-green-dark);
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--neutral-border-color);
+        }
+
+        .document-abstract p {
+            line-height: 1.6;
+            color: var(--secondary-text-color);
+        }
+
+        /* Table of contents styling */
+        .toc-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: baseline;
+        }
+
+        .toc-number {
+            font-weight: 600;
+            color: var(--theme-green-dark);
+            min-width: 1.5rem;
+        }
+
+        .toc-title {
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .toc-author {
+            font-size: 0.85rem;
+            color: var(--tertiary-text-color);
+            font-style: italic;
+            width: 100%;
+            margin-left: 1.5rem;
+            margin-top: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .metadata-row {
+                grid-template-columns: 1fr;
+                gap: 0.25rem;
+            }
+            
+            .compiled-header h1 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar will be loaded here -->
+    <div id="navbarContainer"></div>
+
+    <div class="page-wrapper">
+        <header class="compiled-header">
+            <div class="container">
+                <h1>Compiled Document Title</h1>
+                <p>A collection of related documents compiled into a single volume</p>
+            </div>
+        </header>
+
+        <main class="container">
+            <section class="compiled-toc">
+                <h2>Table of Contents</h2>
+                <ul class="toc-list" id="tableOfContents">
+                    <li><a href="#section1">Loading Table of Contents...</a></li>
+                </ul>
+            </section>
+
+            <section class="compiled-content" id="compiledContent">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading compiled document data...</p>
+                </div>
+            </section>
+
+            <div class="action-buttons">
+                <a href="#" class="btn btn-primary" id="readBtn">
+                    <i class="fas fa-book-open"></i> Read Full Document
+                </a>
+                <a href="#" class="btn btn-secondary" id="saveBtn">
+                    <i class="fas fa-bookmark"></i> Save for Later
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <!-- Navbar loading script -->
+    <script src="/Components/js/navbar-loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the navbar
+            if (window.NavbarModule) {
+                window.NavbarModule.init();
+            } else {
+                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
+            }
+            
+            // Get user information from storage
+            function getUserInfo() {
+                try {
+                    // Check sessionStorage first, then localStorage
+                    const sessionUserInfo = sessionStorage.getItem('userInfo');
+                    const localUserInfo = localStorage.getItem('userInfo');
+                    
+                    // Parse the stored JSON data
+                    if (sessionUserInfo) {
+                        try {
+                            const userInfo = JSON.parse(sessionUserInfo);
+                            return userInfo;
+                        } catch (parseError) {
+                            console.error('Error parsing sessionStorage user info:', parseError);
+                            return null;
+                        }
+                    } else if (localUserInfo) {
+                        try {
+                            const userInfo = JSON.parse(localUserInfo);
+                            return userInfo;
+                        } catch (parseError) {
+                            console.error('Error parsing localStorage user info:', parseError);
+                            return null;
+                        }
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    console.error('Error retrieving user info:', error);
+                    return null;
+                }
+            }
+
+            // Check if user is logged in
+            function isUserLoggedIn(userInfo) {
+                if (!userInfo) {
+                    return false;
+                }
+                
+                // Check for token validity
+                if (!userInfo.token) {
+                    return false;
+                }
+                
+                // Check for login timestamp and validate it's not too old (24 hours)
+                if (userInfo.loginTime) {
+                    const loginTime = new Date(userInfo.loginTime);
+                    const currentTime = new Date();
+                    const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
+                    
+                    if (hoursSinceLogin > 24) {
+                        return false;
+                    }
+                }
+                
+                // Final check for essential properties - ensuring isLoggedIn is explicitly true
+                return userInfo.isLoggedIn === true && userInfo.token && userInfo.token.length > 0;
+            }
+            
+            // Get document ID from URL
+            function getDocumentIdFromUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('id');
+            }
+            
+            // Function to load compiled document data from the database
+            async function loadCompiledDocumentData(documentId) {
+                try {
+                    // Show loading state
+                    document.getElementById('compiledContent').innerHTML = `
+                        <div class="loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading compiled document data...</p>
+                        </div>
+                    `;
+                    document.getElementById('tableOfContents').innerHTML = `
+                        <li><i class="fas fa-spinner fa-spin"></i> Loading table of contents...</li>
+                    `;
+                    
+                    // Fetch the compiled document data
+                    const response = await fetch(`/api/documents/${documentId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const documentData = await response.json();
+                    console.log('Compiled document data:', documentData);
+                    
+                    // Update page title and header
+                    document.title = documentData.title || 'Compiled Document';
+                    document.querySelector('.compiled-header h1').textContent = documentData.title || 'Compiled Document Title';
+                    
+                    // Update description if available
+                    const descriptionElement = document.querySelector('.compiled-header p');
+                    if (descriptionElement && documentData.description) {
+                        descriptionElement.textContent = documentData.description;
+                    } else if (descriptionElement) {
+                        // Default description with metadata
+                        let description = 'A collection of ';
+                        if (documentData.child_count) {
+                            description += `${documentData.child_count} related documents `;
+                        }
+                        
+                        if (documentData.start_year && documentData.end_year && 
+                            documentData.start_year !== '1970' && documentData.end_year !== '1970') {
+                            description += `spanning from ${documentData.start_year} to ${documentData.end_year}`;
+                        } else if (documentData.start_year && documentData.start_year !== '1970') {
+                            description += `starting from ${documentData.start_year}`;
+                        } else if (documentData.end_year && documentData.end_year !== '1970') {
+                            description += `up to ${documentData.end_year}`;
+                        }
+                        
+                        descriptionElement.textContent = description;
+                    }
+                    
+                    // Now fetch the child documents to populate the table of contents
+                    await loadChildDocuments(documentId);
+                    
+                    // Update main content with compiled document information
+                    updateCompiledDocumentContent(documentData);
+                    
+                } catch (error) {
+                    console.error('Error loading compiled document:', error);
+                    document.getElementById('compiledContent').innerHTML = `
+                        <div class="loading" style="color: red;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Error loading document: ${error.message}</p>
+                        </div>
+                    `;
+                    document.getElementById('tableOfContents').innerHTML = `
+                        <li style="color: red;"><i class="fas fa-exclamation-circle"></i> Error loading table of contents</li>
+                    `;
+                }
+            }
+            
+            // Function to load the child documents for this compilation
+            async function loadChildDocuments(documentId) {
+                try {
+                    const response = await fetch(`/api/documents/${documentId}/children`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch child documents: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    const childDocuments = data.documents || [];
+                    console.log('Child documents:', childDocuments);
+                    
+                    // Update table of contents
+                    const tocElement = document.getElementById('tableOfContents');
+                    
+                    if (childDocuments.length === 0) {
+                        tocElement.innerHTML = `<li style="color: var(--tertiary-text-color);">No child documents found</li>`;
+                        return;
+                    }
+                    
+                    tocElement.innerHTML = '';
+                    childDocuments.forEach((doc, index) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a href="/pages/doc-single.html?id=${doc.id}" class="toc-item">
+                                <span class="toc-number">${index + 1}.</span>
+                                <span class="toc-title">${doc.title}</span>
+                                ${doc.author_names ? `<span class="toc-author" data-author-ids="${doc.author_ids ? doc.author_ids.join(',') : ''}">${doc.author_names.join(', ')}</span>` : ''}
+                            </a>
+                        `;
+                        
+                        // Add click event listener to track author visits when clicked
+                        if (doc.author_names && doc.author_names.length > 0 && doc.author_ids) {
+                            li.addEventListener('click', function(e) {
+                                // Prevent tracking if the click was on the document link itself
+                                if (e.target.classList.contains('toc-author')) {
+                                    e.preventDefault();
+                                    trackAuthorVisit(doc.author_ids);
+                                }
+                            });
+                        }
+                        
+                        tocElement.appendChild(li);
+                    });
+                    
+                } catch (error) {
+                    console.error('Error loading child documents:', error);
+                    document.getElementById('tableOfContents').innerHTML = `
+                        <li style="color: red;"><i class="fas fa-exclamation-circle"></i> Error loading child documents: ${error.message}</li>
+                    `;
+                }
+            }
+            
+            // Function to update the main content with compiled document information
+            function updateCompiledDocumentContent(documentData) {
+                const contentElement = document.getElementById('compiledContent');
+                
+                // Create structured content for the compiled document
+                let contentHtml = `
+                    <div class="compiled-document">
+                        <div class="document-metadata">
+                            <div class="metadata-row">
+                                <div class="metadata-label">Category:</div>
+                                <div class="metadata-value">${documentData.category_name || documentData.document_type || 'Not specified'}</div>
+                            </div>
+                `;
+                
+                // Add publication period if available
+                if ((documentData.start_year && documentData.start_year !== '1970') || 
+                    (documentData.end_year && documentData.end_year !== '1970')) {
+                    
+                    let yearRange = 'Publication Period: ';
+                    if (documentData.start_year && documentData.start_year !== '1970' && 
+                        documentData.end_year && documentData.end_year !== '1970') {
+                        yearRange += `${documentData.start_year} - ${documentData.end_year}`;
+                    } else if (documentData.start_year && documentData.start_year !== '1970') {
+                        yearRange += `From ${documentData.start_year}`;
+                    } else if (documentData.end_year && documentData.end_year !== '1970') {
+                        yearRange += `Until ${documentData.end_year}`;
+                    }
+                    
+                    contentHtml += `
+                        <div class="metadata-row">
+                            <div class="metadata-label">Period:</div>
+                            <div class="metadata-value">${yearRange}</div>
+                        </div>
+                    `;
+                }
+                
+                // Add authors if available
+                if (documentData.author_names && documentData.author_names.length > 0) {
+                    const authorIds = documentData.author_ids || [];
+                    contentHtml += `
+                        <div class="metadata-row">
+                            <div class="metadata-label">Authors:</div>
+                            <div class="metadata-value author-list" data-author-ids="${authorIds.join(',')}">
+                            ${documentData.author_names.map((name, index) => {
+                                const authorId = authorIds[index] || '';
+                                return `<span class="author-name" data-author-id="${authorId}">${name}</span>`;
+                            }).join(', ')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Add document count
+                contentHtml += `
+                    <div class="metadata-row">
+                        <div class="metadata-label">Documents:</div>
+                        <div class="metadata-value">${documentData.child_count || 'Unknown'}</div>
+                    </div>
+                `;
+                
+                // Add abstract or description if available
+                if (documentData.abstract || documentData.description) {
+                    contentHtml += `
+                        <div class="document-abstract">
+                            <h3>Abstract</h3>
+                            <p>${documentData.abstract || documentData.description}</p>
+                        </div>
+                    `;
+                }
+                
+                contentHtml += `
+                        </div>
+                    </div>
+                `;
+                
+                contentElement.innerHTML = contentHtml;
+                
+                // Add click event listeners to track author visits
+                const authorElements = contentElement.querySelectorAll('.author-name');
+                authorElements.forEach(element => {
+                    element.addEventListener('click', function(e) {
+                        const authorId = this.getAttribute('data-author-id');
+                        if (authorId) {
+                            trackAuthorVisit([authorId]);
+                        }
+                    });
+                    
+                    // Make authors clickable
+                    element.style.cursor = 'pointer';
+                    element.style.textDecoration = 'underline';
+                    element.title = 'Click to view author details';
+                });
+            }
+            
+            // Function to track author visits
+            async function trackAuthorVisit(authorIds) {
+                if (!authorIds || authorIds.length === 0) {
+                    console.warn('No author IDs provided for tracking');
+                    return;
+                }
+                
+                try {
+                    // Get user info for authentication if available
+                    const userInfo = getUserInfo();
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    // Add authorization token if available
+                    if (userInfo && userInfo.token) {
+                        headers['Authorization'] = `Bearer ${userInfo.token}`;
+                    }
+                    
+                    // Send tracking data to server
+                    const response = await fetch('/api/analytics/track-author-visit', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            author_ids: authorIds,
+                            timestamp: new Date().toISOString(),
+                            page: window.location.pathname,
+                            document_id: getDocumentIdFromUrl()
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to track author visit: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    console.log('Author visit tracked successfully');
+                    
+                } catch (error) {
+                    // Silent fail - don't disrupt user experience for analytics
+                    console.error('Error tracking author visit:', error);
+                }
+            }
+
+            const documentId = getDocumentIdFromUrl();
+            if (documentId) {
+                console.log(`Loading compiled document with ID: ${documentId}`);
+                loadCompiledDocumentData(documentId);
+            } else {
+                console.warn('No document ID provided in URL');
+                document.getElementById('compiledContent').innerHTML = `
+                    <div class="loading" style="color: orange;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No document ID provided. Please provide a valid document ID.</p>
+                    </div>
+                `;
+            }
+            
+            // Setup button event listeners
+            document.getElementById('readBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (!documentId) {
+                    alert('No document ID provided');
+                    return;
+                }
+                
+                // Check if user is logged in
+                const userInfo = getUserInfo();
+                const isLoggedIn = isUserLoggedIn(userInfo);
+                
+                if (!isLoggedIn) {
+                    // User is not logged in, redirect to document request form
+                    window.location.href = `/requestForm/documentRequestForm.html?document_id=${documentId}`;
+                    return;
+                }
+                
+                // Get the document file path from the document data
+                fetch(`/api/documents/${documentId}/file-path`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to get document file path: ${response.status} ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const filePath = data.file_path || data.document_url;
+                        if (filePath) {
+                            // Open the document directly
+                            const documentUrl = filePath.startsWith('http') ? 
+                                filePath : `/storage/documents/${documentId}`;
+                            window.open(documentUrl, '_blank');
+                        } else {
+                            alert('Document file is not available for direct viewing.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error getting document file path:', error);
+                        alert(`Error accessing document: ${error.message}`);
+                    });
+            });
+            
+            document.getElementById('saveBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (!documentId) {
+                    alert('No document ID provided');
+                    return;
+                }
+                
+                // Check if user is logged in
+                const userInfo = getUserInfo();
+                const isLoggedIn = isUserLoggedIn(userInfo);
+                
+                if (!isLoggedIn) {
+                    alert('You need to be logged in to save documents for later reading.');
+                    window.location.href = `/log-in.html?redirect=${encodeURIComponent(window.location.href)}`;
+                    return;
+                }
+                
+                // Call the save API endpoint
+                saveLaterReading(documentId);
+            });
+            
+            // Function to save document for later reading
+            async function saveLaterReading(documentId) {
+                try {
+                    const userInfo = getUserInfo();
+                    if (!userInfo || !userInfo.token) {
+                        throw new Error('Not authenticated');
+                    }
+                    
+                    const response = await fetch('/api/user/savedDocuments', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${userInfo.token}`
+                        },
+                        body: JSON.stringify({
+                            document_id: documentId
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to save document: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    alert('Document saved successfully for later reading!');
+                    console.log('Save result:', result);
+                    
+                } catch (error) {
+                    console.error('Error saving document:', error);
+                    alert(`Error saving document: ${error.message}`);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

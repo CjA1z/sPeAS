@@ -1,0 +1,39 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc; /* Light gray background */
+    width: 100%;
+    margin: auto;
+    padding: auto;
+}
+/* Ensure icons are vertically aligned */
+.lucide {
+    vertical-align: middle;
+    display: inline-block; /* Needed for vertical alignment */
+}
+/* Style table headers within cards */
+.log-card th {
+    background-color: #f1f5f9; /* Light gray header background */
+    text-align: left;
+    padding: 0.75rem 1rem; /* p-3 equivalent */
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 500; /* font-medium */
+    color: #64748b; /* text-slate-500 */
+    text-transform: uppercase;
+    letter-spacing: 0.05em; /* tracking-wider */
+}
+/* Style table cells within cards */
+.log-card td {
+    padding: 0.75rem 1rem; /* p-3 equivalent */
+    font-size: 0.875rem; /* text-sm */
+    color: #475569; /* text-slate-600 */
+    border-bottom-width: 1px;
+    border-color: #e5e7eb; /* border-gray-200 */
+}
+/* Remove bottom border from last row */
+.log-card tr:last-child td {
+    border-bottom-width: 0;
+}
+ /* Add subtle hover effect to rows */
+.log-card tbody tr:hover {
+    background-color: #f1f5f9; /* Slightly darker gray on hover */
+}

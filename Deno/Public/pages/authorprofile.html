@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Author Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Basic styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* bg-gray-50 */
+            color: #111827; /* text-gray-900 */
+        }
+
+        /* Add basic transition for smoother UI changes */
+        button, a {
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.15s ease-in-out;
+        }
+        /* Ensure icons size correctly */
+        .icon {
+            width: 1rem; /* h-4 w-4 */
+            height: 1rem;
+            display: inline-block;
+            vertical-align: text-bottom;
+            flex-shrink: 0;
+        }
+        .icon-sm {
+            width: 0.75rem; /* h-3 w-3 */
+            height: 0.75rem;
+        }
+        .icon-lg {
+            width: 1.5rem; /* h-6 w-6 */
+            height: 1.5rem;
+        }
+        /* Hide element visually but keep accessible */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        /* Basic modal styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            width: 100%;
+            max-width: 42rem;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        /* Hide elements */
+        .hidden {
+            display: none;
+        }
+
+        /* Preserve whitespace for bio and JSON */
+        .whitespace-pre-line { white-space: pre-line; }
+        .whitespace-pre { white-space: pre; }
+
+        /* Basic animation for tag filter */
+        .tag-filter-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+        }
+        .tag-filter-content.open {
+            max-height: 500px; /* Adjust as needed */
+            opacity: 1;
+        }
+
+        /* Custom focus ring color */
+        button:focus-visible, a:focus-visible, input:focus {
+            --tw-ring-color: #16a34a; /* focus:ring-green-500 */
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            box-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+        }
+
+        /* Style for avatar container */
+        .avatar-container {
+            width: 6rem; /* w-24 */
+            height: 6rem; /* h-24 */
+            margin-bottom: 1rem; /* mb-4 */
+            border: 4px solid #ffffff; /* border-4 border-white (contrast against gradient) */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* shadow-md */
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 9999px; /* rounded-full */
+            overflow: hidden; /* Ensure image stays within border */
+            background-color: #f3f4f6; /* Default background */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900" >
+    <!-- Header will be loaded here -->
+    <div id="header-container"></div>
+
+    <div class="container mx-auto p-4 md:p-8 min-h-screen font-sans"style="width: 1200px; max-width: 100%; margin: 0 auto;">
+
+        <div class="grid grid-cols-1 gap-6">
+
+            <div id="profile-card" class="shadow-lg border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
+                <div id="profile-header" class="items-center text-center pt-6 pb-4 bg-gradient-to-r from-lime-500 to-green-600">
+                    <div class="avatar-container">
+                        <img id="avatar-image" class="object-cover w-full h-full" src="" alt="Profile picture">
+                        </div>
+                    <h1 id="display-full_name" class="text-xl font-bold mt-1 px-4 text-white"></h1>
+                    <div id="display-dept-affiliation-container" class="text-sm text-gray-100 mt-1 px-4">
+                        <span id="display-department"></span>
+                        <span id="display-affiliation-separator" class="hidden mx-1"> | </span>
+                        <span id="display-affiliation"></span>
+                    </div>
+                </div>
+
+                <div class="px-4 pb-4 pt-4 space-y-4 flex-grow">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-800 uppercase tracking-wide">Biography</h3>
+                    <p id="display-bio" class="text-gray-700 whitespace-pre-line text-sm leading-relaxed"></p>
+                    <hr class="my-4 border-gray-200">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-800 uppercase tracking-wide">Contact</h3>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        <div id="display-email-container" class="flex items-center space-x-1.5 hidden">
+                            <svg class="icon text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                                <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                            </svg>
+                            <a id="display-email" href="#" class="text-green-600 hover:text-green-700 hover:scale-105 block transition-transform duration-150 ease-in-out hover:underline break-all"></a>
+                        </div>
+                        <div id="display-linkedin-container" class="flex items-center space-x-1.5 hidden">
+                            <svg class="icon text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-label="LinkedIn logo"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                            <a id="display-linkedin" href="#" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-700 hover:scale-105 block transition-transform duration-150 ease-in-out hover:underline break-all"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shadow-lg border border-gray-200 rounded-lg bg-white flex flex-col">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800">Works (<span id="publications-count">0</span>)</h2>
+                    <p id="publications-description" class="mt-1 text-gray-600 text-sm">Browse, search, and filter the list of works.</p>
+                </div>
+                <div class="px-4 py-5 sm:p-6 flex-grow">
+                    <div id="view-publications-container">
+                        <div class="space-y-6">
+                            <div class="mb-6">
+                                <label for="publication-search" class="sr-only">Search works by title</label>
+                                <div class="relative">
+                                    <input type="text" id="publication-search" placeholder="Search works by title..." class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" aria-label="Search works by title">
+                                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2" id="category-filter-container">
+                                <span class="text-sm font-medium text-gray-700 shrink-0 mr-2">Filter by Category:</span>
+                                </div>
+
+                            <div class="mb-6">
+                                <button id="tag-filter-toggle" type="button" class="text-sm px-3 py-1.5 h-auto border border-gray-300 hover:bg-gray-100 rounded-full flex items-center text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" aria-expanded="false" aria-controls="tag-filter-content">
+                                    Filter by Tags
+                                    <svg id="tag-filter-chevron-down" class="icon ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    <svg id="tag-filter-chevron-up" class="icon ml-2 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                </button>
+                                <div id="tag-filter-content" class="tag-filter-content mt-3">
+                                    <div id="tag-filter-buttons" class="flex flex-wrap items-center gap-2 p-3 border border-gray-200 rounded-md bg-gray-50">
+                                        </div>
+                                </div>
+                            </div>
+
+                            <div id="publications-list" class="space-y-4">
+                                </div>
+                            <div id="no-results-message" class="hidden text-center py-12 px-6 text-gray-500 bg-white rounded-md shadow-sm border border-gray-200">
+                                <p class="text-lg font-medium">No results found</p>
+                                <p class="text-sm mt-1">Try adjusting your search query or filters.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <div id="publication-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="publication-modal-title" aria-describedby="publication-modal-description">
+            <div class="modal-content bg-white">
+                 <button id="modal-close-button" type="button" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded-full p-1" aria-label="Close publication details">
+                     <svg class="icon-lg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                 </button>
+
+                 <h2 id="publication-modal-title" class="text-xl md:text-2xl font-bold text-gray-900 pr-10 mb-4"></h2>
+
+                 <div id="publication-modal-description" class="space-y-3 text-sm mb-5">
+                     <div class="text-gray-700">
+                         <span class="font-semibold text-gray-800">Category:</span> <span id="modal-category"></span>
+                     </div>
+                     <div class="text-gray-700">
+                         <span class="font-semibold text-gray-800">Year:</span> <span id="modal-year"></span>
+                     </div>
+                     <div id="modal-link-container" class="text-gray-700 flex items-start space-x-1.5 hidden">
+                         <span class="font-semibold text-gray-800 shrink-0">Link:</span>
+                         <a id="modal-link" href="#" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:underline break-all inline-flex items-center group">
+                             <span id="modal-link-text"></span>
+                             <svg class="icon-sm ml-1 opacity-70 group-hover:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                         </a>
+                     </div>
+                     <div id="modal-tags-container" class="text-gray-700 hidden">
+                         <span class="font-semibold text-gray-800">Tags:</span>
+                         <div id="modal-tags" class="flex flex-wrap gap-1.5 mt-1.5">
+                             </div>
+                     </div>
+                     <div id="modal-abstract-container" class="text-gray-700 pt-3 mt-3 border-t border-gray-200 hidden">
+                         <h4 class="font-semibold text-gray-800 mb-1">Abstract</h4>
+                         <p id="modal-abstract" class="text-sm leading-relaxed whitespace-pre-line"></p>
+                     </div>
+                 </div>
+
+                 <div class="flex justify-end pt-4 border-t border-gray-200 mt-5">
+                     <button id="modal-close-button-footer" type="button" class="px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                         Close
+                     </button>
+                 </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Configuration
+        const API_BASE_URL = '/api';
+        const DEFAULT_AVATAR = 'https://static.vecteezy.com/system/resources/previews/023/021/708/original/author-sign-theatre-icon-illustration-vector.jpg';
+        
+        // Global state
+        let authorData = null;
+        let authorPublications = [];
+        let searchTerm = '';
+        let selectedTags = [];
+        let selectedCategories = [];
+        let isTagFilterOpen = false;
+        
+        $(document).ready(function() {
+            // Load the header component
+            $("#header-container").load("/Components/header.html", function() {
+                // Initialize header functionality if needed
+                if (window.initializeHeader) {
+                    window.initializeHeader();
+                }
+            });
+            
+            // Initialize author profile
+            initAuthorProfile();
+            
+            // Set up event listeners
+            setupEventListeners();
+        });
+
+        // Get author ID from URL
+        function getAuthorIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+        
+        // Initialize author profile
+        async function initAuthorProfile() {
+            try {
+                const authorId = getAuthorIdFromUrl();
+                if (!authorId) {
+                    showError("No author ID provided in the URL");
+                    return;
+                }
+                
+                // Fetch author data
+                authorData = await fetchAuthorData(authorId);
+                if (!authorData) {
+                    showError("Could not load author data");
+                    return;
+                }
+                
+                // Fetch author publications
+                authorPublications = await fetchAuthorPublications(authorId);
+                
+                // Render profile information
+                renderAuthorProfile(authorData);
+                
+                // Render publications
+                renderPublications(authorPublications);
+                
+                // Add category filters based on publications
+                renderCategoryFilters();
+                
+                // Add tag filters based on publications
+                renderTagFilters();
+                
+                // Track this author visit
+                recordAuthorVisit(authorId);
+                
+                console.log("Author profile loaded successfully");
+            } catch (error) {
+                console.error("Error initializing author profile:", error);
+                showError("Failed to load author profile: " + error.message);
+            }
+        }
+        
+        // Fetch author data from API
+        async function fetchAuthorData(authorId) {
+            try {
+                const response = await fetch(`/authors/${authorId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch author: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Fetched author data:", data);
+                return data;
+            } catch (error) {
+                console.error(`Error fetching author data for ID ${authorId}:`, error);
+                throw error;
+            }
+        }
+        
+        // Fetch author publications
+        async function fetchAuthorPublications(authorId) {
+            try {
+                const response = await fetch(`/authors/${authorId}/works`);
+                
+                if (!response.ok) {
+                    console.warn(`Failed to fetch publications: ${response.status} ${response.statusText}`);
+                    return [];
+                }
+                
+                const data = await response.json();
+                console.log(`Fetched ${data.works_count} publications`);
+                return data.works || [];
+            } catch (error) {
+                console.error("Error fetching publications:", error);
+                return [];
+            }
+        }
+        
+        // Record author visit
+        async function recordAuthorVisit(authorId) {
+            if (!authorId) return;
+            
+            try {
+                // Get user info if logged in
+                let userInfo = null;
+                try {
+                    userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+                } catch (e) {
+                    console.log('No user info available');
+                }
+                
+                // Prepare visit data
+                const visitData = {
+                    authorId: authorId,
+                    visitorType: userInfo && userInfo.id ? 'user' : 'guest',
+                    userId: userInfo ? userInfo.id : undefined
+                };
+                
+                // Send the visit data
+                const response = await fetch(`${API_BASE_URL}/author-visits`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(visitData)
+                });
+                
+                if (!response.ok) {
+                    console.warn(`Failed to record visit: ${response.status}`);
+                    return;
+                }
+                
+                console.log("Author visit recorded successfully");
+            } catch (error) {
+                console.error("Error recording author visit:", error);
+                // Non-critical error, so we don't show it to the user
+            }
+        }
+        
+        // Render author profile information
+        function renderAuthorProfile(author) {
+            if (!author) return;
+            
+            // Header information
+            $('#display-full_name').text(author.full_name || 'Unknown Author');
+            
+            // Department and affiliation
+            const hasDept = !!author.department;
+            const hasAff = !!author.affiliation;
+            
+            $('#display-department').text(author.department || '');
+            $('#display-affiliation').text(author.affiliation || '');
+            $('#display-affiliation-separator').toggleClass('hidden', !(hasDept && hasAff));
+            
+            // Avatar
+            const avatarImage = $('#avatar-image');
+            avatarImage.attr('src', author.profile_picture || DEFAULT_AVATAR);
+            avatarImage.attr('alt', `Profile picture of ${author.full_name}`);
+            avatarImage.on('error', function() {
+                $(this).attr('src', DEFAULT_AVATAR);
+                $(this).attr('alt', 'Default profile picture');
+            });
+            
+            // Biography
+            if (author.biography) {
+                $('#display-bio').text(author.biography);
+            } else {
+                $('#display-bio').html('<em class="text-gray-500">No biography available for this author.</em>');
+            }
+            
+            // Contact information - Email
+            if (author.email) {
+                $('#display-email').text(author.email).attr('href', `mailto:${author.email}`);
+                $('#display-email-container').removeClass('hidden');
+            } else {
+                $('#display-email-container').addClass('hidden');
+            }
+            
+            // Contact information - LinkedIn
+            if (author.linkedin) {
+                // Clean up LinkedIn URL for display
+                const displayUrl = author.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+                $('#display-linkedin').text(displayUrl).attr('href', author.linkedin);
+                $('#display-linkedin-container').removeClass('hidden');
+            } else {
+                $('#display-linkedin-container').addClass('hidden');
+            }
+        }
+        
+        // Render publications list
+        function renderPublications(publications) {
+            const publicationsList = $('#publications-list');
+            const noResultsMessage = $('#no-results-message');
+            const publicationsCount = $('#publications-count');
+            
+            publicationsCount.text(publications.length);
+            
+            if (!publications || publications.length === 0) {
+                publicationsList.empty();
+                noResultsMessage.removeClass('hidden');
+                return;
+            }
+            
+            // Filter publications
+            let filteredPublications = filterPublications(publications);
+            
+            if (filteredPublications.length === 0) {
+                publicationsList.empty();
+                noResultsMessage.removeClass('hidden');
+                return;
+            }
+            
+            // Render the publications
+            noResultsMessage.addClass('hidden');
+            publicationsList.empty();
+            
+            filteredPublications.forEach(publication => {
+                const publicationItem = createPublicationItem(publication);
+                publicationsList.append(publicationItem);
+            });
+            
+            // Add event listeners to the publication items
+            $('.publication-item').on('click', handlePublicationClick);
+            $('.show-more-tags-button').on('click', function(e) {
+                e.stopPropagation();
+                const pubId = $(this).data('pub-id');
+                const tagsContainer = $(this).prev('.tags-container');
+                const allTags = tagsContainer.data('tags-all');
+                
+                if (allTags) {
+                    tagsContainer.html(allTags);
+                    $(this).remove();
+                }
+            });
+        }
+        
+        // Filter publications based on search and filters
+        function filterPublications(publications) {
+            if (!publications) return [];
+            
+            return publications.filter(pub => {
+                // Search term filter
+                if (searchTerm) {
+                    const title = pub.title ? pub.title.toLowerCase() : '';
+                    if (!title.includes(searchTerm.toLowerCase())) {
+                        return false;
+                    }
+                }
+                
+                // Category filter
+                if (selectedCategories.length > 0) {
+                    const category = pub.category || pub.document_type || 'Uncategorized';
+                    if (!selectedCategories.includes(category)) {
+                        return false;
+                    }
+                }
+                
+                // Tags filter
+                if (selectedTags.length > 0) {
+                    const tags = extractTags(pub);
+                    if (!tags.some(tag => selectedTags.includes(tag))) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+        }
+        
+        // Extract tags from a publication
+        function extractTags(publication) {
+            if (!publication) return [];
+            
+            // Handle different tag formats
+            if (publication.topics && Array.isArray(publication.topics)) {
+                return publication.topics.map(topic => topic.name || topic);
+            }
+            
+            if (publication.tags && Array.isArray(publication.tags)) {
+                return publication.tags;
+            }
+            
+            return [];
+        }
+        
+        // Create a publication item HTML
+        function createPublicationItem(publication) {
+            const pubId = publication.id;
+            const title = publication.title || 'Untitled Work';
+            const category = publication.category || publication.document_type || 'Uncategorized';
+            const year = publication.year || (publication.publication_date ? new Date(publication.publication_date).getFullYear() : 'N/A');
+            
+            // Get tags
+            const tags = extractTags(publication);
+            
+            // Create HTML for the publication item
+            const item = $('<div class="publication-item border-b border-gray-200 pb-4 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors p-4 rounded-md group"></div>')
+                .attr('data-pub-id', pubId)
+                .attr('role', 'button')
+                .attr('tabindex', '0')
+                .attr('aria-label', `View details for ${title}`);
+            
+            // Add title
+            item.append(`
+                <h3 class="text-lg font-semibold text-green-600 group-hover:text-green-700 transition-colors duration-200 mb-1">
+                    ${title}
+                </h3>
+            `);
+            
+            // Add category and year
+            item.append(`
+                <div class="flex flex-wrap items-center text-gray-600 text-sm mb-2">
+                    <span>${category}</span>
+                    <span class="mx-2 text-gray-400" aria-hidden="true">•</span>
+                    <span>${year}</span>
+                </div>
+            `);
+            
+            // Add tags if present
+            if (tags && tags.length > 0) {
+                const tagsContainer = $('<div class="mt-2"></div>');
+                const tagsWrapper = $('<div class="tags-container flex flex-wrap gap-1"></div>');
+                
+                // Max number of tags to show initially
+                const maxTagsToShow = 5;
+                const visibleTags = tags.slice(0, maxTagsToShow);
+                const remainingTagCount = tags.length - maxTagsToShow;
+                
+                // Add visible tags
+                visibleTags.forEach(tag => {
+                    tagsWrapper.append(`
+                        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-flex items-center">
+                            <svg class="icon icon-sm mr-1 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
+                            ${tag}
+                        </span>
+                    `);
+                });
+                
+                // Prepare all tags for data attribute
+                const allTagsHtml = tags.map(tag => `
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-flex items-center">
+                        <svg class="icon icon-sm mr-1 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                        ${tag}
+                    </span>
+                `).join('');
+                
+                tagsWrapper.attr('data-tags-all', allTagsHtml);
+                tagsContainer.append(tagsWrapper);
+                
+                // Add "Show more" button if needed
+                if (remainingTagCount > 0) {
+                    const showMoreButton = $(`
+                        <button type="button" class="show-more-tags-button text-xs h-auto px-3 py-1 mt-2 border border-gray-300 hover:bg-gray-100 rounded-md text-gray-700">
+                            Show ${remainingTagCount} more
+                        </button>
+                    `).attr('data-pub-id', pubId);
+                    
+                    tagsContainer.append(showMoreButton);
+                }
+                
+                item.append(tagsContainer);
+            }
+            
+            return item;
+        }
+        
+        // Handle clicking on a publication
+        function handlePublicationClick() {
+            const pubId = $(this).data('pub-id');
+            const publication = authorPublications.find(p => p.id == pubId);
+            
+            if (publication) {
+                showPublicationModal(publication);
+            }
+        }
+        
+        // Show the publication details modal
+        function showPublicationModal(publication) {
+            // Populate modal content
+            $('#publication-modal-title').text(publication.title || 'Untitled Work');
+            $('#modal-category').text(publication.category || publication.document_type || 'Uncategorized');
+            
+            const year = publication.year || (publication.publication_date ? new Date(publication.publication_date).getFullYear() : 'N/A');
+            $('#modal-year').text(year);
+            
+            // Handle document link
+            const hasLink = !!publication.file_path;
+            $('#modal-link-container').toggleClass('hidden', !hasLink);
+            if (hasLink) {
+                const linkUrl = `/storage/${publication.file_path}`;
+                $('#modal-link').attr('href', linkUrl);
+                $('#modal-link-text').text(linkUrl);
+            }
+            
+            // Handle tags
+            const tags = extractTags(publication);
+            $('#modal-tags-container').toggleClass('hidden', tags.length === 0);
+            $('#modal-tags').empty();
+            
+            tags.forEach(tag => {
+                $('#modal-tags').append(`
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full inline-flex items-center shadow-sm border border-gray-200">
+                        <svg class="icon icon-sm mr-1.5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                        ${tag}
+                    </span>
+                `);
+            });
+            
+            // Handle abstract
+            const abstract = publication.abstract || publication.description;
+            $('#modal-abstract-container').toggleClass('hidden', !abstract);
+            $('#modal-abstract').text(abstract || '');
+            
+            // Show the modal
+            $('#publication-modal').removeClass('hidden');
+            $('#modal-close-button').focus();
+        }
+        
+        // Render category filters
+        function renderCategoryFilters() {
+            // Get unique categories from publications
+            const categories = [];
+            
+            authorPublications.forEach(pub => {
+                const category = pub.category || pub.document_type || 'Uncategorized';
+                if (!categories.includes(category)) {
+                    categories.push(category);
+                }
+            });
+            
+            // Sort categories alphabetically
+            categories.sort();
+            
+            // Create filter buttons
+            const categoryContainer = $('#category-filter-container');
+            
+            // Clear existing buttons (except for the label)
+            categoryContainer.children().not(':first').remove();
+            
+            // Add buttons for each category
+            categories.forEach(category => {
+                const isActive = selectedCategories.includes(category);
+                const button = $(`
+                    <button type="button" class="category-filter-button rounded-full text-xs px-3 py-1 h-auto transition-colors duration-150 border ${
+                        isActive
+                            ? "bg-green-600 text-white hover:bg-green-700 border-green-600"
+                            : "text-gray-700 hover:bg-gray-100 border-gray-300"
+                    }">
+                        ${category}
+                    </button>
+                `)
+                .attr('data-category', category)
+                .attr('aria-pressed', isActive);
+                
+                categoryContainer.append(button);
+            });
+        }
+        
+        // Render tag filters
+        function renderTagFilters() {
+            // Get unique tags from all publications
+            const allTags = new Set();
+            
+            authorPublications.forEach(pub => {
+                const tags = extractTags(pub);
+                tags.forEach(tag => allTags.add(tag));
+            });
+            
+            // Convert to array and sort
+            const tags = Array.from(allTags).sort();
+            
+            // Create filter buttons
+            const tagContainer = $('#tag-filter-buttons');
+            tagContainer.empty();
+            
+            if (tags.length === 0) {
+                tagContainer.html('<p class="text-sm text-gray-500">No tags available for filtering.</p>');
+                return;
+            }
+            
+            // Add buttons for each tag
+            tags.forEach(tag => {
+                const isActive = selectedTags.includes(tag);
+                const button = $(`
+                    <button type="button" class="tag-filter-button rounded-full text-xs px-3 py-1 h-auto inline-flex items-center transition-colors duration-150 border ${
+                        isActive
+                            ? "bg-green-600 text-white hover:bg-green-700 border-green-600"
+                            : "text-gray-700 hover:bg-gray-100 border-gray-300"
+                    }">
+                        <svg class="icon icon-sm mr-1 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                        ${tag}
+                    </button>
+                `)
+                .attr('data-tag', tag)
+                .attr('aria-pressed', isActive);
+                
+                tagContainer.append(button);
+            });
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search input
+            $('#publication-search').on('input', function() {
+                searchTerm = $(this).val();
+                renderPublications(authorPublications);
+            });
+            
+            // Category filter clicks
+            $('#category-filter-container').on('click', '.category-filter-button', function() {
+                const category = $(this).data('category');
+                
+                if (selectedCategories.includes(category)) {
+                    // Remove category
+                    selectedCategories = selectedCategories.filter(c => c !== category);
+                } else {
+                    // Add category
+                    selectedCategories.push(category);
+                }
+                
+                renderCategoryFilters();
+                renderPublications(authorPublications);
+            });
+            
+            // Tag filter clicks
+            $('#tag-filter-buttons').on('click', '.tag-filter-button', function() {
+                const tag = $(this).data('tag');
+                
+                if (selectedTags.includes(tag)) {
+                    // Remove tag
+                    selectedTags = selectedTags.filter(t => t !== tag);
+                } else {
+                    // Add tag
+                    selectedTags.push(tag);
+                }
+                
+                renderTagFilters();
+                renderPublications(authorPublications);
+            });
+            
+            // Tag filter toggle
+            $('#tag-filter-toggle').on('click', function() {
+                isTagFilterOpen = !isTagFilterOpen;
+                const content = $('#tag-filter-content');
+                
+                if (isTagFilterOpen) {
+                    content.addClass('open');
+                    $('#tag-filter-chevron-down').addClass('hidden');
+                    $('#tag-filter-chevron-up').removeClass('hidden');
+                } else {
+                    content.removeClass('open');
+                    $('#tag-filter-chevron-down').removeClass('hidden');
+                    $('#tag-filter-chevron-up').addClass('hidden');
+                }
+                
+                $(this).attr('aria-expanded', isTagFilterOpen);
+            });
+            
+            // Modal close buttons
+            $('#modal-close-button, #modal-close-button-footer').on('click', function() {
+                $('#publication-modal').addClass('hidden');
+            });
+            
+            // Close modal when clicking outside
+            $('#publication-modal').on('click', function(e) {
+                if (e.target === this) {
+                    $(this).addClass('hidden');
+                }
+            });
+            
+            // Handle ESC key for modal
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && !$('#publication-modal').hasClass('hidden')) {
+                    $('#publication-modal').addClass('hidden');
+                }
+            });
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorElement = $(`
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <strong class="font-bold">Error!</strong>
+                    <span class="block sm:inline"> ${message}</span>
+                </div>
+            `);
+            
+            // Add to the top of the container
+            $('.container').prepend(errorElement);
+        }
+    </script>
+
+    <!-- Include header initialization script -->
+    <script src="/Components/js/header-init.js"></script>
+
+</body>
+</html>

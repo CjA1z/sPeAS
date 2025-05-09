@@ -1,0 +1,238 @@
+/* side_bar.css */
+*{
+    font-family: sans-serif;
+    margin: 0;
+}
+.side-bar {
+    width: 28vh;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    z-index: 1000;
+    background-color: #fffff5;   
+    box-shadow: 5px 0 10px rgba(0, 0, 0, 0.1); /* Soft right-side shadow */    
+}
+
+
+.icon-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    background-color: #fffff5;
+    
+
+    
+}
+
+
+.top-group {
+    
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Align items to the left */
+    width: 90%;
+    height: 20%;
+    
+;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    
+}
+.upload-icon {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+    text-decoration: none;
+    color: black;
+    position: relative;
+    padding: 10px 15px;
+    box-sizing: border-box;
+    background-color: #12c539;  /* Background color added here */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    
+    
+}
+.upload-icon:hover {
+    background-color: #20a020;
+    color:white;
+}
+
+.middle-group {
+    width: 90%;
+    height: 40%;
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top:10px;
+    border-top: 1px solid #ddd;
+}
+
+.bottom-group {
+    border-top: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 90%;
+    height: auto;
+    margin-top: 100px;
+    padding-top: 10px;
+}
+
+.icon-wrapper {
+    width: 100%;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+    text-decoration: none;
+    color: black;
+    position: relative;
+    padding: 0px 15px;
+    box-sizing: border-box;
+    background-color: #fffff5;    
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+}
+.icon-wrapper.active {
+    background-color: #e0f0ff;   /* light blue background */
+    border-radius: 8px;
+    color: #007bff;              /* blue text/icon color */
+}
+.icon-wrapper.active .icon svg {
+    stroke: #007bff;             /* change SVG stroke color */
+}
+.icon-wrapper:hover {
+    background-color: #12c539;
+    color: white;
+}
+
+/* Active state for the icon wrapper */
+a.icon-wrapper.active {
+    background-color: #12c539 !important;
+    color: white !important;
+}
+
+/* Hover state for the icon wrapper */
+a.icon-wrapper:hover {
+    background-color: #12c539;
+    color: white;
+}
+
+.icon {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 5px;
+}
+
+.icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.logo-icon {
+    width: auto; /* Adjust width to fit content */
+    height: 120px;
+    padding: 0; /* Remove left padding */
+    padding-bottom: 20px;
+    background-color: #f7f7f700;
+    background-color: transparent;
+    display: flex;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: flex-start; /* Align to the left */
+    
+    margin-bottom: 15px;
+}
+
+.top-group span {
+    font-size: 16px;
+}
+
+.icon-text {
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.logo-icon img {
+    
+    width: 60%;
+    height: 60%;
+    object-fit:contain;
+}
+
+.user-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.content {
+    margin-left: 20vh; /* Match sidebar width */
+    padding: 20px;
+}
+
+.top-group .icon-wrapper,
+.middle-group .icon-wrapper,
+.bottom-group .icon-wrapper {
+    margin: 3px 0;
+}
+
+
+/* User profile styles (from previous responses) */
+.user-profile {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    width: 100%;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+.user-avatar-link {
+    display: flex;
+    align-items: center;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.user-control {
+    font-size: 12px;
+    color: #777;
+}   

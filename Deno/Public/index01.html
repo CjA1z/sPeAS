@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Research Agenda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Theme Colors (Combined & Prefixed) --- */
+        :root {
+            /* Footer Colors */
+            --ft-theme-gold: #FDB813;
+            --ft-theme-green-dark: #006A4E;
+            --ft-neutral-border-color: #e5e7eb; 
+            --ft-pastel-gold: #FFF5CC;
+            --ft-pastel-green: #D0EAD0;
+            --ft-glass-bg-color: rgba(255, 255, 255, 0.25); 
+            --ft-glass-border-color: rgba(255, 255, 255, 0.4); 
+            --ft-glass-blur-radius: 6px; 
+
+            /* Navbar Colors (Using ft- prefix where applicable) */
+            --nav-theme-gold: var(--ft-theme-gold); /* #FDB813; */
+            --nav-theme-gold-darker: #EAA10F; 
+            --nav-theme-gold-darkest: #D48F0D; 
+            --nav-theme-gold-light-bg: rgba(253, 184, 19, 0.2);
+            --nav-theme-gold-lighter-bg: rgba(253, 184, 19, 0.1); 
+            --nav-theme-gold-highlight: rgba(253, 184, 19, 0.4);
+
+            --nav-theme-green-dark: var(--ft-theme-green-dark); /* #006A4E; */
+            --nav-theme-green-darker-text: #00523D; 
+            --nav-theme-green-light-bg: rgba(0, 106, 78, 0.3);
+            --nav-theme-green-lighter-bg: rgba(0, 106, 78, 0.15);
+            --nav-theme-green-border: rgba(0, 106, 78, 0.7);
+            --nav-theme-navbar-bg: #C8E6C9; /* Darker Greenish Background for Navbar */
+            --nav-neutral-border-color: #b0bec5; 
+            --nav-input-border-color: #b0bec5;
+            --nav-placeholder-text-color: #78909c; 
+            --nav-off-white-text: #F5F5F5; 
+        }
+
+        /* Basic HTML and Body setup for sticky footer */
+        html {
+            height: 100%;
+            margin: 0;
+            cursor: url('peas.ico'), auto; /* Custom cursor for the whole page */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: linear-gradient(to bottom right, #fdfae8, #e6f4ea);
+            display: flex;
+            flex-direction: column;
+            min-height: 100%; 
+            margin: 0;
+            position: relative; 
+            overflow-x: hidden; 
+        }
+
+        /* Wrapper for main page content (below navbar, above footer) */
+        #page-content-container {
+            flex-grow: 1; 
+            padding-top: 4rem; /* Add padding to offset sticky navbar height (h-16 = 4rem) */
+        }
+
+        /* Canvas for confetti - ensuring it's on top */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10000; /* Ensure confetti is above other elements */
+        }
+
+        /* --- Original Page Styles --- */
+        .main-title { 
+            user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+            margin-top: 2.5rem; 
+        }
+        .research-image-display { 
+            display: block; width: 100%; max-width: 48rem; height: auto; 
+            margin-left: auto; margin-right: auto; margin-bottom: 2.5rem; 
+            border-radius: 0.75rem; 
+            background: rgba(255, 255, 255, 0.2); 
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); 
+            user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            cursor: pointer; 
+            overflow: hidden; 
+        }
+        .research-image-display:hover {
+            transform: scale(1.02); 
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15); 
+        }
+        .agenda-container { 
+            background-color: #ffffff; border-radius: 0.75rem; padding: 1.5rem; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
+            max-width: 48rem; margin-left: auto; margin-right: auto;
+        }
+        .agenda-list li { 
+            position: relative; padding: 0.5rem 0.5rem 0.5rem 1.75rem; margin-bottom: 0.75rem; 
+            color: #374151; font-size: 0.95rem; font-weight: normal; line-height: 1.6;
+            border-radius: 0.375rem; 
+            transition: background-color 0.25s ease-in-out, transform 0.25s ease-in-out, font-weight 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+            user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+            transform: scale(1); box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        }
+        .agenda-list li::before { 
+            content: ''; position: absolute; left: 0.5rem; top: 50%;
+            transform: translateY(-50%); height: 0.5rem; width: 0.5rem;  
+            border-radius: 9999px; background-color: #22c55e; 
+            transition: transform 0.25s ease-in-out;
+        }
+        .agenda-list li:hover {
+            background-color: #e7f9ef; transform: scale(1.03); font-weight: bold; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        }
+        .agenda-list li:hover::before { transform: translateY(-50%) scale(1.2); }
+        .image-modal {
+            display: none; position: fixed; z-index: 10000; left: 0; top: 0;
+            width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.85); 
+            justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+        }
+        .image-modal.active { display: flex; }
+        .modal-content { 
+            display: block; margin: auto; max-width: 90%; max-height: 90vh; 
+            border-radius: 8px; animation: zoomIn 0.3s ease-out; 
+        }
+        @keyframes zoomIn { 
+            from {transform: scale(0.5); opacity: 0;}
+            to {transform: scale(1); opacity: 1;}
+        }
+        .modal-close-button {
+            position: absolute; top: 20px; right: 35px; color: #f1f1f1; 
+            font-size: 40px; font-weight: bold; transition: 0.3s;
+            cursor: pointer; user-select: none;
+        }
+        .modal-close-button:hover, .modal-close-button:focus { color: #bbb; text-decoration: none; }
+        .d-animated-gradient-line { 
+            height: 3px; width: 60%; margin: 2rem auto; 
+            border-radius: 1.5px; background-color: #D1D5DB; 
+        }
+        @keyframes subtleBgMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .hero-section {
+            background-size: 200% 200%; 
+            animation: subtleBgMove 25s ease infinite; 
+        }
+        #heroCarousel { 
+            background: rgba(255, 255, 255, 0.15); 
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            cursor: pointer; 
+        }
+        @keyframes movingGlowEffect { 
+            0% { box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.7), inset 0 0 5px 2px rgba(255, 215, 0, 0.35); } 
+            33% { box-shadow: 0 0 22px 9px rgba(60, 179, 113, 0.7), inset 0 0 7px 3px rgba(60, 179, 113, 0.35); }  
+            66% { box-shadow: 0 0 18px 7px rgba(218, 165, 32, 0.7), inset 0 0 6px 2px rgba(218, 165, 32, 0.35); }  
+            100% { box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.7), inset 0 0 5px 2px rgba(255, 215, 0, 0.35); } 
+        }
+        .carousel-item { 
+            transition-property: opacity, transform; transition-duration: 700ms; 
+            transition-timing-function: ease-in-out; position: relative; 
+            animation: movingGlowEffect 5s ease-in-out infinite alternate; 
+            overflow: hidden; 
+        }
+        .carousel-item::after {
+            content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(45deg, 
+                rgba(253, 184, 19, 0.2), rgba(0, 106, 78, 0.2),   
+                rgba(255, 245, 204, 0.15), rgba(208, 234, 208, 0.15),
+                rgba(253, 184, 19, 0.2)  
+            );
+            background-size: 400% 400%; 
+            animation: movingGradientOverlay 10s ease-in-out infinite; 
+            z-index: 1; pointer-events: none; 
+        }
+        @keyframes movingGradientOverlay {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .carousel-item img { position: relative; z-index: 0; }
+        .scroll-reveal-section {
+            opacity: 0; transform: translateY(30px); 
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            will-change: opacity, transform; 
+        }
+        .scroll-reveal-section.is-visible { opacity: 1; transform: translateY(0); }
+        
+        /* --- Footer Styles --- */
+        @keyframes subtleGradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .footer-wrapper { margin-top: auto; width: 100%; }
+        .site-footer {
+            position: relative; overflow: hidden;   
+            background-color: var(--ft-glass-bg-color);
+            -webkit-backdrop-filter: blur(var(--ft-glass-blur-radius)); 
+            backdrop-filter: blur(var(--ft-glass-blur-radius));
+            border: 1px solid var(--ft-glass-border-color);
+            border-radius: 0; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            color: #374151; 
+        }
+        .site-footer::before {
+            content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1; 
+            background: linear-gradient(45deg, var(--ft-pastel-gold), var(--ft-pastel-green), var(--ft-pastel-gold));
+            background-size: 200% 200%; 
+            animation: subtleGradientAnimation 18s ease infinite;
+        }
+        .footer-content-padding {
+            position: relative; z-index: 1; 
+            padding-top: 2rem; padding-bottom: 2rem; 
+            padding-left: 1.5rem; padding-right: 1.5rem;  
+            max-width: 80rem; margin-left: auto; margin-right: auto;     
+        }
+        @media (min-width: 640px) { 
+            .footer-content-padding { padding-left: 2rem; padding-right: 2rem; }
+        }
+        @media (min-width: 1024px) { 
+            .footer-content-padding { padding-left: 2.5rem; padding-right: 2.5rem; }
+        }
+        .footer-link {
+            color: var(--ft-theme-green-dark);
+            transition: color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+            text-decoration: none; font-weight: 500; 
+        }
+        .footer-link:hover { color: var(--ft-theme-gold); opacity: 1; }
+        .copyright-text { color: #6b7280; }
+    </style>
+</head>
+<body> 
+    <canvas id="confetti-canvas"></canvas>
+    
+    <!-- Include the header component -->
+    <div id="header-container"></div>
+
+    <div id="page-content-container" class="px-4 py-6 sm:px-6 lg:px-8">
+        <div class="hero-section relative overflow-hidden bg-gradient-to-br from-yellow-50 via-lime-50 to-green-100 rounded-xl shadow-lg py-12 md:py-16 mb-12 md:mb-16">
+            <div class="absolute inset-0 z-0 flex justify-center items-center pointer-events-none p-4 md:p-8">
+                <img src="/images/peas.png" alt="Background Logo Watermark" class="opacity-[0.035] w-auto h-full max-h-[60vh] md:max-h-[70vh] object-contain">
+            </div>
+            <div class="container mx-auto relative z-10 px-4 sm:px-6 lg:px-8">
+                <div class="grid lg:grid-cols-2 gap-10 md:gap-16 items-center">
+                    <div class="hero-carousel-column">
+                        <div id="heroCarousel" class="relative w-full max-w-xl mx-auto shadow-2xl rounded-lg overflow-hidden border border-white/20 aspect-[4/3]">
+                            <div class="carousel-inner relative w-full h-full">
+                                <div class="carousel-item absolute inset-0 opacity-0 scale-95 p-1 rounded-[2rem] overflow-hidden">
+                                    <img src="images/1.jpg" class="block w-full h-full object-cover" alt="Research Initiative Photo 1" onerror="this.onerror=null;this.src='https://placehold.co/800x600/e2e8f0/94a3b8?text=Image+1+Not+Found';">
+                                </div>
+                                <div class="carousel-item absolute inset-0 opacity-0 scale-95 p-1 rounded-[2rem] overflow-hidden">
+                                    <img src="images/2.jpg" class="block w-full h-full object-cover" alt="Research Initiative Photo 2" onerror="this.onerror=null;this.src='https://placehold.co/800x600/e2e8f0/94a3b8?text=Image+2+Not+Found';">
+                                </div>
+                                <div class="carousel-item absolute inset-0 opacity-0 scale-95 p-1 rounded-[2rem] overflow-hidden">
+                                    <img src="images/3.jpg" class="block w-full h-full object-cover" alt="Research Initiative Photo 3" onerror="this.onerror=null;this.src='https://placehold.co/800x600/e2e8f0/94a3b8?text=Image+3+Not+Found';">
+                                </div>
+                                <div class="carousel-item absolute inset-0 opacity-0 scale-95 p-1 rounded-[2rem] overflow-hidden">
+                                    <img src="/images/4.jpg" class="block w-full h-full object-cover" alt="Research Initiative Photo 4" onerror="this.onerror=null;this.src='https://placehold.co/800x600/e2e8f0/94a3b8?text=Image+4+Not+Found';">
+                                </div>
+                            </div>
+                            <div class="carousel-indicators absolute bottom-2 sm:bottom-3 left-1/2 transform -translate-x-1/2 z-20 flex space-x-1.5 sm:space-x-2">
+                                <button type="button" data-slide-to="0" class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/40 hover:bg-white/70 rounded-full transition-colors"></button>
+                                <button type="button" data-slide-to="1" class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/40 hover:bg-white/70 rounded-full transition-colors"></button>
+                                <button type="button" data-slide-to="2" class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/40 hover:bg-white/70 rounded-full transition-colors"></button>
+                                <button type="button" data-slide-to="3" class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/40 hover:bg-white/70 rounded-full transition-colors"></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hero-text-column text-center lg:text-left"> 
+                        <img src="/images/peas.png" 
+                             alt="PeAS Logo" 
+                             class="h-20 w-auto mb-4 mx-auto lg:mx-0" 
+                             onerror="this.onerror=null;this.src='https://placehold.co/150x80/006A4E/FFFFFF?text=PeAS+Logo';">
+                        
+                        <h1 class="text-3xl lg:text-4xl font-bold text-green-800 mb-5 sm:mb-6">Welcome to the Office of Research &amp; Publications</h1>
+                        <div class="space-y-4 text-base md:text-lg leading-relaxed text-gray-700">
+                            <p>The Office of Research &amp; Publications of St. Paul University Dumaguete is proud to share the institution's research activities, initiatives and publications in this website.</p>
+                            <p>Our innovations and scientific discoveries are expanding human knowledge and extending help to improve the institution and the public community.</p>
+                            <p>The office provides standards aligned with its newly crafted research agenda and in parallel with the priorities mandated by several agencies towards sustainability and development goals of our country.</p>
+                            <p>This is an avenue that would allow both faculty and students to engage in meaningful research and innovations to improve our understanding of the population we serve. The office strives for excellence, integrity, and ethics in our work, and dedicates all outputs to the pursuit of truth, knowledge, freedom, and holistic formation.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-animated-gradient-line" title="Divider"></div>
+
+        <div class="container mx-auto"> 
+            <div class="scroll-reveal-section">
+                <h2 class="main-title text-4xl font-bold text-center mb-10 md:mb-16 text-green-700">Organizational Chart</h2>
+                <img src="/images/org-chart.png"
+                     alt="Organization Chart (Click to enlarge)"
+                     id="orgChartImage"
+                     class="research-image-display"
+                     onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Org+Chart+Not+Found';"> 
+            </div>
+            
+            <div class="d-animated-gradient-line" title="Divider"></div>
+
+            <div class="scroll-reveal-section">
+                <h1 class="main-title text-4xl font-bold text-center mb-10 md:mb-16 text-green-700">Research Agenda</h1>
+                <img src="/images/prism.png"
+                     alt="Research Prism Diagram (Click to enlarge)"
+                     id="prismImage"
+                     class="research-image-display"
+                     onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Prism+Diagram+Not+Found';"> 
+                
+                <div class="agenda-container">
+                    <ul class="agenda-list" id="researchAgendaList">
+                        <li>Paulinian Spirituality/Identity and its impact to international community and global partnerships</li>
+                        <li>Paulinian Mission / Vision / Philosophy / Goals</li>
+                        <li>Paulinian Roots and Formation</li>
+                        <li>Advocacy (Peace, Pro-Life, Environment, Disaster & Risks Management)</li>
+                        <li>Global Mental Health and Wellness</li>
+                        <li>Synodal Church: Communion, Participation, and Mission</li>
+                        <li>Inclusivity and Equity in Education</li>
+                        <li>Curriculum development and Innovation geared towards internalization and global partnership</li>
+                        <li>OBE - Instruction</li>
+                        <li>Technology Integration</li>
+                        <li>Faculty / Staff Development</li>
+                        <li>Infrastructure / Software Development and Innovation</li>
+                        <li>Financial Management, Sustainability, and Energy Security</li>
+                        <li>Environmental Discipline and Stewardship</li>
+                        <li>Ethical Leaders & Professionals</li>
+                        <li>Cutting-edge Resilient Visionaries & Innovators; Engaging, Trustworthy Team Builders & Mentors; Reliable, Productive Experts & Implementers; Dedicated, Transformative Supporters & Stewardship in the context of international community and global partnerships</li>
+                        <li>Civic and Community Involvement</li>
+                        <li>Equality and Diversity</li>
+                        <li>Economic cooperation and integration</li>
+                        <li>Student and Faculty Mobility</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="imageModal" class="image-modal">
+            <span class="modal-close-button" id="modalCloseButton">&times;</span>
+            <img class="modal-content" id="modalImage" src="" alt="Maximized Image">
+        </div>
+    </div> 
+
+    <div class="footer-wrapper"> 
+        <footer class="site-footer">
+            <div class="footer-content-padding"> 
+                <div class="flex flex-col lg:flex-row lg:justify-between items-center lg:items-start gap-16 text-center lg:text-left">
+                    <div class="flex-shrink-0">
+                        <div class="flex flex-col items-center text-center sm:items-start sm:text-left mb-3">
+                            <img class="h-16 w-auto sm:h-20 mb-2 sm:mb-0"
+                                 src="/images/spud-logo.png" 
+                                 alt="Spud Logo Placeholder"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/100x40/006A4E/FFFFFF?text=Spud';">
+                        </div>
+                        <p class="text-xs copyright-text">&copy; <span id="footerCurrentYear"></span> PeAS. All Rights Reserved.</p>
+                    </div>
+                    <nav class="flex flex-col items-center lg:items-start space-y-2 text-sm">
+                        <a href="#" class="footer-link">Home</a>
+                        <a href="#" class="footer-link">Contact</a>
+                        <a href="#" class="footer-link">Terms & Conditions</a>
+                        <a href="#" class="footer-link">Privacy Policy</a>
+                    </nav>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        // Override any custom Webflow functions that might be causing errors
+        window.Webflow = window.Webflow || {};
+        window.Webflow.push = function() {}; // Create empty function to prevent errors
+        
+        // Wait for the document to be ready
+        $(document).ready(function() {
+            // Use jQuery's load method which is specifically designed for loading HTML fragments
+            $("#header-container").load("./Components/header.html", function() {
+                // This callback runs after the header is loaded
+                console.log("Header loaded successfully");
+                
+                // Load the header-init.js script to handle user login state and search functionality
+                $.getScript("./Components/js/header-init.js")
+                    .done(function() {
+                        console.log("Header init script loaded successfully");
+                    })
+                    .fail(function(jqxhr, settings, exception) {
+                        console.error("Error loading header-init.js:", exception);
+                        });
+                    });
+        });
+    </script>
+
+    <!-- Load Webflow script after jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script>
+        // Override any custom Webflow functions that might be causing errors
+        window.Webflow = window.Webflow || {};
+        window.Webflow.push = function() {}; // Create empty function to prevent errors
+    </script>
+   
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load the header component
+            fetch('/Components/header.html')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('header-container').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading header component:', error);
+                    document.getElementById('header-container').innerHTML = '<div class="error">Error loading header component</div>';
+                });
+
+            // Scroll Reveal Logic
+            const revealElements = document.querySelectorAll('.scroll-reveal-section');
+            const revealObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target); 
+                    }
+                });
+            }, { threshold: 0.1 });
+            revealElements.forEach(el => { revealObserver.observe(el); });
+
+            // Carousel Logic
+            const carousel = document.getElementById('heroCarousel');
+            if (carousel) {
+                const items = carousel.querySelectorAll('.carousel-item');
+                const indicators = carousel.querySelectorAll('.carousel-indicators button');
+                let currentIndex = 0;
+                const totalItems = items.length;
+                let autoSlideInterval;
+
+                function showSlide(index) {
+                    currentIndex = (index + totalItems) % totalItems; 
+                    items.forEach((item, i) => {
+                        const isActive = i === currentIndex;
+                        item.style.opacity = isActive ? '1' : '0';
+                        item.style.transform = isActive ? 'scale(1)' : 'scale(0.95)';
+                        item.style.zIndex = isActive ? '10' : '0';
+                    });
+                    indicators.forEach((indicator, i) => {
+                        indicator.classList.toggle('bg-white', i === currentIndex); 
+                        indicator.classList.toggle('bg-white/40', i !== currentIndex); 
+                    });
+                }
+
+                function nextSlide() { showSlide(currentIndex + 1); }
+                function prevSlide() { showSlide(currentIndex - 1); }
+
+                function startAutoSlide() {
+                    stopAutoSlide(); 
+                    if (totalItems > 1) {
+                        autoSlideInterval = setInterval(nextSlide, 3000);
+                    }
+                }
+
+                function stopAutoSlide() {
+                    clearInterval(autoSlideInterval);
+                }
+
+                if (totalItems > 0) {
+                    // Initialize first slide
+                    showSlide(0);
+
+                    // Add click handlers
+                    carousel.addEventListener('click', (e) => {
+                        if (e.target.closest('.carousel-indicators button')) return; 
+                        const rect = carousel.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        if (x < rect.width / 2) {
+                            prevSlide();
+                        } else {
+                            nextSlide();
+                        }
+                        stopAutoSlide();
+                        startAutoSlide();
+                    });
+
+                    // Add hover handlers
+                    carousel.addEventListener('mouseenter', stopAutoSlide);
+                    carousel.addEventListener('mouseleave', startAutoSlide);
+
+                    // Add indicator click handlers
+                    indicators.forEach((indicator, i) => {
+                        indicator.addEventListener('click', (e) => { 
+                            e.stopPropagation();
+                            showSlide(i);
+                            stopAutoSlide();
+                            startAutoSlide();
+                        });
+                    });
+
+                    // Start auto-sliding
+                    startAutoSlide(); 
+                }
+            }
+
+            // Image Modal Logic
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalCloseButton = document.getElementById('modalCloseButton');
+            const openModalWithImage = (imageUrl, imageAlt) => {
+                if (modal && modalImage) {
+                    modalImage.src = imageUrl;
+                    modalImage.alt = imageAlt || "Maximized Image";
+                    modal.classList.add('active'); 
+                    document.body.style.overflow = 'hidden'; 
+                }
+            };
+
+            const orgChartImage = document.getElementById('orgChartImage');
+            const prismImage = document.getElementById('prismImage');
+            if (orgChartImage) {
+                orgChartImage.addEventListener('click', () => {
+                    openModalWithImage(orgChartImage.src, orgChartImage.alt);
+                });
+            }
+            if (prismImage) {
+                prismImage.addEventListener('click', () => {
+                    openModalWithImage(prismImage.src, prismImage.alt);
+                });
+            }
+
+            if (modal && modalCloseButton) {
+                const closeModal = () => {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = '';
+                };
+                modalCloseButton.addEventListener('click', closeModal);
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        closeModal();
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && modal.classList.contains('active')) {
+                        closeModal();
+                    }
+                });
+            }
+
+            // Footer Year Logic
+            const yearElement = document.getElementById('footerCurrentYear');
+            if (yearElement) {
+                yearElement.textContent = new Date().getFullYear();
+            }
+        });
+    </script>
+</body>
+</html>

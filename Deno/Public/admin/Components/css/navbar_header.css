@@ -1,0 +1,59 @@
+body {
+    max-width: 100%;
+    font-family: sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin: 0 auto; 
+}
+
+.header {
+    position: relative;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin: 0 auto; 
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center content horizontally */
+    font-family: sans-serif;
+    color: black;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: #fffff5;
+
+}
+
+/* Ensure these styles apply with higher specificity */
+#navbar-header .logo,
+.header .logo {
+    width: 1200px;
+    display: flex;
+    align-items: center;
+}
+
+#navbar-header .logo-spud,
+.header .logo-spud {
+    width: 80px; 
+    height: 80px; 
+    background-size: contain; 
+    background-repeat: no-repeat;
+    background-position: center; 
+    margin-right: 15px !important; /* Force margin with !important to override other styles */
+}
+
+#navbar-header .spud-text,
+.header .spud-text {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+#navbar-header .content,
+.header .content {
+    display: flex;
+    flex-direction: column; 
+    margin: 0 !important; /* Force zero margin with !important */
+    padding: 0 !important; /* Force zero padding with !important */
+}
+
+.content p {
+    font-size: 0.9em; /* Adjust as needed */
+    margin: 0; /* Remove default margins */
+    white-space: nowrap; /* Prevent text wrapping */
+}
