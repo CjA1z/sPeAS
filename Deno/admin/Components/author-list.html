@@ -613,13 +613,16 @@
                             // Log each work to console for debugging
                             console.log("Rendering work:", work);
                             
+                            // Encode the work data for passing to openDocument
+                            const encodedWorkData = encodeURIComponent(JSON.stringify(work));
+                            
                             worksHtml += `
                                 <div class="ad-work-card">
                                     <div class="flex justify-between items-center text-xs text-gray-500 mb-1">
                                         <span class="font-medium">${work.category || 'N/A'}</span>
                                         <span class="font-medium">${work.year || 'N/A'}</span>
                                     </div>
-                                    <a href="${work.url || '#'}" target="_blank" rel="noopener noreferrer" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
+                                    <a href="javascript:void(0)" onclick="openDocument('${encodedWorkData}')" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
                                     <p class="text-xs text-gray-600"><span class="font-medium">Keywords:</span> ${work.researchAgenda || 'N/A'}</p>
                                 </div>`;
                         });
@@ -752,6 +755,9 @@
                     if (author.works && author.works.length > 0) {
                         initialWorksHtml = '<div class="space-y-2">'; // Container for work cards
                         author.works.forEach(work => {
+                            // Encode the work data for passing to openDocument
+                            const encodedWorkData = encodeURIComponent(JSON.stringify(work));
+                            
                             // Create HTML for each work item
                             initialWorksHtml += `
                                 <div class="ad-work-card">
@@ -759,7 +765,7 @@
                                         <span class="font-medium">${work.category || 'N/A'}</span>
                                         <span class="font-medium">${work.year || 'N/A'}</span>
                                     </div>
-                                    <a href="${work.url || '#'}" target="_blank" rel="noopener noreferrer" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
+                                    <a href="javascript:void(0)" onclick="openDocument('${encodedWorkData}')" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
                                     <p class="text-xs text-gray-600"><span class="font-medium">Keywords:</span> ${work.researchAgenda || 'N/A'}</p>
                                 </div>`;
                         });
@@ -1304,6 +1310,51 @@
                     notification.style.display = "none";
                 }, 300);
             }, 3000);
+        }
+
+        // Update the openDocument function to open in new tab
+        async function openDocument(encodedWorkData) {
+            try {
+                console.log('Opening document with encoded data:', encodedWorkData);
+                
+                // Decode and parse the work data
+                const decodedData = decodeURIComponent(encodedWorkData);
+                console.log('Decoded work data:', decodedData);
+                
+                const work = JSON.parse(decodedData);
+                console.log('Parsed work data:', work);
+                
+                // Get document data from the work object
+                const documentData = work.document;
+                if (!documentData) {
+                    throw new Error('No document data available');
+                }
+                
+                console.log('Document data:', documentData);
+                
+                // Get the file path directly from document data
+                const filePath = documentData.file_path;
+                if (!filePath) {
+                    throw new Error('No file path available in document data');
+                }
+                
+                console.log('File path from document:', filePath);
+                
+                // Check if the file exists
+                const fileCheck = await fetch(filePath, { method: 'HEAD' });
+                if (!fileCheck.ok) {
+                    console.error('File not found at path:', filePath);
+                    console.error('File check status:', fileCheck.status);
+                    throw new Error(`Document file not found at ${filePath}`);
+                }
+                
+                // Open the document in a new tab
+                window.open(filePath, '_blank');
+                
+            } catch (error) {
+                console.error('Error opening document:', error);
+                showNotification(`Error opening document: ${error.message}`, 'error');
+            }
         }
     </script>
     <script>
