@@ -18,8 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const userName = document.getElementById('userName');
         
         if (!loginContainer || !userDropdownContainer || !userName) {
-            console.log('Header elements not found. Header might not be loaded yet.');
-            return;
+                        return;
         }
         
         // Get user info from sessionStorage instead of localStorage
@@ -27,16 +26,14 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         } catch (e) {
-            console.log('No user info found or invalid format');
-        }
+                    }
         
         // If logged in
         if (userInfo && (userInfo.isLoggedIn || userInfo.token)) {
             // Check if server has been restarted since login
             checkServerRestart(userInfo).then(isRestarted => {
                 if (isRestarted) {
-                    console.log('Server has been restarted. Logging out automatically...');
-                    performLogout();
+                                        performLogout();
                     return;
                 }
                 
@@ -87,7 +84,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }).catch(error => {
-                console.error('Error checking server restart:', error);
                 // Show login button as a fallback in case of errors
                 loginContainer.style.display = 'block';
                 userDropdownContainer.style.display = 'none';
@@ -131,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             return false;
         } catch (error) {
-            console.error('Error checking server status:', error);
             // Assume server restarted if we can't verify
             return true;
         }
@@ -167,7 +162,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.reload();
             }
         }).catch(function(error) {
-            console.error('Logout error:', error);
         });
     }
     

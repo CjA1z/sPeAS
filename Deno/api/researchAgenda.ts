@@ -74,7 +74,6 @@ export async function handleAddResearchAgendaItems(request: Request): Promise<Re
       });
     }
   } catch (error) {
-    console.error("Error adding research agenda items:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -106,7 +105,6 @@ export async function handleGetResearchAgendaItems(request: Request): Promise<Re
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("Error fetching research agenda items:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -152,7 +150,6 @@ export async function handleCreateResearchAgendaItem(request: Request): Promise<
       });
     }
   } catch (error) {
-    console.error("Error creating research agenda item:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -210,7 +207,6 @@ export async function handleCreateResearchAgendaItems(request: Request): Promise
       });
     }
   } catch (error) {
-    console.error("Error in batch agenda item creation:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -241,7 +237,6 @@ export async function handleSearchResearchAgendaItems(request: Request): Promise
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("Error searching research agenda items:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,

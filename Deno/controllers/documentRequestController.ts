@@ -29,8 +29,7 @@ export class DocumentRequestController {
 
             // Check if this is a request for an entire collection
             const isEntireCollection = !!requestData.is_entire_collection;
-            console.log(`Document request for document ID ${requestData.document_id}, is entire collection: ${isEntireCollection}`);
-
+            
             let document;
             let documentId = parseInt(requestData.document_id);
 
@@ -39,8 +38,7 @@ export class DocumentRequestController {
 
             // If not found in documents table, check compiled_documents table
             if (!document) {
-                console.log(`Document not found in documents table, checking compiled_documents table`);
-                try {
+                                try {
                     const compiledResult = await client.queryObject(`
                         SELECT cd.*, 
                             COALESCE(
@@ -71,12 +69,10 @@ export class DocumentRequestController {
                             is_compiled: true,
                             file_path: ''  // Compiled documents don't typically have a file_path
                         };
-                        console.log(`Found compiled document: ${document.title}`);
-                        
+                                                
                         // If this is an entire collection request, get child documents
                         if (isEntireCollection && Array.isArray(requestData.child_document_ids)) {
-                            console.log(`Request includes ${requestData.child_document_ids.length} child documents`);
-                            requestData.child_documents = requestData.child_document_ids;
+                                                        requestData.child_documents = requestData.child_document_ids;
                         } else if (isEntireCollection) {
                             // Try to fetch child documents if not provided in request
                             try {
@@ -93,21 +89,17 @@ export class DocumentRequestController {
                                         const typedRow = row as Record<string, any>;
                                         return typedRow.id;
                                     });
-                                    console.log(`Found ${requestData.child_documents.length} child documents`);
-                                }
+                                                                    }
                             } catch (childError) {
-                                console.error(`Error fetching child documents:`, childError);
                             }
                         }
                     }
                 } catch (error) {
-                    console.error(`Error checking compiled_documents table:`, error);
                 }
             }
 
             // If document still not found, return error
             if (!document) {
-                console.error(`Document with ID ${documentId} not found in any table`);
                 ctx.response.status = 404;
                 ctx.response.body = { error: 'Document not found' };
                 return;
@@ -129,8 +121,7 @@ export class DocumentRequestController {
             // Process email asynchronously after responding to the client
             setTimeout(async () => {
                 try {
-                    console.log("Sending document request confirmation email (background process)...");
-                
+                                    
                 // Extract document info
                 const documentInfo = {
                     title: document.title || 'Requested Document',
@@ -160,9 +151,7 @@ export class DocumentRequestController {
                     requestId
                         );
                         
-                        console.log(`Confirmation email ${emailSuccess ? 'sent to' : 'failed for'} ${requestData.email}`);
-                    } catch (innerEmailError) {
-                        console.error("Failed to send confirmation email:", innerEmailError);
+                                            } catch (innerEmailError) {
                         emailSuccess = false;
                     }
                     
@@ -173,15 +162,12 @@ export class DocumentRequestController {
                             email_error: emailSuccess ? null : "Failed to send confirmation email"
                 });
                     } catch (updateError) {
-                        console.error("Failed to update request with email status:", updateError);
                     }
                 } catch (outerEmailError) {
-                    console.error("Error in email confirmation background process:", outerEmailError);
             }
             }, 100);
             
         } catch (error) {
-            console.error('Error creating document request:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -193,7 +179,6 @@ export class DocumentRequestController {
             const requests = await this.documentRequestModel.getAll();
             ctx.response.body = requests;
         } catch (error) {
-            console.error('Error getting document requests:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -212,7 +197,6 @@ export class DocumentRequestController {
             const requests = await this.documentRequestModel.getByStatus(status as 'pending' | 'approved' | 'rejected');
             ctx.response.body = requests;
         } catch (error) {
-            console.error('Error getting document requests by status:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -231,7 +215,6 @@ export class DocumentRequestController {
             const requests = await this.documentRequestModel.getByDocumentId(documentId);
             ctx.response.body = requests;
         } catch (error) {
-            console.error('Error getting document requests:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -299,7 +282,6 @@ export class DocumentRequestController {
                     const document = await DocumentModel.getById(documentId);
                     
                     if (!document) {
-                        console.error(`Document not found: ${request.document_id}`);
                         ctx.response.status = 200;
                         ctx.response.body = { 
                             success: true, 
@@ -323,16 +305,13 @@ export class DocumentRequestController {
                             `${Deno.cwd()}/storage/${filePath}`
                         ];
                         
-                        console.log(`[DOC REQUEST] Checking file existence for document: ${request.document_id}`);
-                        console.log(`[DOC REQUEST] File path from database: ${filePath}`);
-                        
+                                                                        
                         for (const path of pathsToCheck) {
                             try {
                                 const fileInfo = await Deno.stat(path);
                                 if (fileInfo.isFile) {
                                     fileExists = true;
-                                    console.log(`[DOC REQUEST] Found document file at: ${path}`);
-                                    break;
+                                                                        break;
                                 }
                             } catch (error) {
                                 // File doesn't exist at this path, try next one
@@ -340,11 +319,8 @@ export class DocumentRequestController {
                         }
                         
                         if (!fileExists) {
-                            console.warn(`[DOC REQUEST] Document file not found at any expected location!`);
-                            console.warn(`[DOC REQUEST] This will likely result in an email without attachments.`);
                         }
                     } else {
-                        console.warn(`[DOC REQUEST] No file path available for document: ${request.document_id}`);
                     }
                     
                     // Proceed with sending the email
@@ -373,7 +349,6 @@ export class DocumentRequestController {
                         fileFound: fileExists
                     };
                 } catch (error: any) {
-                    console.error("Error sending approval email:", error);
                     ctx.response.status = 200; // Still return 200 as the status update was successful
                     ctx.response.body = { 
                         success: true, 
@@ -396,8 +371,7 @@ export class DocumentRequestController {
                     const title = document ? document.title : "Requested Document";
                     const requestIdString = request.id ? request.id.toString() : "unknown";
                     
-                    console.log(`[DOC REQUEST] Sending rejection email for request ID: ${requestIdString}`);
-                    
+                                        
                     // Send rejection email with the rejection reason from reviewNotes
                     await sendRejectedRequestEmail(
                         request.email,
@@ -413,7 +387,6 @@ export class DocumentRequestController {
                         emailSent: true
                     };
                 } catch (error: any) {
-                    console.error("Error sending rejection email:", error);
                     ctx.response.status = 200; // Still return 200 as the status update was successful
                     ctx.response.body = { 
                         success: true, 
@@ -425,7 +398,6 @@ export class DocumentRequestController {
                 ctx.response.body = { success: true };
             }
         } catch (error) {
-            console.error('Error updating request status:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -445,7 +417,6 @@ export class DocumentRequestController {
 
             ctx.response.body = { message: 'Request deleted successfully' };
         } catch (error) {
-            console.error('Error deleting request:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }
@@ -484,7 +455,6 @@ export class DocumentRequestController {
                     ctx.response.body = { hasAccess };
                     return;
                 } catch (error) {
-                    console.error(`Error checking compiled_documents:`, error);
                     ctx.response.status = 404;
                     ctx.response.body = { error: 'Document not found' };
                     return;
@@ -507,7 +477,6 @@ export class DocumentRequestController {
             const hasAccess = await this.documentRequestModel.hasApprovedRequest(documentId || '', email);
             ctx.response.body = { hasAccess };
         } catch (error) {
-            console.error('Error checking document access:', error);
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
         }

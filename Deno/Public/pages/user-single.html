@@ -608,7 +608,6 @@
                     return;
                 }
             } catch (e) {
-                console.error('Error getting user auth info:', e);
                 showMessage('Authentication error. Please log in again.', 'error');
                 return;
             }
@@ -676,11 +675,9 @@
                         localStorage.setItem('savedForLater', JSON.stringify(savedItems));
                     }
                 } catch (e) {
-                    console.warn('Could not update localStorage fallback:', e);
                 }
             })
             .catch(error => {
-                console.error('Error adding document to library:', error);
                 showMessage(error.message || 'Failed to add document to library', 'error');
                 
                 // Reset button
@@ -708,7 +705,6 @@
             if (window.NavbarModule) {
                 window.NavbarModule.init();
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
             
             // No document fetching here - moved to single script below
@@ -725,12 +721,10 @@
             
             // Helper function to get author display name from document data
             function getAuthorDisplayName(data) {
-                console.log('Getting author display name from data:', data);
-                
+                                
                 // Check enhancedAuthors first (this is how compiled documents get their author data)
                 if (data.enhancedAuthors && Array.isArray(data.enhancedAuthors) && data.enhancedAuthors.length > 0) {
-                    console.log('Using enhancedAuthors array', data.enhancedAuthors);
-                    return data.enhancedAuthors.map(author => {
+                                        return data.enhancedAuthors.map(author => {
                         return author.full_name || author.name || 
                                (author.first_name && author.last_name ? `${author.first_name} ${author.last_name}` : 
                                author.id ? `ID: ${author.id}` : 'Unknown');
@@ -739,8 +733,7 @@
                 
                 // Check for document_authors relation
                 if (data.document_authors && Array.isArray(data.document_authors) && data.document_authors.length > 0) {
-                    console.log('Using document_authors relation', data.document_authors);
-                    return data.document_authors.map(docAuthor => {
+                                        return data.document_authors.map(docAuthor => {
                         const author = docAuthor.author || docAuthor;
                         return author.full_name || author.name || 
                                (author.first_name && author.last_name ? `${author.first_name} ${author.last_name}` : 
@@ -783,8 +776,7 @@
                 if (data.enhancedAuthors && Array.isArray(data.enhancedAuthors) && data.enhancedAuthors.length > 0) {
                     const firstAuthor = data.enhancedAuthors[0];
                     if (firstAuthor.id) {
-                        console.log(`Found author ID in enhancedAuthors: ${firstAuthor.id}`);
-                        return firstAuthor.id;
+                                                return firstAuthor.id;
                     }
                 }
                 
@@ -792,38 +784,30 @@
                 if (data.document_authors && Array.isArray(data.document_authors) && data.document_authors.length > 0) {
                     const firstDocAuthor = data.document_authors[0];
                     if (firstDocAuthor.author && firstDocAuthor.author.id) {
-                        console.log(`Found author ID in document_authors: ${firstDocAuthor.author.id}`);
-                        return firstDocAuthor.author.id;
+                                                return firstDocAuthor.author.id;
                     }
                     if (firstDocAuthor.author_id) {
-                        console.log(`Found author_id in document_authors: ${firstDocAuthor.author_id}`);
-                        return firstDocAuthor.author_id;
+                                                return firstDocAuthor.author_id;
                     }
                 }
                 
                 // Try to get from direct author_id field
                 if (data.author_id) {
-                    console.log(`Found direct author_id field: ${data.author_id}`);
-                    return data.author_id;
+                                        return data.author_id;
                 }
                 
                 // Try to get from author object
                 if (data.author && typeof data.author === 'object' && data.author.id) {
-                    console.log(`Found author.id: ${data.author.id}`);
-                    return data.author.id;
+                                        return data.author.id;
                 }
-                
-                console.warn('No author ID found in document data');
                 return null;
             }
             
             // Get document ID and use it to fetch document data
             const documentId = getDocumentIdFromUrl();
             if (documentId) {
-                console.log(`Loading document with ID: ${documentId}`);
-                fetchSingleDocumentData(documentId);
+                                fetchSingleDocumentData(documentId);
             } else {
-                console.warn('No document ID provided in URL');
                 showError('No document ID provided');
             }
 
@@ -838,58 +822,46 @@
                     
                     // First check if this is a compiled document
                     try {
-                        console.log(`Checking if document ${docId} is a compiled document...`);
-                        const compiledResponse = await fetch(`/api/compiled-documents/${docId}`);
+                                                const compiledResponse = await fetch(`/api/compiled-documents/${docId}`);
                         if (compiledResponse.ok) {
-                            console.log(`Document ${docId} is a compiled document, redirecting...`);
-                            foundInCompiledDocuments = true;
+                                                        foundInCompiledDocuments = true;
                             // Redirect to compiled document page
                             window.location.href = `/pages/user-compiled.html?id=${docId}`;
                             return;
                         } else {
-                            console.log(`Document ${docId} is not a compiled document (status: ${compiledResponse.status})`);
-                        }
+                                                    }
                     } catch (err) {
-                        console.warn('Network error when checking compiled documents:', err);
                         // Continue to next approach - don't stop if this fails
                     }
                     
                     // If not found in compiled documents, try the regular documents API
                     if (!foundInCompiledDocuments) {
                         // Attempt to fetch from regular documents API
-                        console.log(`Fetching document ${docId} from regular documents API...`);
-                        try {
+                                                try {
                         const response = await fetch(`/api/documents/${docId}`);
                         
                         if (response.ok) {
                             documentData = await response.json();
-                                console.log(`Document data received:`, documentData);
-                                
+                                                                
                                 // ALWAYS try to fetch additional author data regardless of what's in the document
                                 try {
-                                    console.log(`Fetching author information specifically for document ${docId}...`);
-                                    const authorResponse = await fetch(`/api/document-authors/${docId}`);
+                                                                        const authorResponse = await fetch(`/api/document-authors/${docId}`);
                                     
                                     if (authorResponse.ok) {
                                         const authorData = await authorResponse.json();
-                                        console.log(`Author data received from document-authors API:`, authorData);
-                                        
+                                                                                
                                         // Add author data to document data
                                         if (authorData.authors && Array.isArray(authorData.authors)) {
-                                            console.log(`Found ${authorData.authors.length} authors for document ${docId}`);
-                                            documentData.enhancedAuthors = authorData.authors;
+                                                                                        documentData.enhancedAuthors = authorData.authors;
                                             documentData.document_authors = authorData.authors.map(author => ({
                                                 author_id: author.id,
                                                 author: author
                                             }));
                                         } else {
-                                            console.warn(`No authors array found in response from document-authors API`);
                                         }
                                     } else {
-                                        console.warn(`Could not fetch author details: ${authorResponse.status} ${authorResponse.statusText}`);
                                     }
                                 } catch (authorErr) {
-                                    console.warn(`Error fetching author details:`, authorErr);
                                 }
                             
                             // Double-check if this is actually a compiled document
@@ -898,7 +870,6 @@
                                              documentData.child_count > 0;
                                              
                             if (isCompiled) {
-                                console.warn('This document is a compiled document');
                                 // Redirect to compiled document page
                                 window.location.href = `/pages/user-compiled.html?id=${docId}`;
                                 return;
@@ -911,14 +882,11 @@
                             trackDocumentVisit(docId);
                             } else if (response.status === 404) {
                                 // Handle 404 specifically
-                                console.error(`Document ${docId} not found (404)`);
                                 throw new Error(`Document not found. The document with ID ${docId} may have been removed or is not accessible.`);
                         } else {
-                                console.error(`Failed to fetch document ${docId}: ${response.status} ${response.statusText}`);
                             throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
                             }
                         } catch (networkErr) {
-                            console.error('Network error when fetching document:', networkErr);
                             throw new Error(`Network error: ${networkErr.message}. Please check your connection and try again.`);
                         }
                     }
@@ -927,7 +895,6 @@
                     showLoading(false);
                     
                 } catch (error) {
-                    console.error('Error fetching document data:', error);
                     document.getElementById('documentContent').innerHTML = `
                         <div class="document-item-base" style="text-align: center; padding: 2rem;">
                             <div style="color: #dc2626; margin-bottom: 1rem;">
@@ -979,7 +946,6 @@
                             return false;
                         }
                     } catch (e) {
-                        console.warn('Error parsing user info:', e);
                         return false;
                     }
 
@@ -996,14 +962,12 @@
                             return data.inLibrary === true;
                         }
                     } catch (apiError) {
-                        console.warn('API error checking library status:', apiError);
                     }
                     
                     // Fallback to localStorage
                     const savedItems = JSON.parse(localStorage.getItem('savedForLater') || '[]');
                     return savedItems.includes(documentId);
                 } catch (error) {
-                    console.error('Error checking library status:', error);
                     return false;
                 }
             }
@@ -1011,25 +975,20 @@
             function displayDocument(data) {
                 // Skip if no data returned
                 if (!data) {
-                    console.error('No data received to display');
                     showError('No document data received from server');
                     return;
                 }
                 
                 // Log received data for debugging
-                console.log('Processing document data:', data);
-                
+                                
                 // Check if we received mock data (some APIs return a default when data isn't found)
                 if (data.mock === true || data.is_mock === true) {
-                    console.warn('Received mock data instead of real document data');
                     showError('The requested document was not found in the database');
                     return;
                 }
                 
                 // Check if received data contains minimum required fields
                 if (!data.id || (!data.title && !data.abstract && !data.description)) {
-                    console.warn('Document data is missing critical fields:', data);
-                    
                     // Still try to display what we have, but show warning
                     contentElement.innerHTML = `
                         <div class="document-item-base" style="border-left: 4px solid #f59e0b;">
@@ -1062,8 +1021,7 @@
                         
                         // Add click tracking
                         authorHeader.onclick = function(e) {
-                            console.log(`Navigating to author profile: ${authorId}`);
-                        };
+                                                    };
                     } else {
                         authorHeader.href = '#';
                         authorHeader.style.textDecoration = 'none';
@@ -1213,7 +1171,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error checking library status:', error);
                     // Continue with default state (not in library)
                     // This is the same code as above but without the library check
                     const documentHtml = `
@@ -1344,20 +1301,16 @@
             // Initialize document visit tracking for single documents
             if (window.DocumentTracker) {
                     if (typeof window.DocumentTracker.initSingleDocumentTracking === 'function') {
-                    console.log(`Tracking visit to single document: ${docId}`);
-                    // Use the enhanced tracking that handles parent-child relationship
+                                        // Use the enhanced tracking that handles parent-child relationship
                         window.DocumentTracker.initSingleDocumentTracking(docId);
                 } else {
-                    console.warn('Enhanced document tracking not available, using fallback');
-                    
                     // Determine visitor type
                     let visitorType = 'guest';
                         try {
                         const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo'));
                         visitorType = userInfo?.isLoggedIn ? 'user' : 'guest';
                         } catch (e) {
-                            console.log('No user info found or invalid format');
-                        }
+                                                    }
                     
                     // Use basic recording function if available
                     if (typeof window.DocumentTracker.recordDocumentVisit === 'function') {
@@ -1368,7 +1321,6 @@
                     }
                     }
                         } else {
-                console.error('DocumentTracker not found! Make sure document-visit-tracker.js is loaded correctly.');
                 }
             }
 

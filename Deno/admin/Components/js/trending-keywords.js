@@ -9,14 +9,12 @@
 // Function to fetch trending keywords
 async function fetchTrendingKeywords() {
     try {
-        console.log('Fetching trending keywords...');
-        // Show loading state
+                // Show loading state
         showLoadingState();
         
         // Skip the failing endpoint and go directly to the working documents list endpoint
         await fetchKeywordsFromDocumentsList();
     } catch (error) {
-        console.error('Error fetching trending keywords:', error);
         // Use hardcoded keywords as last resort
         useHardcodedKeywords();
     }
@@ -29,18 +27,15 @@ async function fetchKeywordsFromMostVisitedDocuments() {
         const response = await fetch('/api/most-visited-documents?period=30&limit=20');
         
         if (!response.ok) {
-            console.log(`HTTP error! Most visited documents status: ${response.status}`);
-            // Fallback to documents list
+                        // Fallback to documents list
             await fetchKeywordsFromDocumentsList();
             return;
         }
         
         const data = await response.json();
-        console.log('Most visited documents data received:', data);
-        
+                
         if (!data || !Array.isArray(data.documents) || data.documents.length === 0) {
-            console.log('No most visited documents data available');
-            await fetchKeywordsFromDocumentsList();
+                        await fetchKeywordsFromDocumentsList();
             return;
         }
         
@@ -57,8 +52,7 @@ async function fetchKeywordsFromMostVisitedDocuments() {
         });
         
         if (allKeywords.length === 0) {
-            console.log('No keywords found in most visited documents');
-            await fetchKeywordsFromDocumentsList();
+                        await fetchKeywordsFromDocumentsList();
             return;
         }
         
@@ -82,7 +76,6 @@ async function fetchKeywordsFromMostVisitedDocuments() {
             await fetchKeywordsFromDocumentsList();
         }
     } catch (error) {
-        console.error('Error extracting keywords from most visited documents:', error);
         await fetchKeywordsFromDocumentsList();
     }
 }
@@ -90,20 +83,17 @@ async function fetchKeywordsFromMostVisitedDocuments() {
 // Function to fetch keywords from all documents as fallback
 async function fetchKeywordsFromDocumentsList() {
     try {
-        console.log('Fetching keywords from documents list as fallback...');
-        
+                
         // Use the documents list API which should be available
         const response = await fetch('/api/documents?limit=20');
         
         if (!response.ok) {
-            console.log(`HTTP error fetching documents: ${response.status}`);
-            displayErrorMessage();
+                        displayErrorMessage();
             return;
         }
         
         const data = await response.json();
-        console.log('Documents data received:', data);
-        
+                
         if (!data || !Array.isArray(data.documents) || data.documents.length === 0) {
             displayNoDataMessage();
             return;
@@ -138,15 +128,13 @@ async function fetchKeywordsFromDocumentsList() {
         
         updateKeywordsDisplay(formattedKeywords);
     } catch (error) {
-        console.error('Error fetching keywords from documents list:', error);
         useHardcodedKeywords();
     }
 }
 
 // Last resort: use hardcoded keywords if all else fails
 function useHardcodedKeywords() {
-    console.log('Using hardcoded keywords as last resort');
-    
+        
     const fallbackKeywords = [
         { keyword: "Research" },
         { keyword: "Thesis" },
@@ -174,7 +162,6 @@ function updateKeywordsDisplay(keywords) {
     // Use the correct container class
     const keywordsContainer = document.querySelector('.keywords-list');
     if (!keywordsContainer) {
-        console.error('Keywords list container not found');
         return;
     }
     
@@ -258,6 +245,5 @@ function displayNoDataMessage() {
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing trending keywords component...');
-    fetchTrendingKeywords();
+        fetchTrendingKeywords();
 }); 

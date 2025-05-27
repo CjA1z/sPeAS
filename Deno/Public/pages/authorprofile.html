@@ -253,15 +253,12 @@
             // Use jQuery's load method which is specifically designed for loading HTML fragments
             $("#header").load("../Components/header.html", function() {
                 // This callback runs after the header is loaded
-                console.log("Header loaded successfully");
-                
+                                
                 // Load the header-init.js script to handle user login state
                 $.getScript("../Components/js/header-init.js")
                     .done(function() {
-                        console.log("Header init script loaded successfully");
-                    })
+                                            })
                     .fail(function(jqxhr, settings, exception) {
-                        console.error("Error loading header-init.js:", exception);
                     });
             });
         });
@@ -365,42 +362,35 @@
         const urlParams = new URLSearchParams(window.location.search);
         const authorId = urlParams.get('id') || "a1b2c3d4-e5f6-7890-1234-567890abcdef"; // Use param or fallback to default
         
-        console.log(`Looking for author with ID: ${authorId}`);
-
+        
         try {
             // First, get the author data
             const authorUrl = `${API_BASE_URL}/authors/all`;
-            console.log(`Fetching authors from: ${authorUrl}`);
-            
+                        
             const authorResponse = await fetch(authorUrl);
             if (!authorResponse.ok) {
                 throw new Error(`Failed to fetch authors: ${authorResponse.status} ${authorResponse.statusText}`);
             }
             
             const authorsData = await authorResponse.json();
-            console.log(`Fetched ${authorsData.count || 0} authors successfully`);
-            
+                        
             // Find this specific author in the results
             const authorData = authorsData.authors?.find(author => author.id === authorId);
             if (!authorData) {
                 throw new Error(`Author with ID ${authorId} not found`);
             }
             
-            console.log(`Found author: ${authorData.full_name || authorData.id}`);
-            
+                        
             // Next, fetch this author's works
             const worksUrl = `${API_BASE_URL}/authors/${authorId}/works`;
-            console.log(`Fetching author's works from: ${worksUrl}`);
-            
+                        
             const worksResponse = await fetch(worksUrl);
             if (!worksResponse.ok) {
-                console.warn(`Warning: Could not fetch works: ${worksResponse.status} ${worksResponse.statusText}`);
                 // Continue with empty publications array rather than failing completely
                 authorData.publications = [];
             } else {
                 const worksData = await worksResponse.json();
-                console.log(`Fetched ${worksData.works?.length || 0} works for this author`);
-                
+                                
                 // Process the documents to match the expected Publication format
                 authorData.publications = (worksData.works || []).map(doc => ({
                     id: doc.id,
@@ -416,11 +406,8 @@
             return authorData;
             
         } catch (error) {
-            console.error("Error fetching author data:", error);
-            
             // Fall back to sample data for testing
-            console.log("Using sample author data as fallback");
-            await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
+                        await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
             const sampleData = {
                 id: authorId,
                 full_name: "Dr. Evelyn Reed (Sample)",
@@ -830,7 +817,6 @@
         if (publication) {
             renderModal(publication);
         } else {
-            console.warn(`Publication with ID ${pubId} not found.`);
         }
     }
 
@@ -850,7 +836,6 @@
                 tagsContainer.innerHTML = allTagsHTML;
                 button.remove(); // Remove the "Show More" button
             } catch (e) {
-                console.error("Error parsing tags data attribute:", e, tagsContainer.dataset.tagsAll);
                 // Fallback or notification? For now, just log error.
             }
         }
@@ -915,8 +900,7 @@
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', async () => {
-        console.log("Initializing Author Profile Page...");
-        try {
+                try {
             // Fetch data from the backend API or use sample data
             currentAuthorData = await fetchAuthorData();
 
@@ -928,19 +912,15 @@
                  filterAndRenderPublications(); // Initial render of publications
 
                  // Record the author profile visit
-                 console.log("Recording visit for author with ID:", currentAuthorData.id);
-                 recordAuthorVisit(currentAuthorData.id);
+                                  recordAuthorVisit(currentAuthorData.id);
 
-                 console.log("Author Profile Initialized Successfully.");
-            } else {
+                             } else {
                  // Handle case where fetch returned null (API error, 404, etc.)
-                 console.error("Failed to fetch author data. Profile cannot be displayed.");
                  // Display a user-friendly error message in the main content area
                  document.body.innerHTML = '<p class="text-red-600 text-center p-8">Could not load author profile data. The author might not exist or there was a server issue.</p>';
             }
         } catch (error) {
             // Catch any unexpected errors during the initialization process
-            console.error("Critical error during profile initialization:", error);
             document.body.innerHTML = `<p class="text-red-600 text-center p-8">An unexpected error occurred while loading the page: ${error.message}</p>`;
         }
     });
@@ -951,12 +931,10 @@
      */
     async function recordAuthorVisit(authorId) {
         if (!authorId) {
-            console.error("Cannot record visit: No author ID provided");
             return;
         }
         
-        console.log("recordAuthorVisit called with authorId:", authorId);
-        
+                
         try {
             // More robust check if user is logged in
             let isLoggedIn = false;
@@ -971,8 +949,7 @@
                     if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
                         isLoggedIn = true;
                         userId = userInfo.id;
-                        console.log('Author Visit: User is logged in according to sessionStorage');
-                    }
+                                            }
                 }
                 
                 // If not found in sessionStorage, check localStorage
@@ -983,8 +960,7 @@
                         if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
                             isLoggedIn = true;
                             userId = userInfo.id;
-                            console.log('Author Visit: User is logged in according to localStorage');
-                        }
+                                                    }
                     }
                 }
                 
@@ -994,18 +970,15 @@
                     const sessionTokenCookie = cookies.find(c => c.trim().startsWith('session_token='));
                     if (sessionTokenCookie) {
                         isLoggedIn = true;
-                        console.log('Author Visit: User is logged in according to session_token cookie');
-                    }
+                                            }
                 }
             } catch (e) {
-                console.log('Error checking login status:', e);
-                isLoggedIn = false; // Default to not logged in on error
+                                isLoggedIn = false; // Default to not logged in on error
             }
             
             // Determine visitor type (guest or user)
             const visitorType = isLoggedIn ? 'user' : 'guest';
-            console.log(`Author Visit: Recording as ${visitorType}`);
-            
+                        
             // Prepare visit data - ensure all expected parameters are provided
             const visitData = {
                 authorId: authorId,
@@ -1017,12 +990,10 @@
                 visitData.userId = userId;
             }
             
-            console.log('Recording author visit with data:', visitData);
-            
+                        
             // Send the visit data to the API
             const url = '/api/author-visits';
-            console.log(`Sending POST request to: ${url}`);
-            
+                        
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -1033,15 +1004,11 @@
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.warn(`Failed to record author visit: ${response.status} ${response.statusText}`);
-                console.warn('Server response:', errorText);
                 return;
             }
             
             const data = await response.json();
-            console.log('Author visit recorded successfully:', data);
-        } catch (error) {
-            console.error('Error recording author visit:', error);
+                    } catch (error) {
             // Non-critical error, don't disrupt the user experience
         }
     }
@@ -1056,7 +1023,6 @@
         if (window.NavbarModule) {
             window.NavbarModule.init();
         } else {
-            console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
         }
     });
 </script>

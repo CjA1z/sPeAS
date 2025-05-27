@@ -22,8 +22,7 @@ router.get("/api/archived-docs", async (ctx) => {
     const search = ctx.request.query.search || "";
     const sortOrder = ctx.request.query.sort || "latest"; // 'latest' or 'earliest'
     
-    console.log(`Fetching archived documents: page=${page}, limit=${limit}, category=${category}, search=${search}, sortOrder=${sortOrder}`);
-    
+        
     // Build the SQL query - only retrieve documents that have a deleted_at value
     let query = `
       SELECT 
@@ -177,7 +176,6 @@ router.get("/api/archived-docs", async (ctx) => {
     };
     
   } catch (error) {
-    console.error('Error fetching archived documents:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch archived documents',
@@ -202,8 +200,7 @@ router.post("/api/restore-document/:id", async (ctx) => {
       return;
     }
     
-    console.log(`Restoring document with ID: ${documentId}`);
-    
+        
     // Set the deleted_at field to NULL to restore the document
     const query = `
       UPDATE documents
@@ -226,7 +223,6 @@ router.post("/api/restore-document/:id", async (ctx) => {
     };
     
   } catch (error) {
-    console.error('Error restoring document:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to restore document',
@@ -270,7 +266,6 @@ router.get("/api/archived-category-counts", async (ctx) => {
     };
     
   } catch (error) {
-    console.error('Error fetching archived category counts:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch archived category counts',

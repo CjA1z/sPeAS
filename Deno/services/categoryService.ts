@@ -4,8 +4,7 @@
  */
 export async function getAllCategories(): Promise<CategoryWithCount[]> {
   try {
-    console.log("Fetching all categories with counts by document_type");
-    
+        
     // Get the count of documents by document_type
     const query = `
       SELECT 
@@ -21,26 +20,21 @@ export async function getAllCategories(): Promise<CategoryWithCount[]> {
         document_type
     `;
     
-    console.log("Executing query:", query);
-    const result = await client.queryObject(query);
+        const result = await client.queryObject(query);
     
     if (!result.rows || result.rows.length === 0) {
-      console.log("No categories found");
-      return [];
+            return [];
     }
     
-    console.log(`Found ${result.rows.length} categories with document counts`);
-    
+        
     // Map the results to our interface
     const categories = result.rows.map((row: any) => ({
       name: row.name || '',
       count: parseInt(row.count, 10) || 0
     }));
     
-    console.log("Categories with counts:", categories);
-    return categories;
+        return categories;
   } catch (error) {
-    console.error("Error fetching categories:", error);
     return [];
   }
 } 

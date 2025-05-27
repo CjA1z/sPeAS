@@ -41,7 +41,6 @@ function formatDate(dateString) {
     try {
         return new Date(dateString).toLocaleDateString();
     } catch (error) {
-        console.error('Error formatting date:', error);
         return 'Unknown Date';
     }
 }

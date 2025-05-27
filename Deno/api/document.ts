@@ -122,7 +122,6 @@ export async function handleHardDeleteDocument(req: Request): Promise<Response> 
                 headers: { "Content-Type": "application/json" }
             });
         } catch (error: unknown) {
-            console.error("Error hard deleting document:", error);
             const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
             return new Response(JSON.stringify({ error: errorMessage }), {
                 status: 500,

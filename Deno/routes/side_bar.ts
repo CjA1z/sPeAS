@@ -49,7 +49,6 @@ router.get("/sidebar", async (context) => {
 
     context.response.body = filteredSidebar;
   } catch (error) {
-    console.error("Error fetching sidebar:", error);
     context.response.status = 500;
     context.response.body = "Internal Server Error";
   }

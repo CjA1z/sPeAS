@@ -36,7 +36,6 @@ router.post("/document-authors", async (ctx) => {
       authors: documentAuthors
     };
   } catch (error) {
-    console.error("Error in document-authors endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to create document-author relationships",
@@ -67,7 +66,6 @@ router.get("/document-authors/:documentId", async (ctx) => {
       authors: authors
     };
   } catch (error) {
-    console.error("Error in get document-authors endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to get document authors",

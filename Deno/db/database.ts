@@ -15,7 +15,6 @@ export class Database {
       const result = await client.queryObject(query, params);
       return result.rows;
     } catch (error) {
-      console.error("Database query error:", error);
       throw error;
     }
   }

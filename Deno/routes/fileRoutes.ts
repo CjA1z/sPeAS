@@ -34,7 +34,6 @@ router.post("/api/files", async (ctx) => {
       fileRecord
     };
   } catch (error) {
-    console.error("Error in files endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to create file record",
@@ -67,7 +66,6 @@ router.get("/api/files/:id", async (ctx) => {
     ctx.response.status = 200;
     ctx.response.body = file;
   } catch (error) {
-    console.error("Error getting file:", error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to get file",

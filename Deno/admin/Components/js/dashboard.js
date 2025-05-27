@@ -1,8 +1,7 @@
 // Function to update the works summary section with dynamic counts
 async function updateWorksSummary() {
     try {
-        console.log('Fetching documents data for category counts...');
-        
+                
         // Initialize counts
         const categoryCounts = {
             'thesis': 0,
@@ -15,17 +14,14 @@ async function updateWorksSummary() {
         const countedDocumentIds = new Set();
         
         // Get regular documents
-        console.log('Fetching regular documents...');
-        let regularDocuments = [];
+                let regularDocuments = [];
         try {
             const regularResponse = await fetch('/api/documents?limit=1000');
             if (regularResponse.ok) {
                 const regularData = await regularResponse.json();
                 regularDocuments = regularData.documents || [];
-                console.log(`Found ${regularDocuments.length} regular documents`);
-            }
+                            }
         } catch (regularError) {
-            console.error('Error fetching regular documents:', regularError);
         }
         
         // Count regular documents by category
@@ -35,37 +31,31 @@ async function updateWorksSummary() {
             
             // Skip if it's marked as compiled
             if (doc.is_compiled === true || doc.is_parent === true) {
-                console.log(`Skipping compiled doc in regular documents: ${doc.id}`);
-                return;
+                                return;
             }
             
             // Skip if already counted
             if (countedDocumentIds.has(doc.id)) {
-                console.log(`Skipping already counted document: ${doc.id}`);
-                return;
+                                return;
             }
             
             const docType = (doc.document_type || '').toLowerCase();
             if (categoryCounts.hasOwnProperty(docType)) {
                 categoryCounts[docType]++;
                 countedDocumentIds.add(doc.id);
-                console.log(`Counted regular document ${doc.id} as ${docType}`);
-            }
+                            }
         });
         
         // Get compiled documents - skip the failing endpoint
-        console.log('Fetching compiled documents from filtered documents endpoint...');
-        let compiledDocuments = [];
+                let compiledDocuments = [];
         try {
             // Skip the failing endpoint and go directly to the working one
                 const filteredResponse = await fetch('/api/documents?is_compiled=true&limit=1000');
                 if (filteredResponse.ok) {
                     const filteredData = await filteredResponse.json();
                     compiledDocuments = filteredData.documents || [];
-                    console.log(`Found ${compiledDocuments.length} compiled documents from filtered endpoint`);
-            }
+                                }
         } catch (compiledError) {
-            console.error('Error fetching compiled documents:', compiledError);
         }
         
         // Process compiled documents
@@ -75,8 +65,7 @@ async function updateWorksSummary() {
             
             // Skip if already counted
             if (countedDocumentIds.has(doc.id)) {
-                console.log(`Skipping already counted compiled document: ${doc.id}`);
-                return;
+                                return;
             }
             
             // First check document_type, then check category which might be used in compiled docs
@@ -88,30 +77,24 @@ async function updateWorksSummary() {
             if (categoryCounts.hasOwnProperty(docType)) {
                 categoryCounts[docType]++;
                 countedDocumentIds.add(doc.id);
-                console.log(`Counted compiled document ${doc.id} as ${docType}`);
-            } else if (docType === 'confluence' || docType.includes('confluence')) {
+                            } else if (docType === 'confluence' || docType.includes('confluence')) {
                 categoryCounts.confluence++;
                 countedDocumentIds.add(doc.id);
-                console.log(`Counted compiled document ${doc.id} as confluence`);
-            } else if (docType === 'synergy' || docType.includes('synergy')) {
+                            } else if (docType === 'synergy' || docType.includes('synergy')) {
                 categoryCounts.synergy++;
                 countedDocumentIds.add(doc.id);
-                console.log(`Counted compiled document ${doc.id} as synergy`);
-            } else {
-                console.warn(`Unrecognized compiled document type: ${docType} for doc ${doc.id}`);
+                            } else {
             }
         });
         
         // STEP 3: As a last resort, try the categories endpoint for total counts
         // We'll only use this if we couldn't get any documents from the other methods
         if (countedDocumentIds.size === 0) {
-            console.log('No documents counted, checking categories endpoint as fallback...');
-            try {
+                        try {
                 const categoriesResponse = await fetch('/api/categories');
                 if (categoriesResponse.ok) {
                     const categories = await categoriesResponse.json();
-                    console.log('Categories data received:', categories);
-                    
+                                        
                     // Process each category
                     categories.forEach(category => {
                         const count = Number(category.count) || 0;
@@ -119,20 +102,16 @@ async function updateWorksSummary() {
                         
                         if (categoryCounts.hasOwnProperty(name)) {
                             categoryCounts[name] = count;
-                            console.log(`Updated count for ${name} to ${count} from categories endpoint`);
-                        }
+                                                    }
                     });
                 }
             } catch (categoriesError) {
-                console.error('Error fetching categories:', categoriesError);
             }
         }
         
-        console.log(`Final document counts by category (counted ${countedDocumentIds.size} unique documents):`, categoryCounts);
-        updateCategoryUI(categoryCounts);
+                updateCategoryUI(categoryCounts);
         
     } catch (error) {
-        console.error('Error updating works summary:', error);
         // Display error in the UI
         document.querySelectorAll('.work-count .count').forEach(el => {
             el.textContent = 'Error';
@@ -167,56 +146,38 @@ function updateCategoryUI(categoryCounts) {
     if (totalCountElement) {
         totalCountElement.textContent = totalWorks;
     } else {
-        console.warn('Could not find total count element');
     }
 }
 
 // Function to update the top authors section with dynamic data
 async function updateTopAuthors() {
     try {
-        console.log('Fetching top authors data...');
-        
         // DEBUG: First check our debug endpoint to see what's actually in the database
         try {
-            console.log('Checking debug endpoint data...');
             const debugResponse = await fetch('/api/debug/author-visits-counter');
             if (debugResponse.ok) {
                 const debugData = await debugResponse.json();
-                console.log('DEBUG DATA from counter table:', debugData);
-                
-                // Display debug info in the console in table format if available
-                if (debugData.counter_data && debugData.counter_data.length > 0) {
-                    console.table(debugData.counter_data);
-                    console.log(`Found ${debugData.row_count} rows in author_visits_counter table`);
-                } else {
-                    console.log('No data found in author_visits_counter table');
-                }
             } else {
-                console.log('Debug endpoint not available or returned error');
             }
         } catch (debugError) {
-            console.log('Error checking debug data:', debugError);
         }
         
         // Use the compatibility endpoint specifically for the dashboard with breakdown data
         const response = await fetch('/api/author-visits/stats?include_breakdown=true&nocache=' + Date.now());
         
         if (!response.ok) {
-            console.log(`HTTP error! status: ${response.status}`);
             // Try to fetch all authors instead
-            console.log('Fetching all authors as fallback...');
             const allAuthorsResponse = await fetch('/api/authors/all');
             
             if (!allAuthorsResponse.ok) {
                 // If both APIs fail, use mock data
-                console.log('Using mock data as both APIs failed');
                 const mockData = {
                     topAuthors: [
-                        { full_name: "Jane Smith", visit_count: 521, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                        { full_name: "John Doe", visit_count: 470, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                        { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                        { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                        { full_name: "Robert Chen", visit_count: 399, profile_picture: "/admin/Components/img/samp_pfp.jpg" }
+                        { full_name: "Jane Smith", visit_count: 521, profile_picture: "/storage/profile-pictures/default.jpg" },
+                        { full_name: "John Doe", visit_count: 470, profile_picture: "/storage/profile-pictures/default.jpg" },
+                        { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/storage/profile-pictures/default.jpg" },
+                        { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/storage/profile-pictures/default.jpg" },
+                        { full_name: "Robert Chen", visit_count: 399, profile_picture: "/storage/profile-pictures/default.jpg" }
                     ]
                 };
                 updateTopAuthorsUI(mockData);
@@ -225,7 +186,6 @@ async function updateTopAuthors() {
             
             // Convert all authors data to top authors format
             const allAuthorsData = await allAuthorsResponse.json();
-            console.log('All authors data received:', allAuthorsData);
             
             // Transform authors data to match the expected format
             // Set view count to 0 for all authors since we don't have real counts
@@ -233,7 +193,7 @@ async function updateTopAuthors() {
                 topAuthors: allAuthorsData.authors.slice(0, 5).map(author => ({
                     full_name: author.full_name,
                     visit_count: 0, // No visit count data available
-                    profile_picture: author.profilePicUrl || "/admin/Components/img/samp_pfp.jpg"
+                    profile_picture: author.profilePicUrl || "/storage/profile-pictures/default.jpg"
                 }))
             };
             
@@ -242,8 +202,7 @@ async function updateTopAuthors() {
         }
         
         const data = await response.json();
-        console.log('Raw API response from /api/author-visits/stats:', data);
-        
+                
         // CRITICAL FIX: Check if we got valid data and debug the structure
         if (data.topAuthors) {
             console.log('TopAuthors data structure:', data.topAuthors.map(a => {
@@ -254,9 +213,7 @@ async function updateTopAuthors() {
                 };
             }));
         } else {
-            console.log('No topAuthors data found in API response');
-            console.log('Response structure:', Object.keys(data));
-        }
+                                }
         
         // Enhanced data handling to check multiple response formats
         let usableData = { topAuthors: [] };
@@ -271,22 +228,19 @@ async function updateTopAuthors() {
                     author_id: author.author_id || author.id // Make sure we have author_id
                 }))
             };
-            console.log('Using topAuthors from direct response format with fixed number conversion');
-        } else if (data.authors && data.authors.length > 0) {
+                    } else if (data.authors && data.authors.length > 0) {
             // Alternative format with authors array
             usableData = {
                 topAuthors: data.authors.map(author => ({
                     full_name: author.full_name || author.name || 'Unknown Author',
                     visit_count: Number(author.visit_count || author.visits || 0),
-                    profile_picture: author.profilePicUrl || author.profile_picture || author.avatar || "/admin/Components/img/samp_pfp.jpg",
+                    profile_picture: author.profilePicUrl || author.profile_picture || author.avatar || "/storage/profile-pictures/default.jpg",
                     author_id: author.author_id || author.id
                 }))
             };
-            console.log('Converted authors array to topAuthors format');
-        } else {
+                    } else {
             // Fallback to getting all authors
-            console.log('No top authors data in expected format, fetching all authors...');
-            const allAuthorsResponse = await fetch('/api/authors/all');
+                        const allAuthorsResponse = await fetch('/api/authors/all');
             
             if (allAuthorsResponse.ok) {
                 const allAuthorsData = await allAuthorsResponse.json();
@@ -294,7 +248,7 @@ async function updateTopAuthors() {
                     topAuthors: allAuthorsData.authors.slice(0, 5).map(author => ({
                         full_name: author.full_name || author.name || 'Unknown Author',
                         visit_count: 0,
-                        profile_picture: author.profilePicUrl || author.profile_picture || "/admin/Components/img/samp_pfp.jpg",
+                        profile_picture: author.profilePicUrl || author.profile_picture || "/storage/profile-pictures/default.jpg",
                         author_id: author.id
                     }))
                 };
@@ -304,8 +258,7 @@ async function updateTopAuthors() {
         // Final check to ensure we have visit counts as numbers
         usableData.topAuthors = usableData.topAuthors.map(author => {
             const visitCount = Number(author.visit_count || 0);
-            console.log(`Author ${author.full_name}: raw count=${author.visit_count}, parsed=${visitCount}`);
-            return {
+                        return {
                 ...author,
                 visit_count: visitCount
             };
@@ -313,15 +266,14 @@ async function updateTopAuthors() {
         
         updateTopAuthorsUI(usableData);
     } catch (error) {
-        console.log('Error updating top authors:', error);
-        // Use mock data if all else fails
+                // Use mock data if all else fails
         const mockData = {
             topAuthors: [
-                { full_name: "Jane Smith", visit_count: 521, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                { full_name: "John Doe", visit_count: 470, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/admin/Components/img/samp_pfp.jpg" },
-                { full_name: "Robert Chen", visit_count: 399, profile_picture: "/admin/Components/img/samp_pfp.jpg" }
+                { full_name: "Jane Smith", visit_count: 521, profile_picture: "/storage/profile-pictures/default.jpg" },
+                { full_name: "John Doe", visit_count: 470, profile_picture: "/storage/profile-pictures/default.jpg" },
+                { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/storage/profile-pictures/default.jpg" },
+                { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/storage/profile-pictures/default.jpg" },
+                { full_name: "Robert Chen", visit_count: 399, profile_picture: "/storage/profile-pictures/default.jpg" }
             ]
         };
         updateTopAuthorsUI(mockData);
@@ -332,7 +284,6 @@ function updateTopAuthorsUI(data) {
     // Get the authors list container
     const authorsListContainer = document.querySelector('.authors-list');
     if (!authorsListContainer) {
-        console.warn('Could not find authors list container');
         return;
     }
     
@@ -360,8 +311,7 @@ function updateTopAuthorsUI(data) {
             }
             
             // Log the image URL for debugging
-            console.log(`Author image URL: ${imageUrl} (from ${author.profile_picture})`);
-        }
+                    }
         
         // Format the visit count with the proper label - use 'let' instead of 'const' to allow updates
         let visitCount = author.visit_count || 0;
@@ -419,8 +369,7 @@ function updateTopAuthorsUI(data) {
             fetch(`/api/author-visits/${author.author_id}?days=30&nocache=${Date.now()}`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log(`Visit breakdown data for ${author.full_name}:`, JSON.stringify(data, null, 2));
-                    
+                                        
                     // Extract the visitor type breakdown directly
                     if (data && data.visitsByType) {
                         // Log the specific breakdown structure
@@ -443,8 +392,7 @@ function updateTopAuthorsUI(data) {
                             visitCount = breakdownSum;
                             visitText = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
                             visitsDiv.textContent = visitText;
-                            console.log(`Updated visit count for ${author.full_name} to ${visitCount} based on breakdown`);
-                            
+                                                        
                             // Also update the author object to reflect correct count
                             author.visit_count = visitCount;
                         } else if (data.total > 0) {
@@ -452,8 +400,7 @@ function updateTopAuthorsUI(data) {
                             visitCount = Number(data.total);
                             visitText = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
                             visitsDiv.textContent = visitText;
-                            console.log(`Updated visit count for ${author.full_name} to ${visitCount} based on total`);
-                            
+                                                        
                             // Also update the author object
                             author.visit_count = visitCount;
                             
@@ -470,17 +417,14 @@ function updateTopAuthorsUI(data) {
                         if (visitCount === 0) {
                             visitCount = data.total;
                             visitsDiv.textContent = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
-                            console.log(`Updated visit count for ${author.full_name} from 0 to ${visitCount} based on total`);
-                        }
+                                                    }
                     }
                     
-                    console.log(`Final counts for ${author.full_name}: guest=${guestCount}, user=${userCount}, total=${visitCount}`);
-                    
+                                        
                     // Update tooltip content
                     updateTooltipContent();
                 })
                 .catch(error => {
-                    console.warn(`Error fetching visit breakdown for author ${author.author_id}:`, error);
                     // Use the default estimates
                     updateTooltipContent();
                 });
@@ -568,12 +512,10 @@ function updateTopAuthorsUI(data) {
 // Function to update the total visits section with dynamic data
 async function updateTotalVisits() {
     try {
-        console.log('Fetching visit statistics...');
-        const response = await fetch('/api/page-visits/home-stats');
+                const response = await fetch('/api/page-visits/home-stats');
         
         if (!response.ok) {
-            console.log(`HTTP error! status: ${response.status}`);
-            
+                        
             // Try to get author visit stats as a fallback
             const authorResponse = await fetch('/api/author-visits/stats');
             
@@ -592,17 +534,14 @@ async function updateTotalVisits() {
             
             // Use author visit stats if available
             const authorData = await authorResponse.json();
-            console.log('Author visit statistics received as fallback:', authorData);
-            updateTotalVisitsUI(authorData);
+                        updateTotalVisitsUI(authorData);
             return;
         }
         
         const data = await response.json();
-        console.log('Home page visit statistics received:', data);
-        updateTotalVisitsUI(data);
+                updateTotalVisitsUI(data);
     } catch (error) {
-        console.log('Error updating visit statistics:', error);
-        // Use mock data on error
+                // Use mock data on error
         const mockData = {
             stats: {
                 total: 12321,
@@ -649,8 +588,7 @@ function updateTotalVisitsUI(data) {
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing dashboard...');
-    
+        
     // Add CSS for tooltips to the page
     const style = document.createElement('style');
     style.textContent = `

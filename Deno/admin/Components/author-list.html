@@ -403,7 +403,6 @@
                 }
                 return await response.json();
             } catch (error) {
-                console.error("Error fetching departments:", error);
                 return [];
             }
         }
@@ -424,7 +423,6 @@
                     departmentFilter.appendChild(option);
                 });
             } catch (error) {
-                console.error("Error populating department filter:", error);
             }
         }
 
@@ -449,39 +447,32 @@
                 affiliationFilter.appendChild(option);
             });
             
-            console.log(`Populated affiliation filter with ${affiliations.size} unique affiliations from frontend data`);
-        }
+                    }
 
         // --- Fetch Author Works from API ---
         async function fetchAuthorWorks(authorId) {
             try {
-                console.log(`Fetching works for author ID: ${authorId}`);
-                
+                                
                 // Fetch works from the API
                 const response = await fetch(`/api/authors/${authorId}/works`);
                 
                 // Handle both successful and error responses
                 const data = await response.json().catch(e => {
-                    console.warn(`Error parsing JSON for author ${authorId}:`, e);
                     return { works: [], worksCount: 0 };
                 });
                 
                 // If response was not ok, log the error but continue with empty works
                 if (!response.ok) {
-                    console.warn(`API returned error for author ${authorId}: ${response.status} ${response.statusText}`);
-                    console.warn("Error details:", data.error || "No error details provided");
                     return { works: [], worksCount: 0 };
                 }
                 
-                console.log(`Loaded ${data.worksCount} works for author ID: ${authorId}`);
-                
+                                
                 // Return the works array and count
                 return { 
                     works: data.works || [], 
                     worksCount: data.worksCount || 0 
                 };
             } catch (error) {
-                console.error(`Error fetching works for author ${authorId}:`, error);
                 // Return empty data on error instead of throwing
                 return { works: [], worksCount: 0 };
             }
@@ -505,8 +496,7 @@
                 // Update the global authors array
                 authors = data.authors || [];
                 
-                console.log(`Loaded ${authors.length} authors from the API`);
-                
+                                
                 // Fetch departments from API and populate affiliations from frontend data
                 await populateDepartmentFilter();
                 populateAffiliationFilter();
@@ -530,7 +520,6 @@
                                 updateAuthorWorksUI(author.id, worksData.works, worksData.worksCount);
                             }
                         } catch (error) {
-                            console.error(`Error fetching works for author ${author.id}:`, error);
                         }
                     }
                 });
@@ -542,7 +531,6 @@
                 renderAuthors(authors);
                 
             } catch (error) {
-                console.error('Error fetching authors:', error);
                 authorListContainer.innerHTML = `
                     <div class="text-center text-red-600 py-8">
                         <p class="text-xl mb-2">Error loading authors</p>
@@ -555,13 +543,11 @@
 
         // --- Update UI for an author's works (after fetching) ---
         function updateAuthorWorksUI(authorId, works, worksCount) {
-            console.log(`Updating UI for author ${authorId} with ${worksCount} works`);
-            
+                        
             // Find all instances of this author's cards (there might be multiple due to filtering)
             const authorCards = document.querySelectorAll(`.ad-author-card[data-author-id="${authorId}"]`);
             
             if (authorCards.length === 0) {
-                console.warn(`No author cards found for author ID: ${authorId}`);
                 return;
             }
             
@@ -611,8 +597,7 @@
                         let worksHtml = '<div class="space-y-2">';
                         works.forEach(work => {
                             // Log each work to console for debugging
-                            console.log("Rendering work:", work);
-                            
+                                                        
                             // Encode the work data for passing to openDocument
                             const encodedWorkData = encodeURIComponent(JSON.stringify(work));
                             
@@ -635,7 +620,6 @@
                         worksContainer.innerHTML = '<p class="text-sm text-gray-500 italic px-4">No works listed.</p>';
                     }
                 } else {
-                    console.warn(`Works container not found for author ${authorId}, card index ${cardIndex}`);
                 }
             });
         }
@@ -866,7 +850,6 @@
         function openEditModal(authorId) {
             const author = authors.find(a => a.id === authorId);
             if (!author) {
-                console.error("Author not found for editing:", authorId);
                 return; // Exit if author not found
             }
 
@@ -892,8 +875,7 @@
             profilePicPreview.src = currentPic;
             profilePicPreview.onerror = () => { 
                 profilePicPreview.src = DEFAULT_PROFILE_PIC; 
-                console.log("Error loading profile image, using default");
-            };
+                            };
 
             // Update preview when a new file is selected
             profilePicFileInput.onchange = function() {
@@ -925,9 +907,7 @@
             // This function simulates sending the updated author data to a backend server,
             // which would then interact with your PostgreSQL database.
 
-            console.log("Attempting to save data to backend for author ID:", authorData.id);
-            console.log("Data to send:", authorData);
-
+                        
             // --- CJ Diri: Backend API Call (Simulated) ---
             // In a real application, you would use the `fetch` API here to send a request
             // (e.g., POST or PUT) to your backend endpoint (e.g., '/api/authors/:id').
@@ -947,21 +927,18 @@
                 if (!response.ok) {
                     // Handle HTTP errors (e.g., 404 Not Found, 400 Bad Request, 500 Internal Server Error)
                     const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-                    console.error(`Error saving author: ${response.status} ${response.statusText}`, errorData);
                     // Optionally, display an error message to the user
                     alert(`Error saving data: ${errorData.message || response.statusText}`);
                     return false; // Indicate failure
                 }
 
                 const result = await response.json(); // Or response.text() if no JSON body is returned
-                console.log("Backend save successful:", result);
-                // Optionally, show a success message to the user
+                                // Optionally, show a success message to the user
                 // alert("Author data saved successfully!");
                 return true; // Indicate success
 
             } catch (error) {
                 // Handle network errors or other exceptions during the fetch
-                console.error("Network or fetch error saving author:", error);
                 // Optionally, display an error message to the user
                 alert(`Failed to connect to the server. Please try again later. Error: ${error.message}`);
                 return false; // Indicate failure
@@ -980,8 +957,7 @@
 
             // Simulate a delay and success for the demo
             await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network latency
-            console.log("Simulated backend save completed for author ID:", authorData.id);
-            return true; // Simulate success
+                        return true; // Simulate success
         }
 
 
@@ -1023,7 +999,6 @@
 
             // If ID validation failed, stop the submission
             if (!idIsValid) {
-                console.warn("Author ID validation failed.");
                 return;
             }
             // --- End Frontend Validation ---
@@ -1033,7 +1008,6 @@
             const authorIndex = authors.findIndex(a => a.id === originalId);
 
             if (authorIndex === -1) {
-                console.error("Original author not found for saving:", originalId);
                 closeEditModal();
                 return;
             }
@@ -1050,8 +1024,7 @@
                 let profilePicUrl = profilePicUrlHidden.value; // Start with existing URL
                 
                 if (selectedFile) {
-                    console.log("Uploading new profile picture:", selectedFile.name);
-                    
+                                        
                     // Create form data for file upload
                     const formData = new FormData();
                     formData.append('file', selectedFile);
@@ -1072,8 +1045,7 @@
                     // Get the file path from the response
                     const uploadResult = await uploadResponse.json();
                     profilePicUrl = uploadResult.filePath;
-                    console.log("Profile picture uploaded successfully:", profilePicUrl);
-                    
+                                        
                     // Show the uploaded image in the preview
                     profilePicPreview.src = profilePicUrl;
                 }
@@ -1106,7 +1078,6 @@
 
                 if (!response.ok) {
                     // Handle error response
-                    console.error("API error:", result.error || response.statusText);
                     showNotification(`Error saving author: ${result.error || response.statusText}`, "error");
                     
                     // Reset button
@@ -1115,8 +1086,7 @@
                     return;
                 }
 
-                console.log("Server response:", result);
-
+                
                 // Create an updated author object for the frontend
                 const updatedAuthorForUI = {
                     id: updatedAuthorData.newId || updatedAuthorData.id,
@@ -1153,8 +1123,7 @@
                         !currentAffiliations.includes(updatedAuthorData.affiliation) &&
                         updatedAuthorData.affiliation !== '') {
                         
-                        console.log(`Adding new affiliation to dropdown: ${updatedAuthorData.affiliation}`);
-                        
+                                                
                         // Create and add the new option
                         const option = document.createElement('option');
                         option.value = updatedAuthorData.affiliation;
@@ -1173,7 +1142,6 @@
                 closeEditModal();
 
             } catch (error) {
-                console.error("Error updating author:", error);
                 showNotification(`Error: ${error.message || "Unknown error occurred"}`, "error");
                 
                 // Reset button
@@ -1277,10 +1245,8 @@
                     // Update the UI to reflect the new works count
                     updateAuthorWorksUI(authorId, worksData.works, worksData.worksCount);
                     
-                    console.log(`Refreshed works for author ${authorId}: found ${worksData.worksCount} works`);
-                }
+                                    }
             } catch (error) {
-                console.error(`Error refreshing works for author ${authorId}:`, error);
                 if (worksContainer) {
                     worksContainer.innerHTML = `
                         <div class="text-center text-red-500 py-2">
@@ -1315,36 +1281,29 @@
         // Update the openDocument function to open in new tab
         async function openDocument(encodedWorkData) {
             try {
-                console.log('Opening document with encoded data:', encodedWorkData);
-                
+                                
                 // Decode and parse the work data
                 const decodedData = decodeURIComponent(encodedWorkData);
-                console.log('Decoded work data:', decodedData);
-                
+                                
                 const work = JSON.parse(decodedData);
-                console.log('Parsed work data:', work);
-                
+                                
                 // Get document data from the work object
                 const documentData = work.document;
                 if (!documentData) {
                     throw new Error('No document data available');
                 }
                 
-                console.log('Document data:', documentData);
-                
+                                
                 // Get the file path directly from document data
                 const filePath = documentData.file_path;
                 if (!filePath) {
                     throw new Error('No file path available in document data');
                 }
                 
-                console.log('File path from document:', filePath);
-                
+                                
                 // Check if the file exists
                 const fileCheck = await fetch(filePath, { method: 'HEAD' });
                 if (!fileCheck.ok) {
-                    console.error('File not found at path:', filePath);
-                    console.error('File check status:', fileCheck.status);
                     throw new Error(`Document file not found at ${filePath}`);
                 }
                 
@@ -1352,7 +1311,6 @@
                 window.open(filePath, '_blank');
                 
             } catch (error) {
-                console.error('Error opening document:', error);
                 showNotification(`Error opening document: ${error.message}`, 'error');
             }
         }

@@ -8,8 +8,7 @@ import {
 // Create a simplified stats controller function
 async function getSimpleStats(ctx: any) {
   try {
-    console.log("Simple statistics endpoint called");
-    
+        
     // Connect to the database and run simple queries
     const client = (await import("../db/denopost_conn.ts")).client;
     
@@ -35,10 +34,8 @@ async function getSimpleStats(ctx: any) {
       time_range: "all"
     };
     ctx.response.status = 200;
-    console.log("Simple statistics response sent successfully");
-    
+        
   } catch (error) {
-    console.error("Error in simple statistics endpoint:", error);
     ctx.response.body = { 
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"

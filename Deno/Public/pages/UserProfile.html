@@ -476,20 +476,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Debug logging
-            console.log('DEBUG: Starting navbar initialization');
-            console.log('DEBUG: localStorage userInfo =', localStorage.getItem('userInfo'));
-            console.log('DEBUG: sessionStorage userInfo =', sessionStorage.getItem('userInfo'));
-            console.log('DEBUG: Checking NavbarModule constants:');
-            if (window.NavbarModule) {
-                console.log('DEBUG: NavbarModule found');
-                
+                                                            if (window.NavbarModule) {
+                                
                 // Fix path case sensitivity issues
                 if (window.NavbarModule.USER_NAVBAR_URL === '/components/NavBar/user-Navbar.html') {
                     window.NavbarModule.USER_NAVBAR_URL = '/Components/NavBar/user-Navbar.html';
-                    console.log('DEBUG: Fixed USER_NAVBAR_URL case sensitivity');
-                }
+                                    }
             } else {
-                console.error('DEBUG: NavbarModule not found - script might not be loading correctly');
             }
             
             // Initialize the navbar
@@ -498,33 +491,19 @@
 
                 // Add element existence check after initialization
                 setTimeout(function() {
-                    console.log("DEBUG: Checking if navbar elements exist:");
-                    const searchButton = document.getElementById('search-open-button');
-                    console.log("- Search button exists:", !!searchButton);
-                    if (searchButton) {
-                        console.log("  - Search button display:", window.getComputedStyle(searchButton).display);
-                        console.log("  - Search button visibility:", window.getComputedStyle(searchButton).visibility);
-                        console.log("  - Search button z-index:", window.getComputedStyle(searchButton).zIndex);
-                    }
+                                        const searchButton = document.getElementById('search-open-button');
+                                        if (searchButton) {
+                                                                                            }
                     
                     const userAuthContainer = document.getElementById('user-auth-container');
-                    console.log("- User auth container exists:", !!userAuthContainer);
-                    if (userAuthContainer) {
-                        console.log("  - User auth container children count:", userAuthContainer.children.length);
-                        console.log("  - User auth container display:", window.getComputedStyle(userAuthContainer).display);
-                        console.log("  - User auth container visibility:", window.getComputedStyle(userAuthContainer).visibility);
-                    }
+                                        if (userAuthContainer) {
+                                                                                            }
                     
                     const profileBadgeContainer = document.getElementById('profile-badge-container-dynamic');
-                    console.log("- Profile badge container exists:", !!profileBadgeContainer);
-                    
+                                        
                     const navbar = document.querySelector('nav');
-                    console.log("- Navbar exists:", !!navbar);
-                    if (navbar) {
-                        console.log("  - Navbar classes:", navbar.className);
-                        console.log("  - Navbar display:", window.getComputedStyle(navbar).display);
-                        console.log("  - Navbar z-index:", window.getComputedStyle(navbar).zIndex);
-                    }
+                                        if (navbar) {
+                                                                                            }
                     
                     // Fix any potential CSS issues on this page
                     if (userAuthContainer) {
@@ -541,12 +520,10 @@
                     // Implement manual creation of profile badge and search button if they don't exist
                     const mdFlex = document.querySelector('.md\\:flex.md\\:items-center.md\\:ml-6');
                     if (mdFlex) {
-                        console.log("Found navbar container, checking if elements need manual creation");
-                        
+                                                
                         // Check if search button exists and create it if not
                         if (!searchButton) {
-                            console.log("Creating search button manually");
-                            const searchButtonContainer = document.createElement('div');
+                                                        const searchButtonContainer = document.createElement('div');
                             searchButtonContainer.className = 'ml-4 flex items-center space-x-4';
                             
                             const newSearchButton = document.createElement('button');
@@ -568,15 +545,13 @@
                                 if (typeof window.openSearch === 'function') {
                                     window.openSearch();
                                 } else {
-                                    console.error("openSearch function not found");
                                 }
                             });
                         }
                         
                         // Check if user auth container exists with children
                         if (!userAuthContainer || userAuthContainer.children.length === 0) {
-                            console.log("Creating profile badge manually");
-                            // Create a new container if needed
+                                                        // Create a new container if needed
                             if (!userAuthContainer) {
                                 userAuthContainer = document.createElement('div');
                                 userAuthContainer.id = 'user-auth-container';
@@ -701,29 +676,24 @@
                                     }
                                 }
                             } catch (error) {
-                                console.error("Error creating profile badge:", error);
                             }
                         }
                     } else {
-                        console.warn("Could not find navbar container for manual element creation");
                     }
                 }, 1000); // Check after 1 second
 
                 // Add event listener to force navbar refresh when userInfo changes
                 window.addEventListener('storage', function(event) {
                     if (event.key === 'userInfo') {
-                        console.log('User info changed, refreshing navbar...');
-                        window.NavbarModule.init();
+                                                window.NavbarModule.init();
                     }
                 });
                 
                 // Force refresh on page load if coming from login
                 if (document.referrer.includes('log-in.html')) {
-                    console.log('Coming from login page, refreshing navbar...');
-                    setTimeout(() => window.NavbarModule.init(), 100);
+                                        setTimeout(() => window.NavbarModule.init(), 100);
                 }
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
             
             // Record page visit
@@ -753,8 +723,7 @@
         // Setup image error handler after the function is defined
         if (profilePicturePreview) {
             profilePicturePreview.onerror = function() {
-                console.log("Profile picture failed to load, using initials avatar");
-                this.src = generatePlaceholderAvatar();
+                                this.src = generatePlaceholderAvatar();
             };
         }
         
@@ -829,7 +798,6 @@
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
                 return userInfo?.token || null;
             } catch (error) {
-                console.error('Error getting auth token:', error);
                 return null;
             }
         }
@@ -851,7 +819,6 @@
             try {
                 userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
                 if (!userInfo || !userInfo.token || !userInfo.isLoggedIn) {
-                    console.error('Invalid or missing user authentication data');
                     showMessage('Authentication error. Please log in again.', 'error');
                     return null;
                 }
@@ -864,8 +831,7 @@
                 
                 // Fetch user profile
                 const userId = userInfo.id || '';
-                console.log(`Fetching profile for user ${userId}`);
-                const response = await fetch(`${API_ENDPOINTS.profile}?userId=${userId}`, {
+                                const response = await fetch(`${API_ENDPOINTS.profile}?userId=${userId}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${userInfo.token}`,
@@ -875,7 +841,6 @@
                 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        console.warn('Using session data as fallback due to auth error');
                         // Use userInfo data from sessionStorage as fallback
                         return {
                             id: userInfo.id,
@@ -890,18 +855,14 @@
                 }
                 
                 const data = await response.json();
-                console.log("User profile data from API:", data);
-                
+                                
                 // If we have a profilePictureUrl in data, log it
                 if (data.profilePictureUrl) {
-                    console.log("API returned profile picture URL:", data.profilePictureUrl);
-                } else {
-                    console.log("API did not return a profile picture URL");
-                }
+                                    } else {
+                                    }
                 
                 return data;
             } catch (error) {
-                console.error('Error fetching user profile:', error);
                 showMessage('Failed to load profile data. Using session data instead.', 'error');
                 
                 // Use userInfo data from sessionStorage as fallback
@@ -932,7 +893,6 @@
                     throw new Error('Invalid or missing user authentication data');
                 }
             } catch (error) {
-                console.error('Error parsing session user data:', error);
                 showMessage('Authentication error. Please log in again.', 'error');
                 return null;
             }
@@ -961,7 +921,6 @@
                 setLoading(false);
                 return true;
             } catch (error) {
-                console.error('Error updating password:', error);
                 showMessage(error.message || 'Failed to update password. Please try again.', 'error');
                 setLoading(false);
                 return false;
@@ -980,7 +939,6 @@
                     throw new Error('Invalid or missing user authentication data');
                 }
             } catch (error) {
-                console.error('Error parsing session user data:', error);
                 showMessage('Authentication error. Please log in again.', 'error');
                 return null;
             }
@@ -1011,27 +969,23 @@
                         // Continue with upload after format conversion
                         performUpload();
                     } catch(err) {
-                        console.error("Format conversion error:", err);
                         // Fallback to original blob
                         formData.append('profilePicture', imageBlob, 'profile-image.png');
                         performUpload();
                     }
                 };
                 img.onerror = function() {
-                    console.error("Error loading image for conversion");
                     formData.append('profilePicture', imageBlob, 'profile-image.png');
                     performUpload();
                 };
                 img.src = newProfilePicDataUrl;
             } catch(convErr) {
-                console.error("Error in conversion setup:", convErr);
                 formData.append('profilePicture', imageBlob, 'profile-image.png');
                 performUpload();
             }
             
             async function performUpload() {
-                console.log("Uploading profile picture, blob size:", formData.get('profilePicture').size);
-                
+                                
                 try {
                     // Get the token directly from sessionStorage
                     let userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -1050,22 +1004,18 @@
                     
                     if (!response.ok) {
                         const responseText = await response.text();
-                        console.error("Error response:", responseText);
                         throw new Error(responseText || `Upload failed with status: ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    console.log("Profile picture upload response:", data);
-                    
+                                        
                     // Simple approach - directly use the URL from the server
                     if (data.pictureUrl) {
                         // Ensure URL has leading slash
                         const pictureUrl = data.pictureUrl.startsWith('/') ? data.pictureUrl : '/' + data.pictureUrl;
-                        console.log("Setting profile picture to:", pictureUrl);
-                        
+                                                
                         // Clear any previous onerror handlers
                         profilePicturePreview.onerror = function() {
-                            console.error("Failed to load profile picture from provided URL:", pictureUrl);
                             this.src = generatePlaceholderAvatar();
                         };
                         
@@ -1076,8 +1026,7 @@
                         if (userData) {
                             userData.profilePictureUrl = pictureUrl;
                             userData.profile_picture = pictureUrl;  // Add both versions of the field
-                            console.log("Updated userData with new picture URL:", pictureUrl);
-                        }
+                                                    }
                         
                         showMessage('Profile picture updated successfully!', 'success');
                         newProfilePicDataUrl = null;
@@ -1089,8 +1038,7 @@
                                 userInfo.profilePictureUrl = pictureUrl;
                                 userInfo.profile_picture = pictureUrl;
                                 sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                                console.log("Updated session storage with new profile picture URL");
-                                
+                                                                
                                 // Force circular shape with inline styles to override any other CSS
                                 const allBadges = document.querySelectorAll('#profile-badge-button, #profile-badge-button img');
                                 allBadges.forEach(el => {
@@ -1099,14 +1047,12 @@
                                 
                                 // Force navbar to refresh with updated profile picture
                                 if (window.NavbarModule && typeof window.NavbarModule.init === 'function') {
-                                    console.log("Refreshing navbar with new profile picture");
-                                    
+                                                                        
                                     // Clear any existing profile badge to force recreation
                                     const profileBadge = document.getElementById('profile-badge-container-dynamic');
                                     if (profileBadge) {
                                         profileBadge.remove();
-                                        console.log("Removed existing profile badge to force recreation");
-                                    }
+                                                                            }
                                     
                                     // Additionally ensure the profile picture URL is updated in the user data
                                     try {
@@ -1114,14 +1060,12 @@
                                             window.NavbarModule.updateProfileInfo(userInfo);
                                         }
                                     } catch (e) {
-                                        console.error("Error updating profile info:", e);
                                     }
                                     
                                     setTimeout(() => window.NavbarModule.init(), 100);
                                 }
                             }
                         } catch (e) {
-                            console.error("Error updating session storage:", e);
                         }
                         
                         // Don't reload user data immediately, which could override the image
@@ -1131,7 +1075,6 @@
                     }
                     
                 } catch (uploadError) {
-                    console.error('Error uploading profile picture:', uploadError);
                     showMessage(`Upload failed: ${uploadError.message}`, 'error');
                     setLoading(false);
                 }
@@ -1156,8 +1099,7 @@
             const data = await fetchUserProfile();
             if (!data) return;
             
-            console.log("loadUserData received data:", JSON.stringify(data));
-            
+                        
             userData = data;
             displayUserId.textContent = data.id || 'N/A';
             displayEmail.textContent = data.email || 'N/A';
@@ -1168,29 +1110,24 @@
             
             // Set profile picture if available or use initial-based avatar
             if (profilePicUrl) {
-                console.log("User has profile picture URL:", profilePicUrl);
-                
+                                
                 // Simple approach using the URL directly from the server
                 profilePicturePreview.onerror = function() {
-                    console.error("Failed to load profile picture, using initials avatar");
                     this.src = generatePlaceholderAvatar();
                 };
                 
                 // Log network attempt
-                console.log("Attempting to load profile picture from server URL");
-                
+                                
                 // Ensure URL has leading slash if needed
                 const finalUrl = profilePicUrl.startsWith('/') ? profilePicUrl : '/' + profilePicUrl;
-                console.log("Using final profile picture URL:", finalUrl);
-                
+                                
                 // Set image with simple path
                 profilePicturePreview.src = finalUrl;
                 
                 // Store the URL in userData for consistency
                 userData.profilePictureUrl = finalUrl;
             } else {
-                console.log("No profile picture URL, generating avatar");
-                profilePicturePreview.src = generatePlaceholderAvatar();
+                                profilePicturePreview.src = generatePlaceholderAvatar();
             }
             
             // Reset form fields
@@ -1302,7 +1239,6 @@
                     profilePicturePreview.src = newProfilePicDataUrl; 
                     showMessage('Crop applied. Click "Save Changes" to update.', 'success');
                 } catch (error) {
-                    console.error("WebP conversion error:", error);
                     showMessage('Could not convert to WebP. Using PNG.', 'error');
                     newProfilePicDataUrl = croppedCanvas.toDataURL('image/png');
                     profilePicturePreview.src = newProfilePicDataUrl; 
@@ -1361,8 +1297,7 @@
                 if (newProfilePicDataUrl) {
                     const imageBlob = dataURLtoBlob(newProfilePicDataUrl);
                     if (imageBlob) {
-                        console.log("Uploading new profile picture...");
-                        await uploadProfilePicture(imageBlob);
+                                                await uploadProfilePicture(imageBlob);
                         // Don't reload user data after picture upload, the picture is already displayed
                         newProfilePicDataUrl = null; // Clear the data URL after upload
                     }
@@ -1370,8 +1305,7 @@
 
                 // Update password if needed
                 if (isChangingPassword) {
-                    console.log("Updating password...");
-                    const passwordUpdateSuccess = await updateUserPassword(currentPassword, newPassword);
+                                        const passwordUpdateSuccess = await updateUserPassword(currentPassword, newPassword);
                     
                     if (passwordUpdateSuccess) {
                         showMessage('Password updated successfully!', 'success');
@@ -1388,7 +1322,6 @@
                 }
                 
             } catch (error) {
-                console.error('Error during profile update:', error);
                 showMessage('An error occurred while updating profile', 'error');
             }
         });
@@ -1400,7 +1333,6 @@
             try {
                 sessionUserInfo = JSON.parse(sessionStorage.getItem('userInfo'));
                 if (!sessionUserInfo || !sessionUserInfo.isLoggedIn) {
-                    console.warn('No valid user session found, redirecting to login');
                     window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
                     return;
                 }
@@ -1422,9 +1354,7 @@
                 // Generate initial avatar based on name from session
                 const name = sessionUserInfo.first_name || sessionUserInfo.username || 'User';
                 profilePicturePreview.src = generatePlaceholderAvatar();
-                console.log("Initial avatar generated for:", name);
-            } catch (error) {
-                console.error('Error reading session data', error);
+                            } catch (error) {
                 window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
                 return;
             }

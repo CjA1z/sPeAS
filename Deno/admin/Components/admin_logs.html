@@ -224,7 +224,6 @@
                 updateLoginsTable(data.recentLogins);
                 
             } catch (error) {
-                console.error('Failed to fetch log summary:', error);
                 // Show error message in each table
                 document.getElementById('downloadsTableBody').innerHTML = `
                     <tr>
@@ -271,7 +270,6 @@
                 updateAllLogsTable(data.logs);
                 
             } catch (error) {
-                console.error('Failed to fetch logs:', error);
                 document.getElementById('allLogsTableBody').innerHTML = `
                     <tr>
                         <td colspan="7" class="text-center py-4 text-red-500">

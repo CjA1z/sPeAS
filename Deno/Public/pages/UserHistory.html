@@ -356,7 +356,6 @@
                 const day = d.getDate().toString().padStart(2, '0');
                 return `${year}-${month}-${day}`;
             } catch (error) {
-                console.error("Error formatting date:", date, error);
                 return "";
             }
         }
@@ -367,7 +366,6 @@
                 if (isNaN(dateObj.getTime())) return dateString;
                 return DISPLAY_DATE_FORMATTER.format(dateObj);
             } catch (e) {
-                console.error("Error formatting display date:", dateString, e);
                 return dateString;
             }
         }
@@ -549,7 +547,6 @@
                 const token = userInfo?.token;
                 
                 if (!token) {
-                    console.warn('Cannot fetch history: No authentication token found');
                     throw new Error('AUTH_REQUIRED');
                 }
                 
@@ -567,8 +564,7 @@
                 if (filters.endDate) url.searchParams.append('endDate', filters.endDate);
                 if (filters.sortBy) url.searchParams.append('sortBy', filters.sortBy);
                 
-                console.log(`Fetching history data from: ${url.toString()}`);
-                
+                                
                 // Fetch data from API
                 const response = await fetch(url, {
                     headers: {
@@ -578,20 +574,16 @@
                 });
                 
                 if (response.status === 401 || response.status === 403) {
-                    console.error('Authentication error when fetching history data');
                     throw new Error('AUTH_EXPIRED');
                 }
                 
                 if (!response.ok) {
-                    console.error(`API returned ${response.status} ${response.statusText}`);
                     throw new Error(`API_ERROR:${response.status}`);
                 }
                 
                 const data = await response.json();
-                console.log('History data received:', data);
-                
+                                
                 if (!data || (!data.items && !Array.isArray(data))) {
-                    console.error('Invalid data format received from API');
                     throw new Error('INVALID_DATA_FORMAT');
                 }
                 
@@ -625,8 +617,7 @@
                     action: item.action
                 }));
                 
-                console.log(`Processed ${mappedItems.length} history items`);
-                
+                                
                 // Collect authors from items and update filter dropdown
                 collectAvailableAuthors(mappedItems);
 
@@ -635,8 +626,6 @@
                     totalCount: totalCount 
                 };
             } catch (error) {
-                console.error("Failed to fetch history data:", error);
-                
                 // Specific error handling
                 if (error.message === 'AUTH_REQUIRED' || error.message === 'AUTH_EXPIRED') {
                     // Authentication issues - handle specially
@@ -646,8 +635,7 @@
                 
                 // In development mode, fall back to mock data
                 if (location.hostname === 'localhost' || location.hostname.includes('127.0.0.1')) {
-                    console.log('Using mock data for development');
-                    return generateMockHistoryData(page, limit, filters);
+                                        return generateMockHistoryData(page, limit, filters);
                 }
                 
                 return { items: [], totalCount: 0, error: error.message };
@@ -816,13 +804,10 @@
                                 page: window.location.pathname,
                                 filters: filters
                             })
-                        }).catch(e => console.log('Analytics error:', e));
-                    }
+                        }).catch(e =>                     }
                 } catch (analyticsError) {
-                    console.log('Analytics error:', analyticsError);
-                }
+                                    }
             } catch (error) {
-                console.error("Failed to fetch history data:", error);
                 showErrorMessage("Error loading history. Please try again later.");
                 noDocumentsMessage.classList.add(CSS_CLASSES.HIDDEN);
                 paginationControlsContainer.innerHTML = '';
@@ -1041,19 +1026,14 @@
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
                 
                 if (!userInfo || !userInfo.token) {
-                    console.warn('Session token not found after page load, checking localStorage for backup');
-                    
                     // Try to recover from localStorage if available (backward compatibility)
                     const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
                     if (localUserInfo && localUserInfo.token) {
-                        console.log('Recovered user info from localStorage, restoring to session');
-                        sessionStorage.setItem('userInfo', JSON.stringify(localUserInfo));
+                                                sessionStorage.setItem('userInfo', JSON.stringify(localUserInfo));
                     } else {
-                        console.warn('No valid session found in either storage location');
                     }
                 }
             } catch (e) {
-                console.error('Error handling session persistence:', e);
             }
             
             // Fix direct navigation to library page
@@ -1074,12 +1054,10 @@
                         if (userInfo && userInfo.token) {
                             // Navigate with token to ensure authentication is maintained
                             window.location.href = '/pages/savedDocument.html?token=' + userInfo.token;
-                            console.log('Navigating to library with token parameter');
-                        } else {
+                                                    } else {
                             // Fallback navigation
                             window.location.href = '/pages/savedDocument.html';
-                            console.log('Navigating to library without token (user may need to login)');
-                        }
+                                                    }
                     }
                 }
             }, true); // Use capture to ensure we handle the event first
@@ -1094,7 +1072,6 @@
             if (window.NavbarModule) {
                 window.NavbarModule.init();
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
         });
     </script>

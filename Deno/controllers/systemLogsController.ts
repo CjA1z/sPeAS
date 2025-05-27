@@ -55,7 +55,6 @@ export class SystemLogsController {
         offset
       };
     } catch (error) {
-      console.error("Error in getLogs controller:", error);
       ctx.response.status = 500;
       ctx.response.body = {
         success: false,
@@ -93,7 +92,6 @@ export class SystemLogsController {
         recentDocumentActions: formatLogs(recentDocumentActions)
       };
     } catch (error) {
-      console.error("Error in getLogSummary controller:", error);
       ctx.response.status = 500;
       ctx.response.body = {
         success: false,
@@ -139,7 +137,6 @@ export class SystemLogsController {
         log
       };
     } catch (error) {
-      console.error("Error in createLog controller:", error);
       ctx.response.status = 500;
       ctx.response.body = {
         success: false,
@@ -155,10 +152,8 @@ export class SystemLogsController {
   static async initialize() {
     try {
       await SystemLogsModel.ensureTableExists();
-      console.log("System logs table initialized");
-      return true;
+            return true;
     } catch (error) {
-      console.error("Failed to initialize system logs:", error);
       return false;
     }
   }

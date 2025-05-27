@@ -49,7 +49,6 @@ async function recordPageVisit(ctx: RouterContext<string>) {
       ctx.response.body = { error: "Failed to record visit." };
     }
   } catch (error) {
-    console.error("Error in recordPageVisit:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -78,7 +77,6 @@ async function getDocumentVisitStats(ctx: RouterContext<string>) {
     ctx.response.status = 200;
     ctx.response.body = visitStats;
   } catch (error) {
-    console.error(`Error getting document visit stats:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -123,9 +121,7 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
           }
         }
         
-        console.log(`Found ${childDocIds.size} child documents to filter out`);
-      } catch (err) {
-        console.warn('Error getting child document IDs:', err);
+              } catch (err) {
       }
       
       // Get list of compiled documents
@@ -144,9 +140,7 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
           }
         }
         
-        console.log(`Found ${compiledDocIds.size} compiled documents`);
-      } catch (err) {
-        console.warn('Error getting compiled document IDs:', err);
+              } catch (err) {
       }
       
       // For each compiled document, also get its name/title and other metadata
@@ -161,8 +155,7 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
           `);
           
           const columns = columnsResult.rows.map((row: any) => row.column_name as string);
-          console.log('Available columns in compiled_documents:', columns);
-          
+                    
           // Find the best title column
           let titleColumn = 'title'; // Default to 'title' instead of 'name'
           if (columns.includes('title')) {
@@ -173,11 +166,9 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
             titleColumn = 'name';
           } else {
             titleColumn = 'id::text';
-            console.log('No appropriate title column found, falling back to ID');
-          }
+                      }
           
-          console.log(`Using '${titleColumn}' as the title column for compiled_documents`);
-          
+                    
           // Build the query based on available columns
           const categoryColumn = columns.includes('category') ? 'category' : 'category_id';
           const startYearColumn = columns.includes('start_year') ? 'start_year' : 'NULL';
@@ -217,7 +208,6 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
                     categoryName = (catResult.rows[0] as any).category;
                   }
                 } catch (err) {
-                  console.warn('Error getting category name:', err);
                 }
               }
               
@@ -259,7 +249,6 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
             }
           }
         } catch (err) {
-          console.warn('Error getting compiled document titles:', err);
         }
       }
       
@@ -296,7 +285,6 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
           (doc as any).guest_count = visitStats.guest || 0;
           (doc as any).user_count = visitStats.user || 0;
         } catch (err) {
-          console.warn(`Error getting visit breakdown for document ${docId}:`, err);
           (doc as any).guest_count = 0;
           (doc as any).user_count = 0;
         }
@@ -327,7 +315,6 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
             user_count: visitStats.user || 0
           });
         } catch (err) {
-          console.warn(`Error getting visit breakdown for document ${docId}:`, err);
           enhancedDocuments.push({
             ...doc,
             guest_count: 0,
@@ -340,7 +327,6 @@ async function getMostVisitedDocuments(ctx: RouterContext<string>) {
       ctx.response.body = { documents: enhancedDocuments };
     }
   } catch (error) {
-    console.error(`Error getting most visited documents:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -364,7 +350,6 @@ async function getMostVisitedPages(ctx: RouterContext<string>) {
     ctx.response.status = 200;
     ctx.response.body = { pages };
   } catch (error) {
-    console.error(`Error getting most visited pages:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -390,7 +375,6 @@ async function purgeOldVisitData(ctx: RouterContext<string>) {
       result
     };
   } catch (error) {
-    console.error(`Error purging old visit data:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -435,7 +419,6 @@ async function compatGetMostVisitedDocuments(ctx: RouterContext<string>) {
           user_visits: visitStats.user || 0
         });
       } catch (err) {
-        console.warn(`Error getting visit breakdown for document ${docId}:`, err);
         enhancedDocuments.push({
           id: docId,
           visits: doc.visit_count || 0,
@@ -453,7 +436,6 @@ async function compatGetMostVisitedDocuments(ctx: RouterContext<string>) {
       period: period
     };
   } catch (error) {
-    console.error(`Error in compatibility getMostVisitedDocuments:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -520,7 +502,6 @@ async function compatGetVisitStatsByTimeframe(ctx: RouterContext<string>) {
       }
     };
   } catch (error) {
-    console.error(`Error in compatibility getVisitStatsByTimeframe:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -562,7 +543,6 @@ async function compatGetGeneralVisitStats(ctx: RouterContext<string>) {
       }
     };
   } catch (error) {
-    console.error(`Error in compatibility getGeneralVisitStats:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -601,7 +581,6 @@ async function compatGetHomePageVisitStats(ctx: RouterContext<string>) {
       }
     };
   } catch (error) {
-    console.error(`Error in compatibility getHomePageVisitStats:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -625,8 +604,7 @@ async function recordDocumentVisitDirectly(ctx: RouterContext<string>) {
     }
     
     // Extra logging to diagnose issue
-    console.log(`VISITOR TRACKING: Raw visitor type received: "${body.visitorType}"`);
-    
+        
     // Default to guest if visitorType is not provided or invalid
     const validTypes = ['user', 'guest'];
     let visitorType: "guest" | "user" = 'guest';
@@ -639,16 +617,14 @@ async function recordDocumentVisitDirectly(ctx: RouterContext<string>) {
       }
     }
     
-    console.log(`VISITOR TRACKING: Using visitor type: "${visitorType}" for document ${body.documentId}`);
-    
+        
     // Record the document visit
     const count = await PageVisitsModel.recordDocumentVisit(
       body.documentId,
       visitorType
     );
     
-    console.log(`VISITOR TRACKING: Recorded ${visitorType} visit for document ${body.documentId}, count=${count}`);
-    
+        
     // If this is a child document, also record a visit to its parent
     if (body.childDocumentId && !body.fromChild) {
       await PageVisitsModel.recordDocumentVisit(
@@ -664,7 +640,6 @@ async function recordDocumentVisitDirectly(ctx: RouterContext<string>) {
       count: count
     };
   } catch (error) {
-    console.error("Error in recordDocumentVisitDirectly:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -695,7 +670,6 @@ async function getDocumentVisitCounts(ctx: RouterContext<string>) {
     ctx.response.status = 200;
     ctx.response.body = visitStats;
   } catch (error) {
-    console.error(`Error getting document visit counts:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -727,8 +701,7 @@ async function getParentDocument(ctx: RouterContext<string>) {
       
       // Check the available columns
       const columns = columnsResult.rows.map((row: any) => row.column_name);
-      console.log('Available columns in compiled_documents:', columns);
-      
+            
       // Find the best title column
       let titleColumn = 'title'; // Default to 'title' instead of 'name'
       if (columns.includes('title')) {
@@ -739,11 +712,9 @@ async function getParentDocument(ctx: RouterContext<string>) {
         titleColumn = 'name';
       } else {
         titleColumn = 'id::text';
-        console.log('No appropriate title column found, falling back to ID');
-      }
+              }
       
-      console.log(`Using '${titleColumn}' as the title column for compiled_documents`);
-      
+            
       // Use the correct column name in the query
       const result = await client.queryObject(`
         SELECT cd.id AS parentId, cd.${titleColumn} AS parentTitle
@@ -785,11 +756,9 @@ async function getParentDocument(ctx: RouterContext<string>) {
         };
       }
     } catch (dbError) {
-      console.error("Database error when finding parent document:", dbError);
       throw dbError;
     }
   } catch (error) {
-    console.error("Error in getParentDocument:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -829,11 +798,8 @@ async function getCompiledDocumentDetails(ctx: RouterContext<string>) {
           titleColumn = 'name';
         } else {
           titleColumn = 'id::text';
-          console.log('No appropriate title column found, falling back to ID');
-        }
-        console.log(`Using '${titleColumn}' as the title column for compiled_documents in details`);
-      } catch (err) {
-        console.warn('Could not determine title column, using default:', err);
+                  }
+              } catch (err) {
       }
       
       // Query for the main document from compiled_documents table
@@ -929,7 +895,6 @@ async function getCompiledDocumentDetails(ctx: RouterContext<string>) {
             });
           }
         } catch (error) {
-          console.error(`Error getting visit stats for child document:`, error);
           const childDoc = child as Record<string, unknown>;
           childrenWithStats.push({
             ...childDoc,
@@ -946,11 +911,9 @@ async function getCompiledDocumentDetails(ctx: RouterContext<string>) {
       ctx.response.status = 200;
       ctx.response.body = detailedDoc;
     } catch (dbError) {
-      console.error(`Database error when getting compiled document details:`, dbError);
       throw dbError;
     }
   } catch (error) {
-    console.error(`Error in getCompiledDocumentDetails:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Failed to fetch compiled document details" };
   }

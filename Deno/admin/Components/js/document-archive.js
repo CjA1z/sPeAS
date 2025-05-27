@@ -2,6 +2,653 @@
  * Document archive functionality
  */
 
+// Add styles for the confirmation dialog
+const dialogStyles = document.createElement('style');
+dialogStyles.textContent = `
+    .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .confirmation-dialog {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .confirmation-dialog h3 {
+        margin: 0 0 15px 0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .confirmation-dialog h3 i {
+        color: #007bff;
+    }
+
+    .confirmation-dialog p {
+        margin: 0 0 20px 0;
+        color: #666;
+    }
+
+    .confirmation-dialog .warning {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 10px;
+        margin: 10px 0;
+        color: #856404;
+    }
+
+    .dialog-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .dialog-buttons button {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .dialog-buttons .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .dialog-buttons .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .dialog-buttons button:hover {
+        opacity: 0.9;
+    }
+`;
+
+// Add styles to document head
+document.head.appendChild(dialogStyles);
+
+// Add styles for toasts and dialogs
+const styles = document.createElement('style');
+styles.textContent = `
+    #toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 4px;
+        padding: 12px 20px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        min-width: 200px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .toast.success {
+        border-left: 4px solid #28a745;
+    }
+
+    .toast.error {
+        border-left: 4px solid #dc3545;
+    }
+
+    .toast.info {
+        border-left: 4px solid #17a2b8;
+    }
+
+    .toast.warning {
+        border-left: 4px solid #ffc107;
+    }
+
+    .toast i {
+        margin-right: 10px;
+    }
+
+    .toast.success i {
+        color: #28a745;
+    }
+
+    .toast.error i {
+        color: #dc3545;
+    }
+
+    .toast.info i {
+        color: #17a2b8;
+    }
+
+    .toast.warning i {
+        color: #ffc107;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    ${dialogStyles.textContent}
+
+    .dialog-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .dialog-buttons button {
+        padding: 10px 20px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .dialog-buttons .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .dialog-buttons .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dialog-buttons .btn-danger:hover {
+        background-color: #c82333;
+        transform: scale(1.05);
+    }
+
+    .dialog-buttons .btn-danger:disabled {
+        background-color: #dc354580;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .confirmation-dialog .warning {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 15px 0;
+        color: #856404;
+        border-radius: 4px;
+    }
+
+    .confirmation-dialog h3 {
+        color: #dc3545;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+
+    .confirmation-dialog h3 i {
+        color: #dc3545;
+    }
+
+    .confirmation-dialog #delete-confirmation-input {
+        border: 2px solid #dc3545;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 15px 0;
+        width: 100%;
+        font-size: 16px;
+    }
+
+    .confirmation-dialog #delete-confirmation-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
+    }
+
+    .document-actions .hard-delete-btn {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .document-actions .hard-delete-btn:hover {
+        background-color: #c82333;
+        transform: scale(1.1);
+    }
+
+    .document-actions .hard-delete-btn:hover i {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-2px); }
+        75% { transform: translateX(2px); }
+    }
+
+    .document-actions .hard-delete-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent
+        );
+        transition: 0.5s;
+    }
+
+    .document-actions .hard-delete-btn:hover::before {
+        left: 100%;
+    }
+
+    .document-actions .hard-delete-btn i {
+        font-size: 1.2em;
+    }
+
+    .confirmation-dialog .delete-warning {
+        color: #dc3545;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 15px 0;
+        text-align: center;
+        border: 2px solid #dc3545;
+        padding: 10px;
+        border-radius: 4px;
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+`;
+
+// Add styles to document head
+document.head.appendChild(styles);
+
+// Remove the old styles element if it exists
+if (dialogStyles.parentNode) {
+    dialogStyles.parentNode.removeChild(dialogStyles);
+}
+
+// Initialize core functions immediately to prevent reference errors
+(function(global) {
+    // Create namespace if it doesn't exist
+    if (!global.documentArchive) {
+        global.documentArchive = {
+            _initialized: false,
+            _isArchiveMode: false
+        };
+    }
+
+    // Define core functions first
+    const archiveDocument = async function(documentId) {
+        if (!documentId) {
+            showToast('Failed to archive: Missing document ID', 'error');
+            return Promise.reject(new Error('No document ID provided'));
+        }
+        
+        try {
+            // Show loading indication
+            showToast(`Archiving document...`, 'info');
+            
+            // Try the new unified API endpoint first
+            const response = await fetch(`/api/archives`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                },
+                body: JSON.stringify({
+                    document_id: documentId,
+                    archive_children: true
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to archive document: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            // Add a timestamp to force cache refresh
+            window.forceRefreshTimestamp = Date.now();
+            
+            // Show success message
+            showToast('Document archived successfully', 'success');
+            
+            // Refresh the current view
+            if (global.documentArchive.isArchiveMode()) {
+                if (typeof loadArchivedDocuments === 'function') {
+                    setTimeout(() => loadArchivedDocuments(1, true), 500);
+                }
+            } else {
+                if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
+                    setTimeout(() => window.documentList.refreshDocumentList(true), 300);
+                }
+            }
+            
+            return result;
+        } catch (error) {
+            showToast(`Archive failed: ${error.message}`, 'error');
+            return Promise.reject(error);
+        }
+    };
+
+    const archiveCompiledDocument = async function(documentId) {
+        if (!documentId) {
+            showToast('Failed to archive: Missing document ID', 'error');
+            return Promise.reject(new Error('No document ID provided'));
+        }
+        
+        try {
+            // Show loading indication
+            showToast(`Archiving compilation...`, 'info');
+            
+            // Try the unified API endpoint first
+            const response = await fetch(`/api/archives/compiled/${documentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to archive compilation: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            // Add a timestamp to force cache refresh
+            window.forceRefreshTimestamp = Date.now();
+            
+            // Show success message
+            showToast('Compilation archived successfully', 'success');
+            
+            // Refresh the current view
+            if (global.documentArchive.isArchiveMode()) {
+                if (typeof loadArchivedDocuments === 'function') {
+                    setTimeout(() => loadArchivedDocuments(1, true), 500);
+                }
+            } else {
+                if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
+                    setTimeout(() => window.documentList.refreshDocumentList(true), 300);
+                }
+            }
+            
+            return result;
+        } catch (error) {
+            showToast(`Archive failed: ${error.message}`, 'error');
+            return Promise.reject(error);
+        }
+    };
+
+    const restoreDocument = async function(documentId) {
+        if (!documentId) {
+            throw new Error('No document ID provided');
+        }
+
+        try {
+            // Show loading toast
+            showToast('Restoring document...', 'info');
+
+            // Try the unified API endpoint first
+            const response = await fetch(`/api/archives/${documentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to restore document: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            // Show success message
+            showToast('Document restored successfully', 'success');
+
+            // Refresh the document lists
+            if (typeof loadArchivedDocuments === 'function') {
+                setTimeout(() => loadArchivedDocuments(1, true), 500);
+            }
+            if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
+                setTimeout(() => window.documentList.refreshDocumentList(true), 500);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error restoring document:', error);
+            showToast(`Failed to restore document: ${error.message}`, 'error');
+            throw error;
+        }
+    };
+
+    // Assign core functions to the global namespace
+    global.documentArchive.archiveDocument = archiveDocument;
+    global.documentArchive.archiveCompiledDocument = archiveCompiledDocument;
+    global.documentArchive.restoreDocument = restoreDocument;
+    
+    // Add isArchiveMode function
+    global.documentArchive.isArchiveMode = function() {
+        return global.documentArchive._isArchiveMode;
+    };
+    
+    // Add setArchiveMode function
+    global.documentArchive.setArchiveMode = function(mode) {
+        global.documentArchive._isArchiveMode = mode;
+        // Trigger UI updates when mode changes
+        if (typeof updateArchiveButtonUI === 'function') {
+            updateArchiveButtonUI();
+        }
+        if (typeof updatePageTitle === 'function') {
+            updatePageTitle();
+        }
+    };
+
+    // Define and assign the showRestoreConfirmation function
+    global.documentArchive.showRestoreConfirmation = async function(documentId, isCompiled, docTitle) {
+        if (!documentId) {
+            return Promise.reject(new Error('No document ID provided'));
+        }
+
+        // Create and show the confirmation dialog
+        return new Promise((resolve, reject) => {
+            const dialogHtml = `
+                <div class="confirmation-dialog">
+                    <div class="dialog-content">
+                        <h3><i class="fas fa-question-circle"></i> Restore Document?</h3>
+                        <p>Are you sure you want to restore "${docTitle || 'this document'}"?</p>
+                        ${isCompiled ? '<p class="warning"><i class="fas fa-info-circle"></i> This will also restore all child documents.</p>' : ''}
+                        <div class="dialog-buttons">
+                            <button class="btn btn-secondary cancel-btn">Cancel</button>
+                            <button class="btn btn-primary confirm-btn">Restore</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Create dialog element
+            const dialog = document.createElement('div');
+            dialog.className = 'dialog-overlay';
+            dialog.innerHTML = dialogHtml;
+            document.body.appendChild(dialog);
+
+            // Add event listeners
+            const confirmBtn = dialog.querySelector('.confirm-btn');
+            const cancelBtn = dialog.querySelector('.cancel-btn');
+
+            const cleanup = () => {
+                dialog.remove();
+            };
+
+            confirmBtn.addEventListener('click', async () => {
+                cleanup();
+                try {
+                    await restoreDocument(documentId);
+                    resolve(true);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(false);
+            });
+        });
+    };
+
+    // Make sure the initialization is completed
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mark as initialized immediately since we have all functions ready
+        global.documentArchive._initialized = true;
+        console.log('Document archive system initialization completed');
+    });
+
+    // Add the showHardDeleteConfirmation function to the global namespace
+    global.documentArchive.showHardDeleteConfirmation = async function(documentId, isCompiled, docTitle) {
+        if (!documentId) {
+            return Promise.reject(new Error('No document ID provided'));
+        }
+
+        // Create and show the confirmation dialog
+        return new Promise((resolve, reject) => {
+            const dialogHtml = `
+                <div class="confirmation-dialog">
+                    <div class="dialog-content">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Permanent Delete</h3>
+                        <p>You are about to permanently delete "${docTitle || 'this document'}". This action cannot be undone.</p>
+                        ${isCompiled ? '<p class="warning"><i class="fas fa-info-circle"></i> This will also permanently delete all child documents.</p>' : ''}
+                        <div class="delete-warning">
+                            <i class="fas fa-exclamation-circle"></i> Warning: This action is permanent and irreversible
+                        </div>
+                        <p class="mt-3">To confirm, type "Delete" in the field below:</p>
+                        <input type="text" id="delete-confirmation-input" class="form-control" placeholder="Type 'Delete' to confirm" style="margin: 10px 0;">
+                        <div class="dialog-buttons">
+                            <button class="btn btn-secondary cancel-btn">Cancel</button>
+                            <button class="btn btn-danger confirm-btn" disabled>
+                                <i class="fas fa-trash-alt"></i> Delete Permanently
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Create dialog element
+            const dialog = document.createElement('div');
+            dialog.className = 'dialog-overlay';
+            dialog.innerHTML = dialogHtml;
+            document.body.appendChild(dialog);
+
+            // Get elements
+            const confirmBtn = dialog.querySelector('.confirm-btn');
+            const cancelBtn = dialog.querySelector('.cancel-btn');
+            const input = dialog.querySelector('#delete-confirmation-input');
+
+            // Add input listener to enable/disable confirm button
+            input.addEventListener('input', function() {
+                confirmBtn.disabled = this.value !== 'Delete';
+            });
+
+            const cleanup = () => {
+                dialog.remove();
+            };
+
+            // Add event listeners
+            confirmBtn.addEventListener('click', async () => {
+                if (input.value !== 'Delete') {
+                    return;
+                }
+                cleanup();
+                try {
+                    const response = await fetch(`/api/archives/${documentId}/hard-delete`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to permanently delete document');
+                    }
+
+                    showToast('Document permanently deleted', 'success');
+                    
+                    // Refresh the archive list
+                    if (typeof loadArchivedDocuments === 'function') {
+                        setTimeout(() => loadArchivedDocuments(1, true), 500);
+                    }
+                    
+                    resolve(true);
+                } catch (error) {
+                    showToast(`Failed to delete document: ${error.message}`, 'error');
+                    reject(error);
+                }
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(false);
+            });
+
+            // Add keyboard event listener for Enter and Escape
+            dialog.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !confirmBtn.disabled) {
+                    confirmBtn.click();
+                } else if (e.key === 'Escape') {
+                    cancelBtn.click();
+                }
+            });
+
+            // Focus the input field
+            input.focus();
+        });
+    };
+
+})(typeof window !== 'undefined' ? window : global);
+
 // Create a namespace for archive functionality
 window.documentArchive = (function() {
     // State management object
@@ -70,8 +717,7 @@ window.documentArchive = (function() {
                 cache.category === category &&
                 (Date.now() - cache.timestamp) < this.expiryTime
             ) {
-                console.log(`Using cached ${mode} documents`);
-                return cache.documents;
+                                return cache.documents;
             }
             
             return null;
@@ -93,8 +739,7 @@ window.documentArchive = (function() {
         clearAll() {
             this.regular = { documents: [], timestamp: 0, totalPages: 0 };
             this.archived = { documents: [], timestamp: 0, totalPages: 0 };
-            console.log('Document cache cleared');
-        }
+                    }
     };
 
     // Legacy variables for backward compatibility
@@ -108,8 +753,7 @@ window.documentArchive = (function() {
      * Initialize archive functionality
      */
     function initializeArchive() {
-        console.log('Initializing archive functionality');
-        
+                
         // Make sure the archive state is reset
         archiveState.isArchiveMode = false;
         
@@ -117,8 +761,7 @@ window.documentArchive = (function() {
         const archiveBtn = document.getElementById('archive-btn');
         
         if (archiveBtn) {
-            console.log('Archive button found, attaching click handler');
-            
+                        
             // Make sure button doesn't have navigation attributes
             if (archiveBtn.hasAttribute('href')) {
                 archiveBtn.removeAttribute('href');
@@ -127,7 +770,6 @@ window.documentArchive = (function() {
             // Make sure it's not inside a form
             const parentForm = archiveBtn.closest('form');
             if (parentForm) {
-                console.warn('Archive button is inside a form, this might cause navigation issues');
                 // Make sure it doesn't submit the form
                 archiveBtn.setAttribute('type', 'button');
             }
@@ -145,8 +787,7 @@ window.documentArchive = (function() {
             
             // Add event listener for the new button
             newArchiveBtn.addEventListener('click', function handleArchiveClick(e) {
-                console.log('Archive button clicked');
-                // Check if we have a dedicated archive page
+                                // Check if we have a dedicated archive page
                 if (typeof window.USE_DEDICATED_ARCHIVE_PAGE !== 'undefined' && window.USE_DEDICATED_ARCHIVE_PAGE) {
                     // Navigate to dedicated archive page instead of toggling mode
                     window.location.href = 'archive-list.html';
@@ -159,7 +800,6 @@ window.documentArchive = (function() {
                 }
             });
         } else {
-            console.warn('Archive button not found. Make sure element with id "archive-btn" exists.');
         }
         
         // Check if we need to restore from archive mode based on URL parameter
@@ -171,8 +811,7 @@ window.documentArchive = (function() {
         // Set a flag to prevent multiple initializations
         window.archiveInitialized = true;
         
-        console.log('Archive functionality initialization complete');
-    }
+            }
     
     /**
      * Check URL parameters to see if we should start in archive mode
@@ -206,9 +845,7 @@ window.documentArchive = (function() {
         try {
             // Use history.pushState to avoid page reloads
             window.history.pushState({ archive: archiveState.isArchiveMode }, '', url.toString());
-            console.log(`URL updated: ${url.toString()}`);
-        } catch (err) {
-            console.error('Error updating URL:', err);
+                    } catch (err) {
             // If pushState fails, don't update the URL to avoid reload
         }
     }
@@ -580,8 +1217,7 @@ window.documentArchive = (function() {
             event.stopPropagation();
         }
         
-        console.log('Toggling archive mode from', archiveState.isArchiveMode, 'to', !archiveState.isArchiveMode);
-        
+                
         // Show a loading overlay
         const loadingOverlay = document.createElement('div');
         loadingOverlay.className = 'loading-overlay';
@@ -594,14 +1230,12 @@ window.documentArchive = (function() {
             archiveState.isArchiveMode = !archiveState.isArchiveMode;
             
             // Log the state change for debugging
-            console.log(`ARCHIVE MODE CHANGE: wasInArchiveMode=${wasInArchiveMode}, isArchiveMode=${archiveState.isArchiveMode}`);
-            
+                        
             // Check if the button state is correct before making any changes
             const archiveBtn = document.getElementById('archive-btn') || 
                              document.querySelector('.archive-btn');
             if (archiveBtn) {
-                console.log(`Pre-update button state: has active class=${archiveBtn.classList.contains('active')}, should have active=${archiveState.isArchiveMode}`);
-            }
+                            }
             
             // IMPORTANT: First update the button UI *before* replacing the category label
             // This way updateArchiveButtonUI can find the current button
@@ -690,19 +1324,15 @@ window.documentArchive = (function() {
             
             // Always load the appropriate documents based on the NEW state
             if (archiveState.isArchiveMode) {
-                console.log('Loading archived documents');
-                loadArchivedDocuments(1);
+                                loadArchivedDocuments(1);
             } else {
-                console.log('Loading regular documents');
-                if (typeof loadDocuments === 'function') {
+                                if (typeof loadDocuments === 'function') {
                     loadDocuments(1, true);
                 } else {
-                    console.error('loadDocuments function not found');
                     showError('Could not load documents. Please refresh the page and try again.');
                 }
             }
         } catch (error) {
-            console.error('Error toggling archive mode:', error);
             showError('An error occurred while toggling archive mode. Please try again.');
         } finally {
             // Remove loading overlay after a minimum time (for UX)
@@ -720,8 +1350,7 @@ window.documentArchive = (function() {
      * Update the archive button UI based on current state
      */
     function updateArchiveButtonUI() {
-        console.log('Updating archive button UI, archive mode:', archiveState.isArchiveMode);
-        
+                
         // Find the archive button - could be in different places
         let archiveBtn = document.getElementById('archive-btn') || 
                            document.querySelector('.archive-btn');
@@ -744,7 +1373,6 @@ window.documentArchive = (function() {
         
         // If still not found, create a new button as a fallback
         if (!archiveBtn) {
-            console.warn('Archive button not found, creating a fallback button');
             const categoryLabel = document.querySelector('.category-container .label');
             
             if (categoryLabel) {
@@ -770,15 +1398,12 @@ window.documentArchive = (function() {
         if (archiveBtn) {
             // Check the current button state before updating
             const hasActiveClass = archiveBtn.classList.contains('active');
-            console.log(`Button before update: has active class=${hasActiveClass}, should have active=${archiveState.isArchiveMode}`);
-            
+                        
             // Check for mismatch between button state and archive mode
             if (hasActiveClass !== archiveState.isArchiveMode) {
-                console.log('Button state does not match archive mode state - fixing');
-            }
+                            }
             
-            console.log('Found archive button to update:', archiveBtn);
-            
+                        
             if (archiveState.isArchiveMode) {
                 // We are in archive mode
                 archiveBtn.classList.add('active');
@@ -819,11 +1444,9 @@ window.documentArchive = (function() {
             
             // Verify that the button state matches the archive mode after update
             const hasActiveClassAfter = archiveBtn.classList.contains('active');
-            console.log(`Button after update: has active class=${hasActiveClassAfter}, should have active=${archiveState.isArchiveMode}`);
-            
+                        
             // If there's still a mismatch, force the correct state
             if (hasActiveClassAfter !== archiveState.isArchiveMode) {
-                console.warn('Button state still doesn\'t match archive mode after update - forcing correct state');
                 if (archiveState.isArchiveMode) {
                     archiveBtn.classList.add('active');
                 } else {
@@ -831,7 +1454,6 @@ window.documentArchive = (function() {
                 }
             }
         } else {
-            console.error('Archive button not found and could not be created - UI may be inconsistent');
         }
     }
 
@@ -849,8 +1471,7 @@ window.documentArchive = (function() {
      * @param {string} category - Category filter
      */
     async function loadArchivedDocuments(page = 1, category = null, search = '') {
-        console.log(`Loading archived documents, page ${page}, category: ${category}, search: ${search}`);
-        
+                
         // Save current state in cache
         archiveState.currentPage = page;
         archiveState.categoryFilter = category;
@@ -877,7 +1498,6 @@ window.documentArchive = (function() {
         const archiveContainer = document.querySelector('#archived-documents');
         
         if (!archiveContainer) {
-            console.error('Archive container not found. Make sure the container with ID "archived-documents" exists');
             return;
         }
         
@@ -886,22 +1506,17 @@ window.documentArchive = (function() {
         
         try {
             // Use the new unified API endpoint first
-            console.log(`Using unified API to load archived documents: ${url}`);
-            const response = await fetch(url);
+                        const response = await fetch(url);
             
             // Check for errors
             if (!response.ok) {
-                console.error(`Failed to load archived documents: ${response.status} ${response.statusText}`);
-                console.log('Falling back to legacy archive loading method...');
-                
                 // Fall back to the old endpoint approach
                 return legacyLoadArchivedDocuments(page, category, search);
             }
             
             // Parse the response
             const data = await response.json();
-            console.log('Archived documents data (unified API):', data);
-            
+                        
             // Update pagination state
             archiveState.documents = data.documents || [];
             archiveState.totalPages = data.total_pages || 1;
@@ -923,8 +1538,6 @@ window.documentArchive = (function() {
             
             return data;
         } catch (error) {
-            console.error('Error loading archived documents:', error);
-            
             // Show error in container
             archiveContainer.innerHTML = `
                 <div class="archive-error">
@@ -951,8 +1564,7 @@ window.documentArchive = (function() {
      */
     async function legacyLoadArchivedDocuments(page, category, search) {
         try {
-            console.log(`Using legacy method to load archived documents`);
-            
+                        
             // Build URL with query parameters for the old endpoint
             let url = `/api/archived-documents?page=${page}&size=10`;
             
@@ -983,29 +1595,23 @@ window.documentArchive = (function() {
             
             for (const endpoint of loadEndpoints) {
                 try {
-                    console.log(`Attempting to load archived documents from: ${endpoint}`);
-                    response = await fetch(endpoint);
+                                        response = await fetch(endpoint);
                     
                     if (response.ok) {
                         data = await response.json();
-                        console.log(`Successfully loaded archived documents from: ${endpoint}`);
-                        loadSuccess = true;
+                                                loadSuccess = true;
                         break;
                 } else {
-                        console.log(`Load endpoint ${endpoint} returned ${response.status}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying load endpoint ${endpoint}:`, err.message);
-                }
+                                    }
             }
             
             if (!loadSuccess) {
-                console.error(`Failed to load archived documents with any known endpoint`);
                 throw new Error('Server endpoints not available for archived documents');
             }
             
-            console.log('Archived documents data (legacy):', data);
-            
+                        
             // Update pagination state (handle different response formats)
             if (data.documents) {
                 // New format
@@ -1040,8 +1646,6 @@ window.documentArchive = (function() {
             
             return data;
         } catch (error) {
-            console.error('Error in legacy load operation:', error);
-            
             // Show error in container
             const archiveContainer = document.querySelector('#archived-documents');
             if (archiveContainer) {
@@ -1113,13 +1717,11 @@ window.documentArchive = (function() {
                 `;
         } else {
             // Debug - log document data to help understand the structure
-            console.log('All documents to render:', documents);
-            
+                        
             // Organize documents into a hierarchy
             // 1. First identify parent/compiled documents - check both is_compiled AND is_package flags
             const parentDocuments = documents.filter(doc => doc.is_compiled === true || doc.is_package === true);
-            console.log('Parent documents found:', parentDocuments.length, parentDocuments);
-            
+                        
             // 2. Group child documents by parent
             const childrenMap = new Map(); // Map to store child documents by parent ID
             
@@ -1157,8 +1759,7 @@ window.documentArchive = (function() {
                 // Create a document card for each parent document
                 parentDocuments.forEach(parentDoc => {
                     try {
-                        console.log(`Rendering parent document: ${parentDoc.id} - ${parentDoc.title}`);
-                        // Create wrapper
+                                                // Create wrapper
                         const parentWrapper = document.createElement('div');
                         parentWrapper.className = 'document-wrapper';
                         hierarchySection.appendChild(parentWrapper);
@@ -1203,7 +1804,6 @@ window.documentArchive = (function() {
                         parentWrapper.appendChild(childrenContainer);
                         
                     } catch (error) {
-                        console.error(`Error rendering parent document ${parentDoc.id}:`, error);
                     }
                 });
                 
@@ -1231,7 +1831,6 @@ window.documentArchive = (function() {
                         const card = createDocumentCard(doc);
                         wrapper.appendChild(card);
                     } catch (error) {
-                        console.error(`Error creating card for document ${doc.id}:`, error);
                     }
                 });
                 
@@ -1265,7 +1864,6 @@ window.documentArchive = (function() {
                         const card = createDocumentCard(doc);
                         wrapper.appendChild(card);
                     } catch (error) {
-                        console.error(`Error creating card for orphaned document ${doc.id}:`, error);
                     }
                 });
                 
@@ -1297,8 +1895,7 @@ window.documentArchive = (function() {
      * @returns {HTMLElement} - Card element
      */
     function createDocumentCard(doc) {
-        console.log(`Creating card for document:`, doc);
-        
+                
         // Create card container
         const card = document.createElement('div');
         card.className = 'document-card';
@@ -1307,8 +1904,7 @@ window.documentArchive = (function() {
         // Add classes based on document properties
         if (doc.is_compiled || doc.is_package) {
             card.classList.add('compiled-document');
-            console.log(`This is a compiled document: ${doc.id}`);
-        }
+                    }
         
         card.classList.add('archived');
         
@@ -1386,7 +1982,6 @@ window.documentArchive = (function() {
                     if (wrapper) {
                     toggleChildDocuments(doc.id, wrapper);
                     } else {
-                        console.error('Could not find parent wrapper for compiled document', doc.id);
                     }
                 });
             }
@@ -1416,23 +2011,19 @@ window.documentArchive = (function() {
      */
     function toggleChildDocuments(parentId, wrapper) {
         if (!parentId || !wrapper) {
-            console.error('Missing parentId or wrapper in toggleChildDocuments');
             return;
         }
         
         const card = wrapper.querySelector('.document-card');
         if (!card) {
-            console.error('Could not find document card in wrapper');
             return;
         }
         
-        console.log(`Toggling child documents for parent ${parentId}`);
-        
+                
         // Find existing children container or create one
         let childrenContainer = wrapper.querySelector('.children-container');
         
         if (!childrenContainer) {
-            console.error('Could not find children container in wrapper - this should not happen');
             return;
         }
         
@@ -1557,178 +2148,7 @@ window.documentArchive = (function() {
             // Format as "15 Jun 2023"
             return `${day} ${month} ${year}`;
         } catch (e) {
-            console.error('Error formatting date:', e);
             return '';
-        }
-    }
-
-    /**
-     * Restore an archived document by removing its deleted_at timestamp
-     * @param {number} documentId - ID of the document to restore
-     */
-    async function restoreDocument(documentId) {
-        console.log(`Restoring document: ${documentId}`);
-        
-        if (!documentId) {
-            console.error('No document ID provided for restoration');
-            showToast('Failed to restore document: Missing ID', 'error');
-            return;
-        }
-        
-        try {
-            // Show toast message to indicate restoration is in progress
-            showToast('Restoring document...', 'info');
-            
-            // Use the new unified API endpoint first
-            console.log(`Using unified API to restore document ${documentId}`);
-            const response = await fetch(`/api/archives/${documentId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                }
-            });
-            
-            // Check for errors
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Restore operation failed with unified API:', errorData.error || response.statusText);
-                console.log('Falling back to legacy restore method...');
-                
-                // Fall back to the old endpoint approach
-                return legacyRestoreDocument(documentId);
-            }
-            
-            // Parse the response
-            const result = await response.json();
-            console.log('Restore operation successful with unified API:', result);
-            
-            // Show success message
-            showToast('Document restored successfully', 'success');
-            
-            // Refresh the document list
-            loadArchivedDocuments(window.documentArchive.getCurrentCache().page || 1);
-            
-            // Also refresh regular document list if available
-            if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                console.log('Refreshing regular document list after restore');
-                setTimeout(() => {
-                    window.documentList.refreshDocumentList(true);
-                }, 300);
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error restoring document:', error);
-            showToast(`Restore failed: ${error.message}`, 'error');
-            return false;
-        }
-    }
-    
-    /**
-     * Legacy method for restoring documents (fallback if unified API fails)
-     * @param {number} documentId - Document ID to restore
-     * @returns {Promise<boolean>} - Promise that resolves to true if successful
-     */
-    async function legacyRestoreDocument(documentId) {
-        try {
-            // Try different restore endpoints
-            let response = null;
-            let restoreSuccess = false;
-            
-            // Try potential restore endpoints
-            const restoreEndpoints = [
-                {
-                    url: `/api/archived-documents/${documentId}/restore`,
-                    method: 'POST'
-                },
-                {
-                    url: `/api/documents/${documentId}/restore`,
-                    method: 'POST'
-                }
-            ];
-            
-            for (const endpoint of restoreEndpoints) {
-                try {
-                    console.log(`Attempting to restore with endpoint: ${endpoint.url}`);
-                    response = await fetch(endpoint.url, {
-                        method: endpoint.method,
-            headers: {
-                'Content-Type': 'application/json',
-                            'Cache-Control': 'no-cache'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        restoreSuccess = true;
-                        console.log(`Successfully restored document using: ${endpoint.url}`);
-                        break;
-                    } else {
-                        console.log(`Restore endpoint ${endpoint.url} returned ${response.status}`);
-                    }
-                } catch (err) {
-                    console.log(`Error trying restore endpoint ${endpoint.url}:`, err.message);
-                }
-            }
-            
-            if (!restoreSuccess) {
-                console.error(`Failed to restore document with any known endpoint`);
-                showToast('Failed to restore document. Server endpoints not available.', 'error');
-                return false;
-            }
-            
-            // Parse the response
-            const result = await response.json();
-            console.log('Restore operation successful:', result);
-            
-            // Show success message
-            showToast('Document restored successfully', 'success');
-            
-            // Refresh the document list
-            loadArchivedDocuments(window.documentArchive.getCurrentCache().page || 1);
-            
-            // Also refresh regular document list if available
-            if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                console.log('Refreshing regular document list after restore');
-                    setTimeout(() => {
-                    window.documentList.refreshDocumentList(true);
-                }, 300);
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error in legacy restore operation:', error);
-            showToast(`Restore failed: ${error.message}`, 'error');
-            return false;
-        }
-    }
-
-    /**
-     * Check if there are any archived documents remaining
-     * If not, exit archive mode
-     */
-    function checkRemainingArchived() {
-        const remainingCards = document.querySelectorAll('.document-card');
-        if (remainingCards.length === 0) {
-            console.log('No more archived documents, exiting archive mode');
-            
-            // Show message that we're exiting archive mode
-            const container = document.getElementById('documents-container');
-            if (container) {
-                const emptyMessage = document.createElement('div');
-                emptyMessage.className = 'alert alert-info archive-empty';
-                emptyMessage.innerHTML = `
-                    <i class="fas fa-info-circle"></i>
-                    No more archived documents. Returning to document list...
-                `;
-                container.appendChild(emptyMessage);
-                
-                // Wait a moment before exiting archive mode
-                setTimeout(() => {
-                    // Exit archive mode
-                    toggleArchiveMode();
-                }, 2000);
-            }
         }
     }
 
@@ -1740,20 +2160,17 @@ window.documentArchive = (function() {
      */
     async function archiveDocument(documentId) {
         if (!documentId) {
-            console.error('Cannot archive document: No document ID provided');
             showToast('Failed to archive: Missing document ID', 'error');
             return Promise.reject(new Error('No document ID provided'));
         }
         
-        console.log(`Archiving document with ID: ${documentId}`);
-        
+                
         try {
             // Show loading indication
             showToast(`Archiving document...`, 'info');
             
             // Try the new unified API endpoint first
-            console.log(`Using unified API to archive document ${documentId}`);
-            const response = await fetch(`/api/archives`, {
+                        const response = await fetch(`/api/archives`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1765,20 +2182,15 @@ window.documentArchive = (function() {
                 })
             });
             
-            // Check for HTTP errors
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error('Archive operation failed with unified API:', errorData.error || response.statusText);
-                console.log('Falling back to legacy archiving method...');
-                
                 // Fall back to the old multi-endpoint approach
                 return legacyArchiveDocument(documentId);
             }
             
             // Parse the response
             const result = await response.json();
-            console.log('Archive operation successful with unified API:', result);
-            
+                        
             // Add a timestamp to force cache refresh when loading documents
             window.forceRefreshTimestamp = Date.now();
             
@@ -1791,8 +2203,7 @@ window.documentArchive = (function() {
             } else {
                 // Otherwise, force refresh the regular document list (in document-list.js)
                 if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                    console.log('Forcing document list refresh after archive operation');
-                    setTimeout(() => {
+                                        setTimeout(() => {
                         window.documentList.refreshDocumentList(true);
                     }, 300);
                 }
@@ -1800,11 +2211,13 @@ window.documentArchive = (function() {
             
             return true;
         } catch (error) {
-            console.error('Error in archive operation:', error);
             showToast(`Archive failed: ${error.message}`, 'error');
             return Promise.reject(error);
         }
     }
+
+    // Make archiveDocument available globally immediately
+    window.archiveDocument = archiveDocument;
 
     /**
      * Archive a compiled document
@@ -1817,8 +2230,7 @@ window.documentArchive = (function() {
             showToast(`Archiving compilation...`, 'info');
             
             // First try to use the unified archive API endpoint specifically for compiled documents
-            console.log(`Using unified API for compiled document ${documentId}`);
-            
+                        
             // Try the most reliable endpoint first - the specific compiled route
             const response = await fetch(`/api/archives/compiled/${documentId}`, {
                 method: 'POST',
@@ -1831,8 +2243,7 @@ window.documentArchive = (function() {
             // Check if this endpoint worked
             if (response.ok) {
                 const result = await response.json();
-                console.log('Archive operation successful with unified compiled document API:', result);
-                
+                                
                 // Add a timestamp to force cache refresh
                 window.forceRefreshTimestamp = Date.now();
                 
@@ -1845,8 +2256,7 @@ window.documentArchive = (function() {
                 return result;
             }
             
-            console.log(`Specific compiled endpoint returned ${response.status}, trying alternative endpoint...`);
-            
+                        
             // If specific endpoint failed, try the more generic unified endpoint
             const genericResponse = await fetch(`/api/archives`, {
                 method: 'POST',
@@ -1864,8 +2274,7 @@ window.documentArchive = (function() {
             // Check if this endpoint worked
             if (genericResponse.ok) {
                 const result = await genericResponse.json();
-                console.log('Archive operation successful with generic endpoint:', result);
-                
+                                
                 // Add a timestamp to force cache refresh
                 window.forceRefreshTimestamp = Date.now();
                 
@@ -1878,13 +2287,11 @@ window.documentArchive = (function() {
                 return result;
             }
             
-            console.log(`Generic archive endpoint returned ${genericResponse.status}, trying legacy endpoints...`);
-            
+                        
             // If all optimized endpoints failed, try legacy multi-endpoint approach
             return await legacyArchiveDocument(documentId, true);
             
         } catch (error) {
-            console.error('Error archiving compiled document:', error);
             showToast(`Failed to archive document: ${error.message}`, 'error');
             return Promise.reject(error);
         }
@@ -1900,8 +2307,7 @@ window.documentArchive = (function() {
         } else {
             // Otherwise, force refresh the regular document list
             if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                console.log('Forcing document list refresh');
-                setTimeout(() => {
+                                setTimeout(() => {
                     window.documentList.refreshDocumentList(true);
                 }, 300);
             }
@@ -1929,31 +2335,24 @@ window.documentArchive = (function() {
             
             for (const endpoint of potentialEndpoints) {
                 try {
-                    console.log(`Attempting to verify document using endpoint: ${endpoint}`);
-                    verifyResponse = await fetch(endpoint);
+                                        verifyResponse = await fetch(endpoint);
                     
                     if (verifyResponse.ok) {
                         documentData = await verifyResponse.json();
-                        console.log(`Successfully verified document using: ${endpoint}`);
-                        endpointFound = true;
+                                                endpointFound = true;
                         break;
                     } else {
-                        console.log(`Endpoint ${endpoint} returned ${verifyResponse.status}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying endpoint ${endpoint}:`, err.message);
-                }
+                                    }
             }
             
             if (!endpointFound) {
-                console.error(`Could not verify document ${documentId} with any known endpoint`);
                 // Continue with the operation anyway since the user confirmed
-                console.log('Proceeding with archive operation without verification');
-                // Assume it's a regular document since we're in this function
+                                // Assume it's a regular document since we're in this function
                 documentData = { id: documentId, is_compiled: false };
             } else if (documentData.deleted_at) {
-                console.log(`Document ${documentId} is already archived with deleted_at=${documentData.deleted_at}`);
-                showToast('Document is already archived', 'warning');
+                                showToast('Document is already archived', 'warning');
                 // Return success since the document is already in the desired state
                 return true;
             }
@@ -1962,8 +2361,7 @@ window.documentArchive = (function() {
             // If so, we should use the specialized function instead
             if (documentData.is_compiled === true || documentData.document_type === 'COMPILED' || 
                 (documentData.child_count && documentData.child_count > 0)) {
-                console.log(`Document ${documentId} appears to be a compiled document, using specialized function`);
-                return legacyArchiveCompiledDocument(documentId);
+                                return legacyArchiveCompiledDocument(documentId);
             }
             
             // Try different archive endpoints
@@ -1996,8 +2394,7 @@ window.documentArchive = (function() {
             
             for (const endpoint of archiveEndpoints) {
                 try {
-                    console.log(`Attempting to archive with endpoint: ${endpoint.url}`);
-                    response = await fetch(endpoint.url, {
+                                        response = await fetch(endpoint.url, {
                         method: endpoint.method,
                         headers: {
                             'Content-Type': 'application/json',
@@ -2008,30 +2405,24 @@ window.documentArchive = (function() {
                     
                     if (response.ok) {
                         archiveSuccess = true;
-                        console.log(`Successfully archived document using: ${endpoint.url}`);
-                        break;
+                                                break;
                     } else {
-                        console.log(`Archive endpoint ${endpoint.url} returned ${response.status}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying archive endpoint ${endpoint.url}:`, err.message);
-                }
+                                    }
             }
             
             if (!archiveSuccess) {
-                console.error(`Failed to archive document with any known endpoint`);
                 showToast('Cannot archive document. Please contact your system administrator.', 'error');
                 return Promise.reject(new Error('Failed to archive document: No working endpoint found'));
             }
             
             // Parse the response
             const result = await response.json();
-            console.log('Archive operation successful:', result);
-            
+                        
             // If this is a compiled document with children, log details
             if (result.is_compiled && result.child_documents && result.child_documents.length) {
-                console.log(`Archived compiled document with ${result.child_documents.length} child documents`);
-            }
+                            }
             
             // Add a timestamp to force cache refresh when loading documents
             window.forceRefreshTimestamp = Date.now();
@@ -2045,8 +2436,7 @@ window.documentArchive = (function() {
                 } else {
                 // Otherwise, force refresh the regular document list (in document-list.js)
                 if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                    console.log('Forcing document list refresh after archive operation');
-                    setTimeout(() => {
+                                        setTimeout(() => {
                         window.documentList.refreshDocumentList(true);
                     }, 300);
                 }
@@ -2054,7 +2444,6 @@ window.documentArchive = (function() {
             
             return true;
         } catch (error) {
-            console.error('Error in legacy archive operation:', error);
             showToast(`Archive failed: ${error.message || 'Server operation failed'}`, 'error');
             return Promise.reject(error);
         }
@@ -2081,31 +2470,25 @@ window.documentArchive = (function() {
             
             for (const endpoint of potentialEndpoints) {
                 try {
-                    console.log(`Attempting to verify document using endpoint: ${endpoint}`);
-                    verifyResponse = await fetch(endpoint);
+                                        verifyResponse = await fetch(endpoint);
                     
                     if (verifyResponse.ok) {
                         documentData = await verifyResponse.json();
-                        console.log(`Successfully verified document using: ${endpoint}`);
-                        endpointFound = true;
+                                                endpointFound = true;
                         break;
                     } else {
-                        console.log(`Endpoint ${endpoint} returned ${verifyResponse.status}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying endpoint ${endpoint}:`, err.message);
-                }
+                                    }
             }
             
             if (!endpointFound) {
-                console.error(`Could not verify document ${documentId} with any known endpoint`);
                 showToast('Could not verify document information', 'error');
                 return Promise.reject(new Error('Document verification failed: No endpoint found'));
             }
             
             if (documentData.deleted_at) {
-                console.log(`Document ${documentId} is already archived with deleted_at=${documentData.deleted_at}`);
-                showToast('Document is already archived', 'warning');
+                                showToast('Document is already archived', 'warning');
                 return true;
             }
             
@@ -2139,8 +2522,7 @@ window.documentArchive = (function() {
             
             for (const endpoint of archiveEndpoints) {
                 try {
-                    console.log(`Attempting to archive with endpoint: ${endpoint.url}`);
-                    response = await fetch(endpoint.url, {
+                                        response = await fetch(endpoint.url, {
                         method: endpoint.method,
                         headers: {
                             'Content-Type': 'application/json',
@@ -2151,26 +2533,21 @@ window.documentArchive = (function() {
                     
                     if (response.ok) {
                         archiveSuccess = true;
-                        console.log(`Successfully archived compiled document using: ${endpoint.url}`);
-                        break;
+                                                break;
                     } else {
-                        console.log(`Archive endpoint ${endpoint.url} returned ${response.status}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying archive endpoint ${endpoint.url}:`, err.message);
-                }
+                                    }
             }
             
             if (!archiveSuccess) {
-                console.error(`Failed to archive compiled document with any known endpoint`);
                 showToast('Cannot archive document. Please contact your system administrator.', 'error');
                 return Promise.reject(new Error('Failed to archive document: No working endpoint found'));
             }
             
             // Parse the response
             const result = await response.json();
-            console.log('Archive operation successful:', result);
-            
+                        
             // Show success message
             showToast('Document archived successfully', 'success');
             
@@ -2179,8 +2556,7 @@ window.documentArchive = (function() {
                 loadArchivedDocuments(window.documentArchive.getCurrentCache().page || 1);
             } else {
                 if (window.documentList && typeof window.documentList.refreshDocumentList === 'function') {
-                    console.log('Forcing document list refresh after archive operation');
-                    setTimeout(() => {
+                                        setTimeout(() => {
                         window.documentList.refreshDocumentList(true);
                     }, 300);
                 }
@@ -2188,7 +2564,6 @@ window.documentArchive = (function() {
             
             return true;
         } catch (error) {
-            console.error(`Error in legacyArchiveCompiledDocument:`, error);
             showToast(`Archive failed: ${error.message || 'Server operation failed'}`, 'error');
             return Promise.reject(error);
         }
@@ -2202,8 +2577,7 @@ window.documentArchive = (function() {
      */
     async function archiveChildDocument(childId, parentId) {
         try {
-            console.log(`Archiving child document ${childId} of parent ${parentId}`);
-            
+                        
             // Try different archive endpoints
             let archiveSuccess = false;
             
@@ -2221,8 +2595,7 @@ window.documentArchive = (function() {
             
             for (const endpoint of archiveEndpoints) {
                 try {
-                    console.log(`Attempting to archive child with endpoint: ${endpoint.url}`);
-                    const response = await fetch(endpoint.url, {
+                                        const response = await fetch(endpoint.url, {
                         method: endpoint.method,
                         headers: {
                             'Content-Type': 'application/json',
@@ -2236,25 +2609,19 @@ window.documentArchive = (function() {
                     
                     if (response.ok) {
                         archiveSuccess = true;
-                        console.log(`Successfully archived child document ${childId} using: ${endpoint.url}`);
-                        break;
+                                                break;
                     } else {
-                        console.log(`Archive endpoint ${endpoint.url} returned ${response.status} for child ${childId}`);
-                    }
+                                            }
                 } catch (err) {
-                    console.log(`Error trying archive endpoint ${endpoint.url} for child ${childId}:`, err.message);
-                }
+                                    }
             }
             
             if (!archiveSuccess) {
-                console.error(`Failed to archive child document ${childId} with any known endpoint`);
                 return false;
             }
             
-            console.log(`Successfully archived child document ${childId}`);
-            return true;
+                        return true;
         } catch (error) {
-            console.error(`Error archiving child document ${childId}:`, error);
             return false;
         }
     }
@@ -2266,7 +2633,6 @@ window.documentArchive = (function() {
      */
     async function fetchArchivedChildDocuments(parentId, containerElement) {
         if (!parentId || !containerElement) {
-            console.error('Missing required parameters for fetchArchivedChildDocuments');
             return;
         }
         
@@ -2282,11 +2648,9 @@ window.documentArchive = (function() {
                     const parentData = await parentResponse.json();
                     if (parentData && parentData.title) {
                         parentTitle = parentData.title;
-                        console.log(`Got parent document title: "${parentTitle}"`);
-                    }
+                                            }
                 }
             } catch (err) {
-                console.warn('Could not fetch parent document details:', err);
             }
             
             // Fetch the child documents
@@ -2299,8 +2663,7 @@ window.documentArchive = (function() {
             const data = await response.json();
             const childDocuments = data.documents || [];
             
-            console.log(`Received ${childDocuments.length || 0} child documents for package ${parentId}`);
-            
+                        
             // Clear container
             containerElement.innerHTML = '';
             
@@ -2333,7 +2696,6 @@ window.documentArchive = (function() {
             });
             
         } catch (error) {
-            console.error('Error fetching child documents:', error);
             containerElement.innerHTML = `
                 <div class="error-message">
                     <p>Failed to load package contents: ${error.message}</p>
@@ -2618,28 +2980,23 @@ window.documentArchive = (function() {
      */
     async function fetchParentDocumentDetails(childId) {
         if (!childId) {
-            console.error('Cannot fetch parent: No child document ID provided');
             return null;
         }
         
         try {
             // Check if we have the parent ID in the cache (from previous API responses)
             if (archiveState.childParentMap && archiveState.childParentMap[childId]) {
-                console.log(`Using cached parent info for child ${childId}`);
-                return archiveState.childParentMap[childId];
+                                return archiveState.childParentMap[childId];
             }
             
-            console.log(`Fetching parent document details for child ${childId}`);
-            const response = await fetch(`/api/documents/${childId}/parent-info`);
+                        const response = await fetch(`/api/documents/${childId}/parent-info`);
             
             if (!response.ok) {
-                console.warn(`Failed to fetch parent info: ${response.status} ${response.statusText}`);
                 return null;
             }
             
             const data = await response.json();
-            console.log(`Got parent details for child ${childId}:`, data);
-            
+                        
             // Cache the parent details
             if (!archiveState.childParentMap) {
                 archiveState.childParentMap = {};
@@ -2651,7 +3008,6 @@ window.documentArchive = (function() {
             
             return data;
         } catch (error) {
-            console.error('Error fetching parent document details:', error);
             return null;
         }
     }
@@ -2693,10 +3049,8 @@ window.documentArchive = (function() {
      * @param {Object} categoryCounts - Object mapping category names to counts
      */
     function updateCategoryFilters(categoryCounts) {
-        console.log('Updating category filters with data:', categoryCounts);
-        
+                
         if (!categoryCounts) {
-            console.warn('No category counts provided to updateCategoryFilters');
             return;
         }
         
@@ -2735,8 +3089,7 @@ window.documentArchive = (function() {
         });
         
         // Log completion
-        console.log('Category filters updated with total count:', totalCount);
-    }
+            }
 
     // Public API
     return {
@@ -2752,15 +3105,16 @@ window.documentArchive = (function() {
         archiveCompiledDocument,
         archiveChildDocument,
         restoreDocument,
+        showRestoreConfirmation,
         
-        // Legacy fallback functions (not directly exposed but available internally)
-        _legacyArchiveDocument: legacyArchiveDocument,
-        _legacyArchiveCompiledDocument: legacyArchiveCompiledDocument,
-        _legacyRestoreDocument: legacyRestoreDocument,
-        _legacyLoadArchivedDocuments: legacyLoadArchivedDocuments,
+        // UI functions
+        updateArchiveButtonUI,
+        updatePageTitle,
         
-        // Document display functions
+        // Document loading
         loadArchivedDocuments,
+        
+        // Cache management
         getCurrentCache: function() {
             return {
                 isArchiveMode: archiveState.isArchiveMode,
@@ -2772,691 +3126,70 @@ window.documentArchive = (function() {
             };
         },
         
-        // Initialize archive functionality
-        initializeArchive
+        // Initialization
+        initializeArchive,
+        _initialized: false  // Flag to track initialization state
     };
 })();
+
+// Immediately make core functions available globally to prevent race conditions
+(function(global) {
+    // Pre-initialize core functions to prevent "not defined" errors
+    global.archiveDocument = async function(documentId) {
+        if (!documentId) {
+            console.warn('archiveDocument called before full initialization');
+            return Promise.reject(new Error('Archive system not fully initialized'));
+        }
+        await waitForFullInit();
+        return global.documentArchive.archiveDocument(documentId);
+    };
+
+    global.archiveCompiledDocument = async function(documentId) {
+        if (!documentId) {
+            console.warn('archiveCompiledDocument called before full initialization');
+            return Promise.reject(new Error('Archive system not fully initialized'));
+        }
+        await waitForFullInit();
+        return global.documentArchive.archiveCompiledDocument(documentId);
+    };
+
+    global.showRestoreConfirmation = async function(documentId, isCompiled, docTitle) {
+    if (!documentId) {
+            console.warn('showRestoreConfirmation called before full initialization');
+            return Promise.reject(new Error('Archive system not fully initialized'));
+        }
+        await waitForFullInit();
+        return global.documentArchive.showRestoreConfirmation(documentId, isCompiled, docTitle);
+    };
+
+    // Helper function to wait for full initialization
+    const waitForFullInit = () => {
+        return new Promise((resolve) => {
+            const checkInit = () => {
+                if (global.documentArchive && global.documentArchive._initialized) {
+                    resolve();
+            } else {
+                    setTimeout(checkInit, 50);
+                }
+            };
+            checkInit();
+        });
+    };
+})(typeof window !== 'undefined' ? window : global);
 
 // Properly initialize archive functionality when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Check if initialization has already happened to prevent duplicates
     if (window.archiveInitialized) {
-        console.log('Archive functionality already initialized, skipping');
         return;
     }
     
     if (typeof initializeArchive === 'function') {
         initializeArchive();
-        console.log('Archive functionality initialized');
     } else if (window.documentArchive && typeof window.documentArchive.initializeArchive === 'function') {
         window.documentArchive.initializeArchive();
-        console.log('Archive functionality initialized through namespace');
-    } else {
-        console.error('Archive initialization function not found');
     }
     
-    window.archiveInitialized = true;
+    // Mark as fully initialized
+    window.documentArchive._initialized = true;
 });
-
-/**
- * Show a confirmation dialog for restoring a document
- * @param {number|string} documentId - The ID of the document to restore
- * @param {boolean} isCompiled - Whether this is a compiled document
- * @param {string} docTitle - The title of the document (optional)
- */
-function showRestoreConfirmation(documentId, isCompiled = false, docTitle = null) {
-    console.log(`Showing restore confirmation for document ${documentId}, isCompiled: ${isCompiled}`);
-    
-    // If title wasn't provided, try to get it from the DOM
-    if (!docTitle) {
-        const docCard = document.querySelector(`.document-card[data-document-id="${documentId}"]`);
-        if (docCard) {
-            const titleEl = docCard.querySelector('.document-title');
-            if (titleEl) {
-                docTitle = titleEl.textContent.trim();
-                // Limit title length for dialog
-                if (docTitle.length > 40) {
-                    docTitle = docTitle.substring(0, 37) + '...';
-                }
-            }
-        }
-    }
-    
-    // Get or create the modal element
-    let modal = document.getElementById('restore-confirmation-modal');
-    
-    // If modal doesn't exist, create it
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'restore-confirmation-modal';
-        modal.className = 'modal-overlay';
-        modal.style.display = 'none';
-        modal.style.position = 'fixed';
-        modal.style.zIndex = '9999';
-        
-        // Create modal content
-        modal.innerHTML = `
-            <div class="modal-content confirmation-modal">
-                <div class="modal-header">
-                    <h3 id="restore-confirmation-title">Restore Document</h3>
-                    <button class="close-button" id="close-restore-confirmation">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="confirmation-icon">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <p id="restore-confirmation-message">Are you sure you want to restore this document? It will be available in the main document list.</p>
-                </div>
-                <div class="modal-footer">
-                    <button id="cancel-restore-confirmation" class="btn-secondary">Cancel</button>
-                    <button id="confirm-restore-btn" class="btn-primary">Restore</button>
-                </div>
-            </div>
-        `;
-        
-        // Add to document body
-        document.body.appendChild(modal);
-        
-        // Add styles if delete-confirmation-modal styles exist
-        const existingStyles = document.getElementById('restore-confirmation-styles');
-        if (!existingStyles) {
-            const styles = document.createElement('style');
-            styles.id = 'restore-confirmation-styles';
-            styles.textContent = `
-                #restore-confirmation-modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    z-index: 1000;
-                    display: none;
-                    justify-content: center;
-                    align-items: center;
-                    animation: fadeIn 0.3s ease;
-                }
-                
-                #restore-confirmation-modal.show {
-                    display: flex !important;
-                    opacity: 1 !important;
-                    visibility: visible !important;
-                }
-                
-                #restore-confirmation-modal .modal-content {
-                    background-color: #fff;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-                    width: 100%;
-                    max-width: 420px;
-                    padding: 0;
-                    animation: slideIn 0.3s ease;
-                    overflow: hidden;
-                    opacity: 1;
-                    visibility: visible;
-                }
-                
-                #restore-confirmation-modal .modal-header {
-                    background-color: #f7f7f7;
-                    padding: 15px 20px;
-                    border-bottom: 1px solid #e5e5e5;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                #restore-confirmation-modal .modal-header h3 {
-                    margin: 0;
-                    font-size: 18px;
-                    color: #333;
-                }
-                
-                #restore-confirmation-modal .close-button {
-                    background: none;
-                    border: none;
-                    font-size: 24px;
-                    color: #777;
-                    cursor: pointer;
-                    transition: color 0.2s;
-                }
-                
-                #restore-confirmation-modal .close-button:hover {
-                    color: #333;
-                }
-                
-                #restore-confirmation-modal .modal-body {
-                    padding: 20px;
-                    text-align: center;
-                }
-                
-                #restore-confirmation-modal .confirmation-icon {
-                    font-size: 48px;
-                    color: #2196F3;
-                    margin-bottom: 15px;
-                }
-                
-                #restore-confirmation-modal .confirmation-icon i {
-                    background-color: rgba(33, 150, 243, 0.1);
-                    padding: 20px;
-                    border-radius: 50%;
-                }
-                
-                #restore-confirmation-modal #restore-confirmation-message {
-                    font-size: 16px;
-                    color: #333;
-                    margin: 0;
-                    line-height: 1.5;
-                }
-                
-                #restore-confirmation-modal .modal-footer {
-                    padding: 15px 20px;
-                    background-color: #f7f7f7;
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 10px;
-                    border-top: 1px solid #e5e5e5;
-                }
-                
-                #restore-confirmation-modal .btn-secondary {
-                    background-color: #f0f0f0;
-                    border: 1px solid #ccc;
-                    color: #333;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    cursor: pointer;
-                    transition: background-color 0.3s ease;
-                }
-                
-                #restore-confirmation-modal .btn-secondary:hover {
-                    background-color: #e0e0e0;
-                }
-                
-                #restore-confirmation-modal .btn-primary {
-                    background-color: #2196F3;
-                    border: 1px solid #1976D2;
-                    color: white;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    cursor: pointer;
-                    transition: background-color 0.3s ease;
-                }
-                
-                #restore-confirmation-modal .btn-primary:hover {
-                    background-color: #1976D2;
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-    }
-    
-    // Get elements
-    const confirmTitle = document.getElementById('restore-confirmation-title');
-    const confirmMessage = document.getElementById('restore-confirmation-message');
-    const confirmBtn = document.getElementById('confirm-restore-btn');
-    const cancelBtn = document.getElementById('cancel-restore-confirmation');
-    const closeBtn = document.getElementById('close-restore-confirmation');
-    
-    // Set title and message based on document type
-    if (isCompiled) {
-        confirmTitle.textContent = 'Restore Compilation';
-        confirmMessage.textContent = `Are you sure you want to restore "${docTitle || 'this compilation'}"? It will be available in the main document list along with all its child documents.`;
-    } else {
-        confirmTitle.textContent = 'Restore Document';
-        confirmMessage.textContent = `Are you sure you want to restore "${docTitle || 'this document'}"? It will be available in the main document list.`;
-    }
-    
-    // Show the modal
-    modal.style.display = 'flex';
-    modal.classList.add('show');
-    console.log('Showing restore confirmation modal');
-    
-    // Focus cancel button (safer option)
-    setTimeout(() => {
-        if (cancelBtn) cancelBtn.focus();
-    }, 100);
-    
-    // Handle confirm button
-    const confirmHandler = function() {
-        // Hide the modal
-        modal.classList.remove('show');
-        modal.style.display = 'none';
-        console.log('Restore confirmed for document:', documentId);
-        
-        // Process the restore action
-        restoreDocument(documentId, isCompiled);
-        
-        // Clean up event listeners
-        confirmBtn.removeEventListener('click', confirmHandler);
-        cancelBtn.removeEventListener('click', cancelHandler);
-        closeBtn.removeEventListener('click', cancelHandler);
-        document.removeEventListener('keydown', keyHandler);
-    };
-    
-    // Handle cancel/close buttons
-    const cancelHandler = function() {
-        // Hide the modal
-        modal.classList.remove('show');
-        modal.style.display = 'none';
-        console.log('Restore cancelled for document:', documentId);
-        
-        // Clean up event listeners
-        confirmBtn.removeEventListener('click', confirmHandler);
-        cancelBtn.removeEventListener('click', cancelHandler);
-        closeBtn.removeEventListener('click', cancelHandler);
-        document.removeEventListener('keydown', keyHandler);
-    };
-    
-    // Handle keyboard events (ESC to close)
-    const keyHandler = function(e) {
-        if (e.key === 'Escape') {
-            cancelHandler();
-        } else if (e.key === 'Enter') {
-            // Enter key also confirms when modal is open
-            confirmHandler();
-        }
-    };
-    
-    // Remove any existing event listeners to prevent duplicates
-    confirmBtn.removeEventListener('click', confirmHandler);
-    cancelBtn.removeEventListener('click', cancelHandler);
-    closeBtn.removeEventListener('click', cancelHandler);
-    document.removeEventListener('keydown', keyHandler);
-    
-    // Attach event listeners
-    confirmBtn.addEventListener('click', confirmHandler);
-    cancelBtn.addEventListener('click', cancelHandler);
-    closeBtn.addEventListener('click', cancelHandler);
-    document.addEventListener('keydown', keyHandler);
-}
-
-/**
- * Show confirmation dialog for hard deleting a document
- * This is a permanent action that cannot be undone
- * @param {string|number} documentId - ID of document to delete
- * @param {boolean} isCompiled - Whether this is a compiled document
- * @param {string} docTitle - Document title for better UX
- */
-function showHardDeleteConfirmation(documentId, isCompiled = false, docTitle = null) {
-    // Log function call for debugging
-    console.log(`showHardDeleteConfirmation called with ID: ${documentId}, isCompiled: ${isCompiled}, title: ${docTitle}`);
-    
-    // Validate document ID
-    if (!documentId) {
-        console.error('Cannot show delete confirmation: Missing document ID');
-        showToast('Cannot delete: Missing document ID', 'error');
-        return;
-    }
-    
-    // Parse document ID as integer if it's a string
-    const docId = typeof documentId === 'string' ? parseInt(documentId, 10) : documentId;
-    
-    if (isNaN(docId) || docId <= 0) {
-        console.error(`Invalid document ID: ${documentId}. ID must be a positive integer.`);
-        showToast('Cannot delete: Invalid document ID', 'error');
-        return;
-    }
-    
-    // Store the parsed ID
-    documentId = docId;
-    
-    console.log(`Showing hard delete confirmation for document ${documentId}, isCompiled: ${isCompiled}`);
-    
-    // Get document info if not provided
-    if (!docTitle) {
-        const docCard = document.querySelector(`.document-card[data-document-id="${documentId}"]`);
-        if (docCard) {
-            const titleEl = docCard.querySelector('.document-title');
-            if (titleEl) {
-                docTitle = titleEl.textContent.trim();
-                if (docTitle.length > 40) {
-                    docTitle = docTitle.substring(0, 37) + '...';
-                }
-            }
-            
-            isCompiled = docCard.classList.contains('compiled-document') || 
-                          docCard.classList.contains('compilation');
-        }
-    }
-    
-    // Look for existing modal or create new one
-    let modal = document.getElementById('hard-delete-confirmation-modal');
-    
-    // If modal doesn't exist, create it
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'hard-delete-confirmation-modal';
-        modal.className = 'modal-overlay';
-        modal.style.display = 'none';
-        modal.style.position = 'fixed';
-        modal.style.zIndex = '9999';
-        
-        // Create modal content
-        modal.innerHTML = `
-            <div class="modal-content confirmation-modal">
-                <div class="modal-header">
-                    <h3 id="hard-delete-confirmation-title">Permanently Delete Document</h3>
-                    <button class="close-button" id="close-hard-delete-confirmation">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="confirmation-icon danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <p id="hard-delete-confirmation-message">
-                        <strong>Warning:</strong> This action cannot be undone. This will permanently delete this document from the database.
-                    </p>
-                    <div class="confirmation-input-container">
-                        <label for="delete-confirmation-input">Please type <strong>Delete</strong> to confirm:</label>
-                        <input type="text" id="delete-confirmation-input" class="confirmation-input" placeholder="Type 'Delete' here">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="cancel-hard-delete-confirmation" class="btn-secondary">Cancel</button>
-                    <button id="confirm-hard-delete-btn" class="btn-danger" disabled>Permanently Delete</button>
-                </div>
-            </div>
-        `;
-        
-        // Add to document body
-        document.body.appendChild(modal);
-        
-        // Add styles for the danger icon and button
-        const styleEl = document.createElement('style');
-        styleEl.id = 'hard-delete-confirmation-styles';
-        styleEl.textContent = `
-            .confirmation-icon.danger {
-                color: #dc3545;
-                margin: 0 auto 20px;
-                text-align: center;
-            }
-            .confirmation-icon.danger i {
-                font-size: 48px;
-                background: rgba(220, 53, 69, 0.1);
-                padding: 15px;
-                border-radius: 50%;
-            }
-            .btn-danger {
-                background-color: #dc3545;
-                color: white;
-                border: 1px solid #bd2130;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: background-color 0.2s;
-            }
-            .btn-danger:hover {
-                background-color: #bd2130;
-            }
-            .btn-danger:disabled {
-                background-color: #e9a2a9;
-                border-color: #e9a2a9;
-                cursor: not-allowed;
-                opacity: 0.65;
-            }
-            .confirmation-input-container {
-                margin-top: 20px;
-                text-align: left;
-            }
-            .confirmation-input-container label {
-                display: block;
-                margin-bottom: 8px;
-                font-weight: 500;
-            }
-            .confirmation-input {
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #ced4da;
-                border-radius: 4px;
-                font-size: 16px;
-                margin-bottom: 10px;
-            }
-            .confirmation-input.error {
-                border-color: #dc3545;
-                box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-            }
-        `;
-        document.head.appendChild(styleEl);
-    }
-    
-    // Set the title and message
-    const titleEl = modal.querySelector('#hard-delete-confirmation-title');
-    const messageEl = modal.querySelector('#hard-delete-confirmation-message');
-    
-    if (titleEl) {
-        titleEl.textContent = isCompiled ? 'Permanently Delete Compilation' : 'Permanently Delete Document';
-    }
-    
-    if (messageEl) {
-        messageEl.innerHTML = `
-            <strong>Warning:</strong> Are you sure you want to permanently delete 
-            "${docTitle || (isCompiled ? 'this compilation' : 'this document')}"?
-            <br><br>
-            This action <strong>CANNOT</strong> be undone and will remove the document completely from the database.
-            ${isCompiled ? '<br><br>This will also delete all child documents belonging to this compilation.' : ''}
-        `;
-    }
-    
-    // Set up event listeners
-    const closeBtn = modal.querySelector('#close-hard-delete-confirmation');
-    const cancelBtn = modal.querySelector('#cancel-hard-delete-confirmation');
-    const confirmBtn = modal.querySelector('#confirm-hard-delete-btn');
-    const confirmationInput = modal.querySelector('#delete-confirmation-input');
-    
-    // Clear any previous input
-    if (confirmationInput) {
-        confirmationInput.value = '';
-        confirmationInput.classList.remove('error');
-        
-        // Add input event listener to validate and enable/disable the confirm button
-        confirmationInput.addEventListener('input', function() {
-            const inputValue = this.value.trim();
-            confirmBtn.disabled = inputValue !== 'Delete';
-            
-            // Add visual indicator for incorrect input
-            if (inputValue && inputValue !== 'Delete') {
-                this.classList.add('error');
-            } else {
-                this.classList.remove('error');
-            }
-        });
-    }
-    
-    // Close modal when X button is clicked
-    if (closeBtn) {
-        closeBtn.onclick = function() {
-            modal.style.display = 'none';
-        };
-    }
-    
-    // Close modal when Cancel button is clicked
-    if (cancelBtn) {
-        cancelBtn.onclick = function() {
-            modal.style.display = 'none';
-        };
-    }
-    
-    // Handle confirm button
-    if (confirmBtn) {
-        // Remove existing event listeners
-        confirmBtn.replaceWith(confirmBtn.cloneNode(true));
-        
-        // Add new event listener
-        modal.querySelector('#confirm-hard-delete-btn').addEventListener('click', function() {
-            const inputValue = confirmationInput ? confirmationInput.value.trim() : '';
-            
-            // Double-check the input value is correct before proceeding
-            if (inputValue === 'Delete') {
-                console.log(`Hard delete confirmed for document ${documentId}`);
-                modal.style.display = 'none';
-                
-                hardDeleteDocument(documentId, isCompiled)
-                    .then(success => {
-                        if (success) {
-                            console.log(`Document ${documentId} permanently deleted`);
-                            // Remove the document card from the UI
-                            let card = document.querySelector(`.document-card[data-document-id="${documentId}"]`);
-                            if (!card) {
-                                // Try alternative data attribute used in some templates
-                                card = document.querySelector(`.document-card[data-id="${documentId}"]`);
-                            }
-                            
-                            if (card) {
-                                // Check if this is the last card
-                                const wrapper = card.closest('.document-wrapper');
-                                if (wrapper) {
-                                    wrapper.remove();
-                                } else {
-                                    card.remove();
-                                }
-                            }
-                            
-                            // Check if any archived documents remain
-                            checkRemainingArchived();
-                        }
-                    });
-            } else {
-                // Highlight the input as an error
-                if (confirmationInput) {
-                    confirmationInput.classList.add('error');
-                }
-            }
-        });
-    }
-    
-    // Show the modal
-    modal.style.display = 'block';
-    
-    // Focus on the confirmation input
-    if (confirmationInput) {
-        setTimeout(() => confirmationInput.focus(), 100);
-    }
-}
-
-/**
- * Permanently delete a document from the database
- * This action cannot be undone
- * @param {string|number} documentId - ID of document to delete
- * @param {boolean} isCompiled - Whether this is a compiled document
- * @returns {Promise<boolean>} True if successful, false otherwise
- */
-async function hardDeleteDocument(documentId, isCompiled = false) {
-    try {
-        // Ensure documentId is a valid integer
-        const parsedId = parseInt(documentId, 10);
-        
-        if (isNaN(parsedId) || parsedId <= 0) {
-            throw new Error(`Invalid document ID: ${documentId}. ID must be a positive integer.`);
-        }
-        
-        console.log(`Permanently deleting ${isCompiled ? 'compiled' : 'regular'} document: ${parsedId}`);
-        
-        // Show loading state
-        updateLoadingState(true);
-        
-        // Use the appropriate API endpoint based on document type
-        const endpoint = isCompiled 
-            ? `/api/compiled-documents/${parsedId}/hard-delete`
-            : `/api/documents/${parsedId}/hard-delete`;
-            
-        console.log(`Using endpoint: ${endpoint}`);
-        
-        // Call API to permanently delete document
-        const response = await fetch(endpoint, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        // Hide loading state
-        updateLoadingState(false);
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`Failed to delete document: ${response.status} ${response.statusText} ${errorData.error || ''}`);
-        }
-        
-        const result = await response.json();
-        console.log('Hard delete result:', result);
-        
-        // Show success message
-        showToast('Document permanently deleted', 'success');
-        
-        return true;
-    } catch (error) {
-        // Hide loading state
-        updateLoadingState(false);
-        
-        console.error('Error during permanent deletion:', error);
-        showToast(`Permanent deletion failed: ${error.message}`, 'error');
-        
-        return false;
-    }
-}
-
-// Register with window for global access
-window.documentArchive = {
-    // Document actions
-    archiveDocument,
-    archiveCompiledDocument,
-    restoreDocument,
-    showRestoreConfirmation,
-    showHardDeleteConfirmation,
-    hardDeleteDocument,
-    loadArchivedDocuments,
-    
-    // UI functions
-    updateCategoryFilters,
-    toggleArchiveMode,
-    showToast,
-    
-    // State functions
-    isArchiveMode: function() {
-        return archiveState.isArchiveMode;
-    },
-    setArchiveMode: function(mode) {
-        archiveState.setArchiveMode(mode);
-    },
-    getCurrentCache: function() {
-        return {
-            isArchiveMode: archiveState.isArchiveMode,
-            documents: archiveState.documents,
-            page: archiveState.currentPage,
-            totalPages: archiveState.totalPages,
-            category: archiveState.categoryFilter,
-            search: archiveState.searchTerm
-        };
-    },
-    
-    // Module info
-    version: '1.2.1',
-    
-    // Initialization
-    initializeArchive: initializeArchive,
-    
-    // For debugging
-    _legacyArchiveDocument: legacyArchiveDocument,
-    _legacyArchiveCompiledDocument: legacyArchiveCompiledDocument,
-    _legacyRestoreDocument: legacyRestoreDocument
-};
-
-// Make sure functions are also available at global scope for legacy code
-window.showHardDeleteConfirmation = showHardDeleteConfirmation;
-window.showRestoreConfirmation = showRestoreConfirmation;
-window.hardDeleteDocument = hardDeleteDocument;
-window.restoreDocument = restoreDocument;
-window.loadArchivedDocuments = loadArchivedDocuments;
-window.archiveDocument = window.documentArchive.archiveDocument;
-window.archiveCompiledDocument = window.documentArchive.archiveCompiledDocument;
-window.toggleArchiveMode = toggleArchiveMode;
-window.checkRemainingArchived = checkRemainingArchived;
-window.updateCategoryFilters = updateCategoryFilters;
-window.refreshCurrentView = refreshCurrentView;
-window.showToast = showToast;
-
-// Also expose legacy functions for internal use
-window.legacyArchiveDocument = legacyArchiveDocument;
-window.legacyArchiveCompiledDocument = legacyArchiveCompiledDocument;
-window.legacyRestoreDocument = legacyRestoreDocument;
-window.legacyLoadArchivedDocuments = legacyLoadArchivedDocuments;

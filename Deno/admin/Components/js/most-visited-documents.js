@@ -8,18 +8,15 @@
 // Function to update the most visited documents section
 async function updateMostVisitedDocuments(limit = 5, days = 30) {
     try {
-        console.log('Fetching most visited documents data...');
-        const response = await fetch(`/api/page-visits/most-visited-documents?limit=${limit}&days=${days}`);
+                const response = await fetch(`/api/page-visits/most-visited-documents?limit=${limit}&days=${days}`);
         
         if (!response.ok) {
-            console.log(`HTTP error! status: ${response.status}`);
-            displayErrorMessage();
+                        displayErrorMessage();
             return;
         }
         
         const data = await response.json();
-        console.log('Most visited documents data received:', data);
-        
+                
         if (!data.documents || data.documents.length === 0) {
             displayNoDataMessage();
             return;
@@ -27,7 +24,6 @@ async function updateMostVisitedDocuments(limit = 5, days = 30) {
         
         updateMostVisitedDocumentsUI(data.documents);
     } catch (error) {
-        console.error('Error updating most visited documents:', error);
         displayErrorMessage();
     }
 }
@@ -37,7 +33,6 @@ function updateMostVisitedDocumentsUI(documents) {
     // Get the documents list container
     const documentsListContainer = document.querySelector('.most-visited-documents-list');
     if (!documentsListContainer) {
-        console.warn('Could not find most visited documents list container');
         return;
     }
     
@@ -172,15 +167,13 @@ function formatDate(dateString) {
             year: 'numeric'
         });
     } catch (error) {
-        console.error('Error formatting date:', error);
         return 'N/A';
     }
 }
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing most visited documents component...');
-    // Get the select element for time period if it exists
+        // Get the select element for time period if it exists
     const timeSelectElement = document.getElementById('most-visited-time-period');
     
     // Initial update

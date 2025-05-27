@@ -484,35 +484,27 @@
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('edit-document-modals-container').innerHTML = html;
-                    console.log('Edit document modals loaded successfully');
-                })
+                                    })
                 .catch(error => {
-                    console.error('Error loading edit document modals:', error);
                 });
             
             // For debugging purposes
-            console.log('DOM is fully loaded - checking for scripts:');
-            const scripts = document.querySelectorAll('script');
+                        const scripts = document.querySelectorAll('script');
             scripts.forEach(script => {
                 if (script.src) {
-                    console.log('Loaded script:', script.src);
-                }
+                                    }
             });
 
             // Ensure the document filters are initialized
             if (typeof initializeFiltersAndPagination === 'function') {
-                console.log('Initializing document filters and pagination');
-                initializeFiltersAndPagination();
+                                initializeFiltersAndPagination();
             } else {
-                console.error('initializeFiltersAndPagination function not found');
             }
             
             // Initialize document list after filters
             if (typeof initializeDocumentList === 'function') {
-                console.log('Initializing document list');
-                initializeDocumentList();
+                                initializeDocumentList();
             } else {
-                console.error('initializeDocumentList function not found');
             }
         });
     </script>

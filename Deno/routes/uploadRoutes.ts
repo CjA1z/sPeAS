@@ -12,7 +12,6 @@ router.post("/api/upload", async (ctx) => {
     // Handle the upload using the upload controller
     await handleFileUpload(ctx);
   } catch (error) {
-    console.error("Error handling file upload:", error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to handle file upload",

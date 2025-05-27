@@ -7,8 +7,7 @@
  */
 export async function extractPdfMetadata(filePath: string) {
   try {
-    console.log(`Attempting to extract metadata from PDF: ${filePath}`);
-    
+        
     // For now, we'll use a simple implementation with core Deno functionality
     // In a production environment, you might want to use a more robust PDF library
     
@@ -24,7 +23,6 @@ export async function extractPdfMetadata(filePath: string) {
       const decoder = new TextDecoder("utf-8");
       content = decoder.decode(fileBytes.slice(0, 20000));
     } catch (e) {
-      console.warn("Could not decode PDF as text:", e);
     }
     
     // Extract page count (very simplified approach)
@@ -41,7 +39,6 @@ export async function extractPdfMetadata(filePath: string) {
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error extracting PDF metadata:", errorMessage);
     return {
       abstract: "Error extracting metadata from PDF.",
       pageCount: 0,
@@ -74,7 +71,6 @@ function estimatePageCount(pdfBytes: Uint8Array): number {
     // ~100KB per page is a rough estimate
     return Math.max(1, Math.floor(pdfBytes.length / 100000));
   } catch (e) {
-    console.warn("Error estimating page count:", e);
     return 1; // Default to 1 page
   }
 }
@@ -122,7 +118,6 @@ function extractAbstract(content: string): string | null {
     
     return null;
   } catch (e) {
-    console.warn("Error extracting abstract:", e);
     return null;
   }
 }

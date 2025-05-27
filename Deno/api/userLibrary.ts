@@ -87,7 +87,6 @@ export async function getSavedDocuments(req: Request): Promise<Response> {
             })
           };
         } catch (error) {
-          console.error(`Error enhancing document ${savedDoc.doc_id}:`, error);
           // Return basic information if we can't fetch full details
           return savedDoc;
         }
@@ -109,7 +108,6 @@ export async function getSavedDocuments(req: Request): Promise<Response> {
         await sessionStorage.setItem(userInfoKey, JSON.stringify(userInfo));
       }
     } catch (sessionError) {
-      console.warn("Error updating user session with library count:", sessionError);
     }
     
     return new Response(
@@ -121,8 +119,6 @@ export async function getSavedDocuments(req: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error fetching saved documents:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to fetch saved documents",

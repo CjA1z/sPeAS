@@ -35,15 +35,12 @@ export async function uploadUserProfilePicture(ctx: RouterContext<string>): Prom
 
     // Get the form data using Oak's built-in parser
     const body = ctx.request.body({ type: "form-data" });
-    console.log("[PROFILE-PIC] Getting form data...");
-    const formData = await body.value.read({ maxSize: 5 * 1024 * 1024 }); // 5MB max
+        const formData = await body.value.read({ maxSize: 5 * 1024 * 1024 }); // 5MB max
     
-    console.log(`[PROFILE-PIC] Form data received: files=${formData.files?.length || 0}, fields=${Object.keys(formData.fields || {}).length}`);
-    
+        
     // Check if there's a profile picture file
     if (!formData.files || formData.files.length === 0) {
-      console.log("[PROFILE-PIC] No files found in form data");
-      ctx.response.status = 400;
+            ctx.response.status = 400;
       ctx.response.body = {
         error: "Missing profile picture",
         message: "Profile picture file is required"
@@ -53,8 +50,7 @@ export async function uploadUserProfilePicture(ctx: RouterContext<string>): Prom
     
     // Get the file from the form data
     const profilePicture = formData.files[0];
-    console.log(`[PROFILE-PIC] File details: name=${profilePicture.filename || "undefined"}, type=${profilePicture.contentType || "undefined"}, size=${profilePicture.content?.length || 0} bytes`);
-    
+        
     if (!profilePicture) {
       ctx.response.status = 400;
       ctx.response.body = {
@@ -94,8 +90,7 @@ export async function uploadUserProfilePicture(ctx: RouterContext<string>): Prom
     const filePath = join(profilePicDir, fileName);
     await Deno.writeFile(filePath, profilePicture.content || new Uint8Array());
     
-    console.log(`Profile picture saved at: ${filePath}`);
-    
+        
     // Update the user's profile picture in the database
     const relativeFilePath = `storage/users/profile-picture/${fileName}`;
     await client.queryObject(
@@ -105,9 +100,7 @@ export async function uploadUserProfilePicture(ctx: RouterContext<string>): Prom
 
     // Log the profile picture change event
     try {
-      console.log(`Profile picture updated for user ${userId} at ${new Date().toISOString()}, file: ${fileName}`);
-    } catch (logError) {
-      console.error("Failed to log profile picture change:", logError);
+          } catch (logError) {
     }
 
     // Return the picture URL to the client
@@ -119,8 +112,6 @@ export async function uploadUserProfilePicture(ctx: RouterContext<string>): Prom
     };
     
   } catch (error) {
-    console.error("Error uploading profile picture:", error);
-    
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Server error",

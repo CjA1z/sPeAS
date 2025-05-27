@@ -11,15 +11,13 @@ let visibleEntriesCount = 0;
  * @param {string} categoryName - Category name to filter by
  */
 function filterByCategory(categoryName) {
-    console.log(`Filtering by category: ${categoryName}`);
-    
+        
     // Check if we're clicking the already active category
     const isActiveCategory = document.querySelector(`.category-card[data-category="${categoryName}"].active`) !== null;
     
     if (isActiveCategory) {
         // If clicking the active category, clear the filter and set to All
-        console.log(`Clearing filter as ${categoryName} is already active`);
-        currentCategoryFilter = null;
+                currentCategoryFilter = null;
         
         // Remove active class from all categories
         document.querySelectorAll('.category-card').forEach(btn => {
@@ -33,8 +31,7 @@ function filterByCategory(categoryName) {
         // The data-category attributes now match the API values (THESIS, DISSERTATION, etc.)
         currentCategoryFilter = categoryName === 'All' ? null : categoryName;
         
-        console.log(`Set current category filter to: ${currentCategoryFilter}`);
-        
+                
         // Update active category styling
         document.querySelectorAll('.category-card').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-category') === categoryName);
@@ -54,8 +51,7 @@ function filterByCategory(categoryName) {
  * @param {string} keyword - Keyword to filter by
  */
 function filterByKeyword(keyword) {
-    console.log(`Filtering by keyword: ${keyword}`);
-    
+        
     // Update the current keyword
     currentKeyword = keyword;
     
@@ -78,8 +74,7 @@ function filterByKeyword(keyword) {
  * Set up event listeners for category filters
  */
 function setupCategoryFilters() {
-    console.log('Setting up category filters');
-    
+        
     document.querySelectorAll('.category-card').forEach(btn => {
         btn.addEventListener('click', () => {
             const category = btn.getAttribute('data-category');
@@ -92,8 +87,7 @@ function setupCategoryFilters() {
  * Load categories and update their counts
  */
 async function loadCategories() {
-    console.log('Loading categories');
-    
+        
     try {
         const response = await fetch('/api/categories');
         
@@ -102,13 +96,11 @@ async function loadCategories() {
         }
         
         const categories = await response.json();
-        console.log('Categories loaded:', categories);
-        
+                
         // Update category counts
         updateCategoryCounts(categories);
         
     } catch (error) {
-        console.error('Error loading categories:', error);
     }
 }
 
@@ -117,23 +109,19 @@ async function loadCategories() {
  * @param {Array} categories - Array of category objects with counts
  */
 function updateCategoryCounts(categories) {
-    console.log('DEBUG: Updating category counts with data:', categories);
-    
+        
     // Calculate total documents across all categories
     let totalDocs = 0;
     categories.forEach(cat => {
         totalDocs += Number(cat.count);
     });
     
-    console.log('DEBUG: Total document count:', totalDocs);
-    
+        
     // Update the "All" category count
     const allCountElement = document.querySelector('.category-card[data-category="All"] .category-count');
     if (allCountElement) {
         allCountElement.textContent = `${totalDocs} ${totalDocs === 1 ? 'file' : 'files'}`;
-        console.log('DEBUG: Updated All category count to', totalDocs);
-    } else {
-        console.error('DEBUG: Could not find All category count element');
+            } else {
     }
     
     // Map API document_type values to the data-category attribute values in HTML
@@ -148,8 +136,7 @@ function updateCategoryCounts(categories) {
         const uppercaseSelector = `.category-card[data-category="${categoryName}"] .category-count`;
         const titleCaseSelector = `.category-card[data-category="${categoryName.charAt(0) + categoryName.slice(1).toLowerCase()}"] .category-count`;
         
-        console.log(`DEBUG: Looking for category elements with selectors: "${uppercaseSelector}" or "${titleCaseSelector}"`);
-        
+                
         // First try the uppercase version (for archive-documents.html)
         let countElement = document.querySelector(uppercaseSelector);
         
@@ -160,9 +147,7 @@ function updateCategoryCounts(categories) {
         
         if (countElement) {
             countElement.textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
-            console.log(`DEBUG: Updated ${categoryName} category count to ${count}`);
-        } else {
-            console.warn(`DEBUG: Could not find category count element for ${categoryName}`);
+                    } else {
         }
     });
 }
@@ -171,8 +156,7 @@ function updateCategoryCounts(categories) {
  * Set up event listeners for sort order dropdown
  */
 function setupSortOrder() {
-    console.log('Setting up sort order');
-    
+        
     const sortOrderSelect = document.getElementById('sort-order');
     if (sortOrderSelect) {
         sortOrderSelect.addEventListener('change', function() {
@@ -187,8 +171,7 @@ function setupSortOrder() {
  * Set up event listeners for pagination controls
  */
 function setupPaginationControls() {
-    console.log('Setting up pagination controls');
-    
+        
     const pageLinks = document.getElementById('page-links');
     if (pageLinks) {
         pageLinks.addEventListener('click', function(e) {
@@ -208,8 +191,7 @@ function setupPaginationControls() {
  * @param {number} totalPages - Total number of pages
  */
 function updatePagination(totalPages) {
-    console.log(`Updating pagination for ${totalPages} total pages, current page: ${currentPage}`);
-    
+        
     const pageLinks = document.getElementById('page-links');
     if (!pageLinks) return;
     
@@ -327,8 +309,7 @@ function updateFilterIndicator() {
  * Initialize filters, pagination, and check for URL parameters
  */
 function initializeFiltersAndPagination() {
-    console.log('Initializing filters and pagination');
-    
+        
     // Set up category filters
     setupCategoryFilters();
     
@@ -360,8 +341,7 @@ function initializeFiltersAndPagination() {
     // Check for keyword parameter
     const keyword = url.searchParams.get('keyword');
     if (keyword) {
-        console.log(`Found keyword parameter in URL: ${keyword}`);
-        currentKeyword = keyword;
+                currentKeyword = keyword;
         // Set the search query to the keyword to display matching documents
         currentSearchQuery = keyword;
         
@@ -375,16 +355,14 @@ function initializeFiltersAndPagination() {
     // Load categories
     loadCategories();
     
-    console.log('Filters and pagination initialized');
-}
+    }
 
 /**
  * Update the page number for pagination
  * @param {number} page - New page number
  */
 function setCurrentPage(page) {
-    console.log(`Setting current page to ${page}`);
-    currentPage = page;
+        currentPage = page;
 }
 
 /**

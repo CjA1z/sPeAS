@@ -6,8 +6,7 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("Navbar manager loaded - checking user authentication...");
-    
+        
     // Get the navbar element
     const navbarElement = document.querySelector('nav.shadow-md');
     
@@ -16,23 +15,19 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(userInfo => {
             if (userInfo && userInfo.isLoggedIn && userInfo.role) {
                 // User is logged in, load the appropriate navbar based on role
-                console.log(`User is logged in as ${userInfo.role}`);
-                
+                                
                 if (userInfo.role.toLowerCase() === 'user') {
                     // Load the user navbar
-                    console.log("Loading user navbar...");
-                    loadUserNavbar(navbarElement);
+                                        loadUserNavbar(navbarElement);
                 } else if (userInfo.role.toLowerCase() === 'admin') {
                     // Redirect to admin dashboard if not already there
                     window.location.href = "/admin/dashboard.html";
                 }
             } else {
                 // User is not logged in, keep the default navbar
-                console.log("User is not logged in, using default navbar");
-            }
+                            }
         })
         .catch(error => {
-            console.error("Error checking authentication:", error);
         });
 });
 
@@ -62,7 +57,6 @@ function checkUserAuthentication() {
                 resolve(null);
             }
         } catch (error) {
-            console.error("Error parsing user info:", error);
             resolve(null);
         }
     });
@@ -74,7 +68,6 @@ function checkUserAuthentication() {
  */
 function loadUserNavbar(navbarElement) {
     if (!navbarElement) {
-        console.error("No navbar element found to replace");
         return;
     }
     
@@ -105,11 +98,9 @@ function loadUserNavbar(navbarElement) {
                 // Initialize any scripts that the user navbar needs
                 initializeUserNavbar();
             } else {
-                console.error("Could not find nav.sticky element in user-navBar.html");
             }
         })
         .catch(error => {
-            console.error("Error loading user navbar:", error);
         })
         .finally(() => {
             // Clean up the temporary container
@@ -126,7 +117,6 @@ function initializeUserNavbar() {
     try {
         userInfo = JSON.parse(sessionStorage.getItem('userInfo')) || JSON.parse(localStorage.getItem('userInfo'));
     } catch (error) {
-        console.error("Error parsing user info for navbar:", error);
         return;
     }
     
@@ -212,8 +202,6 @@ function initializeUserNavbar() {
                 window.logout();
             } else {
                 // Fallback if global function isn't available
-                console.warn("Global logout function not found. Using fallback logout.");
-                
                 // Call the logout endpoint directly
                 fetch('/logout', {
                     method: 'POST',
@@ -231,8 +219,6 @@ function initializeUserNavbar() {
                     // Redirect to login page
                     window.location.href = '/log-in.html';
                 }).catch(error => {
-                    console.error("Error during logout:", error);
-                    
                     // Redirect anyway as fallback
                     window.location.href = '/log-in.html';
                 });

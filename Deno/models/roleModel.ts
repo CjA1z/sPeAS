@@ -18,7 +18,6 @@ export class RoleModel {
       const result = await client.queryObject<Role>("SELECT * FROM roles ORDER BY id");
       return result.rows;
     } catch (error) {
-      console.error("Error fetching roles:", error);
       return [];
     }
   }
@@ -37,7 +36,6 @@ export class RoleModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching role:", error);
       return null;
     }
   }
@@ -56,7 +54,6 @@ export class RoleModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching role by name:", error);
       return null;
     }
   }
@@ -75,7 +72,6 @@ export class RoleModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error creating role:", error);
       return null;
     }
   }
@@ -95,7 +91,6 @@ export class RoleModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error updating role:", error);
       return null;
     }
   }
@@ -114,7 +109,6 @@ export class RoleModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error deleting role:", error);
       return false;
     }
   }
@@ -133,7 +127,6 @@ export class RoleModel {
       
       return result.rows.map(row => row[0]);
     } catch (error) {
-      console.error("Error fetching users with role:", error);
       return [];
     }
   }

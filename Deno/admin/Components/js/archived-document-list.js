@@ -1,16 +1,58 @@
+// Initialize document filters if not already initialized
+window.documentFilters = window.documentFilters || {};
+
+// Add setCurrentPage function
+window.documentFilters.setCurrentPage = function(page) {
+    currentPage = page;
+    loadArchivedDocuments(page, false);
+};
+
+// Add setVisibleEntriesCount function
+window.documentFilters.setVisibleEntriesCount = function(count) {
+    visibleEntriesCount = count;
+    const entriesInfo = document.getElementById('entries-info');
+    if (entriesInfo) {
+        if (count === 0) {
+            entriesInfo.textContent = 'No entries found';
+        } else {
+            const start = (currentPage - 1) * 10 + 1;
+            const end = Math.min(start + count - 1, totalDocuments);
+            entriesInfo.textContent = `Showing ${start} to ${end} of ${totalDocuments} entries`;
+        }
+    }
+};
+
 // Global variables for archived document list functionality
-let globalDisplayedDocIds = new Set();
+window.globalDisplayedDocIds = window.globalDisplayedDocIds || new Set();
+window.expandedDocIds = window.expandedDocIds || [];
 let currentPage = 1;
 let currentCategoryFilter = null;
 let currentSort = 'latest';
 let currentSearchQuery = '';
 let visibleEntriesCount = 0;
+let totalDocuments = 0;
 
 /**
  * Initialize the archived document list and set up event listeners
  */
-function initializeArchivedDocumentList() {
-    console.log('Initializing archived document list');
+async function initializeArchivedDocumentList() {
+    // Wait for document archive system to initialize
+    const waitForArchiveInit = async (attempts = 0) => {
+        if (attempts >= 10) {
+            console.error('Archive system failed to initialize');
+            return false;
+        }
+        
+        if (window.documentArchive && window.documentArchive._initialized) {
+            return true;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return waitForArchiveInit(attempts + 1);
+    };
+    
+    // Wait for initialization before proceeding
+    await waitForArchiveInit();
     
     // Setup event listeners for category cards
     document.querySelectorAll('.category-card').forEach(card => {
@@ -38,7 +80,7 @@ function initializeArchivedDocumentList() {
         });
     }
     
-    // Initial document load - this will also load category counts from the API
+    // Initial document load
     loadArchivedDocuments(1, true);
 }
 
@@ -53,8 +95,7 @@ function initializeArchivedDocumentList() {
  */
 async function fetchArchivedDocumentsFromDB(page = 1, category = null, sortOrder = 'latest', limit = 10, searchQuery = '', showLoading = true) {
     try {
-        console.log(`Fetching archived documents: page=${page}, category=${category}, sort=${sortOrder}, limit=${limit}, search=${searchQuery}`);
-        
+                
         // Construct the API URL with query parameters
         // Updated to use the new unified API endpoint
         let url = `/api/archives?page=${page}&size=${limit}`;
@@ -77,8 +118,7 @@ async function fetchArchivedDocumentsFromDB(page = 1, category = null, sortOrder
             document.getElementById('documents-container').innerHTML = '<div class="loading-documents"><i class="fas fa-spinner fa-spin"></i> Loading archived documents...</div>';
         }
         
-        console.log('Making API request to:', url);
-        
+                
         // Fetch documents from the API
         const response = await fetch(url);
         
@@ -87,24 +127,19 @@ async function fetchArchivedDocumentsFromDB(page = 1, category = null, sortOrder
         }
         
         const data = await response.json();
-        console.log('Archived documents data received:', data);
-        
+                
         // Log the first document to examine its structure
         if (data.documents && data.documents.length > 0) {
-            console.log('First document complete structure:', JSON.stringify(data.documents[0], null, 2));
-        }
+                    }
         
         // Update category counts from the API response
         if (data.category_counts) {
-            console.log('DEBUG: Using category counts from archives API:', data.category_counts);
-            updateCategoryCounts(data.category_counts);
+                        updateCategoryCounts(data.category_counts);
         } else {
-            console.warn('No category_counts found in API response');
         }
         
         return data;
     } catch (error) {
-        console.error('Error fetching archived documents:', error);
         document.getElementById('documents-container').innerHTML = `
             <div class="error-message">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -121,28 +156,22 @@ async function fetchArchivedDocumentsFromDB(page = 1, category = null, sortOrder
  * @param {Array} categories - Array of category objects with counts from the API
  */
 function updateCategoryCounts(categories) {
-    console.log('DEBUG: Updating archive page category counts with data:', categories);
-    
+        
     // Calculate total documents across all categories
     let totalCount = 0;
     categories.forEach(cat => {
         totalCount += Number(cat.count);
     });
     
-    console.log('DEBUG: Total archived document count:', totalCount);
-    
+        
     // Update All category count
     const allCategoryCount = document.querySelector('.category-card[data-category="All"] .category-count');
     if (allCategoryCount) {
         allCategoryCount.textContent = `${totalCount} ${totalCount === 1 ? 'file' : 'files'}`;
-        console.log('DEBUG: Updated All category count to', totalCount);
-    } else {
-        console.error('DEBUG: Could not find All category count element in archive page');
-        console.log('DEBUG: Looking for element with selector: ".category-card[data-category="All"] .category-count"');
-        // List all category cards for debugging
+            } else {
+                // List all category cards for debugging
         const allCards = document.querySelectorAll('.category-card');
-        console.log('DEBUG: Found these category cards:', Array.from(allCards).map(card => `${card.getAttribute('data-category')} (${card.querySelector('.category-name')?.textContent})`));
-    }
+            }
     
     // Update individual category counts using direct category mapping
     categories.forEach(category => {
@@ -153,18 +182,14 @@ function updateCategoryCounts(categories) {
         // In archive-documents.html, data-category uses UPPERCASE already
         const selector = `.category-card[data-category="${categoryName}"] .category-count`;
         
-        console.log(`DEBUG: Looking for archive category element with selector: "${selector}"`);
-        
+                
         const countElement = document.querySelector(selector);
         if (countElement) {
             countElement.textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
-            console.log(`DEBUG: Updated archive ${categoryName} category count to ${count}`);
-        } else {
-            console.warn(`DEBUG: Could not find category count element for ${categoryName} in archive page`);
+                    } else {
             // Try to find the closest matching element
             document.querySelectorAll('.category-card').forEach(card => {
-                console.log(`DEBUG: Found card with data-category="${card.getAttribute('data-category')}" and name="${card.querySelector('.category-name')?.textContent}"`);
-            });
+                            });
         }
     });
 }
@@ -174,15 +199,13 @@ function updateCategoryCounts(categories) {
  * @param {string} categoryName - Category name to filter by
  */
 function filterByCategory(categoryName) {
-    console.log(`Filtering by category: ${categoryName}`);
-    
+        
     // Check if we're clicking the already active category
     const isActiveCategory = document.querySelector(`.category-card[data-category="${categoryName}"].active`) !== null;
     
     if (isActiveCategory) {
         // If clicking the active category, clear the filter and set to All
-        console.log(`Clearing filter as ${categoryName} is already active`);
-        currentCategoryFilter = null;
+                currentCategoryFilter = null;
         
         // Update active state
         document.querySelectorAll('.category-card').forEach(card => {
@@ -215,8 +238,7 @@ function filterByCategory(categoryName) {
  * @param {boolean} resetTracking - Whether to reset tracking variables
  */
 async function loadArchivedDocuments(page = 1, resetTracking = true) {
-    console.log(`Loading archived documents for page ${page}, resetTracking=${resetTracking}`);
-    
+        
     // Validate page number
     if (page < 1) page = 1;
     
@@ -225,7 +247,7 @@ async function loadArchivedDocuments(page = 1, resetTracking = true) {
     
     // Reset tracking if requested
     if (resetTracking) {
-        globalDisplayedDocIds = new Set();
+        window.globalDisplayedDocIds = new Set();
     }
     
     try {
@@ -244,6 +266,9 @@ async function loadArchivedDocuments(page = 1, resetTracking = true) {
         }
         
         const { documents, total_pages, total_documents } = data;
+        
+        // Update total documents count
+        totalDocuments = total_documents;
         
         // Render documents
         renderArchivedDocuments('documents-container', documents);
@@ -265,8 +290,20 @@ async function loadArchivedDocuments(page = 1, resetTracking = true) {
                 </div>
             `;
         }
+        
+        // Update document filters count
+        if (window.documentFilters && typeof window.documentFilters.setVisibleEntriesCount === 'function') {
+            window.documentFilters.setVisibleEntriesCount(documents.length);
+        }
     } catch (error) {
         console.error('Error loading archived documents:', error);
+        document.getElementById('documents-container').innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Error loading documents: ${error.message}</p>
+                <button onclick="loadArchivedDocuments(${page})">Try Again</button>
+            </div>
+        `;
     }
 }
 
@@ -278,7 +315,6 @@ async function loadArchivedDocuments(page = 1, resetTracking = true) {
 function renderArchivedDocuments(containerId, documents) {
     const container = document.getElementById(containerId);
     if (!container) {
-        console.error(`Container element with ID "${containerId}" not found`);
         return;
     }
     
@@ -388,12 +424,12 @@ function renderArchivedDocuments(containerId, documents) {
             fragment.appendChild(compilationWrapper);
             
             // Track parent for pagination
-            globalDisplayedDocIds.add(entry.parent.id);
+            window.globalDisplayedDocIds.add(entry.parent.id);
             visibleEntriesCount++;
             
             // Track children for pagination
             entry.children.forEach(child => {
-                globalDisplayedDocIds.add(child.id);
+                window.globalDisplayedDocIds.add(child.id);
                 // Don't increment visibleEntriesCount for children as they're part of the parent
             });
         }
@@ -409,10 +445,9 @@ function renderArchivedDocuments(containerId, documents) {
             fragment.appendChild(card);
             
             // Track for pagination
-            globalDisplayedDocIds.add(doc.id);
+            window.globalDisplayedDocIds.add(doc.id);
             visibleEntriesCount++;
         } catch (error) {
-            console.error(`Error rendering document ${doc.id}:`, error);
         }
     });
     
@@ -618,7 +653,6 @@ function formatDocumentDate(dateValue) {
             }
         }
     } catch (error) {
-        console.warn(`Error formatting date:`, error);
     }
     
     return "Unknown date";
@@ -639,14 +673,12 @@ function createArchivedDocumentCard(doc) {
     const iconPath = getCategoryIcon(doc.document_type || doc.category);
     
     // Debug: Log the entire document object to find all date fields
-    console.log(`Complete document ${doc.id} data:`, doc);
-    
+        
     // Format publication date
     let formattedPublicationDate = "Unknown date";
     // First check for the pre-formatted date field
     if (doc.publication_date_formatted) {
-        console.log(`Using pre-formatted publication_date for document ${doc.id}:`, doc.publication_date_formatted);
-        formattedPublicationDate = new Date(doc.publication_date_formatted).toLocaleDateString('en-US', {
+                formattedPublicationDate = new Date(doc.publication_date_formatted).toLocaleDateString('en-US', {
             year: 'numeric', 
             month: 'short', 
             day: 'numeric'
@@ -654,8 +686,7 @@ function createArchivedDocumentCard(doc) {
     }
     // Fall back to the original publication_date field
     else if (doc.publication_date) {
-        console.log(`Raw publication_date for document ${doc.id}:`, doc.publication_date);
-        const pubDateValue = doc.publication_date;
+                const pubDateValue = doc.publication_date;
         try {
             // Handle special 'Unknown' marker from the backend
             if (pubDateValue === 'Unknown') {
@@ -707,15 +738,13 @@ function createArchivedDocumentCard(doc) {
                 }
             }
         } catch (error) {
-            console.warn(`Error formatting publication date for document ${doc.id}:`, error);
         }
     }
     
     // Format archive date using the formatted field when available
     let formattedArchiveDate = "Unknown date";
     if (doc.deleted_at_formatted) {
-        console.log(`Using pre-formatted deleted_at for document ${doc.id}:`, doc.deleted_at_formatted);
-        formattedArchiveDate = new Date(doc.deleted_at_formatted).toLocaleDateString('en-US', {
+                formattedArchiveDate = new Date(doc.deleted_at_formatted).toLocaleDateString('en-US', {
             year: 'numeric', 
             month: 'short', 
             day: 'numeric'
@@ -730,8 +759,7 @@ function createArchivedDocumentCard(doc) {
         for (const field of possibleArchiveDateFields) {
         if (doc[field]) {
                 archiveDateField = field;
-                console.log(`Found archive date field: ${field} with value:`, doc[field]);
-            break;
+                            break;
         }
     }
     
@@ -786,7 +814,6 @@ function createArchivedDocumentCard(doc) {
                 }
             }
         } catch (error) {
-                console.warn(`Error formatting archive date for document ${doc.id}:`, error);
             }
         }
     }
@@ -851,10 +878,7 @@ function createArchivedDocumentCard(doc) {
         event.stopPropagation();
         
         // Debug logging
-        console.log("DEBUG: Restore button clicked on compiled card for document:", doc.id);
-        console.log("DEBUG: window.documentArchive available:", !!window.documentArchive);
-        console.log("DEBUG: showRestoreConfirmation available:", typeof window.documentArchive?.showRestoreConfirmation === 'function');
-        
+                                
         restoreDocument(doc.id);
     });
     
@@ -868,7 +892,7 @@ function createArchivedDocumentCard(doc) {
     });
     
     // Track this document ID as displayed
-    globalDisplayedDocIds.add(doc.id);
+    window.globalDisplayedDocIds.add(doc.id);
     visibleEntriesCount++;
     
     return card;
@@ -949,38 +973,61 @@ function formatAuthors(authors) {
  */
 async function restoreDocument(documentId) {
     if (!documentId) {
-        console.error('Cannot restore document: No ID provided');
         return;
     }
     
-    // Log to verify this function is being called
-    console.log("DEBUG: restoreDocument called for document ID:", documentId);
-    
-    // Get document information for the confirmation dialog
-    const docCard = document.querySelector(`.document-card[data-id="${documentId}"]`);
-    let docTitle = "Document";
-    let isCompiled = false;
-    
-    if (docCard) {
-        const titleEl = docCard.querySelector('.document-title');
-        if (titleEl) {
-            docTitle = titleEl.textContent.trim();
-            // Limit title length for notification
-            if (docTitle.length > 40) {
-                docTitle = docTitle.substring(0, 37) + '...';
-            }
+    // Wait for archive system initialization
+    const maxAttempts = 10;
+    const waitForInit = async (attempts = 0) => {
+        if (attempts >= maxAttempts) {
+            showToast('Archive system failed to initialize. Please refresh the page.', 'error');
+            return false;
         }
         
-        // Check if this is a compiled document
-        isCompiled = docCard.classList.contains('compiled') || docCard.classList.contains('compilation');
+        if (window.documentArchive && window.documentArchive._initialized) {
+            return true;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return waitForInit(attempts + 1);
+    };
+    
+    try {
+        // Wait for initialization
+        const isInitialized = await waitForInit();
+        if (!isInitialized) {
+            return;
+        }
+        
+        // Get document information for the confirmation dialog
+        const docCard = document.querySelector(`.document-card[data-id="${documentId}"]`);
+        let docTitle = "Document";
+        let isCompiled = false;
+        
+        if (docCard) {
+            const titleEl = docCard.querySelector('.document-title');
+            if (titleEl) {
+                docTitle = titleEl.textContent.trim();
+                // Limit title length for notification
+                if (docTitle.length > 40) {
+                    docTitle = docTitle.substring(0, 37) + '...';
+                }
+            }
+            
+            // Check if this is a compiled document
+            isCompiled = docCard.classList.contains('compiled') || docCard.classList.contains('compilation');
+        }
+        
+        // Use the archive system's restore confirmation
+        if (window.documentArchive && typeof window.documentArchive.showRestoreConfirmation === 'function') {
+            await window.documentArchive.showRestoreConfirmation(documentId, isCompiled, docTitle);
+        } else {
+            throw new Error('Restore functionality not available');
+        }
+    } catch (error) {
+        console.error('Error in restore process:', error);
+        showToast('Failed to restore document: ' + error.message, 'error');
     }
-    
-    console.log("DEBUG: Document info:", { id: documentId, title: docTitle, isCompiled });
-    console.log("DEBUG: window.documentArchive available:", !!window.documentArchive);
-    console.log("DEBUG: showRestoreConfirmation function available:", typeof window.documentArchive?.showRestoreConfirmation === 'function');
-    
-    // Use our custom confirmation dialog (now guaranteed to exist from our HTML script)
-    window.documentArchive.showRestoreConfirmation(documentId, isCompiled, docTitle);
 }
 
 /**
@@ -1004,12 +1051,10 @@ function renderActionsForCard(cardElement, documentId) {
                 e.preventDefault(); // Prevent default button behavior
                 e.stopPropagation(); // Stop event propagation
                 
-                console.log("DEBUG: Restore button clicked for document:", documentId);
-                
+                                
                 // Get the document ID from the button's data attribute
                 const docId = this.getAttribute('data-id');
-                console.log("DEBUG: Button data-id attribute:", docId);
-                
+                                
                 restoreDocument(docId);
             });
         }
@@ -1326,13 +1371,11 @@ function showToast(message, type = 'success') {
  */
 function showHardDeleteConfirmation(documentId) {
     if (!documentId) {
-        console.error('Cannot delete document: No ID provided');
         return;
     }
     
     // Log to verify this function is being called
-    console.log("DEBUG: showHardDeleteConfirmation called for document ID:", documentId);
-    
+        
     // Get document information for the confirmation dialog
     const docCard = document.querySelector(`.document-card[data-id="${documentId}"]`);
     let docTitle = "Document";
@@ -1352,16 +1395,22 @@ function showHardDeleteConfirmation(documentId) {
         isCompiled = docCard.classList.contains('compiled') || docCard.classList.contains('compilation');
     }
     
-    console.log("DEBUG: Document info for hard delete:", { id: documentId, title: docTitle, isCompiled });
-    
+        
     // Use the global documentArchive function if available
     if (window.documentArchive && typeof window.documentArchive.showHardDeleteConfirmation === 'function') {
         window.documentArchive.showHardDeleteConfirmation(documentId, isCompiled, docTitle);
     } else {
-        console.error('Hard delete confirmation function not available');
         alert('Cannot perform permanent deletion. The required function is not available.');
     }
 }
 
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeArchivedDocumentList);
+document.addEventListener('DOMContentLoaded', () => {
+    // Ensure documentArchive is initialized first
+    if (window.documentArchive && typeof window.documentArchive.initializeArchive === 'function') {
+        window.documentArchive.initializeArchive();
+    }
+    
+    // Then initialize the archived document list
+    initializeArchivedDocumentList();
+});

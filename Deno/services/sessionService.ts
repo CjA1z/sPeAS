@@ -12,8 +12,7 @@ import { client } from "../db/denopost_conn.ts";
  * @returns A unique session token
  */
 export async function createSessionToken(userID: string, userRole: string): Promise<string> {
-  console.log(`Creating token for user ${userID} with role ${userRole}`);
-  
+    
   try {
     // Generate a UUID for the token
     const token = crypto.randomUUID();
@@ -29,15 +28,11 @@ export async function createSessionToken(userID: string, userRole: string): Prom
          VALUES ($1, $2, $3)`,
         [userID, token, expiresAt]
     );
-      console.log(`Token saved to database: ${token.substring(0, 8)}...`);
-    } catch (dbError) {
-      console.error("Database error when saving token:", dbError);
-      console.log("Continuing without saving token to database");
-    }
+          } catch (dbError) {
+          }
     
     return token;
   } catch (error) {
-    console.error("Error creating session token:", error);
     throw error;
   }
 }
@@ -62,7 +57,6 @@ export async function validateSessionToken(token: string | null): Promise<string
     
     return result.rows[0].user_id;
   } catch (error) {
-    console.error("Database error when validating token:", error);
     return null;
   }
 }
@@ -74,8 +68,7 @@ export async function validateSessionToken(token: string | null): Promise<string
  */
 export async function deleteSessionToken(token: unknown): Promise<boolean> {
   if (token === null || token === undefined) {
-    console.log("No token provided for deletion");
-    return false;
+        return false;
   }
   
   let tokenString: string;
@@ -83,10 +76,8 @@ export async function deleteSessionToken(token: unknown): Promise<boolean> {
   // Handle different token types, including objects
   if (typeof token === 'object') {
     try {
-      console.log("Token is an object, attempting to stringify for deletion");
-      tokenString = JSON.stringify(token);
+            tokenString = JSON.stringify(token);
     } catch (jsonError) {
-      console.error("Failed to stringify token object:", jsonError);
       tokenString = String(token);
     }
   } else {
@@ -97,9 +88,7 @@ export async function deleteSessionToken(token: unknown): Promise<boolean> {
   try {
     const tokenStart = tokenString.substring(0, 8);
     const tokenEnd = tokenString.length > 16 ? tokenString.substring(tokenString.length - 8) : '';
-    console.log(`Attempting to delete token (type: ${typeof token}): ${tokenStart}...${tokenEnd}`);
-  } catch (logError) {
-    console.error("Error logging token:", logError);
+      } catch (logError) {
   }
   
   // Try deleting from multiple tables to ensure all session data is removed
@@ -114,13 +103,10 @@ export async function deleteSessionToken(token: unknown): Promise<boolean> {
       );
       
       if (result.rows && result.rows.length > 0) {
-        console.log(`Deleted token from sessions table: ${tokenString.substring(0, 8)}...`);
-        deletedFromAnyTable = true;
+                deletedFromAnyTable = true;
       } else {
-        console.log(`No matching token found in sessions table: ${tokenString.substring(0, 8)}...`);
-      }
+              }
     } catch (sessionsError) {
-      console.error("Error deleting from sessions table:", sessionsError);
     }
     
     // Also try to delete from tokens table if it exists
@@ -131,18 +117,14 @@ export async function deleteSessionToken(token: unknown): Promise<boolean> {
       );
       
       if (tokensResult.rows && tokensResult.rows.length > 0) {
-        console.log(`Deleted token from tokens table: ${tokenString.substring(0, 8)}...`);
-        deletedFromAnyTable = true;
+                deletedFromAnyTable = true;
       } else {
-        console.log(`No matching token found in tokens table: ${tokenString.substring(0, 8)}...`);
-      }
+              }
     } catch (tokensError) {
-      console.log("Note: Could not delete from tokens table (might not exist)");
-    }
+          }
     
     return deletedFromAnyTable;
   } catch (error) {
-    console.error("Database error when deleting token:", error);
     return false;
   }
 }

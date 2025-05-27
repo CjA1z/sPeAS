@@ -79,8 +79,7 @@ export const createAuthor = async (ctx: Context) => {
       throw new Error("Failed to create author");
     }
     
-    console.log(`Created new author: ${authorData.full_name}`);
-    
+        
     ctx.response.status = 201; // Created
     ctx.response.type = "application/json";
     ctx.response.body = {
@@ -88,7 +87,6 @@ export const createAuthor = async (ctx: Context) => {
       author: result.rows[0]
     };
   } catch (error) {
-    console.error("Error creating author:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -178,11 +176,9 @@ export const createAuthors = async (ctx: Context) => {
             error: "Failed to create author"
           });
         } else {
-          console.log(`Created new author: ${authorData.full_name}`);
-          results.push(result.rows[0]);
+                    results.push(result.rows[0]);
         }
       } catch (error) {
-        console.error(`Error creating author ${authorData.full_name}:`, error);
         errors.push({
           full_name: authorData.full_name,
           error: error instanceof Error ? error.message : "Unknown error"
@@ -198,7 +194,6 @@ export const createAuthors = async (ctx: Context) => {
       errors: errors
     };
   } catch (error) {
-    console.error("Error in batch author creation:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -211,8 +206,7 @@ export const createAuthors = async (ctx: Context) => {
  * Handle author search directly
  */
 export const searchAuthors = async (ctx: Context) => {
-  console.log("Author search handler hit:", ctx.request.url.href);
-  const searchParam = ctx.request.url.searchParams.get("q") || "";
+    const searchParam = ctx.request.url.searchParams.get("q") || "";
   
   try {
     if (searchParam.length < 2) {
@@ -231,13 +225,11 @@ export const searchAuthors = async (ctx: Context) => {
       [`%${searchParam}%`]
     );
     
-    console.log(`Found ${result.rows.length} authors matching "${searchParam}"`);
-    
+        
     ctx.response.status = 200;
     ctx.response.type = "application/json";
     ctx.response.body = result.rows;
   } catch (error) {
-    console.error("Error searching authors:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -251,8 +243,7 @@ export const searchAuthors = async (ctx: Context) => {
  * Handle author test endpoint
  */
 export const testAuthorApi = async (ctx: Context) => {
-  console.log("Author API test endpoint hit");
-  ctx.response.status = 200;
+    ctx.response.status = 200;
   ctx.response.type = "application/json";
   ctx.response.body = {
     message: "Author API test endpoint is working",
@@ -294,7 +285,6 @@ export const deleteAuthor = async (ctx: Context) => {
       ctx.response.body = { error: "Author not found or could not be deleted" };
     }
   } catch (error) {
-    console.error("Error deleting author:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -325,7 +315,6 @@ export const restoreAuthor = async (ctx: Context) => {
     ctx.response.type = "application/json";
     ctx.response.body = { error: "Restore functionality not implemented" };
   } catch (error) {
-    console.error("Error restoring author:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 

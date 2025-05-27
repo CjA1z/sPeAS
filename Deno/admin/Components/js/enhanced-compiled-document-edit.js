@@ -47,22 +47,18 @@
     // We'll keep the other console methods as-is
 })();
 
-console.log('Enhanced compiled document edit module loaded');
 
 // CRITICAL DOM INSPECTOR - Run immediately to diagnose form structure issues
 (function inspectAndFixDOM() {
-    console.log('CRITICAL INSPECTOR: Running DOM structure analysis');
-    
+        
     // Run after a delay to ensure DOM is loaded
     setTimeout(performInspection, 1000);
     
     function performInspection() {
-        console.log('CRITICAL INSPECTOR: Analyzing form structure');
-        
+                
         // Find the compiled document modal
         const modal = document.getElementById('edit-compiled-document-modal');
         if (!modal) {
-            console.error('CRITICAL INSPECTOR: Compiled document modal not found!');
             setTimeout(performInspection, 1000);
             return;
         }
@@ -70,25 +66,21 @@ console.log('Enhanced compiled document edit module loaded');
         // Find the form element
         const form = modal.querySelector('form');
         if (!form) {
-            console.error('CRITICAL INSPECTOR: Form element not found in modal!');
             setTimeout(performInspection, 1000);
             return;
         }
         
-        console.log('CRITICAL INSPECTOR: Found form element:', form);
-        
+                
         // Log all form elements to see what's actually there
         const inputs = form.querySelectorAll('input, select, textarea');
-        console.log('CRITICAL INSPECTOR: Form contains', inputs.length, 'input elements:');
-        
+                
         const fieldMap = {};
         inputs.forEach((input, index) => {
             const id = input.id || 'no-id';
             const name = input.name || 'no-name';
             const type = input.tagName.toLowerCase() + (input.type ? `-${input.type}` : '');
             
-            console.log(`CRITICAL INSPECTOR: Input ${index+1}: id="${id}", name="${name}", type="${type}"`);
-            fieldMap[id] = input;
+                        fieldMap[id] = input;
         });
         
         // Check for title field with different possible IDs
@@ -104,8 +96,7 @@ console.log('Enhanced compiled document edit module loaded');
             const found = form.querySelector(`#${id}`);
             if (found) {
                 titleField = found;
-                console.log(`CRITICAL INSPECTOR: Found title field with id="${id}"`);
-                break;
+                                break;
             }
         }
         
@@ -114,8 +105,7 @@ console.log('Enhanced compiled document edit module loaded');
             const titleInputs = form.querySelectorAll('input[name*="title"], input[placeholder*="title" i]');
             if (titleInputs.length > 0) {
                 titleField = titleInputs[0];
-                console.log(`CRITICAL INSPECTOR: Found title field by name/placeholder: ${titleField.name || titleField.placeholder}`);
-            }
+                            }
         }
         
         // Check for category field
@@ -131,20 +121,17 @@ console.log('Enhanced compiled document edit module loaded');
         
         // Create missing fields if needed
         if (!titleField) {
-            console.log('CRITICAL INSPECTOR: Creating missing title field');
-            createTitleField(form);
+                        createTitleField(form);
         }
         
         // If we have category but missing issued/departmental fields
         if (categoryField && (!fieldMap['edit-compiled-issued-no'] || !fieldMap['edit-compiled-departmental'])) {
-            console.log('CRITICAL INSPECTOR: Missing issued no or departmental fields, fixing');
-            fixIssuedAndDepartmentFields(form, categoryField);
+                        fixIssuedAndDepartmentFields(form, categoryField);
         }
         
         // Disable category field to prevent changes
         if (categoryField) {
-            console.log('CRITICAL INSPECTOR: Disabling category field to prevent category changes');
-            
+                        
             // Disable the select element
             categoryField.disabled = true;
             
@@ -167,8 +154,7 @@ console.log('Enhanced compiled document edit module loaded');
                     helpText.style.display = 'block';
                     
                     categoryGroup.appendChild(helpText);
-                    console.log('CRITICAL INSPECTOR: Added explanation text for disabled category');
-                }
+                                    }
             }
         }
         
@@ -202,8 +188,7 @@ console.log('Enhanced compiled document edit module loaded');
         const firstChild = form.firstChild;
         form.insertBefore(formRow, firstChild);
         
-        console.log('CRITICAL INSPECTOR: Created missing title field');
-    }
+            }
     
     // Fix issued/departmental fields
     function fixIssuedAndDepartmentFields(form, categoryField) {
@@ -212,8 +197,7 @@ console.log('Enhanced compiled document edit module loaded');
         
         // If no container, create one
         if (!issuedContainer) {
-            console.log('CRITICAL INSPECTOR: Creating issued container');
-            issuedContainer = document.createElement('div');
+                        issuedContainer = document.createElement('div');
             issuedContainer.id = 'edit-compiled-issued-no-container';
             issuedContainer.className = 'form-group';
             
@@ -223,24 +207,20 @@ console.log('Enhanced compiled document edit module loaded');
                 const volumeContainer = volumeField.closest('.form-group');
                 if (volumeContainer && volumeContainer.parentNode) {
                     volumeContainer.parentNode.appendChild(issuedContainer);
-                    console.log('CRITICAL INSPECTOR: Inserted issued container after volume field');
-                } else {
+                                    } else {
                     // Fallback - add to the form
                     form.appendChild(issuedContainer);
-                    console.log('CRITICAL INSPECTOR: Added issued container to the end of the form');
-                }
+                                    }
             } else {
                 // Fallback - add to the form
                 form.appendChild(issuedContainer);
-                console.log('CRITICAL INSPECTOR: Added issued container to the end of the form');
-            }
+                            }
         }
         
         // Check if issued field exists
         let issuedField = document.getElementById('edit-compiled-issued-no');
         if (!issuedField) {
-            console.log('CRITICAL INSPECTOR: Creating issued field');
-            
+                        
             const label = document.createElement('label');
             label.id = 'edit-compiled-issued-no-label';
             label.htmlFor = 'edit-compiled-issued-no';
@@ -259,8 +239,7 @@ console.log('Enhanced compiled document edit module loaded');
         // Check if departmental field exists
         let departmentalField = document.getElementById('edit-compiled-departmental');
         if (!departmentalField) {
-            console.log('CRITICAL INSPECTOR: Creating departmental field');
-            
+                        
             departmentalField = document.createElement('select');
             departmentalField.id = 'edit-compiled-departmental';
             departmentalField.name = 'departmental';
@@ -287,12 +266,10 @@ console.log('Enhanced compiled document edit module loaded');
         
         // Get the current category
         const currentCategory = categoryField.value;
-        console.log('CRITICAL INSPECTOR: Setting fields based on current category:', currentCategory);
-        
+                
         // Set the correct field visibility
         if (currentCategory === 'SYNERGY' || currentCategory === 'Synergy') {
-            console.log('CRITICAL INSPECTOR: Showing departmental field for Synergy');
-            issuedField.style.cssText = 'display: none !important';
+                        issuedField.style.cssText = 'display: none !important';
             departmentalField.style.cssText = 'display: block !important';
             
             // Update label
@@ -303,8 +280,7 @@ console.log('Enhanced compiled document edit module loaded');
             const previewLabel = document.getElementById('edit-preview-issued-no-label');
             if (previewLabel) previewLabel.textContent = 'Departmental:';
         } else {
-            console.log('CRITICAL INSPECTOR: Showing issued field for non-Synergy');
-            issuedField.style.cssText = 'display: block !important';
+                        issuedField.style.cssText = 'display: block !important';
             departmentalField.style.cssText = 'display: none !important';
             
             // Update label
@@ -316,14 +292,12 @@ console.log('Enhanced compiled document edit module loaded');
             if (previewLabel) previewLabel.textContent = 'Issued No:';
         }
         
-        console.log('CRITICAL INSPECTOR: Fixed issued/departmental fields');
-    }
+            }
 })();
 
 // CRITICAL FIX - Run immediately to ensure proper DOM structure
 (function fixDepartmentalField() {
-    console.log('CRITICAL FIX: Running departmental field repair');
-    
+        
     // Wait for DOM to be loaded
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', performRepair);
@@ -333,13 +307,11 @@ console.log('Enhanced compiled document edit module loaded');
     
     // Check if the DOM structure is correct and fix if needed
     function performRepair() {
-        console.log('CRITICAL FIX: Checking departmental field structure');
-        
+                
         // Get the category select element
         const categoryField = document.getElementById('edit-compiled-category');
         if (!categoryField) {
-            console.log('CRITICAL FIX: Category field not found yet, setting timeout');
-            setTimeout(performRepair, 500);
+                        setTimeout(performRepair, 500);
             return;
         }
         
@@ -357,8 +329,7 @@ console.log('Enhanced compiled document edit module loaded');
         
         // If the departmental select is missing, create it
         if (issuedNoContainer && issuedNoInput && !departmentalSelect) {
-            console.log('CRITICAL FIX: Departmental select missing, creating it');
-            
+                        
             // Create the departmental select
             const departmentalElement = document.createElement('select');
             departmentalElement.id = 'edit-compiled-departmental';
@@ -383,47 +354,39 @@ console.log('Enhanced compiled document edit module loaded');
             
             // Add the element to the container after the input
             issuedNoContainer.appendChild(departmentalElement);
-            console.log('CRITICAL FIX: Added departmental select to DOM');
-        }
+                    }
         
         // Make sure the fields are properly configured based on the current category
         if (categoryField && issuedNoInput && departmentalSelect) {
-            console.log('CRITICAL FIX: Setting up fields based on current category');
-            const category = categoryField.value;
+                        const category = categoryField.value;
             
             if (category === 'SYNERGY' || category === 'Synergy') {
-                console.log('CRITICAL FIX: Current category is Synergy, showing department field');
-                issuedNoInput.style.cssText = 'display: none !important';
+                                issuedNoInput.style.cssText = 'display: none !important';
                 departmentalSelect.style.cssText = 'display: block !important';
                 
                 // Also update the label
                 const label = document.getElementById('edit-compiled-issued-no-label');
                 if (label) {
                     label.textContent = 'Departmental';
-                    console.log('CRITICAL FIX: Updated label to Departmental');
-                }
+                                    }
                 
                 // Update preview label too
                 const previewLabel = document.getElementById('edit-preview-issued-no-label');
                 if (previewLabel) {
                     previewLabel.textContent = 'Departmental:';
-                    console.log('CRITICAL FIX: Updated preview label to Departmental');
-                }
+                                    }
             } else {
-                console.log('CRITICAL FIX: Current category is not Synergy, showing issue field');
-                issuedNoInput.style.cssText = 'display: block !important';
+                                issuedNoInput.style.cssText = 'display: block !important';
                 departmentalSelect.style.cssText = 'display: none !important';
             }
         }
         
-        console.log('CRITICAL FIX: Department field repair complete');
-    }
+            }
 })();
 
 // SYNERGY DOCUMENT FIX - Add specific handler for editing Synergy documents
 (function fixSynergyEditing() {
-    console.log('SYNERGY FIX: Starting Synergy editing repair module');
-    
+        
     let attempts = 0;
     const maxAttempts = 20;
     let documentNotFound = false;
@@ -434,34 +397,29 @@ console.log('Enhanced compiled document edit module loaded');
         
         // Only try a limited number of times
         if (attempts > maxAttempts || documentNotFound) {
-            console.log('SYNERGY FIX: Maximum attempts reached or document not found, stopping repair');
-            clearInterval(checkInterval);
+                        clearInterval(checkInterval);
             return;
         }
         
         const categoryField = document.getElementById('edit-compiled-category');
         if (!categoryField) {
-            console.log('SYNERGY FIX: Category field not found, retrying...');
-            return;
+                        return;
         }
         
         // Only proceed if category is Synergy
         if (categoryField.value !== 'SYNERGY' && categoryField.value !== 'Synergy') {
-            console.log('SYNERGY FIX: Not a Synergy document, skipping');
-            clearInterval(checkInterval);
+                        clearInterval(checkInterval);
             return;
         }
         
-        console.log('SYNERGY FIX: Found Synergy document, attempting to fix fields');
-        
+                
             const issuedNoInput = document.getElementById('edit-compiled-issued-no');
         const issuedNoContainer = document.getElementById('edit-compiled-issued-no-container');
         let departmentalSelect = document.getElementById('edit-compiled-departmental');
             
         // Check if we're missing the departmental select
             if (!departmentalSelect) {
-                console.log('SYNERGY FIX: Departmental select missing, creating it');
-                
+                                
                 // Create the departmental select
             departmentalSelect = document.createElement('select');
             departmentalSelect.id = 'edit-compiled-departmental';
@@ -477,22 +435,18 @@ console.log('Enhanced compiled document edit module loaded');
                 // Add the element to the container
             if (issuedNoContainer) {
                 issuedNoContainer.appendChild(departmentalSelect);
-                console.log('SYNERGY FIX: Created departmental select');
-            } else {
-                console.warn('SYNERGY FIX: Could not find container for departmental select');
+                            } else {
             }
             }
             
             // Force show department field and hide issue field
             if (issuedNoInput) {
                 issuedNoInput.style.cssText = 'display: none !important';
-                console.log('SYNERGY FIX: Hid issue number field');
-            }
+                            }
             
             if (departmentalSelect) {
                 departmentalSelect.style.cssText = 'display: block !important';
-                console.log('SYNERGY FIX: Showed department select');
-            
+                            
             // Populate with departments from database
             if (typeof populateDepartmentalDropdown === 'function') {
                 populateDepartmentalDropdown(departmentalSelect);
@@ -512,7 +466,6 @@ console.log('Enhanced compiled document edit module loaded');
                     });
                 });
             } else {
-                console.warn('SYNERGY FIX: No function available to populate departments');
             }
             }
             
@@ -520,32 +473,27 @@ console.log('Enhanced compiled document edit module loaded');
             const label = document.getElementById('edit-compiled-issued-no-label');
             if (label) {
                 label.textContent = 'Departmental';
-                console.log('SYNERGY FIX: Updated label to Departmental');
-            }
+                            }
             
             const previewLabel = document.getElementById('edit-preview-issued-no-label');
             if (previewLabel) {
                 previewLabel.textContent = 'Departmental:';
-                console.log('SYNERGY FIX: Updated preview label to Departmental');
-            }
+                            }
             
             // Get department value from API to populate field
             try {
                 const documentId = document.getElementById('edit-compiled-document-id')?.value;
             if (documentId && departmentalSelect) {
-                console.log('SYNERGY FIX: Attempting to fetch department value for document', documentId);
-                
+                                
                 // If we already have a value, no need to fetch
                 if (departmentalSelect.value) {
-                    console.log('SYNERGY FIX: Department already set to:', departmentalSelect.value);
-                    clearInterval(checkInterval);
+                                        clearInterval(checkInterval);
                     return;
                 }
                 
                 // Don't make API requests for document IDs that don't exist or are invalid
                 if (documentId === 'new' || documentId === 'undefined' || isNaN(parseInt(documentId))) {
-                    console.log('SYNERGY FIX: Invalid document ID, skipping API fetch');
-                    clearInterval(checkInterval);
+                                        clearInterval(checkInterval);
                     return;
                 }
                     
@@ -553,8 +501,7 @@ console.log('Enhanced compiled document edit module loaded');
                     .then(response => {
                         if (!response.ok) {
                             if (response.status === 404) {
-                                console.log('SYNERGY FIX: Document not found (404), stopping all attempts');
-                                documentNotFound = true;
+                                                                documentNotFound = true;
                                 clearInterval(checkInterval);
                                 
                                 // Show a message to the user
@@ -580,20 +527,17 @@ console.log('Enhanced compiled document edit module loaded');
                         if (!data) return; // Skip if null (404 case)
                         
                             if (data && data.department && departmentalSelect) {
-                                console.log('SYNERGY FIX: Got department value from API:', data.department);
-                                
+                                                                
                                 // Find matching option and select it
                                 Array.from(departmentalSelect.options).forEach(option => {
                                     if (option.value === data.department) {
                                         departmentalSelect.value = data.department;
-                                        console.log('SYNERGY FIX: Set department dropdown value');
-                                    }
+                                                                            }
                                 });
                             
                             // If no match found, add a new option
                             if (departmentalSelect.value !== data.department) {
-                                console.log('SYNERGY FIX: No matching option found, adding new one');
-                                const newOption = document.createElement('option');
+                                                                const newOption = document.createElement('option');
                                 newOption.value = data.department;
                                 newOption.textContent = data.department;
                                 departmentalSelect.appendChild(newOption);
@@ -611,7 +555,6 @@ console.log('Enhanced compiled document edit module loaded');
                         clearInterval(checkInterval);
                     })
                     .catch(err => {
-                        console.warn('SYNERGY FIX: Error fetching document:', err);
                         // Stop interval after multiple retries
                         if (attempts >= maxAttempts / 2) {
             clearInterval(checkInterval);
@@ -619,15 +562,13 @@ console.log('Enhanced compiled document edit module loaded');
                     });
             }
         } catch (err) {
-            console.warn('SYNERGY FIX: Error:', err);
         }
     }, 1000);
 })();
 
 // CRITICAL FIX: Force immediate form population check when page loads
 (function() {
-    console.log('CRITICAL FIX: Setting up immediate document form population');
-    // Wait for DOM to be ready
+        // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', runCriticalFormFix);
     } else {
@@ -638,45 +579,37 @@ console.log('Enhanced compiled document edit module loaded');
     setTimeout(runCriticalFormFix, 1000);
     
     function runCriticalFormFix() {
-        console.log('CRITICAL FIX: Running form population fix');
-        
+                
         // Look for the document ID field as a sign that the form is open
         const checkAndPopulateForm = () => {
             const idField = document.getElementById('edit-compiled-document-id');
             if (!idField) {
-                console.log('CRITICAL FIX: Document ID field not found yet, will retry');
-                return false;
+                                return false;
             }
             
             const documentId = idField.value;
             if (!documentId) {
-                console.log('CRITICAL FIX: Document ID field empty, will retry');
-                return false;
+                                return false;
             }
             
-            console.log('CRITICAL FIX: Document ID field found with ID:', documentId);
-            
+                        
             // Now check if form fields are empty
             const titleField = document.getElementById('edit-compiled-document-title');
             if (!titleField) {
-                console.log('CRITICAL FIX: Title field not found yet, will retry');
-                return false;
+                                return false;
             }
             
             // Check if form already has data
             if (titleField.value) {
-                console.log('CRITICAL FIX: Form already populated, skipping');
-                return true;
+                                return true;
             }
             
-            console.log('CRITICAL FIX: Form needs population, fetching data');
-            
+                        
             // Fetch document data directly
             fetch(`/api/compiled-documents/${documentId}?include_children=true`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('CRITICAL FIX: Got data for document:', data);
-                    
+                                        
                     // Set field values directly with maximum force
                     const fieldsToSet = [
                         { id: 'edit-compiled-document-title', value: data.title },
@@ -688,8 +621,7 @@ console.log('Enhanced compiled document edit module loaded');
                     fieldsToSet.forEach(field => {
                         const element = document.getElementById(field.id);
                         if (element) {
-                            console.log(`CRITICAL FIX: Setting ${field.id} to`, field.value);
-                            element.value = field.value || '';
+                                                        element.value = field.value || '';
                         }
                     });
                     
@@ -703,8 +635,7 @@ console.log('Enhanced compiled document edit module loaded');
                         );
                         
                         if (matchingOption) {
-                            console.log('CRITICAL FIX: Setting category to', matchingOption.value);
-                            categoryField.value = matchingOption.value;
+                                                        categoryField.value = matchingOption.value;
                             categoryField.dispatchEvent(new Event('change', { bubbles: true }));
                             
                             // Set issue/department after delay
@@ -759,7 +690,6 @@ console.log('Enhanced compiled document edit module loaded');
                     }
                 })
                 .catch(error => {
-                    console.error('CRITICAL FIX: Error fetching document data:', error);
                 });
             
             return true;
@@ -768,8 +698,7 @@ console.log('Enhanced compiled document edit module loaded');
         // Run immediately
         if (!checkAndPopulateForm()) {
             // If not successful, set up a polling mechanism
-            console.log('CRITICAL FIX: Setting up polling for form fields');
-            
+                        
             let attempts = 0;
             const maxAttempts = 20; // Try for about 10 seconds
             
@@ -777,8 +706,7 @@ console.log('Enhanced compiled document edit module loaded');
                 attempts++;
                 
                 if (checkAndPopulateForm() || attempts >= maxAttempts) {
-                    console.log(`CRITICAL FIX: Clearing poll interval after ${attempts} attempts`);
-                    clearInterval(pollInterval);
+                                        clearInterval(pollInterval);
                 }
             }, 500);
         }
@@ -787,20 +715,14 @@ console.log('Enhanced compiled document edit module loaded');
 
 // Immediate debugging function that will be available in the console
 window.debugCompiledDocumentForm = function() {
-    console.log('=== COMPILED DOCUMENT FORM DEBUGGER ===');
-    
+        
     // Get modal and check visibility
     const modal = document.getElementById('edit-compiled-document-modal');
-    console.log('Modal exists:', !!modal);
-    console.log('Modal display:', modal ? modal.style.display : 'N/A');
-    
+            
     // Get form and document ID
     const form = document.getElementById('edit-compiled-document-form');
     const docIdField = document.getElementById('edit-compiled-document-id');
-    console.log('Form exists:', !!form);
-    console.log('Document ID field exists:', !!docIdField);
-    console.log('Document ID value:', docIdField ? docIdField.value : 'N/A');
-    
+                
     // Check all important form fields
     const fields = [
         { name: 'Title', id: 'edit-compiled-document-title' },
@@ -812,8 +734,7 @@ window.debugCompiledDocumentForm = function() {
         { name: 'Department', id: 'edit-compiled-departmental' }
     ];
     
-    console.log('=== FORM FIELDS STATUS ===');
-    fields.forEach(field => {
+        fields.forEach(field => {
         const element = document.getElementById(field.id);
         console.log(`${field.name} (${field.id}):`, {
             exists: !!element,
@@ -824,54 +745,39 @@ window.debugCompiledDocumentForm = function() {
     });
     
     // Check for cached data
-    console.log('=== CACHED DATA ===');
-    if (window.enhancedCompiledDocumentEdit && window.enhancedCompiledDocumentEdit.documentCache) {
+        if (window.enhancedCompiledDocumentEdit && window.enhancedCompiledDocumentEdit.documentCache) {
         const cache = window.enhancedCompiledDocumentEdit.documentCache;
-        console.log('Cache entries:', Object.keys(cache).length);
-        
+                
         const docId = docIdField ? docIdField.value : null;
         if (docId && cache[docId]) {
-            console.log('Current document data in cache:', cache[docId]);
-            
+                        
             // Try direct population
-            console.log('Attempting direct field population...');
-            window.enhancedCompiledDocumentEdit.directPopulateFormWithData(cache[docId]);
+                        window.enhancedCompiledDocumentEdit.directPopulateFormWithData(cache[docId]);
         } else {
-            console.log('No cached data for current document');
-        }
+                    }
     } else {
-        console.log('Cache not available');
-    }
+            }
     
     // Examine network requests
-    console.log('=== NETWORK DATA ===');
-    console.log('Attempting to fetch current document data directly...');
-    
+            
     const docId = docIdField ? docIdField.value : null;
     if (docId) {
         fetch(`/api/compiled-documents/${docId}?include_children=true`)
             .then(response => response.json())
             .then(data => {
-                console.log('Fresh data from API:', data);
-                
+                                
                 // Auto-apply data
                 if (window.enhancedCompiledDocumentEdit) {
-                    console.log('Applying fresh data to form...');
-                    window.enhancedCompiledDocumentEdit.directPopulateFormWithData(data);
+                                        window.enhancedCompiledDocumentEdit.directPopulateFormWithData(data);
                 }
             })
             .catch(error => {
-                console.error('Error fetching document data:', error);
             });
     } else {
-        console.log('Cannot fetch data: No document ID available');
-    }
+            }
     
     // Additional help message
-    console.log('=== DEBUGGING HELP ===');
-    console.log('To manually populate form with data, use this console command:');
-    console.log('window.populateCompiledDocForm(yourDocData)');
-    
+                
     return "Debug information output to console. Check for errors and data availability.";
 };
 
@@ -1107,8 +1013,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Initialize the module
     init: function() {
-        console.log('Initializing enhanced compiled document edit module');
-        this.setupEventListeners();
+                this.setupEventListeners();
         
         // Direct form population with retry mechanism
         window.directPopulateCompiledForm = this.directPopulateFormWithData.bind(this);
@@ -1121,13 +1026,11 @@ window.enhancedCompiledDocumentEdit = {
         const container = document.getElementById(containerId);
         if (!container) return;
         
-        console.log(`Selecting author: ID=${authorId}, Name=${authorName}`);
-        
+                
         // Check if author already selected
         const existingAuthor = container.querySelector(`.selected-author[data-id="${authorId}"]`);
         if (existingAuthor) {
-            console.log(`Author ${authorId} already selected, skipping`);
-            return;
+                        return;
         }
         
         // Create author element - without showing the ID
@@ -1143,8 +1046,7 @@ window.enhancedCompiledDocumentEdit = {
         
         // Add to container
         container.appendChild(authorElement);
-        console.log(`Added author element with ID=${authorId}, data-id attribute=${authorElement.dataset.id}`);
-        
+                
         // Add click handler to remove button
         const removeBtn = authorElement.querySelector('.remove-author');
         if (removeBtn) {
@@ -1158,8 +1060,7 @@ window.enhancedCompiledDocumentEdit = {
     initializeAuthorSearch: function(inputElement, selectedContainerId) {
         if (!inputElement) return;
         
-        console.log('Initializing author search input:', inputElement.id);
-        
+                
         // Create author dropdown container
         const dropdownId = `${inputElement.id}-dropdown`;
         
@@ -1188,8 +1089,7 @@ window.enhancedCompiledDocumentEdit = {
             parent.parentNode.appendChild(dropdownContainer);
         }
         
-        console.log(`Created author dropdown with ID: ${dropdownId}`);
-        
+                
         // Debounce function for search delay
         const debounce = (func, delay) => {
             let timeout;
@@ -1226,13 +1126,11 @@ window.enhancedCompiledDocumentEdit = {
                 // Try each endpoint until one works
                 for (const endpoint of endpoints) {
                     try {
-                        console.log(`Trying author search endpoint: ${endpoint}`);
-                        response = await fetch(endpoint);
+                                                response = await fetch(endpoint);
                         
                         if (response.ok) {
                             const data = await response.json();
-                            console.log(`Author search response from ${endpoint}:`, data);
-                            
+                                                        
                             // Handle different response formats
                             if (data.authors && Array.isArray(data.authors)) {
                                 authors = data.authors;
@@ -1251,14 +1149,12 @@ window.enhancedCompiledDocumentEdit = {
                             }
                         }
                     } catch (endpointError) {
-                        console.warn(`Error with endpoint ${endpoint}:`, endpointError);
                     }
                 }
                 
                 // If none of the endpoints returned data, try fetching all authors
                 if (authors.length === 0) {
-                    console.log('No results from search endpoints, trying to fetch all authors');
-                    
+                                        
                     const allEndpoints = [
                         '/api/authors',
                         '/authors/all',
@@ -1267,13 +1163,11 @@ window.enhancedCompiledDocumentEdit = {
                     
                     for (const allEndpoint of allEndpoints) {
                         try {
-                            console.log(`Trying to fetch all authors from ${allEndpoint}`);
-                            const allAuthorsResponse = await fetch(allEndpoint);
+                                                        const allAuthorsResponse = await fetch(allEndpoint);
                             
                             if (allAuthorsResponse.ok) {
                                 const allAuthorsData = await allAuthorsResponse.json();
-                                console.log(`All authors from ${allEndpoint}:`, allAuthorsData);
-                                
+                                                                
                                 // Handle different response structures
                                 let allAuthors = [];
                                 if (allAuthorsData.authors && Array.isArray(allAuthorsData.authors)) {
@@ -1301,7 +1195,6 @@ window.enhancedCompiledDocumentEdit = {
                                 if (authors.length > 0) break;
                             }
                         } catch (allEndpointError) {
-                            console.warn(`Error fetching all authors from ${allEndpoint}:`, allEndpointError);
                         }
                     }
                 }
@@ -1360,7 +1253,6 @@ window.enhancedCompiledDocumentEdit = {
                 // Position dropdown directly under the input field
                 dropdown.style.display = 'block';
             } catch (error) {
-                console.error('Error searching authors:', error);
                 dropdown.innerHTML = '<div class="dropdown-item error">Error searching authors</div>';
             }
         }, 300);
@@ -1390,13 +1282,11 @@ window.enhancedCompiledDocumentEdit = {
         const container = document.getElementById(containerId);
         if (!container) return;
         
-        console.log(`Selecting topic: ID=${topicId}, Name=${topicName}`);
-        
+                
         // Check if topic already selected
         const existingTopic = container.querySelector(`.selected-topic[data-id="${topicId}"]`);
         if (existingTopic) {
-            console.log(`Topic ${topicId} already selected, skipping`);
-            return;
+                        return;
         }
         
         // Create topic element
@@ -1426,8 +1316,7 @@ window.enhancedCompiledDocumentEdit = {
     initializeResearchAgendaSearch: function(inputElement, selectedContainerId) {
         if (!inputElement) return;
         
-        console.log('Initializing research agenda search input:', inputElement.id);
-        
+                
         // Create dropdown container
         const dropdownId = `${inputElement.id}-dropdown`;
         
@@ -1456,8 +1345,7 @@ window.enhancedCompiledDocumentEdit = {
             parent.parentNode.appendChild(dropdownContainer);
         }
         
-        console.log(`Created research agenda dropdown with ID: ${dropdownId}`);
-        
+                
         // Debounce function for search delay
         const debounce = (func, delay) => {
             let timeout;
@@ -1495,13 +1383,11 @@ window.enhancedCompiledDocumentEdit = {
                 // Try each endpoint until one works
                 for (const endpoint of endpoints) {
                     try {
-                        console.log(`Trying research agenda search endpoint: ${endpoint}`);
-                        response = await fetch(endpoint);
+                                                response = await fetch(endpoint);
                         
                         if (response.ok) {
                             const data = await response.json();
-                            console.log(`Research agenda search response from ${endpoint}:`, data);
-                            
+                                                        
                             // Handle different response formats
                             if (data.items && Array.isArray(data.items)) {
                                 items = data.items;
@@ -1518,14 +1404,12 @@ window.enhancedCompiledDocumentEdit = {
                             }
                         }
                     } catch (endpointError) {
-                        console.warn(`Error with endpoint ${endpoint}:`, endpointError);
                     }
                 }
                 
                 // If none of the endpoints returned data, try fetching all items
                 if (items.length === 0) {
-                    console.log('No results from search endpoints, trying to fetch all research agenda items');
-                    
+                                        
                     const allEndpoints = [
                         '/api/research-agenda-items',
                         '/research-agenda-items/all',
@@ -1534,13 +1418,11 @@ window.enhancedCompiledDocumentEdit = {
                     
                     for (const allEndpoint of allEndpoints) {
                         try {
-                            console.log(`Trying to fetch all research agenda items from ${allEndpoint}`);
-                            const allItemsResponse = await fetch(allEndpoint);
+                                                        const allItemsResponse = await fetch(allEndpoint);
                             
                             if (allItemsResponse.ok) {
                                 const allItemsData = await allItemsResponse.json();
-                                console.log(`All research agenda items from ${allEndpoint}:`, allItemsData);
-                                
+                                                                
                                 // Handle different response structures
                                 let allItems = [];
                                 if (allItemsData.items && Array.isArray(allItemsData.items)) {
@@ -1561,7 +1443,6 @@ window.enhancedCompiledDocumentEdit = {
                                 if (items.length > 0) break;
                             }
                         } catch (allEndpointError) {
-                            console.warn(`Error fetching all research agenda items from ${allEndpoint}:`, allEndpointError);
                         }
                     }
                 }
@@ -1620,7 +1501,6 @@ window.enhancedCompiledDocumentEdit = {
                 // Position dropdown directly under the input field
                 dropdown.style.display = 'block';
             } catch (error) {
-                console.error('Error searching research agenda items:', error);
                 dropdown.innerHTML = '<div class="dropdown-item error">Error searching research agenda items</div>';
             }
         }, 300);
@@ -1647,8 +1527,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Direct method to populate form (can be called from console for debugging)
     directPopulateFormWithData: function(docData) {
-        console.log('DIRECT FORM POPULATION: Attempting to directly populate form with data:', docData);
-        
+                
         // Force fields to populate with aggressive approach
         const fieldsToPopulate = [
             { id: 'edit-compiled-document-title', property: 'title' },
@@ -1661,22 +1540,19 @@ window.enhancedCompiledDocumentEdit = {
         // First, log what fields we're looking for
         fieldsToPopulate.forEach(field => {
             const element = document.getElementById(field.id);
-            console.log(`DIRECT POPULATION: Field ${field.id} exists: ${!!element}, value to set: ${docData[field.property]}`);
-        });
+                    });
         
         // Helper to set field value with retry
         const setFieldWithRetry = (fieldId, value, isSelect = false, retries = 10) => {
             const field = document.getElementById(fieldId);
             
             if (!field && retries > 0) {
-                console.log(`DIRECT POPULATION: Field ${fieldId} not found, retrying in 200ms. Retries left: ${retries}`);
-                setTimeout(() => setFieldWithRetry(fieldId, value, isSelect, retries - 1), 200);
+                                setTimeout(() => setFieldWithRetry(fieldId, value, isSelect, retries - 1), 200);
                 return;
             }
             
             if (field) {
-                console.log(`DIRECT POPULATION: Setting ${fieldId} to ${value}`);
-                
+                                
                 if (isSelect) {
                     // Handle select fields
                     const options = Array.from(field.options);
@@ -1687,15 +1563,12 @@ window.enhancedCompiledDocumentEdit = {
                     
                     if (matchingOption) {
                         field.value = matchingOption.value;
-                        console.log(`DIRECT POPULATION: Selected option ${matchingOption.value} for ${fieldId}`);
-                        
+                                                
                         // Force change event
                         const event = new Event('change', { bubbles: true });
                         field.dispatchEvent(event);
                     } else {
-                        console.warn(`DIRECT POPULATION: No matching option found for ${value} in ${fieldId}`);
-                        console.log('Available options:', options.map(o => o.value));
-                    }
+                                            }
                 } else {
                     // Handle regular inputs
                     field.value = value || '';
@@ -1705,7 +1578,6 @@ window.enhancedCompiledDocumentEdit = {
                     field.dispatchEvent(event);
                 }
             } else {
-                console.error(`DIRECT POPULATION: Field ${fieldId} not found after retries`);
             }
         };
         
@@ -1725,8 +1597,7 @@ window.enhancedCompiledDocumentEdit = {
             // Update preview fields
             this.updatePreviewFields();
             
-            console.log('DIRECT POPULATION: Form population completed');
-        }, 500);
+                    }, 500);
         
         return true; // Indicate we attempted population
     },
@@ -1741,8 +1612,7 @@ window.enhancedCompiledDocumentEdit = {
             
             // Override with enhanced version
             window.documentEdit.showCompiledEditModal = function(documentId) {
-                console.log(`Enhanced: Showing edit modal for compiled document ID: ${documentId}`);
-                
+                                
                 // Store the current document ID
                 self.currentDocumentId = documentId;
                 
@@ -1759,8 +1629,7 @@ window.enhancedCompiledDocumentEdit = {
             const originalPopulateCompiledEditForm = window.documentEdit.populateCompiledEditForm;
             if (typeof originalPopulateCompiledEditForm === 'function') {
                 window.documentEdit.populateCompiledEditForm = function(data) {
-                    console.log('Enhanced: Intercepted populateCompiledEditForm call with data:', data);
-                    
+                                        
                     // Store the data for our use
                     self.documentCache[data.id] = data;
                     
@@ -1783,8 +1652,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Check if this is a document data request
                 const url = args[0];
                 if (typeof url === 'string' && url.includes('/api/compiled-documents/') && url.includes('include_children=true')) {
-                    console.log('Enhanced: Intercepting API call:', url);
-                    
+                                        
                     // Process the response
                     return fetchPromise.then(async response => {
                         // Clone the response so we can read it multiple times
@@ -1793,14 +1661,12 @@ window.enhancedCompiledDocumentEdit = {
                         // Read the cloned response
                         try {
                             const data = await clonedResponse.json();
-                            console.log('Enhanced: Intercepted API response data:', data);
-                            
+                                                        
                             // Wait a bit to ensure the modal is fully displayed
                             setTimeout(() => {
                                 self.directPopulateFormWithData(data);
                             }, 500);
                         } catch (e) {
-                            console.error('Enhanced: Error processing intercepted response:', e);
                         }
                         
                         // Return the original response
@@ -1815,21 +1681,18 @@ window.enhancedCompiledDocumentEdit = {
         
         // Add custom event for child document list updates
         document.addEventListener('childDocumentsUpdated', function(e) {
-            console.log('Child documents updated event received:', e.detail);
-            if (e.detail && e.detail.parentId) {
+                        if (e.detail && e.detail.parentId) {
                 self.refreshChildDocuments(e.detail.parentId);
             }
         });
         
         // Add a DOM mutation observer to detect when form fields are added
         const observeFormChanges = () => {
-            console.log('Setting up mutation observer for form fields');
-            
+                        
             // Target the modal content area
             const targetNode = document.getElementById('edit-compiled-document-modal');
             if (!targetNode) {
-                console.log('Modal not found, will retry observer setup later');
-                setTimeout(observeFormChanges, 500);
+                                setTimeout(observeFormChanges, 500);
                 return;
             }
             
@@ -1840,16 +1703,13 @@ window.enhancedCompiledDocumentEdit = {
                         // Check if title field is now available
                         const titleField = document.getElementById('edit-compiled-document-title');
                         if (titleField && !titleField.value && self.currentDocumentId) {
-                            console.log('Detected form field insertion, attempting to populate');
-                            
+                                                        
                             // Check if we have cached data
                             const cachedData = self.documentCache[self.currentDocumentId];
                             if (cachedData) {
-                                console.log('Using cached data to populate form:', cachedData);
-                                self.directPopulateFormWithData(cachedData);
+                                                                self.directPopulateFormWithData(cachedData);
                             } else {
-                                console.log('No cached data found, fetching fresh data');
-                                self.fetchDocumentData(self.currentDocumentId)
+                                                                self.fetchDocumentData(self.currentDocumentId)
                                     .then(data => {
                                         if (data) {
                                             self.directPopulateFormWithData(data);
@@ -1866,16 +1726,14 @@ window.enhancedCompiledDocumentEdit = {
             
             // Start observing
             observer.observe(targetNode, config);
-            console.log('Mutation observer started for form fields');
-        };
+                    };
         
         // Start the observer
         observeFormChanges();
         
         // Create a polling mechanism to directly check and populate form fields
         const startFormPolling = () => {
-            console.log('Starting form field polling mechanism');
-            
+                        
             const checkInterval = setInterval(() => {
                 // Only run if we have a document ID and the modal is visible
                 const modal = document.getElementById('edit-compiled-document-modal');
@@ -1885,13 +1743,11 @@ window.enhancedCompiledDocumentEdit = {
                 
                 const titleField = document.getElementById('edit-compiled-document-title');
                 if (titleField && !titleField.value) {
-                    console.log('Form poll: Found empty title field, attempting to populate');
-                    
+                                        
                     // Check if we have cached data
                     const cachedData = self.documentCache[self.currentDocumentId];
                     if (cachedData) {
-                        console.log('Form poll: Using cached data');
-                        self.directPopulateFormWithData(cachedData);
+                                                self.directPopulateFormWithData(cachedData);
                     }
                 }
             }, 1000); // Check every second
@@ -1906,8 +1762,7 @@ window.enhancedCompiledDocumentEdit = {
         // Create a global event listener for successful data fetch
         window.addEventListener('compiledDocumentDataLoaded', function(event) {
             if (event.detail && event.detail.data) {
-                console.log('Global event: Compiled document data loaded:', event.detail.data);
-                self.documentCache[event.detail.data.id] = event.detail.data;
+                                self.documentCache[event.detail.data.id] = event.detail.data;
                 
                 // Only attempt to populate if we're editing this document
                 if (self.currentDocumentId === event.detail.data.id) {
@@ -1918,8 +1773,7 @@ window.enhancedCompiledDocumentEdit = {
         
         // Add global direct access method (accessible from console)
         window.populateCompiledDocForm = function(data) {
-            console.log('Manual population triggered via global method');
-            
+                        
             if (data && data.id) {
                 self.documentCache[data.id] = data;
                 self.currentDocumentId = data.id;
@@ -1944,24 +1798,21 @@ window.enhancedCompiledDocumentEdit = {
             
             if (xhr._url && xhr._url.includes('/api/compiled-documents/') && 
                 (xhr._url.includes('include_children=true') || xhr._url.includes('/children'))) {
-                console.log('XHR Monitor: Tracking compiled document API request:', xhr._url);
-                
+                                
                 // Add response handler
                 const originalOnReadyStateChange = xhr.onreadystatechange;
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4 && xhr.status === 200) {
                         try {
                             const data = JSON.parse(xhr.responseText);
-                            console.log('XHR Monitor: Intercepted successful compiled document response:', data);
-                            
+                                                        
                             // Check for document data format
                             if (data && (data.id || data.document_id)) {
                                 const docData = data.id ? data : data.document;
                                 
                                 // Store in cache
                                 if (docData && docData.id) {
-                                    console.log('XHR Monitor: Storing document data in cache:', docData);
-                                    self.documentCache[docData.id] = docData;
+                                                                        self.documentCache[docData.id] = docData;
                                     
                                     // Dispatch global event
                                     const dataEvent = new CustomEvent('compiledDocumentDataLoaded', {
@@ -1971,13 +1822,11 @@ window.enhancedCompiledDocumentEdit = {
                                     
                                     // Auto-populate form if we're viewing this document
                                     if (self.currentDocumentId === docData.id) {
-                                        console.log('XHR Monitor: Auto-populating form with intercepted data');
-                                        setTimeout(() => self.directPopulateFormWithData(docData), 250);
+                                                                                setTimeout(() => self.directPopulateFormWithData(docData), 250);
                                     }
                                 }
                             }
                         } catch (e) {
-                            console.warn('XHR Monitor: Error processing intercepted response:', e);
                         }
                     }
                     
@@ -1994,8 +1843,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Toast notification function (matching document-edit.js)
     showToast: function(message, type = 'info') {
-        console.log(`Toast message (${type}): ${message}`);
-        
+                
         // Remove any existing toasts
         const existingToasts = document.querySelectorAll('.toast');
         existingToasts.forEach(toast => toast.remove());
@@ -2058,12 +1906,10 @@ window.enhancedCompiledDocumentEdit = {
         const modal = document.getElementById('edit-compiled-document-modal');
         
         if (!modal || !this.currentDocumentId) {
-            console.error('Cannot enhance compiled document modal: Modal or document ID not found');
             return;
         }
         
-        console.log('Enhancing compiled document edit modal for document:', this.currentDocumentId);
-        
+                
         // Add debug information to the modal
         const debugInfo = document.createElement('div');
         debugInfo.className = 'debug-info';
@@ -2078,20 +1924,17 @@ window.enhancedCompiledDocumentEdit = {
         this.loadCompiledDocumentData(this.currentDocumentId)
             .then(data => {
                 if (data) {
-                    console.log('Successfully loaded compiled document data:', data);
-                    this.directPopulateFormWithData(data);
+                                        this.directPopulateFormWithData(data);
                 }
             })
             .catch(error => {
-                console.error('Failed to load compiled document data:', error);
             });
         
         // Check if form is loaded by looking for the title field
         const checkFormLoaded = () => {
             const titleField = document.getElementById('edit-compiled-document-title');
             if (!titleField) {
-                console.log('Form not loaded yet, waiting...');
-                setTimeout(checkFormLoaded, 500);
+                                setTimeout(checkFormLoaded, 500);
                 return false;
             }
             return true;
@@ -2099,8 +1942,7 @@ window.enhancedCompiledDocumentEdit = {
         
         // Wait for form to be loaded before enhancing
         if (!checkFormLoaded()) {
-            console.log('Waiting for form elements to load...');
-            setTimeout(() => {
+                        setTimeout(() => {
                 if (checkFormLoaded()) {
                     this.enhanceModalAfterFormLoad();
                 }
@@ -2113,8 +1955,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Enhancement steps to run after form is loaded
     enhanceModalAfterFormLoad: function() {
-        console.log('Form loaded, enhancing modal...');
-        
+                
         // Set up category change handlers
         const categoryField = document.getElementById('edit-compiled-category');
         if (categoryField) {
@@ -2130,8 +1971,7 @@ window.enhancedCompiledDocumentEdit = {
         if (authorSearchInput && selectedAuthorsContainer) {
             this.initializeAuthorSearch(authorSearchInput, 'edit-compiled-document-selected-authors');
         } else {
-            console.log('Author search elements not found, skipping initialization');
-        }
+                    }
         
         // Initialize research agenda search field
         const keywordSearchInput = document.getElementById('edit-compiled-document-keyword-search');
@@ -2140,30 +1980,26 @@ window.enhancedCompiledDocumentEdit = {
         if (keywordSearchInput && selectedKeywordsContainer) {
             this.initializeResearchAgendaSearch(keywordSearchInput, 'edit-compiled-document-selected-keywords');
         } else {
-            console.log('Keyword search elements not found, skipping initialization');
-        }
+                    }
         
         // Initialize the child documents container with its loading behavior
         const childrenContainer = document.getElementById('compilation-studies-list');
         if (childrenContainer) {
             this.setupChildDocumentsContainer(childrenContainer);
         } else {
-            console.log('Child documents container not found, skipping initialization');
-        }
+                    }
     },
     
     // Populate form fields with document data
     populateFormFields: function() {
         if (!this.currentDocumentId) {
-            console.warn('No document ID set, cannot populate form fields');
             return;
         }
         
         // Check if fields already have values
         const titleField = document.getElementById('edit-compiled-document-title');
         if (titleField && titleField.value) {
-            console.log('Form fields already populated, skipping');
-            return;
+                        return;
         }
         
         // Try to get the document data from documentEdit
@@ -2177,17 +2013,14 @@ window.enhancedCompiledDocumentEdit = {
             this.populateFormWithData(docData);
         } else {
             // Fallback to fetch the data directly
-            console.log('Document data not found in cache, fetching directly');
-            this.fetchDocumentData(this.currentDocumentId)
+                        this.fetchDocumentData(this.currentDocumentId)
                 .then(data => {
                     if (data) {
                         this.populateFormWithData(data);
                     } else {
-                        console.warn('Failed to fetch document data');
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching document data:', error);
                 });
         }
     },
@@ -2203,16 +2036,13 @@ window.enhancedCompiledDocumentEdit = {
                 `/documents/${documentId}?include_children=true&include_authors=true&include_topics=true`
             ];
             
-            console.log(`Trying ${endpoints.length} endpoints to fetch document data...`);
-            
+                        
             // Try endpoints sequentially
             let currentEndpointIndex = 0;
             
             const tryNextEndpoint = () => {
                 if (currentEndpointIndex >= endpoints.length) {
                     // All endpoints failed
-                    console.error('All API endpoints failed. Unable to fetch document data.');
-                    
                     // Create a fallback data object with the ID
                     const fallbackData = {
                         id: documentId,
@@ -2227,8 +2057,7 @@ window.enhancedCompiledDocumentEdit = {
                 }
                 
                 const endpoint = endpoints[currentEndpointIndex];
-                console.log(`Trying endpoint (${currentEndpointIndex + 1}/${endpoints.length}): ${endpoint}`);
-                
+                                
             fetch(endpoint)
                 .then(response => {
                     if (!response.ok) {
@@ -2237,11 +2066,9 @@ window.enhancedCompiledDocumentEdit = {
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Successfully fetched document data:', data);
-                    resolve(data);
+                                        resolve(data);
                 })
                 .catch(error => {
-                        console.warn(`Endpoint ${endpoint} failed: ${error.message}`);
                         currentEndpointIndex++;
                         tryNextEndpoint();
                 });
@@ -2254,8 +2081,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Populate form with document data
     populateFormWithData: function(docData) {
-        console.log('Populating form fields with document data:', docData);
-        
+                
         // Wait for elements to be available
         const checkAndPopulate = () => {
             // Populate form fields
@@ -2269,13 +2095,11 @@ window.enhancedCompiledDocumentEdit = {
             
             // Check if essential fields exist
             if (!titleField) {
-                console.log('Form fields not ready yet, retrying in 300ms...');
-                setTimeout(checkAndPopulate, 300);
+                                setTimeout(checkAndPopulate, 300);
                 return;
             }
             
-            console.log('Form fields found, populating with data');
-            
+                        
             // Store the document ID and category for child document loading
             const documentId = docData.id;
             const category = docData.category;
@@ -2290,26 +2114,21 @@ window.enhancedCompiledDocumentEdit = {
             
             // Set values if fields exist
             if (titleField) {
-                console.log('Setting title to:', docData.title);
-                titleField.value = docData.title || '';
+                                titleField.value = docData.title || '';
             }
             if (startYearField) {
-                console.log('Setting start year to:', docData.start_year);
-                startYearField.value = docData.start_year || '';
+                                startYearField.value = docData.start_year || '';
             }
             if (endYearField) {
-                console.log('Setting end year to:', docData.end_year);
-                endYearField.value = docData.end_year || '';
+                                endYearField.value = docData.end_year || '';
             }
             if (volumeField) {
-                console.log('Setting volume to:', docData.volume);
-                volumeField.value = docData.volume || '';
+                                volumeField.value = docData.volume || '';
             }
             
             // Set category (this will trigger the change handler to show/hide fields)
             if (categoryField && docData.category) {
-                console.log('Setting category to:', docData.category);
-                // Find matching option, case insensitive
+                                // Find matching option, case insensitive
                 const options = Array.from(categoryField.options);
                 const matchingOption = options.find(opt => 
                     opt.value.toLowerCase() === docData.category.toLowerCase() ||
@@ -2329,21 +2148,18 @@ window.enhancedCompiledDocumentEdit = {
                 // Set issue number or department based on category
                 if (docData.category === 'SYNERGY' || docData.category === 'Synergy') {
                     if (departmentalField) {
-                        console.log('Setting department to:', docData.department);
-                        departmentalField.value = docData.department || '';
+                                                departmentalField.value = docData.department || '';
                     }
                 } else {
                     if (issuedNoField) {
-                        console.log('Setting issue number to:', docData.issue_number);
-                        issuedNoField.value = docData.issue_number || '';
+                                                issuedNoField.value = docData.issue_number || '';
                     }
                 }
                 
                 // Populate authors if available
                 const authorsContainer = document.getElementById('edit-compiled-document-selected-authors');
                 if (authorsContainer && docData.authors && Array.isArray(docData.authors) && docData.authors.length > 0) {
-                    console.log('Populating authors:', docData.authors);
-                    
+                                        
                     // Clear existing authors
                     authorsContainer.innerHTML = '';
                     
@@ -2374,8 +2190,7 @@ window.enhancedCompiledDocumentEdit = {
                     }
                     
                     if (topics.length > 0) {
-                        console.log('Populating topics/keywords:', topics);
-                        
+                                                
                         // Clear existing topics
                         topicsContainer.innerHTML = '';
                         
@@ -2406,8 +2221,7 @@ window.enhancedCompiledDocumentEdit = {
                     
                     if (childDocsSection) {
                         childDocsSection.style.display = 'none';
-                        console.log('Contents section removed from form');
-                    } else {
+                                            } else {
                         // If we can't find a parent section, just hide the container
                         childDocsContainer.style.display = 'none';
                     }
@@ -2426,8 +2240,7 @@ window.enhancedCompiledDocumentEdit = {
                     
                     if (previewChildDocsSection) {
                         previewChildDocsSection.style.display = 'none';
-                        console.log('Studies section removed from preview');
-                    } else {
+                                            } else {
                         // If we can't find a parent section, just hide the container
                         previewChildDocsContainer.style.display = 'none';
                     }
@@ -2436,8 +2249,7 @@ window.enhancedCompiledDocumentEdit = {
                     previewChildDocsContainer.setAttribute('data-removed', 'true');
                 }
                 
-                console.log('Form population complete');
-            }, 100);
+                            }, 100);
         };
         
         // Start the check and populate process
@@ -2456,7 +2268,6 @@ window.enhancedCompiledDocumentEdit = {
         
         // Check if required elements exist
         if (!categorySelect) {
-            console.warn('Category select element not found, skipping category handler setup');
             return;
         }
         
@@ -2528,10 +2339,8 @@ window.enhancedCompiledDocumentEdit = {
                 if (previewTitleElement) {
             this.updatePreviewFields();
                 } else {
-                    console.log('Preview elements not found, skipping updatePreviewFields');
-                }
+                                    }
             } catch (error) {
-                console.warn('Error in initializeFields:', error);
             }
         };
         
@@ -2541,12 +2350,10 @@ window.enhancedCompiledDocumentEdit = {
         // Category change handler - fixes issue with department/issue field switching
         const categoryField = document.getElementById('edit-compiled-category');
         if (categoryField) {
-            console.log('Setting up category change event listener');
-            
+                        
             // CRITICAL FIX: Force direct manipulation
             const forceToggleFields = (category) => {
-                console.log('FORCE TOGGLE: Explicitly toggling fields for category:', category);
-                
+                                
                 // Based on the HTML structure, both are in the same container
                 const issuedNoContainer = document.getElementById('edit-compiled-issued-no-container');
                 const issuedNoInput = document.getElementById('edit-compiled-issued-no');
@@ -2563,14 +2370,12 @@ window.enhancedCompiledDocumentEdit = {
                 });
                 
                 if (!issuedNoInput || !departmentalSelect) {
-                    console.error('FORCE TOGGLE: Critical fields missing!');
                     return;
                 }
                 
                 // Toggle fields based on category
                 if (category === 'SYNERGY' || category === 'Synergy') {
-                    console.log('FORCE TOGGLE: Showing department field, hiding issued field');
-                    
+                                        
                     // Use direct DOM manipulation and inline styles
                     issuedNoInput.style.cssText = 'display: none !important';
                     departmentalSelect.style.cssText = 'display: block !important';
@@ -2587,8 +2392,7 @@ window.enhancedCompiledDocumentEdit = {
                         }
                     }
                 } else {
-                    console.log('FORCE TOGGLE: Showing issued field, hiding department field');
-                    
+                                        
                     // Use direct DOM manipulation and inline styles
                     issuedNoInput.style.cssText = 'display: block !important';
                     departmentalSelect.style.cssText = 'display: none !important';
@@ -2606,8 +2410,7 @@ window.enhancedCompiledDocumentEdit = {
                     }
                 }
                 
-                console.log('FORCE TOGGLE: Fields toggled successfully');
-            };
+                            };
             
             // Remove any existing event listeners to prevent duplicates
             const oldCategoryListener = categoryField._categoryChangeListener;
@@ -2618,8 +2421,7 @@ window.enhancedCompiledDocumentEdit = {
             // Create new listener
             const categoryChangeListener = (e) => {
                 const category = e.target.value;
-                console.log('Category changed to:', category);
-                
+                                
                 // Call the force toggle function
                 forceToggleFields(category);
                 
@@ -2637,10 +2439,8 @@ window.enhancedCompiledDocumentEdit = {
             
             // Trigger the change event immediately to set the initial state correctly
             setTimeout(() => {
-                console.log('Triggering initial category change event');
-                const currentCategory = categoryField.value;
-                console.log('Current category value:', currentCategory);
-                
+                                const currentCategory = categoryField.value;
+                                
                 // Force toggle fields based on current value
                 forceToggleFields(currentCategory);
                 
@@ -2657,8 +2457,7 @@ window.enhancedCompiledDocumentEdit = {
                     return;
                 }
                 
-                console.log(`Periodic check #${checkCount} - forcing field toggle`);
-                forceToggleFields(categoryField.value);
+                                forceToggleFields(categoryField.value);
             }, 1000);
         }
         
@@ -2700,10 +2499,8 @@ window.enhancedCompiledDocumentEdit = {
                 if (previewTitleElement) {
             setTimeout(() => this.updatePreviewFields(), 10);
                 } else {
-                    console.log('Preview elements not found, skipping updatePreviewFields');
-                }
+                                    }
             } catch (error) {
-                console.warn('Error in category change handler:', error);
             }
         }.bind(this));
         
@@ -2711,16 +2508,13 @@ window.enhancedCompiledDocumentEdit = {
         if (departmentalSelect) {
             departmentalSelect.addEventListener('change', function() {
                 try {
-                console.log("Departmental changed:", this.value);
-                // Update preview fields with a small delay
+                                // Update preview fields with a small delay
                     const previewTitleElement = document.getElementById('edit-compiled-document-preview-title');
                     if (previewTitleElement) {
                 setTimeout(() => this.updatePreviewFields(), 10);
                     } else {
-                        console.log('Preview elements not found, skipping updatePreviewFields');
-                    }
+                                            }
                 } catch (error) {
-                    console.warn('Error in departmental change handler:', error);
                 }
             }.bind(this));
         }
@@ -2728,8 +2522,7 @@ window.enhancedCompiledDocumentEdit = {
     
     // Update preview fields based on form values
     updatePreviewFields: function() {
-        console.log('Updating preview fields');
-        
+                
         // Get form field values
         const titleField = document.getElementById('edit-compiled-document-title');
         const startYearField = document.getElementById('edit-compiled-pub-year-start');
@@ -2778,14 +2571,12 @@ window.enhancedCompiledDocumentEdit = {
         // Update issued number or department in preview based on selected category
         if (categoryField && previewIssuedEl) {
             const category = categoryField.value;
-            console.log('Updating preview based on category:', category);
-            
+                        
         if (category === 'SYNERGY' || category === 'Synergy') {
                 // For Synergy, show department value
                 if (departmentalField && previewIssuedEl) {
                     previewIssuedEl.textContent = departmentalField.value || '-';
-                    console.log('Updated preview with department value:', departmentalField.value);
-                }
+                                    }
                 if (previewIssuedLabel) {
                     previewIssuedLabel.textContent = 'Departmental:';
                 }
@@ -2793,14 +2584,12 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon
                 if (categoryIcon) {
                     categoryIcon.src = '/admin/Components/icons/Category-icons/synergy.png';
-                    console.log('Updated category icon to Synergy');
-                }
+                                    }
         } else {
                 // For other categories, show issued number
                 if (issuedNoField && previewIssuedEl) {
                     previewIssuedEl.textContent = issuedNoField.value || '-';
-                    console.log('Updated preview with issued number:', issuedNoField.value);
-                }
+                                    }
                 if (previewIssuedLabel) {
                     previewIssuedLabel.textContent = 'Issued No:';
                 }
@@ -2808,8 +2597,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon
                 if (categoryIcon) {
                     categoryIcon.src = '/admin/Components/icons/Category-icons/confluence.png';
-                    console.log('Updated category icon to Confluence');
-                }
+                                    }
             }
         }
         
@@ -2838,8 +2626,7 @@ window.enhancedCompiledDocumentEdit = {
             }
         }
         
-        console.log('Preview fields updated');
-    },
+            },
     
     // Setup file upload handler for foreword document
     setupForewordFileUpload: function() {
@@ -2850,7 +2637,6 @@ window.enhancedCompiledDocumentEdit = {
     enhanceChildDocumentsContainer: function() {
         const container = document.getElementById('edit-compiled-document-children');
         if (!container) {
-            console.error('Child documents container not found');
             return;
         }
         
@@ -3085,8 +2871,7 @@ window.enhancedCompiledDocumentEdit = {
         
         if (childIds.length === 0) return;
         
-        console.log(`Saving new order of ${childIds.length} child documents for compiled document ${this.currentDocumentId}`);
-        
+                
         // Show loading indicator
         this.showStatusMessage('Saving new document order...', 'loading');
         
@@ -3110,11 +2895,9 @@ window.enhancedCompiledDocumentEdit = {
             return response.json();
         })
         .then(data => {
-            console.log('Child document order saved successfully:', data);
-            this.showStatusMessage('Document order saved', 'success');
+                        this.showStatusMessage('Document order saved', 'success');
         })
         .catch(error => {
-            console.error('Error saving child document order:', error);
             this.showStatusMessage('Failed to save document order', 'error');
         });
     },
@@ -3122,7 +2905,6 @@ window.enhancedCompiledDocumentEdit = {
     // Load or refresh child documents
     loadChildDocuments: function(forceRefresh = false) {
         if (!this.currentDocumentId) {
-            console.error('Cannot load child documents: No document ID set');
             return;
         }
         
@@ -3138,8 +2920,7 @@ window.enhancedCompiledDocumentEdit = {
         // Set loading flag
         this.isLoadingChildren = true;
         
-        console.log(`Loading child documents for compiled document ${this.currentDocumentId}`);
-        
+                
         // Try different endpoints to get child documents
         const endpoints = [
             `/api/compiled-documents/${this.currentDocumentId}/children`,
@@ -3174,8 +2955,7 @@ window.enhancedCompiledDocumentEdit = {
                 }
                 
             const endpoint = endpoints[currentEndpointIndex];
-            console.log(`Trying to get child documents from: ${endpoint}`);
-            
+                        
             fetch(endpoint)
                 .then(response => {
                     if (!response.ok) {
@@ -3184,8 +2964,7 @@ window.enhancedCompiledDocumentEdit = {
                     return response.json();
                 })
                 .then(data => {
-                    console.log(`Got data from ${endpoint}:`, data);
-                    
+                                        
                 // Hide loading indicator
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';
@@ -3209,8 +2988,7 @@ window.enhancedCompiledDocumentEdit = {
                     }
                     
                     if (children && children.length > 0) {
-                        console.log(`CHILD DOCS LOADER: Found ${children.length} child documents`);
-                        
+                                                
                         // Render child documents in the form view
                         renderChildDocuments(children, container);
                         
@@ -3229,7 +3007,6 @@ window.enhancedCompiledDocumentEdit = {
                     }
                 })
                 .catch(error => {
-                    console.warn(`Failed to get child documents from ${endpoint}:`, error);
                     currentEndpointIndex++;
                     tryNextEndpoint();
                 });
@@ -3246,13 +3023,11 @@ window.enhancedCompiledDocumentEdit = {
             
             for (const endpoint of endpoints) {
                 try {
-                    console.log(`Trying to fetch child documents from: ${endpoint}`);
-                    const response = await fetch(endpoint);
+                                        const response = await fetch(endpoint);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        console.log(`Got child documents from endpoint: ${endpoint}`, data);
-                        
+                                                
                         // Handle different response formats
                         if (data.children) {
                             resolve(data); // standard format
@@ -3262,11 +3037,8 @@ window.enhancedCompiledDocumentEdit = {
                             return;
                         }
                     }
-                    
-                    console.warn(`Endpoint ${endpoint} failed with status ${response.status}`);
                     lastError = new Error(`Failed to fetch child documents from ${endpoint}: ${response.status}`);
                 } catch (error) {
-                    console.warn(`Error with endpoint ${endpoint}:`, error);
                     lastError = error;
                 }
             }
@@ -3274,15 +3046,13 @@ window.enhancedCompiledDocumentEdit = {
             // Fall back to existing document edit implementation
             try {
                 if (window.documentEdit && window.documentEdit.fetchChildDocuments) {
-                    console.log('Falling back to original fetchChildDocuments method');
-                    const children = await window.documentEdit.fetchChildDocuments(this.currentDocumentId);
+                                        const children = await window.documentEdit.fetchChildDocuments(this.currentDocumentId);
                     if (children && (children.length > 0 || Array.isArray(children))) {
                         resolve({ children: children });
                         return;
                     }
                 }
             } catch (fallbackError) {
-                console.warn('Error using fallback method:', fallbackError);
             }
             
             reject(lastError || new Error('Failed to fetch child documents from any endpoint'));
@@ -3294,7 +3064,6 @@ window.enhancedCompiledDocumentEdit = {
         const container = document.getElementById('edit-compiled-document-children');
         
         if (!container) {
-            console.error('Child documents container not found');
             return;
         }
         
@@ -3524,8 +3293,7 @@ window.enhancedCompiledDocumentEdit = {
                 fileInput.addEventListener('change', (e) => {
                     if (fileInput.files.length > 0) {
                         // Here you would handle file upload
-                        console.log('File selected for upload:', fileInput.files[0].name);
-                        // In a real app, you would send this file to your server
+                                                // In a real app, you would send this file to your server
                     }
                 });
             }
@@ -3736,12 +3504,10 @@ window.enhancedCompiledDocumentEdit = {
     // Function to load data for a compiled document
     loadCompiledDocumentData: function(documentId) {
         if (!documentId) {
-            console.error('Cannot load document data: No document ID provided');
             return Promise.reject(new Error('No document ID provided'));
         }
         
-        console.log(`ENHANCED: Loading data for compiled document ID: ${documentId}`);
-        this.currentDocumentId = documentId;
+                this.currentDocumentId = documentId;
         
         // Try multiple endpoints to handle potential API changes or 404 errors
         const endpoints = [
@@ -3757,7 +3523,6 @@ window.enhancedCompiledDocumentEdit = {
             
             const tryNextEndpoint = () => {
                 if (currentEndpointIndex >= endpoints.length) {
-                    console.error('All endpoints failed, falling back to minimal data');
                     // Create minimal data with just the ID as fallback
                     resolve({ 
                         id: documentId,
@@ -3768,8 +3533,7 @@ window.enhancedCompiledDocumentEdit = {
                 }
                 
                 const endpoint = endpoints[currentEndpointIndex];
-                console.log(`Trying endpoint: ${endpoint}`);
-                
+                                
                 fetch(endpoint)
                     .then(response => {
                         if (!response.ok) {
@@ -3778,15 +3542,13 @@ window.enhancedCompiledDocumentEdit = {
                         return response.json();
                     })
                     .then(data => {
-                        console.log(`Got data from ${endpoint}:`, data);
-                        
+                                                
                         // Process the data to ensure we have all required fields
                         const processedData = this.processCompiledDocumentData(data, documentId);
                         
                         // Check for foreword_path or foreword field
                         if (processedData.foreword || processedData.foreword_path) {
-                            console.log(`Found foreword path: ${processedData.foreword || processedData.foreword_path}`);
-                            
+                                                        
                             // Normalize the foreword path
                             const forewordPath = processedData.foreword || processedData.foreword_path;
                             processedData.foreword = forewordPath;
@@ -3794,25 +3556,21 @@ window.enhancedCompiledDocumentEdit = {
                             // Update UI to show the foreword file
                             this.updateForewordFileDisplay(forewordPath);
                         } else {
-                            console.log('No foreword path found in document data');
-                        }
+                                                    }
                         
                         // If we have children data, process it
                         if (processedData.children && processedData.children.length > 0) {
-                            console.log(`Found ${processedData.children.length} child documents in response`);
-                        } else {
+                                                    } else {
                             // If we don't have children, try to fetch them separately
                             this.fetchChildDocuments(documentId).then(children => {
                                 processedData.children = children;
-                                console.log(`Fetched ${children.length} child documents separately`);
-                                
+                                                                
                                 // Update children display
                                 const childrenContainer = document.getElementById('edit-compiled-document-children');
                                 if (childrenContainer) {
                                     this.renderChildDocuments(children, childrenContainer);
                                 }
                             }).catch(err => {
-                                console.warn('Failed to fetch child documents:', err);
                                 processedData.children = [];
                             });
                         }
@@ -3820,7 +3578,6 @@ window.enhancedCompiledDocumentEdit = {
                         resolve(processedData);
                     })
                     .catch(error => {
-                        console.warn(`Error with endpoint ${endpoint}:`, error);
                         currentEndpointIndex++;
                         tryNextEndpoint();
                     });
@@ -3863,7 +3620,6 @@ window.enhancedCompiledDocumentEdit = {
             if (Array.isArray(data.children)) {
                 processedData.children = data.children;
             } else {
-                console.warn('Children field is not an array:', data.children);
                 processedData.children = [];
             }
         }
@@ -3873,7 +3629,6 @@ window.enhancedCompiledDocumentEdit = {
             if (Array.isArray(data.authors)) {
                 processedData.authors = data.authors;
             } else {
-                console.warn('Authors field is not an array:', data.authors);
                 processedData.authors = [];
             }
         }
@@ -3896,8 +3651,7 @@ window.enhancedCompiledDocumentEdit = {
     // Fetch child documents separately
     fetchChildDocuments: function(documentId) {
         return new Promise((resolve, reject) => {
-            console.log(`Fetching child documents for ${documentId}`);
-            
+                        
             // Try multiple endpoints
             const endpoints = [
                 `/api/compiled-documents/${documentId}/children?include_metadata=true&include_file=true&include_authors=true&include_topics=true`,
@@ -3909,14 +3663,12 @@ window.enhancedCompiledDocumentEdit = {
             
             const tryNextEndpoint = () => {
                 if (currentEndpointIndex >= endpoints.length) {
-                    console.error('All child document endpoints failed');
                     resolve([]); // Return empty array instead of rejecting
                     return;
                 }
                 
                 const endpoint = endpoints[currentEndpointIndex];
-                console.log(`Trying child documents endpoint: ${endpoint}`);
-                
+                                
                 fetch(endpoint)
                     .then(response => {
                         if (!response.ok) {
@@ -3925,25 +3677,20 @@ window.enhancedCompiledDocumentEdit = {
                         return response.json();
                     })
                     .then(data => {
-                        console.log(`Got data from ${endpoint}:`, data);
-                        
+                                                
                         // Extract children based on response format
                         let children = [];
                         
                         if (Array.isArray(data)) {
                             children = data;
-                            console.log('Data is already an array of children');
-                        } else if (data.children && Array.isArray(data.children)) {
+                                                    } else if (data.children && Array.isArray(data.children)) {
                             children = data.children;
-                            console.log('Found children array in data.children');
-                        } else if (data.documents && Array.isArray(data.documents)) {
+                                                    } else if (data.documents && Array.isArray(data.documents)) {
                             children = data.documents;
-                            console.log('Found children array in data.documents');
-                        }
+                                                    }
                         
                         if (children && children.length > 0) {
-                            console.log(`CHILD DOCS LOADER: Found ${children.length} child documents`);
-                            
+                                                        
                             // Render child documents
                             renderChildDocuments(children, container);
                             
@@ -3953,13 +3700,11 @@ window.enhancedCompiledDocumentEdit = {
                             // Success - clear interval
                             clearInterval(fetchInterval);
                         } else {
-                            console.log(`CHILD DOCS LOADER: No child documents found in response`);
-                            // Try next endpoint
+                                                        // Try next endpoint
                             tryNextEndpoint(index + 1);
                         }
                     })
                     .catch(error => {
-                        console.warn(`Error with endpoint ${endpoint}:`, error);
                         currentEndpointIndex++;
                         tryNextEndpoint();
                     });
@@ -3972,12 +3717,10 @@ window.enhancedCompiledDocumentEdit = {
     
     // Helper function to create a new research agenda item
     createNewResearchAgendaItem: async function(name) {
-        console.log(`Attempting to create new research agenda item: "${name}"`);
-        
+                
         // First check if item already exists to prevent duplicates
         try {
-            console.log(`Checking if research agenda item "${name}" already exists before creating`);
-            const searchEndpoints = [
+                        const searchEndpoints = [
                 `/research-agenda-items/search?q=${encodeURIComponent(name)}`,
                 `/api/research-agenda-items/search?q=${encodeURIComponent(name)}`,
                 `/api/topics/search?q=${encodeURIComponent(name)}`
@@ -3985,15 +3728,13 @@ window.enhancedCompiledDocumentEdit = {
             
             // Rest of the method...
         } catch (error) {
-            console.error('Error creating research agenda item:', error);
             return null;
         }
     },
     
     // Handle category change
     handleCategoryChange: function(category) {
-        console.log(`Handling category change to: ${category}`);
-        
+                
         // Get all needed elements
         const issuedNoLabel = document.getElementById('edit-compiled-issued-no-label');
         const previewIssuedLabel = document.getElementById('edit-preview-issued-no-label');
@@ -4001,8 +3742,7 @@ window.enhancedCompiledDocumentEdit = {
         const departmentalSelect = document.getElementById('edit-compiled-departmental');
         
         if (category === 'SYNERGY' || category === 'Synergy') {
-            console.log('Category is Synergy - showing department field');
-            
+                        
             // Update labels
             if (issuedNoLabel) issuedNoLabel.textContent = 'Departmental';
             if (previewIssuedLabel) previewIssuedLabel.textContent = 'Departmental:';
@@ -4022,8 +3762,7 @@ window.enhancedCompiledDocumentEdit = {
                 populateDepartmentalDropdown(departmentalSelect);
             }
         } else {
-            console.log('Category is not Synergy - showing issued number field');
-            
+                        
             // Update labels
             if (issuedNoLabel) issuedNoLabel.textContent = 'Issued No.';
             if (previewIssuedLabel) previewIssuedLabel.textContent = 'Issued No:';
@@ -4049,8 +3788,7 @@ window.enhancedCompiledDocumentEdit = {
 // Add a function to fetch departments from the API
 async function fetchDepartments() {
     try {
-        console.log('Fetching departments from API');
-        
+                
         // Try multiple endpoints
         const endpoints = [
             '/api/departments',
@@ -4060,23 +3798,18 @@ async function fetchDepartments() {
         
         for (const endpoint of endpoints) {
             try {
-                console.log(`Trying to fetch departments from ${endpoint}`);
-                const response = await fetch(endpoint);
+                                const response = await fetch(endpoint);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log(`Successfully fetched ${data.length || 0} departments from ${endpoint}`);
-                    return data;
+                                        return data;
                 } else {
-                    console.warn(`Endpoint ${endpoint} returned status ${response.status}`);
                 }
             } catch (error) {
-                console.warn(`Error fetching from ${endpoint}:`, error);
             }
         }
         
         // If all endpoints fail, return a fallback list
-        console.warn('All department API endpoints failed, using fallback list');
         return [
             { id: 'College of Business in Information Technology', department_name: 'College of Business in Information Technology', code: 'CBIT' },
             { id: 'College of Nursing', department_name: 'College of Nursing', code: 'CON' },
@@ -4084,7 +3817,6 @@ async function fetchDepartments() {
             { id: 'Basic Academic Education', department_name: 'Basic Academic Education', code: 'BAE' }
         ];
     } catch (error) {
-        console.error("Error in fetchDepartments:", error);
         return [];
     }
 }
@@ -4094,12 +3826,10 @@ async function populateDepartmentalDropdown(select) {
     const departmentalSelect = select || document.getElementById('edit-compiled-departmental');
     
     if (!departmentalSelect) {
-        console.error('Departmental select element not found');
         return;
     }
     
-    console.log('Populating departmental dropdown');
-    
+        
     try {
         // Save current value if any
         const currentValue = departmentalSelect.value;
@@ -4147,8 +3877,7 @@ async function populateDepartmentalDropdown(select) {
             
             // If no match found and we have a value, create a new option
             if (!found && currentValue) {
-                console.log(`No match found for saved value "${currentValue}", creating new option`);
-                const newOption = document.createElement('option');
+                                const newOption = document.createElement('option');
                 newOption.value = currentValue;
                 newOption.textContent = currentValue;
                 departmentalSelect.appendChild(newOption);
@@ -4156,16 +3885,13 @@ async function populateDepartmentalDropdown(select) {
             }
         }
         
-        console.log('Departmental dropdown populated successfully');
-    } catch (error) {
-        console.error("Error populating departmental dropdown:", error);
+            } catch (error) {
     }
 }
 
 // SYNERGY DEPARTMENT FETCHER - Specifically for fetching department values
 (function fetchSynergyDepartment() {
-    console.log('DEPARTMENT FETCHER: Starting department value fetcher for Synergy documents');
-    
+        
     let attempts = 0;
     const maxAttempts = 10;
     let documentNotFound = false;
@@ -4175,63 +3901,54 @@ async function populateDepartmentalDropdown(select) {
     
     function attemptFetch() {
         attempts++;
-        console.log(`DEPARTMENT FETCHER: Attempt ${attempts}/${maxAttempts} to fetch department value`);
-        
+                
         if (attempts >= maxAttempts || documentNotFound) {
-            console.log('DEPARTMENT FETCHER: Maximum attempts reached or document not found, stopping fetcher');
-            clearInterval(fetchInterval);
+                        clearInterval(fetchInterval);
             return;
         }
         
         // Check if we're editing a Synergy document
         const categoryField = document.getElementById('edit-compiled-category');
         if (!categoryField || (categoryField.value !== 'SYNERGY' && categoryField.value !== 'Synergy')) {
-            console.log('DEPARTMENT FETCHER: Not editing a Synergy document, skipping');
-            clearInterval(fetchInterval);
+                        clearInterval(fetchInterval);
             return;
         }
         
         // Get department select
         const departmentalSelect = document.getElementById('edit-compiled-departmental');
         if (!departmentalSelect) {
-            console.log('DEPARTMENT FETCHER: Department select not found, retrying later');
-            return;
+                        return;
         }
         
         // If we already have a value, no need to fetch
         if (departmentalSelect.value) {
-            console.log('DEPARTMENT FETCHER: Department already set to:', departmentalSelect.value);
-            clearInterval(fetchInterval);
+                        clearInterval(fetchInterval);
             return;
         }
         
         // Get document ID
         const documentId = document.getElementById('edit-compiled-document-id')?.value;
         if (!documentId) {
-            console.log('DEPARTMENT FETCHER: Document ID not found, retrying later');
-            return;
+                        return;
         }
         
         // Skip invalid document IDs
         if (documentId === 'new' || documentId === 'undefined' || isNaN(parseInt(documentId))) {
-            console.log('DEPARTMENT FETCHER: Invalid document ID, skipping');
-            clearInterval(fetchInterval);
+                        clearInterval(fetchInterval);
             return;
         }
         
         // Check if another function already displayed document not found error
         const existingError = document.querySelector('.error-message');
         if (existingError && existingError.textContent.includes(`Document ID ${documentId} not found`)) {
-            console.log('DEPARTMENT FETCHER: Document not found error already displayed, stopping');
-            clearInterval(fetchInterval);
+                        clearInterval(fetchInterval);
             return;
         }
         
         // Populate departments from the database
         populateDepartmentalDropdown(departmentalSelect)
             .then(() => {
-                console.log(`DEPARTMENT FETCHER: Found Synergy document ID ${documentId}, fetching department value`);
-                
+                                
                 // Try multiple endpoints for fetching document data
         const endpoints = [
             `/api/documents/${documentId}`,
@@ -4247,8 +3964,7 @@ async function populateDepartmentalDropdown(select) {
             if (!response.ok) {
                                 if (response.status === 404) {
                                     // We expect 404s for some endpoints, don't log as errors
-                                    console.log(`Endpoint ${endpoint} returned 404 (expected)`);
-                                    return null;
+                                                                        return null;
                                 }
                                 throw new Error(`Status ${response.status}`);
             }
@@ -4256,7 +3972,6 @@ async function populateDepartmentalDropdown(select) {
         })
                         .then(data => data ? { endpoint, data } : null)
                         .catch(error => {
-                            console.warn(`Error with ${endpoint}:`, error);
                             return null;
                         })
                 ))
@@ -4272,11 +3987,9 @@ async function populateDepartmentalDropdown(select) {
                     
                     if (successfulResult) {
                         const { endpoint, data } = successfulResult;
-                        console.log(`DEPARTMENT FETCHER: Got data with department from ${endpoint}:`, data);
-                        
+                                                
                         if (data.department) {
-                            console.log(`DEPARTMENT FETCHER: Setting department value to "${data.department}"`);
-                            
+                                                        
                             // Find matching option or add new one
         let found = false;
                             Array.from(departmentalSelect.options).forEach(option => {
@@ -4318,8 +4031,7 @@ async function populateDepartmentalDropdown(select) {
                     );
                     
                     if (all404s) {
-                        console.log('DEPARTMENT FETCHER: Document not found on any endpoint (all 404s)');
-                        documentNotFound = true;
+                                                documentNotFound = true;
                         clearInterval(fetchInterval);
                         
                         // Only show error message if it's not already displayed
@@ -4341,15 +4053,11 @@ async function populateDepartmentalDropdown(select) {
                     
                     // If we tried all endpoints and found no department, stop looking
                     if (attempts >= maxAttempts / 2) {
-                        console.log('DEPARTMENT FETCHER: No department data found after multiple attempts');
-                        clearInterval(fetchInterval);
+                                                clearInterval(fetchInterval);
                     } else {
-                        console.log('DEPARTMENT FETCHER: No successful results with department data, will retry');
-                    }
+                                            }
                 })
                 .catch(error => {
-                    console.warn('DEPARTMENT FETCHER: Error fetching document data:', error);
-                    
                     // Stop interval after multiple retries
                     if (attempts >= maxAttempts / 2) {
                         clearInterval(fetchInterval);
@@ -4357,8 +4065,6 @@ async function populateDepartmentalDropdown(select) {
                 });
             })
             .catch(error => {
-                console.warn('DEPARTMENT FETCHER: Error populating departments:', error);
-                
                 // Stop interval after multiple retries
                 if (attempts >= maxAttempts / 2) {
                     clearInterval(fetchInterval);
@@ -4368,20 +4074,17 @@ async function populateDepartmentalDropdown(select) {
     
     // Update department value in preview
     function updateDepartmentInPreview(value) {
-        console.log(`DEPARTMENT FETCHER: Updating department in preview to "${value}"`);
-        
+                
         const previewEl = document.getElementById('edit-compiled-preview-issued-no');
         if (previewEl) {
             previewEl.textContent = value || '-';
-            console.log('DEPARTMENT FETCHER: Updated preview with department value');
-        }
+                    }
     }
 })();
 
 // TITLE MANAGER - Auto-generate and disable title editing
 (function manageTitleField() {
-    console.log('TITLE MANAGER: Setting up compiled document title manager');
-    
+        
     // Try to find the title field and related fields periodically
     let attempts = 0;
     const maxAttempts = 15;
@@ -4389,19 +4092,16 @@ async function populateDepartmentalDropdown(select) {
     
     function setupTitleGeneration() {
         attempts++;
-        console.log(`TITLE MANAGER: Attempt ${attempts}/${maxAttempts} to setup title generation`);
-        
+                
         if (attempts >= maxAttempts) {
-            console.log('TITLE MANAGER: Maximum attempts reached, stopping');
-            clearInterval(checkInterval);
+                        clearInterval(checkInterval);
             return;
         }
         
         // Find the title field
         const titleField = document.getElementById('edit-compiled-document-title');
         if (!titleField) {
-            console.log('TITLE MANAGER: Title field not found, retrying later');
-            return;
+                        return;
         }
         
         // Find the category, volume, and year fields
@@ -4421,8 +4121,7 @@ async function populateDepartmentalDropdown(select) {
         
         // If we have all required fields, continue setup
         if (titleField && categoryField && volumeField && startYearField && endYearField) {
-            console.log('TITLE MANAGER: All required fields found, setting up title generation');
-            
+                        
             // Disable the title field
             titleField.disabled = true;
             titleField.style.backgroundColor = '#f8f9fa';
@@ -4440,8 +4139,7 @@ async function populateDepartmentalDropdown(select) {
                 helpText.style.display = 'block';
                 
                 titleContainer.appendChild(helpText);
-                console.log('TITLE MANAGER: Added title explanation text');
-            }
+                            }
             
             // Generate initial title
             generateTitle();
@@ -4453,8 +4151,7 @@ async function populateDepartmentalDropdown(select) {
             
             // Success - clear the interval
             clearInterval(checkInterval);
-            console.log('TITLE MANAGER: Title generation setup complete');
-        }
+                    }
         
         // Generate title based on current field values
         function generateTitle() {
@@ -4472,8 +4169,7 @@ async function populateDepartmentalDropdown(select) {
                 // Generate title format: DOCUMENT_TYPE Vol. X (YEAR-YEAR)
                 const title = `${category} Vol. ${volume}${yearText}`;
                 
-                console.log(`TITLE MANAGER: Generated new title: "${title}"`);
-                
+                                
                 // Set title field value
                 titleField.value = title;
                 
@@ -4481,8 +4177,7 @@ async function populateDepartmentalDropdown(select) {
                 const previewTitle = document.getElementById('edit-compiled-document-preview-title');
                 if (previewTitle) {
                     previewTitle.textContent = title;
-                    console.log('TITLE MANAGER: Updated preview title');
-                }
+                                    }
             }
         }
     }
@@ -4492,8 +4187,7 @@ async function populateDepartmentalDropdown(select) {
 // (function loadCompiledDocumentChildren() { ... })();
 
 function renderChildDocuments(children, container) {
-    console.log(`Rendering ${children.length} child documents in container`);
-    
+        
     // Clear the container first
     container.innerHTML = '';
     
@@ -4662,8 +4356,7 @@ function renderChildDocuments(children, container) {
                 const docId = viewButton.dataset.id;
                 const filePath = viewButton.dataset.file;
                 
-                console.log(`View child document ${docId} at ${filePath || 'unknown path'}`);
-                
+                                
                 // Try multiple methods to view the document
                     if (filePath) {
                     // If we have the file path, open directly
@@ -4687,7 +4380,6 @@ function renderChildDocuments(children, container) {
             // Add the card to the wrapper
             wrapper.appendChild(docCard);
         } catch (error) {
-            console.error(`Error rendering child document ${doc.id}:`, error);
         }
     });
     
@@ -4697,8 +4389,7 @@ function renderChildDocuments(children, container) {
     // Set data-loaded attribute
     container.setAttribute('data-loaded', 'true');
     
-    console.log('Child documents rendered successfully');
-}
+    }
 
 // Helper function to ensure child document containers are hidden
 function hideChildDocumentContainers() {

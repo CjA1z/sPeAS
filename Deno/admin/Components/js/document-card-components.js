@@ -21,8 +21,7 @@ window.documentCardComponents = {
  * @returns {HTMLElement} - The document card element
  */
 function createDocumentCard(doc) {
-    console.log(`Creating document card for: ${doc.title || 'Untitled'} (ID: ${doc.id})`);
-    
+        
     // Create the card element
     const card = document.createElement('div');
     card.className = 'document-card';
@@ -81,7 +80,6 @@ function createDocumentCard(doc) {
                 }
             })
             .catch(error => {
-                console.error(`Error fetching authors for document ${doc.id}:`, error);
             });
     }
     
@@ -101,10 +99,8 @@ async function fetchAuthorsForDocument(documentId) {
         }
         
         const data = await response.json();
-        console.log(`Authors fetched for document ${documentId}:`, data.authors);
-        return data.authors || [];
+                return data.authors || [];
     } catch (error) {
-        console.error(`Error fetching authors for document ${documentId}:`, error);
         return [];
     }
 }
@@ -116,8 +112,7 @@ async function fetchAuthorsForDocument(documentId) {
  * @returns {HTMLElement} - Compiled document card element
  */
 function createCompiledDocumentCard(doc, expandedDocIds = []) {
-    console.log(`Creating compiled document card for: ${doc.title || 'Untitled'} (ID: ${doc.id})`);
-    
+        
     // Create a wrapper that will contain both the card and its children
     const wrapper = document.createElement('div');
     wrapper.className = 'compiled-document-wrapper';
@@ -314,7 +309,6 @@ function createChildDocumentCard(child) {
                             // Reconstruct the path starting from 'storage'
                             pdfPath = '/' + parts.slice(storageIndex).join('/');
                         } else {
-                            console.error('Could not find storage directory in path:', pdfPath);
                         }
                     }
                     
@@ -328,8 +322,7 @@ function createChildDocumentCard(child) {
                         pdfPath = window.location.origin + pdfPath;
                     }
                     
-                    console.log(`Opening document with path: ${pdfPath}`);
-                    
+                                        
                     // Use PDF viewer modal if available
                     if (typeof showPdfViewer === 'function') {
                         showPdfViewer(pdfPath, document.title || 'Document');
@@ -342,7 +335,6 @@ function createChildDocumentCard(child) {
                 }
             })
             .catch(error => {
-                console.error('Error opening PDF:', error);
                 alert(`Error opening document: ${error.message}`);
             });
     });
@@ -397,7 +389,6 @@ function formatDate(date) {
     try {
         return new Date(date).toLocaleDateString();
     } catch (error) {
-        console.error('Error formatting date:', error);
         return 'Unknown Date';
     }
 }
@@ -516,7 +507,6 @@ function setupDocumentCardEventListeners(card, doc) {
                             // Reconstruct the path starting from 'storage'
                             pdfPath = '/' + parts.slice(storageIndex).join('/');
                         } else {
-                            console.error('Could not find storage directory in path:', pdfPath);
                         }
                     }
                     
@@ -530,14 +520,12 @@ function setupDocumentCardEventListeners(card, doc) {
                         pdfPath = window.location.origin + pdfPath;
                     }
                     
-                    console.log(`Opening document with path: ${pdfPath}`);
-                    window.open(pdfPath, '_blank');
+                                        window.open(pdfPath, '_blank');
                 } else {
                     alert('PDF path not found for this document');
                 }
             })
             .catch(error => {
-                console.error('Error opening PDF:', error);
                 alert(`Error opening document: ${error.message}`);
             });
     });
@@ -560,13 +548,11 @@ function setupDocumentCardEventListeners(card, doc) {
         e.stopPropagation();
         
         // Log that we detected a click on the delete button
-        console.log(`Delete button clicked for regular document ${doc.id}`);
-        
+                
         // Use our custom confirmation dialog instead of direct deletion
         if (typeof window.showDeleteConfirmation === 'function') {
             // For regular documents, use the confirmation function with isCompiled=false
-            console.log(`Using global showDeleteConfirmation function for regular document ${doc.id}`);
-            window.showDeleteConfirmation(doc.id, false);
+                        window.showDeleteConfirmation(doc.id, false);
         }
         // Fall back to document archive functions if available, but with confirmation
         else if (window.documentArchive && typeof window.documentArchive.archiveDocument === 'function') {
@@ -579,8 +565,6 @@ function setupDocumentCardEventListeners(card, doc) {
                 // Call archive function
                 window.documentArchive.archiveDocument(doc.id)
                     .catch(error => {
-                        console.error('Error archiving document:', error);
-                        
                         // Show error message
                         if (typeof showToast === 'function') {
                             const errorMsg = error.message || 'Server connection error';
@@ -714,18 +698,15 @@ function setupCompiledDocumentCardEventListeners(card, doc, isExpanded, expanded
             e.stopPropagation();
             
             // Log that we detected a click on the delete button
-            console.log(`Delete button clicked for document ${doc.id}`);
-            
+                        
             // Use our custom confirmation dialog instead of browser's confirm
             if (typeof window.showDeleteConfirmation === 'function') {
                 // For compiled documents, use the specialized confirmation function
-                console.log(`Using global showDeleteConfirmation function for document ${doc.id}`);
-                window.showDeleteConfirmation(doc.id, true);
+                                window.showDeleteConfirmation(doc.id, true);
             }
             // Fall back to document archive functions if available
             else if (window.documentArchive && typeof window.documentArchive.archiveCompiledDocument === 'function') {
-                console.log(`Using archiveCompiledDocument for compiled document ${doc.id}`);
-                
+                                
                 if (confirm(`Are you sure you want to archive "${doc.title || 'this compilation'}" and all its child documents?`)) {
                     // Show a toast notification that archiving is in progress
                     if (typeof showToast === 'function') {
@@ -739,8 +720,6 @@ function setupCompiledDocumentCardEventListeners(card, doc, isExpanded, expanded
                     // Call the archive function
                     window.documentArchive.archiveCompiledDocument(doc.id)
                         .catch(error => {
-                            console.error('Error archiving compiled document:', error);
-                            
                             // Show a more detailed error message
                             if (typeof showToast === 'function') {
                                 const errorMsg = error.message || 'Server connection error';
@@ -760,7 +739,6 @@ function setupCompiledDocumentCardEventListeners(card, doc, isExpanded, expanded
             } 
             // Last resort fallback
             else {
-                console.warn('No delete confirmation function found, using browser confirm');
                 if (confirm(`Are you sure you want to delete "${doc.title || 'this compilation'}" and all its child documents?`)) {
                     alert(`Compiled document ${doc.id} would be deleted`);
                 }
@@ -811,7 +789,6 @@ function fetchAndRenderChildDocuments(compiledDocId, container) {
                     const childCard = createChildDocumentCard(childDoc);
                     fragment.appendChild(childCard);
                 } catch (error) {
-                    console.error(`Error rendering child document ${childDoc.id}:`, error);
                     // Add error indicator
                     const errorElement = document.createElement('div');
                     errorElement.className = 'error-message';
@@ -824,8 +801,6 @@ function fetchAndRenderChildDocuments(compiledDocId, container) {
             container.appendChild(fragment);
         })
         .catch(error => {
-            console.error('Error fetching child documents:', error);
-            
             // Remove loading indicator
             if (container.contains(loadingElement)) {
                 container.removeChild(loadingElement);

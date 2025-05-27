@@ -38,10 +38,8 @@ export async function getCompiledDocument(compiledDocId: number): Promise<any> {
     
     // Explicitly log the foreword field for debugging
     if (compiledDoc.foreword) {
-      console.log(`Compiled document ${compiledDocId} has foreword: ${compiledDoc.foreword}`);
-    } else {
-      console.log(`Compiled document ${compiledDocId} does not have a foreword`);
-    }
+          } else {
+          }
     
     // Create a response object with all fields from compiledDoc plus any additional fields
     const response = {
@@ -50,11 +48,9 @@ export async function getCompiledDocument(compiledDocId: number): Promise<any> {
       abstract: compiledDoc.abstract_foreword || compiledDoc.foreword || ''
     };
     
-    console.log(`Compiled document ${compiledDocId} abstract_foreword:`, compiledDoc.abstract_foreword);
-    
+        
     return response;
   } catch (error) {
-    console.error(`Error in getCompiledDocument(${compiledDocId}):`, error);
     throw error;
   }
 }
@@ -105,8 +101,7 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
 
     // Log the abstract_foreword field if it's provided
     if (body.compiledDoc.abstract_foreword) {
-      console.log(`Received abstract_foreword for new compiled document: ${body.compiledDoc.abstract_foreword.substring(0, 100)}...`);
-    }
+          }
 
     const compiledDocId = await createCompiledDocument(body.compiledDoc, documentIds);
 
@@ -115,7 +110,6 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: unknown) {
-    console.error('Error creating compiled document:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to create compiled document';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -163,7 +157,6 @@ export async function handleGetCompiledDocument(request: Request): Promise<Respo
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: unknown) {
-    console.error(`Error fetching compiled document with ID ${id}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch compiled document';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -212,7 +205,6 @@ export async function handleAddDocumentsToCompilation(request: Request): Promise
         results.push({ documentId: docId, success: true });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : `Failed to add document ${docId}`;
-        console.error(`Failed to add document ${docId} to compilation ${compiledDocumentId}:`, error);
         results.push({ documentId: docId, success: false, error: errorMessage });
       }
     }
@@ -225,7 +217,6 @@ export async function handleAddDocumentsToCompilation(request: Request): Promise
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: unknown) {
-    console.error('Error adding documents to compilation:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to add documents to compilation';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -270,8 +261,6 @@ export async function handleSoftDeleteCompiledDocument(request: Request): Promis
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: unknown) {
-    console.error(`Error archiving compiled document with ID ${id}:`, error);
-    
     // Check for specific errors to return appropriate status codes
     const errorMessage = error instanceof Error ? error.message : 'Failed to archive compiled document';
     
@@ -327,13 +316,11 @@ export async function updateCompiledDocument(
       throw new Error(`Compiled document with ID ${compiledDocId} not found`);
     }
     
-    console.log(`Compiled document data for ID ${compiledDocId}:`, existingDoc);
-    
+        
     // Update the document
     const updatedDoc = await updateCompiledDocumentService(compiledDocId, compiledDoc);
     return updatedDoc;
   } catch (error) {
-    console.error(`Error in updateCompiledDocument(${compiledDocId}):`, error);
     throw error;
   }
 }
@@ -385,7 +372,6 @@ export async function handleUpdateCompiledDocument(request: Request): Promise<Re
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: unknown) {
-    console.error(`Error updating compiled document with ID ${id}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to update compiled document';
     
     // Special handling for document not found

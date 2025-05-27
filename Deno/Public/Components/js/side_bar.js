@@ -24,7 +24,6 @@ async function loadSidebar() {
             sidebarContainer.appendChild(link);
         });
     } catch (error) {
-        console.error("Error loading sidebar:", error);
     }
 }
 

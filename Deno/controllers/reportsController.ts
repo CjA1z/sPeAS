@@ -27,31 +27,23 @@ interface QueryResult {
  */
 export async function getDocumentStatistics(ctx: any) {
   try {
-    console.log("=== STATISTICS REQUEST RECEIVED ===");
-    console.log("Request URL:", ctx.request.url.toString());
-    console.log("Request method:", ctx.request.method);
-    console.log("Request headers:", JSON.stringify(Object.fromEntries(ctx.request.headers.entries())));
-    
+                    
     // Get all query parameters
     const queryParams: Record<string, string> = {};
     for (const [key, value] of ctx.request.url.searchParams.entries()) {
       queryParams[key] = value;
     }
-    console.log("Query parameters:", JSON.stringify(queryParams));
-    
+        
     // Get the time range parameter with better fallback
     let timeRange = "all";
     try {
       timeRange = ctx.request.url.searchParams.get("timeRange") || "all";
-      console.log(`Parsed timeRange parameter: ${timeRange}`);
-    } catch (paramError) {
-      console.error("Error reading timeRange parameter:", paramError);
+          } catch (paramError) {
       // Fall back to default
       timeRange = "all";
     }
     
-    console.log(`Fetching document statistics with timeRange: ${timeRange}`);
-    
+        
     // Build date criteria based on time range
     let dateCriteria = "";
     let params: any[] = [];
@@ -86,16 +78,12 @@ export async function getDocumentStatistics(ctx: any) {
     
     // Simple database connectivity test before running the real queries
     try {
-      console.log("Testing database connection...");
-      const testResult = await client.queryObject("SELECT 1 as test");
-      console.log(`Database connection test successful: ${testResult.rows.length} row(s) returned`);
-    } catch (dbTestError) {
-      console.error("Database connection test failed:", dbTestError);
+            const testResult = await client.queryObject("SELECT 1 as test");
+          } catch (dbTestError) {
       throw new Error("Database connection test failed");
     }
     
-    console.log("Building active documents query with criteria:", dateCriteria);
-    
+        
     // Query for active documents
     const activeQuery = `
       SELECT COUNT(*) as count
@@ -104,9 +92,7 @@ export async function getDocumentStatistics(ctx: any) {
       ${dateCriteria}
     `;
     
-    console.log("Active documents query:", activeQuery);
-    console.log("Query parameters:", params);
-    
+            
     // Query for archived documents
     const archivedQuery = `
       SELECT COUNT(*) as count
@@ -115,46 +101,34 @@ export async function getDocumentStatistics(ctx: any) {
       ${dateCriteria}
     `;
     
-    console.log("Archived documents query:", archivedQuery);
-    
+        
     // Execute the queries with proper typing and error handling
     let activeCount = 0;
     let archivedCount = 0;
     
     try {
-      console.log("Executing active documents query...");
-      const activeResult = await client.queryObject(activeQuery, params) as QueryResult;
-      console.log("Active result rows:", activeResult.rows.length);
-      
+            const activeResult = await client.queryObject(activeQuery, params) as QueryResult;
+            
       if (activeResult.rows.length > 0) {
-        console.log("Active row data:", JSON.stringify(activeResult.rows[0]));
-        activeCount = Number(activeResult.rows[0].count || 0);
+                activeCount = Number(activeResult.rows[0].count || 0);
       }
-      console.log("Active count:", activeCount);
-    } catch (activeError) {
-      console.error("Error executing active documents query:", activeError);
+          } catch (activeError) {
       // Continue with zero count
     }
     
     try {
-      console.log("Executing archived documents query...");
-      const archivedResult = await client.queryObject(archivedQuery, params) as QueryResult;
-      console.log("Archived result rows:", archivedResult.rows.length);
-      
+            const archivedResult = await client.queryObject(archivedQuery, params) as QueryResult;
+            
       if (archivedResult.rows.length > 0) {
-        console.log("Archived row data:", JSON.stringify(archivedResult.rows[0]));
-        archivedCount = Number(archivedResult.rows[0].count || 0);
+                archivedCount = Number(archivedResult.rows[0].count || 0);
       }
-      console.log("Archived count:", archivedCount);
-    } catch (archivedError) {
-      console.error("Error executing archived documents query:", archivedError);
+          } catch (archivedError) {
       // Continue with zero count
     }
     
     // Calculate the total
     const totalCount = activeCount + archivedCount;
-    console.log("Total documents count:", totalCount);
-    
+        
     // Get document type statistics
     const docTypeQuery = `
       SELECT document_type, COUNT(*) as count
@@ -164,27 +138,22 @@ export async function getDocumentStatistics(ctx: any) {
       GROUP BY document_type
     `;
     
-    console.log("Document type query:", docTypeQuery);
-    
+        
     // Default empty array for document types
     let documentTypes: Array<{document_type: string; count: number}> = [];
     
     try {
-      console.log("Executing document types query...");
-      const docTypeResult = await client.queryObject(docTypeQuery, 
+            const docTypeResult = await client.queryObject(docTypeQuery, 
         timeRange !== "all" ? [startDate.toISOString()] : []) as QueryResult;
       
-      console.log("Document types result rows:", docTypeResult.rows.length);
-      
+            
       // Parse the document types results
       documentTypes = docTypeResult.rows.map(row => ({
         document_type: String(row.document_type || "unknown"),
         count: Number(row.count || 0)
       }));
       
-      console.log("Document types:", JSON.stringify(documentTypes));
-    } catch (docTypeError) {
-      console.error("Error executing document types query:", docTypeError);
+          } catch (docTypeError) {
       // Continue with empty array
     }
     
@@ -197,14 +166,12 @@ export async function getDocumentStatistics(ctx: any) {
       time_range: timeRange
     };
     
-    console.log("Final statistics response:", JSON.stringify(response));
-    
+        
     // Return the statistics
     ctx.response.body = response;
     ctx.response.status = 200;
     
   } catch (error: unknown) {
-    console.error("Error fetching document statistics:", error);
     ctx.response.body = {
       success: false,
       error: error instanceof Error ? error.message : "Error fetching document statistics"
@@ -222,8 +189,7 @@ export async function exportPdfReport(ctx: any) {
     // Get request body
     const body = await ctx.request.body().value;
     
-    console.log("Generating PDF report with data:", JSON.stringify(body));
-    
+        
     const { reportType, timeRange, data } = body;
     
     // In a real implementation, you would use a PDF generation library
@@ -242,7 +208,6 @@ export async function exportPdfReport(ctx: any) {
     ctx.response.status = 200;
     
   } catch (error: unknown) {
-    console.error("Error generating PDF report:", error);
     ctx.response.body = {
       success: false,
       error: error instanceof Error ? error.message : "Error generating PDF report"
@@ -260,8 +225,7 @@ export async function exportCsvReport(ctx: any) {
     // Get request body
     const body = await ctx.request.body().value;
     
-    console.log("Generating CSV report with data:", JSON.stringify(body));
-    
+        
     const { reportType, timeRange, data } = body;
     
     // Generate CSV content based on report type and data
@@ -288,7 +252,6 @@ export async function exportCsvReport(ctx: any) {
     ctx.response.status = 200;
     
   } catch (error: unknown) {
-    console.error("Error generating CSV report:", error);
     ctx.response.body = {
       success: false,
       error: error instanceof Error ? error.message : "Error generating CSV report"

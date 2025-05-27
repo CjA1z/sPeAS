@@ -26,7 +26,6 @@ router.get("/api/keywords", async (ctx) => {
     ctx.response.body = keywords;
     ctx.response.headers.set("Content-Type", "application/json");
   } catch (error) {
-    console.error("Error in /api/keywords endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
     ctx.response.headers.set("Content-Type", "application/json");
@@ -56,7 +55,6 @@ router.get("/api/trending-keywords", async (ctx) => {
     };
     ctx.response.headers.set("Content-Type", "application/json");
   } catch (error) {
-    console.error("Error in /api/trending-keywords endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
     ctx.response.headers.set("Content-Type", "application/json");
@@ -87,7 +85,6 @@ router.get("/api/keywords-with-counts", async (ctx) => {
     };
     ctx.response.headers.set("Content-Type", "application/json");
   } catch (error) {
-    console.error("Error in /api/keywords-with-counts endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
     ctx.response.headers.set("Content-Type", "application/json");

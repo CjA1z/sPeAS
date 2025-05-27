@@ -52,12 +52,10 @@ export async function initialize() {
     await ensureDir(CACHE_DIR);
     await loadCacheFromDisk();
     cacheInitialized = true;
-    console.log(`[FILE CACHE] Initialized with ${pathCache.size} entries`);
-    
+        
     // Schedule periodic cache saving
     setInterval(saveCacheToDisk, 5 * 60 * 1000); // Save every 5 minutes
   } catch (error) {
-    console.error(`[FILE CACHE] Initialization error:`, error);
   }
 }
 
@@ -70,22 +68,18 @@ async function loadCacheFromDisk() {
     const fileInfo = await Deno.stat(cacheFilePath).catch(() => null);
     
     if (!fileInfo) {
-      console.log(`[FILE CACHE] No cache file found at ${cacheFilePath}`);
-      return;
+            return;
     }
     
-    console.log(`[FILE CACHE] Loading cache from ${cacheFilePath}`);
-    const cacheJson = await Deno.readTextFile(cacheFilePath);
+        const cacheJson = await Deno.readTextFile(cacheFilePath);
     const cacheData = JSON.parse(cacheJson);
     
     if (Array.isArray(cacheData)) {
       for (const [key, value] of cacheData) {
         pathCache.set(key, value);
       }
-      console.log(`[FILE CACHE] Loaded ${pathCache.size} entries from disk`);
-    }
+          }
   } catch (error) {
-    console.error(`[FILE CACHE] Error loading cache from disk:`, error);
     // Don't fail initialization if loading fails
   }
 }
@@ -107,9 +101,7 @@ async function saveCacheToDisk() {
     const cacheArray = Array.from(pathCache.entries());
     await Deno.writeTextFile(cacheFilePath, JSON.stringify(cacheArray));
     
-    console.log(`[FILE CACHE] Saved ${pathCache.size} entries to disk`);
-  } catch (error) {
-    console.error(`[FILE CACHE] Error saving cache to disk:`, error);
+      } catch (error) {
   }
 }
 
@@ -121,8 +113,7 @@ function cleanupCache() {
     return;
   }
   
-  console.log(`[FILE CACHE] Cache cleanup: ${pathCache.size} entries exceed limit of ${MAX_CACHE_SIZE}`);
-  
+    
   // Get all entries and sort by last access time (oldest first)
   const entries = Array.from(pathCache.entries())
     .sort(([, a], [, b]) => a.lastChecked - b.lastChecked);
@@ -135,8 +126,7 @@ function cleanupCache() {
     }
   }
   
-  console.log(`[FILE CACHE] Removed ${removeCount} oldest cache entries`);
-}
+  }
 
 /**
  * Checks if a cache entry is expired
@@ -220,14 +210,12 @@ export async function findFile(idOrFilename: string): Promise<FilePathInfo | nul
       return cachedInfo;
     } catch (error) {
       // File no longer exists, remove from cache
-      console.log(`[FILE CACHE] Cached file no longer exists: ${cachedInfo.path}`);
-      pathCache.delete(cacheKey);
+            pathCache.delete(cacheKey);
     }
   }
   
   // Cache miss or expired, check the file system
-  console.log(`[FILE CACHE] Cache miss for ${idOrFilename}, checking file system`);
-  
+    
   const pathsToCheck = getPathsToCheck(idOrFilename);
   
   // Check paths one by one
@@ -279,7 +267,6 @@ export async function findFile(idOrFilename: string): Promise<FilePathInfo | nul
       return newInfo;
     }
   } catch (error) {
-    console.error(`[FILE CACHE] Error using FileCheckService:`, error);
   }
   
   // File not found, cache negative result
@@ -327,5 +314,4 @@ export function invalidateCache(idOrFilename: string) {
  */
 export function clearCache() {
   pathCache.clear();
-  console.log(`[FILE CACHE] Cache cleared`);
-} 
+  } 

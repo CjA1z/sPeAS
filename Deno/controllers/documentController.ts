@@ -8,8 +8,7 @@ import { fetchDocuments as fetchDocumentsService, fetchChildDocuments as fetchCh
  */
 export async function fetchCategories(): Promise<Response> {
   try {
-    console.log("Fetching categories with document counts including compiled documents");
-    
+        
     // Get basic category information
     const categoriesResult = await client.queryObject(
       "SELECT id, category_name as name FROM categories ORDER BY category_name"
@@ -73,8 +72,7 @@ export async function fetchCategories(): Promise<Response> {
           if (category.name.toUpperCase() === categoryName || 
               categoryName.includes(category.name.toUpperCase())) {
             category.count += count;
-            console.log(`Added ${count} compiled documents to category "${category.name}", new total: ${category.count}`);
-            break;
+                        break;
           }
         }
       }
@@ -85,7 +83,6 @@ export async function fetchCategories(): Promise<Response> {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error: unknown) {
-    console.error("Error fetching categories:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
@@ -101,8 +98,7 @@ export async function fetchCategories(): Promise<Response> {
  */
 export async function fetchDocuments(request: Request): Promise<Response> {
   try {
-    console.log("DocumentController: fetchDocuments called");
-    
+        
     // Get URL parameters for pagination and filtering
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
@@ -116,16 +112,12 @@ export async function fetchDocuments(request: Request): Promise<Response> {
     
     // Add debug logging for multiple categories
     if (category && category.includes(',')) {
-      console.log(`Multiple categories detected: ${category}`);
-      const categories = category.split(',').map(c => c.trim());
-      console.log(`Parsed categories: [${categories.join(', ')}]`);
-    }
+            const categories = category.split(',').map(c => c.trim());
+          }
     
-    console.log(`Fetching documents with page=${page}, size=${size}, category=${category}, sort=${sort}, keyword=${keyword}, doc_types=${docTypes}`);
-    
+        
     // ADDITIONAL DEBUGGING: Check if database client is available
     if (!client) {
-      console.error("CRITICAL ERROR: Database client is null or undefined in controller");
       return new Response(JSON.stringify({
         error: "Database client is not available",
         documents: [],
@@ -140,11 +132,8 @@ export async function fetchDocuments(request: Request): Promise<Response> {
     
     // ADDITIONAL DEBUGGING: Try a simple database query to confirm connection
     try {
-      console.log("Testing database connection with a simple query");
-      const testResult = await client.queryObject("SELECT 1 as test");
-      console.log("Database connection test result:", testResult.rows);
-    } catch (testError: unknown) {
-      console.error("Database connection test failed:", testError);
+            const testResult = await client.queryObject("SELECT 1 as test");
+          } catch (testError: unknown) {
       return new Response(JSON.stringify({
         error: "Database connection failed",
         message: testError instanceof Error ? testError.message : String(testError),
@@ -171,8 +160,7 @@ export async function fetchDocuments(request: Request): Promise<Response> {
     }
     
     // Use document service to fetch actual documents with the new interface
-    console.log("Calling documentService.fetchDocuments() with options");
-    const result = await fetchDocumentsService({
+        const result = await fetchDocumentsService({
       page,
       limit: size,
       category,
@@ -183,16 +171,13 @@ export async function fetchDocuments(request: Request): Promise<Response> {
       docTypes: docTypes // Pass doc_types parameter to service layer
     });
     
-    console.log(`Documents fetched: ${result.documents.length} documents found`);
-    
+        
     // Debug log to check document types
     const compiledDocs = result.documents.filter(doc => doc.is_compiled === true);
     const singleDocs = result.documents.filter(doc => !doc.is_compiled);
-    console.log(`Document types breakdown: ${compiledDocs.length} compiled, ${singleDocs.length} single`);
-    
+        
     // Check if we received fewer documents than expected
     if (result.documents.length === 0 && result.totalCount > 0) {
-      console.warn("No documents returned despite totalCount > 0. This might indicate a database issue.");
     }
     
     // Add structured debug info to the response for troubleshooting
@@ -215,8 +200,6 @@ export async function fetchDocuments(request: Request): Promise<Response> {
       },
     });
   } catch (error: unknown) {
-    console.error("Error in document controller:", error);
-    
     // Return error response
     return new Response(JSON.stringify({
       error: true,
@@ -250,8 +233,7 @@ export async function getDocumentById(req: Request): Promise<Response> {
     // Check if this is a guest request
     const isGuestRequest = url.searchParams.get("guest") === "true";
     
-    console.log(`Fetching document with ID: ${documentId}, isGuestRequest: ${isGuestRequest}`);
-    
+        
     // Validate document ID is a number
     const docIdNum = parseInt(documentId);
     if (isNaN(docIdNum)) {
@@ -273,8 +255,7 @@ export async function getDocumentById(req: Request): Promise<Response> {
     
     // If this is a guest request, check if the document is public
     if (isGuestRequest && !document.is_public) {
-      console.log(`Guest requested non-public document: ${documentId}`);
-      return new Response(JSON.stringify({ error: "Document is not available for guest viewing" }), {
+            return new Response(JSON.stringify({ error: "Document is not available for guest viewing" }), {
         status: 403,
         headers: { "Content-Type": "application/json" }
       });
@@ -301,16 +282,13 @@ export async function getDocumentById(req: Request): Promise<Response> {
         orcid_id: row.orcid_id
       }));
       
-      console.log(`Found ${authors.length} authors for document ${documentId}`);
-    } catch (authorError) {
-      console.warn(`Error fetching authors for document ${documentId}:`, authorError);
+          } catch (authorError) {
     }
     
     // Fetch keywords from research_agenda tables
     let keywords: string[] = document.keywords || [];
     try {
-      console.log(`Fetching keywords for document ID ${docIdNum} from research_agenda`);
-      const keywordsResult = await client.queryObject(
+            const keywordsResult = await client.queryObject(
         `SELECT ra.id, ra.name
          FROM research_agenda ra
          JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
@@ -319,8 +297,7 @@ export async function getDocumentById(req: Request): Promise<Response> {
       );
       
       if (keywordsResult.rows.length > 0) {
-        console.log(`Found ${keywordsResult.rows.length} research agenda entries`);
-        
+                
         // Extract keywords from research agenda entries
         // Simply use the research agenda names as keywords
         for (const row of keywordsResult.rows as Array<{
@@ -335,12 +312,9 @@ export async function getDocumentById(req: Request): Promise<Response> {
         
         // Remove duplicates
         keywords = [...new Set(keywords)];
-        console.log(`Extracted keywords for document ${documentId}:`, keywords);
-      } else {
-        console.log(`No research agenda entries found for document ${documentId}`);
-      }
+              } else {
+              }
     } catch (keywordsError) {
-      console.warn(`Error fetching keywords for document ${documentId}:`, keywordsError);
     }
     
     // Extract publication year from publication_date if available
@@ -349,7 +323,6 @@ export async function getDocumentById(req: Request): Promise<Response> {
       try {
         publicationYear = new Date(document.publication_date).getFullYear().toString();
       } catch (dateError) {
-        console.warn(`Error extracting year from publication_date:`, dateError);
       }
     }
     
@@ -367,7 +340,6 @@ export async function getDocumentById(req: Request): Promise<Response> {
     });
     
   } catch (error) {
-    console.error("Error getting document by ID:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     
     return new Response(JSON.stringify({ 
@@ -443,7 +415,6 @@ export async function createDocument(req: Request): Promise<Response> {
         
         // Make sure department_id is present
         if (!body.department_id) {
-          console.warn('SYNERGY document created without department_id');
         }
       }
 
@@ -452,8 +423,7 @@ export async function createDocument(req: Request): Promise<Response> {
         body.category_id = 5; // Default research study category ID
       }
       
-      console.log('Creating document with data:', JSON.stringify(body, null, 2));
-      const newDocument = await DocumentModel.create(body);
+            const newDocument = await DocumentModel.create(body);
       
       return new Response(JSON.stringify(newDocument), {
         status: 201,
@@ -466,7 +436,6 @@ export async function createDocument(req: Request): Promise<Response> {
       });
     }
   } catch (error) {
-    console.error("Error creating document:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
@@ -524,7 +493,6 @@ export async function updateDocument(req: Request): Promise<Response> {
       });
     }
   } catch (error) {
-    console.error("Error updating document:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
@@ -573,7 +541,6 @@ export async function deleteDocument(req: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("Error deleting document:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
@@ -610,8 +577,7 @@ export async function getChildDocuments(req: Request): Promise<Response> {
     }
     
     const documentId = parseInt(documentIdStr);
-    console.log(`Controller: Fetching child documents for parent ID: ${documentId}`);
-    
+        
     const result = await fetchChildDocumentsService(documentId);
     
     // Create a safe version of the documents to avoid serialization issues
@@ -676,7 +642,6 @@ export async function getChildDocuments(req: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error(`Error fetching child documents:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(JSON.stringify({ 
       error: "Error fetching child documents",
@@ -705,8 +670,7 @@ export async function getDocumentAuthors(req: Request): Promise<Response> {
       });
     }
     
-    console.log(`Fetching authors for document ID: ${documentId}`);
-    
+        
     // Validate document ID is a number
     const docIdNum = parseInt(documentId);
     if (isNaN(docIdNum)) {
@@ -744,7 +708,6 @@ export async function getDocumentAuthors(req: Request): Promise<Response> {
     });
     
   } catch (error) {
-    console.error("Error getting document authors:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     
     return new Response(JSON.stringify({ 

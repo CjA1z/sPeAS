@@ -55,7 +55,6 @@ export async function handleGetUserProfileForNavbar(req: Request): Promise<Respo
     // Otherwise, delegate to the main handler
     return await handleGetUserProfile(req);
   } catch (error) {
-    console.error("Error in handleGetUserProfileForNavbar:", error);
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : "Unknown error processing request" 
     }), {

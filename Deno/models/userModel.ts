@@ -41,7 +41,6 @@ export class UserModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching user:", error);
       return null;
     }
   }
@@ -63,7 +62,6 @@ export class UserModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching user with role:", error);
       return null;
     }
   }
@@ -92,7 +90,6 @@ export class UserModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error creating user:", error);
       return null;
     }
   }
@@ -134,7 +131,6 @@ export class UserModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error updating user:", error);
       return null;
     }
   }
@@ -152,7 +148,6 @@ export class UserModel {
       );
       return true;
     } catch (error) {
-      console.error("Error updating last login:", error);
       return false;
     }
   }
@@ -171,7 +166,6 @@ export class UserModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching credential:", error);
       return null;
     }
   }

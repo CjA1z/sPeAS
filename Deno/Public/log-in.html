@@ -724,10 +724,8 @@
                         let result;
                         try {
                             const responseText = await response.text();
-                            console.log("Raw response:", responseText);
-                            result = JSON.parse(responseText);
+                                                        result = JSON.parse(responseText);
                         } catch (parseError) {
-                            console.error("Failed to parse JSON:", parseError);
                             showMessage(loginMessageBox, "Server returned an invalid response. Please try again.", 'error');
                             submitButton.textContent = originalButtonText;
                             submitButton.disabled = false;
@@ -793,7 +791,6 @@
                             showMessage(loginMessageBox, result.message || 'Login failed. Please check your credentials.', 'error');
                         }
                     } catch (error) {
-                        console.error('Login error:', error);
                         showMessage(loginMessageBox, 'An unexpected error occurred. Please try again.', 'error');
                     } finally {
                         submitButton.textContent = originalButtonText;
@@ -839,7 +836,6 @@
                         window.location.reload();
                     }
                 } catch (error) {
-                    console.error('Logout error:', error);
                 }
             };
 
@@ -866,7 +862,6 @@
                             showMessage(forgotPasswordMessageBox, result.message || 'Failed to send reset link. Please try again.', 'error');
                         }
                     } catch (error) {
-                        console.error('Forgot password error:', error);
                         showMessage(forgotPasswordMessageBox, 'An unexpected error occurred. Please try again.', 'error');
                     } finally {
                         submitButton.textContent = originalButtonText;

@@ -24,105 +24,283 @@
             }
             
             abstractElement.textContent = 'Extracting abstract...';
-            console.log('Starting abstract extraction for file:', file.name);
-            
-            // Check file size, limit to 50MB to prevent browser hanging
+                        
             if (file.size > 50 * 1024 * 1024) {
                 abstractElement.textContent = 'File too large for preview. Abstract will be extracted during submission.';
-                console.log('PDF file too large for browser extraction');
-                return;
+                                return;
             }
             
             const reader = new FileReader();
             
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
-                    console.log('PDF file loaded, processing content...');
-                    const typedArray = new Uint8Array(e.target.result);
+                                        const typedArray = new Uint8Array(e.target.result);
                     
-                    // Check PDF.js availability
                     if (!window.pdfjsLib) {
-                        console.error('PDF.js library not available');
-                        abstractElement.textContent = 'PDF processing library not available. Abstract will be extracted during submission.';
+                        abstractElement.textContent = 'PDF processing library not available.';
                         return;
                     }
                     
-                    // Load the PDF document
-                    const loadingTask = window.pdfjsLib.getDocument({ data: typedArray });
-                    loadingTask.promise.then(async function(pdf) {
-                        try {
-                            console.log(`PDF document loaded with ${pdf.numPages} pages`);
-                            // Search through the first few pages for abstract
-                            const maxPagesToSearch = Math.min(5, pdf.numPages);
-                            let abstractText = "";
-                            let foundAbstract = false;
+                    // Initialize PDF.js with proper configuration
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                    
+                    const loadingTask = window.pdfjsLib.getDocument({
+                        data: typedArray,
+                        useSystemFonts: true,  // Enable system font detection
+                        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/standard_fonts/'
+                    });
+                    
+                    const pdf = await loadingTask.promise;
+                    const maxPagesToSearch = Math.min(5, pdf.numPages);
+                    let abstractText = "";
+                    let foundAbstract = false;
+                    let pageContents = [];
+                    
+                    // First pass: collect text content with enhanced metadata
+                    for (let pageNum = 1; pageNum <= maxPagesToSearch; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent({ normalizeWhitespace: true });
+                        
+                        // Enhanced text content processing
+                        const processedContent = textContent.items
+                            .filter(item => item.str.trim().length > 0) // Remove empty items
+                            .map(item => ({
+                                text: item.str.trim(),
+                                x: item.transform[4],
+                                y: item.transform[5],
+                                width: item.width || 0,
+                                height: item.height || 0,
+                                fontSize: Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1]),
+                                fontName: item.fontName || '',
+                                isBold: (item.fontName || '').toLowerCase().includes('bold'),
+                                isItalic: (item.fontName || '').toLowerCase().includes('italic'),
+                                isUpperCase: item.str === item.str.toUpperCase() && item.str.length > 1,
+                                // Add position in page for better layout analysis
+                                relativeY: item.transform[5] / page.view[3], // Normalized vertical position
+                                lineIndex: Math.round(item.transform[5] / (item.height || 10)) // Group items into lines
+                            }));
+                        
+                        // Group items by lines more accurately
+                        const lineGroups = new Map();
+                        processedContent.forEach(item => {
+                            const key = item.lineIndex;
+                            if (!lineGroups.has(key)) {
+                                lineGroups.set(key, []);
+                            }
+                            lineGroups.get(key).push(item);
+                        });
+                        
+                        // Sort items within each line by x position
+                        lineGroups.forEach(line => {
+                            line.sort((a, b) => a.x - b.x);
+                        });
+                        
+                        // Convert back to array and sort by vertical position
+                        const sortedContent = Array.from(lineGroups.values())
+                            .sort((a, b) => b[0].y - a[0].y) // Sort lines top to bottom
+                            .map(line => ({
+                                text: line.map(item => item.text).join(' '),
+                                items: line,
+                                y: line[0].y,
+                                relativeY: line[0].relativeY,
+                                fontSize: Math.max(...line.map(item => item.fontSize)),
+                                isBold: line.some(item => item.isBold),
+                                isUpperCase: line.every(item => item.isUpperCase)
+                            }));
+                        
+                        pageContents.push(sortedContent);
+                    }
+                    
+                    // Second pass: analyze text characteristics and find abstract
+                    const textAnalysis = analyzeTextCharacteristics(pageContents);
+                    
+                    // Try multiple strategies to find abstract
+                    for (let pageNum = 0; pageNum < pageContents.length && !foundAbstract; pageNum++) {
+                        const content = pageContents[pageNum];
+                        const pageText = content.map(line => line.text).join('\n');
+                        
+                        // Strategy 1: Look for explicit abstract markers
+                        const abstractMarkers = [
+                            // Academic document markers
+                            /(?:GRADUATE|GRADUATE\s+SCHOOL|SCHOOL\s+OF\s+GRADUATE\s+STUDIES).*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/is,
+                            /(?:COLLEGE\s+OF|UNIVERSITY|DEPARTMENT\s+OF).*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/is,
+                            // Standard markers with flexible spacing
+                            /\b(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|ABSTRACT|Summary|SUMMARY)[\s\.:]*$/im,
+                            // Numbered or lettered section markers
+                            /^(?:\d+\.|[A-Z]\.)?\s*(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|Abstract)[\s\.:]*$/im,
+                            // Special document types
+                            /(?:THESIS|DISSERTATION|RESEARCH)\s+ABSTRACT/i
+                        ];
+                        
+                        // Try to find abstract start
+                        let abstractStartIndex = -1;
+                        for (let i = 0; i < content.length; i++) {
+                            const line = content[i];
+                            const isAbstractHeader = 
+                                abstractMarkers.some(marker => marker.test(line.text)) ||
+                                (line.isBold && line.fontSize > textAnalysis.averageFontSize && /abstract/i.test(line.text)) ||
+                                (line.isUpperCase && /ABSTRACT/.test(line.text));
                             
-                            for (let pageNum = 1; pageNum <= maxPagesToSearch; pageNum++) {
-                                console.log(`Processing page ${pageNum}/${maxPagesToSearch}`);
-                                const page = await pdf.getPage(pageNum);
-                                const textContent = await page.getTextContent();
-                                
-                                // Convert text content to string
-                                const pageText = textContent.items.map(item => item.str).join(' ');
-                                
-                                // Look for the abstract in this page
-                                if (pageText.toLowerCase().includes('abstract')) {
-                                    console.log(`Found abstract keyword on page ${pageNum}`);
-                                    abstractText = pageText;
-                                    foundAbstract = true;
+                            if (isAbstractHeader) {
+                                abstractStartIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        if (abstractStartIndex !== -1) {
+                            // Look for end of abstract
+                            const endMarkers = [
+                                /^(?:1\.|I\.|1\s+)?(?:Introduction|Background)\b/i,
+                                /\b(?:Keywords?|Index Terms)\s*:/i,
+                                /\bAcknowledg?ements?\b/i,
+                                /\b(?:References|Bibliography)\b/i,
+                                /\bChapter\s+\d+\b/i,
+                                /\bMethodology\b/i,
+                                /\bMaterials?\s+and\s+Methods?\b/i
+                            ];
+                            
+                            let abstractEndIndex = -1;
+                            for (let i = abstractStartIndex + 1; i < content.length; i++) {
+                                if (endMarkers.some(marker => marker.test(content[i].text))) {
+                                    abstractEndIndex = i;
                                     break;
                                 }
-                                
-                                // If we haven't found the abstract yet, keep collecting text
-                                if (abstractText === "" && pageNum === 1) {
-                                    abstractText = pageText;
-                                }
                             }
                             
-                            if (!foundAbstract) {
-                                console.log('Abstract keyword not found in first pages, using first page text');
+                            // If no end marker found, take a reasonable chunk
+                            if (abstractEndIndex === -1) {
+                                abstractEndIndex = Math.min(abstractStartIndex + 15, content.length);
                             }
                             
-                            // Clean and extract the abstract
-                            const cleanedText = abstractText.replace(/(\r\n|\n|\r)/gm, " ").trim();
-                            const abstractStartText = window.findAbstractStart(cleanedText);
+                            // Extract abstract text
+                            abstractText = content
+                                .slice(abstractStartIndex + 1, abstractEndIndex)
+                                .map(line => line.text)
+                                .join('\n');
                             
-                            if (abstractStartText) {
-                                console.log('Abstract content extracted successfully');
-                                const finalAbstract = window.cleanAbstractText(abstractStartText).substring(0, 500) + '...';
-                                abstractElement.textContent = finalAbstract;
-                                
-                                // Show the abstract preview section if it's hidden
-                                const abstractSection = abstractElement.closest('.abstract-preview-section');
-                                if (abstractSection && abstractSection.classList.contains('hidden')) {
-                                    abstractSection.classList.remove('hidden');
-                                }
-                            } else {
-                                console.log('Could not locate abstract content in extracted text');
-                                abstractElement.textContent = 'Abstract will be fully extracted during document submission.';
-                            }
-                        } catch (error) {
-                            console.error('Error extracting text from PDF:', error);
-                            abstractElement.textContent = 'Error extracting abstract. Abstract will be processed during submission.';
+                            foundAbstract = true;
                         }
-                    }).catch(function(error) {
-                        console.error('Error loading PDF:', error);
-                        abstractElement.textContent = 'Error loading PDF. Abstract will be extracted during submission.';
-                    });
+                    }
+                    
+                    if (abstractText) {
+                        // Clean and format the abstract
+                        abstractText = cleanAbstractText(abstractText);
+                        
+                        if (abstractText.length >= 50) {
+                            const formattedAbstract = formatAbstract(abstractText);
+                            abstractElement.innerHTML = formattedAbstract;
+                            addEnhancedStyling();
+                        } else {
+                            abstractElement.textContent = "No valid abstract found in the document.";
+                        }
+                    } else {
+                        abstractElement.textContent = "No abstract found in the document.";
+                    }
                 } catch (error) {
-                    console.error('Error processing file:', error);
-                    abstractElement.textContent = 'Error processing file. Abstract will be extracted during submission.';
+                    console.error('Abstract extraction error:', error);
+                    abstractElement.textContent = "Error extracting abstract from PDF.";
                 }
             };
             
-            reader.onerror = function() {
-                console.error('Error reading file');
-                abstractElement.textContent = 'Error reading file. Abstract will be extracted during submission.';
+            reader.onerror = function(error) {
+                console.error('FileReader error:', error);
+                abstractElement.textContent = 'Error reading PDF file.';
             };
             
-            // Read the file as an array buffer
             reader.readAsArrayBuffer(file);
         };
+        
+        // Helper function to analyze text characteristics
+        function analyzeTextCharacteristics(pageContents) {
+            let fontSizes = [];
+            let fontNames = new Set();
+            let lineSpacings = [];
+            let lastY = null;
+            
+            pageContents.forEach(content => {
+                content.forEach(line => {
+                    if (line.fontSize > 0) {
+                        fontSizes.push(line.fontSize);
+                    }
+                    line.items.forEach(item => {
+                        if (item.fontName) {
+                            fontNames.add(item.fontName);
+                        }
+                    });
+                    if (lastY !== null) {
+                        lineSpacings.push(Math.abs(line.y - lastY));
+                    }
+                    lastY = line.y;
+                });
+            });
+            
+            return {
+                averageFontSize: fontSizes.reduce((a, b) => a + b, 0) / fontSizes.length,
+                medianFontSize: fontSizes.sort((a, b) => a - b)[Math.floor(fontSizes.length / 2)],
+                fontNames: Array.from(fontNames),
+                averageLineSpacing: lineSpacings.reduce((a, b) => a + b, 0) / lineSpacings.length
+            };
+        }
+        
+        // Helper function to clean abstract text
+        function cleanAbstractText(text) {
+            if (!text) return '';
+            
+            return text
+                .replace(/^ABSTRACT\s*[:.]?\s*/i, '') // Remove "ABSTRACT" header
+                .replace(/\[\d+\]/g, '') // Remove reference numbers
+                .replace(/Fig\.\s*\d+/gi, '') // Remove figure references
+                .replace(/Table\s*\d+/gi, '') // Remove table references
+                .replace(/^(?:GRADUATE\s+SCHOOL|COLLEGE\s+OF|UNIVERSITY|DEPARTMENT\s+OF).*?(?=\s*ABSTRACT)/is, '') // Remove header text
+                .replace(/^(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|ABSTRACT)[\s\.:]+/i, '') // Remove abstract header
+                .replace(/\n{3,}/g, '\n\n') // Normalize multiple line breaks
+                .replace(/\s+/g, ' ') // Normalize spaces
+                .trim();
+        }
+        
+        // Helper function to format abstract
+        function formatAbstract(text) {
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            const cleanedSentences = sentences
+                .map(s => s.trim())
+                .filter(s => s.length > 0)
+                .filter(s => !s.match(/^(keywords?|chapter|section|index terms|acknowledge)/i));
+            
+            return `
+                <div class="abstract-text">
+                    ${cleanedSentences.map(s => `<p class="abstract-paragraph">${s}</p>`).join('')}
+                </div>
+            `;
+        }
+        
+        // Helper function to add enhanced styling
+        function addEnhancedStyling() {
+            const styleId = 'enhanced-abstract-styles';
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.textContent = `
+                    .abstract-text {
+                        font-size: 0.875rem;
+                        line-height: 1.6;
+                        color: #374151;
+                        text-align: justify;
+                        font-family: system-ui, -apple-system, sans-serif;
+                    }
+                    .abstract-paragraph {
+                        margin-bottom: 0.75rem;
+                        text-indent: 1.5em;
+                    }
+                    .abstract-paragraph:first-child {
+                        text-indent: 0;
+                    }
+                    .abstract-paragraph:last-child {
+                        margin-bottom: 0;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
         
         // Function to find the start of an abstract in PDF text
         window.findAbstractStart = function(text) {
@@ -144,8 +322,7 @@
             for (const marker of abstractMarkers) {
                 const index = lowerText.indexOf(marker.toLowerCase());
                 if (index !== -1) {
-                    console.log(`Found abstract marker: "${marker}"`);
-                    // Get the text after the abstract marker
+                                        // Get the text after the abstract marker
                     const startIndex = index + marker.length;
                     let abstractText = text.substring(startIndex).trim();
                     
@@ -611,8 +788,7 @@
                                 // Add event listener for departmental dropdown
                                 if (compiledDepartmental) {
                                     compiledDepartmental.addEventListener('change', function() {
-                                        console.log("Departmental changed:", this.value);
-                                        // Update preview if the function exists
+                                                                                // Update preview if the function exists
                                         if (typeof updateCompiledDocumentPreview === 'function') {
                                             setTimeout(updateCompiledDocumentPreview, 10);
                                         }
@@ -852,8 +1028,7 @@
                 switchTab(compiledDocTab, singleDocTab, compiledDocForm, singleDocForm, compiledDocPreview, singleDocPreview);
                 
                 // Force immediate update of the compiled document preview
-                console.log("Switched to compiled document tab, forcing preview update");
-                setTimeout(updateCompiledDocumentPreview, 10); // Small delay to ensure DOM is updated
+                                setTimeout(updateCompiledDocumentPreview, 10); // Small delay to ensure DOM is updated
             });
             
             // File upload handling for single document
@@ -1404,12 +1579,10 @@
             // Update compiled document preview
             function updateCompiledDocumentPreview() {
                 try {
-                console.log("Updating compiled document preview");
-                    
+                                    
                     // Check if we're in the compiled document tab
                     if (!document.getElementById('compiledDocPreview').classList.contains('active')) {
-                        console.log("Not in compiled document tab, skipping preview update");
-                        return;
+                                                return;
                     }
                     
                     // Debug: Check if all elements are properly found
@@ -1430,17 +1603,14 @@
                         previewAddedDateCompiled: previewAddedDateCompiled
                     });
                     
-                    console.log("Category selected:", compiledCategoryInput ? compiledCategoryInput.value : 'compiledCategoryInput is null');
-                
+                                    
                 // Update category icon
                     if (compiledCategoryInput && compiledCategoryInput.value) {
                     compiledPreviewIcon.src = `icons/category-icons/${compiledCategoryInput.value.toLowerCase()}.png`;
-                    console.log("Updated icon src to:", compiledPreviewIcon.src);
-                } else {
+                                    } else {
                         if (compiledPreviewIcon) {
                     compiledPreviewIcon.src = 'icons/category-icons/default_category_icon.png';
                         } else {
-                            console.error("compiledPreviewIcon element not found");
                         }
                 }
                 
@@ -1471,9 +1641,7 @@
                 }
                     if (previewMainTitle) {
                 previewMainTitle.textContent = title;
-                console.log("Updated title to:", title);
-                    } else {
-                        console.error("previewMainTitle element not found");
+                                    } else {
                     }
                 
                 // Update publication year
@@ -1489,16 +1657,13 @@
                     }
                     if (previewPubYear) {
                 previewPubYear.textContent = pubYearText;
-                console.log("Updated publication year to:", pubYearText);
-                    } else {
-                        console.error("previewPubYear element not found");
+                                    } else {
                     }
                 
                 // Update volume
                     if (previewCompiledVolume) {
                         previewCompiledVolume.textContent = compiledVolumeInput && compiledVolumeInput.value ? compiledVolumeInput.value : 'N/A';
                     } else {
-                        console.error("previewCompiledVolume element not found");
                     }
                     
                     // Update issued no/departmental
@@ -1514,31 +1679,25 @@
                             previewIssuedNo.textContent = compiledIssuedNoInput && compiledIssuedNoInput.value ? compiledIssuedNoInput.value : 'N/A';
                         }
                     } else {
-                        console.error("previewIssuedNo element not found");
                     }
                 
                 // Update category
                     if (previewCompiledCategory) {
                         previewCompiledCategory.textContent = compiledCategoryInput && compiledCategoryInput.value ? compiledCategoryInput.value : 'N/A';
                     } else {
-                        console.error("previewCompiledCategory element not found");
                     }
                 
                 // Update added date
                 const today = new Date().toLocaleDateString();
                     if (previewAddedDateCompiled) {
                 previewAddedDateCompiled.textContent = today;
-                console.log("Updated added date to:", today);
-                    } else {
-                        console.error("previewAddedDateCompiled element not found");
+                                    } else {
                     }
                 
                 // Update studies list
                 updateStudiesList();
                     
-                    console.log("Completed updating compiled document preview");
-                } catch (error) {
-                    console.error("Error in updateCompiledDocumentPreview:", error);
+                                    } catch (error) {
                 }
             }
             
@@ -1552,8 +1711,7 @@
                 }
                 
                 // Add debug logging
-                console.log("Updating studies list, found sections:", sections.length);
-                
+                                
                 // Show "no studies" message if no research sections
                 if (sections.length === 0) {
                     if (previewNoStudiesMsg) {
@@ -1584,7 +1742,6 @@
                     
                     // Skip if title input doesn't exist
                     if (!titleInput) {
-                        console.error(`Title input not found for section ${sectionId}`);
                         return;
                     }
                     
@@ -1656,46 +1813,39 @@
                     if (previewStudiesList) {
                     previewStudiesList.appendChild(studyItem);
                     } else {
-                        console.error("Preview studies list element not found");
                     }
                 });
                 
-                console.log("Studies list updated");
-            }
+                            }
             
             // Add event listeners for compiled document form
             if (compiledPubYearStartInput) {
                 compiledPubYearStartInput.addEventListener('input', function() {
-                    console.log("Publication start year changed:", this.value);
-                    updateCompiledDocumentPreview();
+                                        updateCompiledDocumentPreview();
                 });
             }
             
             if (compiledPubYearEndInput) {
                 compiledPubYearEndInput.addEventListener('input', function() {
-                    console.log("Publication end year changed:", this.value);
-                    updateCompiledDocumentPreview();
+                                        updateCompiledDocumentPreview();
                 });
             }
             
             if (compiledVolumeInput) {
                 compiledVolumeInput.addEventListener('input', function() {
-                    console.log("Volume changed:", this.value);
-                    updateCompiledDocumentPreview();
+                                        updateCompiledDocumentPreview();
                 });
             }
             
             if (compiledIssuedNoInput) {
                 compiledIssuedNoInput.addEventListener('input', function() {
-                    console.log("Issue number changed:", this.value);
-                    updateCompiledDocumentPreview();
+                                        updateCompiledDocumentPreview();
                 });
             }
             
             if (compiledCategoryInput) {
                 compiledCategoryInput.addEventListener('change', function() {
-                    console.log("Category changed:", this.value);
-                    
+                                        
                     // Update the issued no label based on the selected category
                     const issuedNoLabel = document.getElementById('compiled-issued-no-label');
                     const previewIssuedNoLabel = document.getElementById('preview-issued-no-label');
@@ -1734,8 +1884,7 @@
             const compiledDepartmental = document.getElementById('compiled-departmental');
             if (compiledDepartmental) {
                 compiledDepartmental.addEventListener('change', function() {
-                    console.log("Departmental changed:", this.value);
-                    updateCompiledDocumentPreview();
+                                        updateCompiledDocumentPreview();
                 });
             }
             
@@ -1782,8 +1931,7 @@
                             // Add event listeners to the input fields in the new section
                             newSection.querySelectorAll('.study-title-input, .authors-input').forEach(input => {
                                 input.addEventListener('input', function() {
-                                    console.log("New study field changed, updating preview");
-                                    updateStudiesList();
+                                                                        updateStudiesList();
                                     // Also update full preview if in compiled tab
                                     if (document.getElementById('compiledDocPreview').classList.contains('active')) {
                                         setTimeout(window.updateCompiledDocumentPreview, 10);
@@ -1812,8 +1960,7 @@
             });
             
             // Initialize compiled document preview immediately and with a more reliable delay
-            console.log("Initializing compiled document preview...");
-            // Try immediate initialization
+                        // Try immediate initialization
             if (typeof updateCompiledDocumentPreview === 'function') {
                 updateCompiledDocumentPreview();
             }
@@ -1836,8 +1983,7 @@
             
             // Also use a delay as backup
             setTimeout(function() {
-                console.log("Running delayed updateCompiledDocumentPreview");
-                if (typeof updateCompiledDocumentPreview === 'function') {
+                                if (typeof updateCompiledDocumentPreview === 'function') {
                     updateCompiledDocumentPreview();
                 }
             }, 500);
@@ -1909,8 +2055,7 @@
          */
         function updateEyeIcon(fileInput) {
             // This function is no longer needed since we removed the eye buttons
-            console.log('updateEyeIcon called but eye buttons were removed');
-            return; // Do nothing
+                        return; // Do nothing
         }
         
         /**
@@ -1920,8 +2065,7 @@
          */
         function viewResearchFile(eyeButton) {
             // This function is no longer needed since we removed the eye buttons
-            console.log('viewResearchFile called but eye buttons were removed');
-            return; // Do nothing
+                        return; // Do nothing
         }
         
         // Initialize all research sections
@@ -2021,13 +2165,11 @@
     <!-- Debug script and final fixes -->
     <script>
         window.addEventListener('load', function() {
-            console.log("Window fully loaded - running final fixes");
-            
+                        
             // Debug helper function
             function debugElement(id) {
                 const element = document.getElementById(id);
-                console.log(`Element #${id}: ${element ? 'Found' : 'NOT FOUND'}`);
-                return element;
+                                return element;
             }
             
             // Get preview elements directly with helpful debug info
@@ -2048,12 +2190,10 @@
             
             // Corrected implementation for updating the compiled document preview
             function updateCompiledPreview() {
-                console.log("Running enhanced compiled preview update");
-                
+                                
                 // Skip if not in compiled document view
                 if (!document.getElementById('compiledDocPreview').classList.contains('active')) {
-                    console.log("Not in compiled document tab, skipping preview update");
-                    return;
+                                        return;
                 }
                 
                 // Update title & category icon
@@ -2141,8 +2281,7 @@
                     window.updateStudiesList();
                 }
                 
-                console.log("Enhanced compiled preview update completed");
-            }
+                            }
             
             // Replace or supplement the existing update function
             window.updateCompiledDocumentPreview = updateCompiledPreview;
@@ -2158,8 +2297,7 @@
             // Add event listeners to study fields to update the preview when content changes
             document.querySelectorAll('.study-title-input, .authors-input').forEach(input => {
                 input.addEventListener('input', function() {
-                    console.log("Study field changed, updating preview");
-                    if (typeof updateStudiesList === 'function') {
+                                        if (typeof updateStudiesList === 'function') {
                         updateStudiesList();
                     }
                     // Also update full preview if in compiled tab
@@ -2171,8 +2309,7 @@
             
             // Force update studies list when the page loads
             setTimeout(function() {
-                console.log("Forcing initial studies list update");
-                if (typeof updateStudiesList === 'function') {
+                                if (typeof updateStudiesList === 'function') {
                     updateStudiesList();
                 }
             }, 200);
@@ -2219,6 +2356,24 @@
     <!-- Add JavaScript for the enhanced file upload UI -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Add cleanupPreviousUpload function
+            async function cleanupPreviousUpload(fileId) {
+                if (!fileId) return;
+                
+                try {
+                    const response = await fetch(`/api/upload/${fileId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok && window.PRODUCTION_MODE) {
+                        throw new Error('Failed to cleanup previous upload');
+                    }
+                } catch (error) {
+                    console.warn('Cleanup warning:', error);
+                    // Don't throw error here, just log warning
+                }
+            }
+
             // Setup file upload UI for single document
             setupFileUpload(
                 'single-file-upload', 
@@ -2245,12 +2400,148 @@
             setupFileUpload(
                 'file-upload-1', 
                 'file-label-1',
-                null, // Will find the nearest .file-name-display
+                null,
                 'research-progress-indicator-1', 
                 'research-progress-bar-1',
                 'research-progress-text-1',
                 'research-status-message-1'
             );
+            
+            // Function to format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Function to process file chunks and show real progress
+            async function processFileChunks(file, progressBar, progressText) {
+                return new Promise((resolve, reject) => {
+                    const chunkSize = 2048 * 1024; // 2MB chunks
+                    const totalChunks = Math.ceil(file.size / chunkSize);
+                    let processedChunks = 0;
+                    let processedSize = 0;
+                    
+                    function processNextChunk() {
+                        const start = processedChunks * chunkSize;
+                        const end = Math.min(start + chunkSize, file.size);
+                        const chunk = file.slice(start, end);
+                        
+                        const reader = new FileReader();
+                        
+                        reader.onload = function() {
+                            processedChunks++;
+                            processedSize += chunk.size;
+                            
+                            // Update progress
+                            const progress = Math.round((processedSize / file.size) * 100);
+                            progressBar.style.width = progress + '%';
+                            progressBar.textContent = progress + '%';
+                            progressText.textContent = `Processing: ${formatFileSize(processedSize)} of ${formatFileSize(file.size)}`;
+                            
+                            if (processedChunks < totalChunks) {
+                                processNextChunk();
+                            } else {
+                                resolve();
+                            }
+                        };
+                        
+                        reader.onerror = function() {
+                            reject(new Error('Error processing file chunk'));
+                        };
+                        
+                        reader.readAsArrayBuffer(chunk);
+                    }
+                    
+                    // Start processing chunks
+                    processNextChunk();
+                });
+            }
+
+            // Function to upload file and store response
+            async function uploadFile(file, progressBar, progressText, statusMessage) {
+                return new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const xhr = new XMLHttpRequest();
+                    uploadFile.activeXHR = xhr;
+                    
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            const percentComplete = Math.round((e.loaded / e.total) * 100);
+                            progressBar.style.width = percentComplete + '%';
+                            progressBar.textContent = percentComplete + '%';
+                            progressText.textContent = `Uploading: ${formatFileSize(e.loaded)} of ${formatFileSize(e.total)}`;
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        uploadFile.activeXHR = null;
+                        if (xhr.status === 200) {
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                resolve(response);
+                            } catch (e) {
+                                // In development, create a mock successful response
+                                if (!window.PRODUCTION_MODE) {
+                                    resolve({
+                                        fileId: 'dev-' + Date.now(),
+                                        fileName: file.name,
+                                        fileSize: file.size,
+                                        success: true
+                                    });
+                                } else {
+                                    reject(new Error('Invalid server response'));
+                                }
+                            }
+                        } else {
+                            // In development, allow the upload to "succeed" even if server isn't ready
+                            if (!window.PRODUCTION_MODE) {
+                                resolve({
+                                    fileId: 'dev-' + Date.now(),
+                                    fileName: file.name,
+                                    fileSize: file.size,
+                                    success: true
+                                });
+                            } else {
+                                reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+                            }
+                        }
+                    };
+
+                    xhr.onerror = function() {
+                        uploadFile.activeXHR = null;
+                        // In development, allow the upload to "succeed" even if server isn't ready
+                        if (!window.PRODUCTION_MODE) {
+                            resolve({
+                                fileId: 'dev-' + Date.now(),
+                                fileName: file.name,
+                                fileSize: file.size,
+                                success: true
+                            });
+                        } else {
+                            reject(new Error('Network error occurred during upload'));
+                        }
+                    };
+
+                    xhr.onabort = function() {
+                        uploadFile.activeXHR = null;
+                        reject(new Error('Upload cancelled'));
+                    };
+
+                    try {
+                        const form = document.querySelector('form');
+                        const uploadUrl = '/api/upload';  // Always use the API endpoint
+                        xhr.open('POST', uploadUrl + '?type=pre-upload', true);
+                        xhr.send(formData);
+                    } catch (error) {
+                        reject(new Error('Failed to initiate upload: ' + error.message));
+                    }
+                });
+            }
             
             // Function to set up file upload UI components
             function setupFileUpload(fileInputId, fileLabelId, fileNameDisplayId, progressIndicatorId, progressBarId, progressTextId, statusMessageId) {
@@ -2264,173 +2555,144 @@
                 const statusMessage = document.getElementById(statusMessageId);
                 
                 let selectedFile = null;
+                let uploadedFileId = null;
+                let isUploading = false;
                 
                 // Handle file selection
-                fileInput.addEventListener('change', function(e) {
-                    if (e.target.files.length > 0) {
-                        selectedFile = e.target.files[0];
-                        fileNameDisplay.textContent = `Selected: ${selectedFile.name}`;
-                        
-                        // Hide the label as we'll show progress bar instead
-                        fileLabel.style.display = 'none';
-                        
-                        // Show progress indicator immediately
-                        progressIndicator.style.display = 'block';
-                        progressBar.style.width = '0%';
-                        progressBar.textContent = '0%';
-                        progressText.textContent = 'Preparing file...';
-                        
-                        // Automatically start upload process
-                        startUpload(selectedFile);
-                        
-                        // For research sections, update the abstract preview if applicable
-                        if (fileInputId.startsWith('file-upload-') && selectedFile.type === 'application/pdf') {
-                            const section = fileInput.closest('.research-section');
-                            if (section) {
-                                const abstractContent = section.querySelector('.abstract-content');
-                                const abstractPreviewSection = section.querySelector('.abstract-preview-section');
-                                
-                                if (abstractContent && abstractPreviewSection) {
-                                    abstractContent.textContent = 'Abstract will be extracted after upload...';
-                                    abstractPreviewSection.classList.remove('hidden');
-                                }
+                fileInput.addEventListener('change', async function(e) {
+                    try {
+                        // If there's an ongoing upload, cancel it
+                        if (isUploading) {
+                            if (uploadFile.activeXHR) {
+                                uploadFile.activeXHR.abort();
                             }
+                            isUploading = false;
                         }
-                        
-                        // Update studies list if applicable
-                        if (typeof updateStudiesList === 'function' && document.getElementById('compiledDocPreview').classList.contains('active')) {
-                            setTimeout(updateStudiesList, 10);
+
+                        // If there's a previous upload, clean it up
+                        if (uploadedFileId) {
+                            try {
+                                await cleanupPreviousUpload(uploadedFileId);
+                            } catch (error) {
+                                console.warn('Failed to cleanup previous upload:', error);
+                                // Continue with new upload even if cleanup fails
+                            }
+                            uploadedFileId = null;
                         }
-                    } else {
-                        fileNameDisplay.textContent = 'No file selected';
-                        resetFileLabel();
-                    }
-                });
-                
-                // Function to reset the file label to "Choose File"
-                function resetFileLabel() {
-                    fileLabel.textContent = 'Choose File';
-                    fileLabel.classList.remove('upload-button');
-                    fileLabel.classList.add('file-input-label');
-                    fileLabel.onclick = null; // Remove the custom click handler
-                    selectedFile = null;
-                }
-                
-                // Function to handle the upload process
-                function startUpload(file) {
-                    if (!file) return;
-                    
-                    // Hide the upload button
-                    fileLabel.style.display = 'none';
+
+                        if (e.target.files.length > 0) {
+                            const newFile = e.target.files[0];
+                            
+                            // Validate file size
+                            const maxSize = 50 * 1024 * 1024; // 50MB limit
+                            if (newFile.size > maxSize) {
+                                throw new Error(`File size exceeds limit (${formatFileSize(maxSize)})`);
+                            }
+
+                            selectedFile = newFile;
+                            const fileSize = formatFileSize(selectedFile.size);
+                            fileNameDisplay.textContent = `Selected: ${selectedFile.name} (${fileSize})`;
+                            
+                            // Show progress indicator for file processing
                     progressIndicator.style.display = 'block';
-                    
-                    let progress = 10; // Start at 10% immediately
-                    progressBar.style.width = progress + '%';
-                    progressBar.textContent = progress + '%';
-                    progressText.textContent = 'Initializing preparation...';
-                    
-                    // Simulate file preparation progress
-                    const interval = setInterval(() => {
-                        progress += 10;
-                        if (progress <= 100) {
-                            progressBar.style.width = progress + '%';
-                            progressBar.textContent = progress + '%';
-                            
-                            // Update progress text based on current progress
-                            if (progress < 30) {
-                                progressText.textContent = 'Initializing preparation...';
-                            } else if (progress < 70) {
-                                progressText.textContent = 'Processing metadata...';
-                            } else {
-                                progressText.textContent = 'Finalizing preparation...';
-                            }
-                        } else {
-                            // Preparation is complete
-                            clearInterval(interval);
-                            progressBar.style.width = '100%';
-                            progressBar.textContent = '100%';
-                            progressText.textContent = 'File preparation complete!';
-                            statusMessage.textContent = `"${file.name}" is ready for submission.`;
+                            progressBar.style.width = '0%';
+                            progressBar.textContent = '0%';
+                            progressText.textContent = 'Processing file...';
+                            statusMessage.style.display = 'none';
+
+                            try {
+                                isUploading = true;
+                                
+                                // Process the file with real progress
+                                await processFileChunks(selectedFile, progressBar, progressText);
+
+                                // Start uploading immediately after processing
+                                progressText.textContent = 'Starting upload...';
+                                const uploadResponse = await uploadFile(selectedFile, progressBar, progressText, statusMessage);
+                                uploadedFileId = uploadResponse.fileId;
+
+                                // Show success message
+                                progressText.textContent = 'File ready';
+                                statusMessage.textContent = `"${selectedFile.name}" is processed and ready`;
                             statusMessage.style.display = 'block';
-                            
-                            // No longer show the Choose File button again
-                            // Just keep the progress bar visible to show completion status
-                            
-                            // Extract PDF abstract for research sections
-                            if (fileInputId.startsWith('file-upload-') && file.type === 'application/pdf') {
+                                statusMessage.className = 'status-message text-green-600 font-medium';
+
+                                // Store the uploaded file ID in a hidden input
+                                let hiddenInput = fileInput.nextElementSibling;
+                                if (!hiddenInput || !hiddenInput.matches('input[type="hidden"]')) {
+                                    hiddenInput = document.createElement('input');
+                                    hiddenInput.type = 'hidden';
+                                    hiddenInput.name = fileInput.name + '_id';
+                                    fileInput.parentNode.insertBefore(hiddenInput, fileInput.nextSibling);
+                                }
+                                hiddenInput.value = uploadedFileId;
+
+                                // Handle PDF preview if applicable
+                                if (fileInputId.startsWith('file-upload-') && selectedFile.type === 'application/pdf') {
                                 const section = fileInput.closest('.research-section');
                                 if (section) {
                                     const abstractContent = section.querySelector('.abstract-content');
-                                    if (abstractContent && window.extractPDFAbstractForCompiledDoc) {
-                                        window.extractPDFAbstractForCompiledDoc(file, abstractContent);
+                                        const abstractPreviewSection = section.querySelector('.abstract-preview-section');
+                                        
+                                        if (abstractContent && abstractPreviewSection) {
+                                            abstractContent.textContent = 'Extracting abstract...';
+                                            abstractPreviewSection.classList.remove('hidden');
+                                            if (window.extractPDFAbstractForCompiledDoc) {
+                                                window.extractPDFAbstractForCompiledDoc(selectedFile, abstractContent);
+                                            }
+                                        }
                                     }
                                 }
+                            } catch (error) {
+                                console.error('File processing/upload error:', error);
+                                progressText.textContent = 'Error';
+                                statusMessage.textContent = error.message;
+                                statusMessage.style.display = 'block';
+                                statusMessage.className = 'status-message text-red-600 font-medium';
+                                uploadedFileId = null;
+                                
+                                if (error.message !== 'Upload cancelled') {
+                                    resetFileInput();
+                                }
+                            } finally {
+                                isUploading = false;
                             }
-                            
-                            // Update studies list if applicable
-                            if (typeof updateStudiesList === 'function') {
-                                setTimeout(updateStudiesList, 10);
-                            }
+                        } else {
+                            resetFileInput();
                         }
-                    }, 300);
-                }
-            }
-            
-            // Modify the addSectionBtn event handler to setup file upload UI for new sections
-            const addSectionBtn = document.getElementById('add-research-section-btn');
-            if (addSectionBtn) {
-                const originalClickHandler = addSectionBtn.onclick;
+                    } catch (error) {
+                        console.error('File handling error:', error);
+                        progressText.textContent = 'Error';
+                        statusMessage.textContent = error.message;
+                        statusMessage.style.display = 'block';
+                        statusMessage.className = 'status-message text-red-600 font-medium';
+                    }
+                });
                 
-                addSectionBtn.onclick = function() {
-                    if (originalClickHandler) {
-                        // Call the original handler first
-                        originalClickHandler.apply(this, arguments);
+                // Function to reset the file input
+                function resetFileInput() {
+                    if (uploadedFileId) {
+                        cleanupPreviousUpload(uploadedFileId);
                     }
                     
-                    // Get the newly added section and setup file upload UI
-                    setTimeout(() => {
-                        const sections = document.querySelectorAll('.research-section');
-                        const newSection = sections[sections.length - 1];
-                        if (newSection) {
-                            const sectionId = newSection.dataset.sectionId;
-                            const fileInput = newSection.querySelector(`#file-upload-${sectionId}`);
-                            
-                            if (fileInput) {
-                                // Update the file input container HTML
-                                const fileContainer = fileInput.closest('div');
-                                if (fileContainer) {
-                                    fileContainer.className = 'file-input-container';
-                                    fileContainer.innerHTML = `
-                                        <label for="file-upload-${sectionId}" id="file-label-${sectionId}" class="file-input-label">Choose File</label>
-                                        <input id="file-upload-${sectionId}" name="research[${sectionId}][file]" type="file" class="hidden-file-input" required accept=".pdf">
-                                        <div class="file-name-display">No file selected</div>
-                                        
-                                        <div id="research-progress-indicator-${sectionId}" class="progress-indicator">
-                                            <div id="research-progress-text-${sectionId}" class="progress-text">Preparing file...</div>
-                                            <div class="progress-bar-container">
-                                                <div id="research-progress-bar-${sectionId}" class="progress-bar">0%</div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="research-status-message-${sectionId}" class="status-message"></div>
-                                    `;
-                                    
-                                    // Setup the file upload UI for this new section
-                                    setupFileUpload(
-                                        `file-upload-${sectionId}`,
-                                        `file-label-${sectionId}`,
-                                        null,
-                                        `research-progress-indicator-${sectionId}`, 
-                                        `research-progress-bar-${sectionId}`,
-                                        `research-progress-text-${sectionId}`,
-                                        `research-status-message-${sectionId}`
-                                    );
-                                }
-                            }
-                        }
-                    }, 100);
-                };
+                    fileInput.value = '';
+                    selectedFile = null;
+                    uploadedFileId = null;
+                    fileNameDisplay.textContent = 'No file selected';
+                    progressIndicator.style.display = 'none';
+                    statusMessage.style.display = 'none';
+                    
+                    // Remove hidden input if it exists
+                    const hiddenInput = fileInput.nextElementSibling;
+                    if (hiddenInput && hiddenInput.matches('input[type="hidden"]')) {
+                        hiddenInput.remove();
+                    }
+                }
+
+                // ... rest of the existing code (form submission handler) ...
             }
+
+            // ... rest of the existing code ...
         });
     </script>
 </body>

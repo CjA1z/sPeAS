@@ -23,9 +23,7 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
     // Make this mutable
     let isEntireCollection = requestedEntireCollection === true;
     
-    console.log(`[EMAIL SERVICE] Processing approval email request for document ID: ${documentId}`);
-    console.log(`[EMAIL SERVICE] Request details: recipient=${email}, document="${documentTitle}"`);
-    
+            
     // Validate required fields
     if (!email || !documentId) {
       ctx.response.status = 400;
@@ -39,8 +37,7 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
     // First, determine if this is a compiled document by checking the document type
     let isCompiledDocument = false;
     try {
-      console.log(`[EMAIL SERVICE] Checking if document ${documentId} is a compiled document`);
-      const client = (await import("../db/denopost_conn.ts")).client;
+            const client = (await import("../db/denopost_conn.ts")).client;
       // Check compiled_documents table directly
       const compiledDocCheck = await client.queryObject(
         "SELECT id FROM compiled_documents WHERE id = $1",
@@ -49,17 +46,14 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
       
       if (compiledDocCheck.rows.length > 0) {
         isCompiledDocument = true;
-        console.log(`[EMAIL SERVICE] Confirmed document ${documentId} is a compiled document`);
-        
+                
         // If isEntireCollection wasn't explicitly set but this is a compiled document, 
         // we should treat it as an entire collection request
         if (isEntireCollection !== true) {
-          console.log(`[EMAIL SERVICE] Setting isEntireCollection=true for compiled document ${documentId}`);
-          isEntireCollection = true;
+                    isEntireCollection = true;
         }
       } else {
-        console.log(`[EMAIL SERVICE] Document ${documentId} is not a compiled document in compiled_documents table`);
-        
+                
         // As a fallback, check if document has document_type = 'COMPILED' or is_compiled flag
         const docTypeCheck = await client.queryObject(
           "SELECT id, document_type, is_compiled FROM documents WHERE id = $1",
@@ -75,18 +69,15 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
           if (doc.document_type === 'COMPILED' || doc.is_compiled === true) {
             isCompiledDocument = true;
             isEntireCollection = true;
-            console.log(`[EMAIL SERVICE] Document ${documentId} is marked as compiled in documents table`);
-          }
+                      }
         }
       }
     } catch (error) {
-      console.error(`[EMAIL SERVICE] Error checking if document is compiled: ${error}`);
       // Continue with the process, assuming it's not a compiled document
     }
     
     // Get the file path from document ID
-    console.log(`[EMAIL SERVICE] Retrieving document path for ID: ${documentId}`);
-    const documentPath = await DocumentModel.getDocumentPath(documentId);
+        const documentPath = await DocumentModel.getDocumentPath(documentId);
     
     // Fetch additional document metadata
     let documentAuthor = null;
@@ -100,7 +91,6 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
         documentKeywords = documentDetails.keywords || null;
       }
     } catch (metadataError) {
-      console.error(`[EMAIL SERVICE] Error fetching document metadata: ${metadataError}`);
     }
     
     // Check for child documents in entire collection requests
@@ -108,40 +98,32 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
     let childDocumentPaths: string[] = [];
     
     if (isEntireCollection) {
-      console.log(`[EMAIL SERVICE] Processing entire collection request`);
-      
+            
       // Use provided child document IDs if available
       if (childDocumentIds && Array.isArray(childDocumentIds) && childDocumentIds.length > 0) {
-        console.log(`[EMAIL SERVICE] Using provided ${childDocumentIds.length} child document IDs`);
-        
+                
         // Get file paths for all child documents
         for (const childId of childDocumentIds) {
           try {
             const childPath = await DocumentModel.getDocumentPath(childId);
             if (childPath) {
               childDocumentPaths.push(childPath);
-              console.log(`[EMAIL SERVICE] Added child document path: ${childPath}`);
-            }
+                          }
           } catch (childError) {
-            console.error(`[EMAIL SERVICE] Error retrieving child document ${childId}:`, childError);
           }
         }
       } else {
         // If no child IDs provided, try to fetch them from the database
-        console.log(`[EMAIL SERVICE] Fetching child documents for compiled document ${documentId}`);
-        try {
+                try {
           // Use the specialized method that directly fetches all child document paths
           childDocumentPaths = await DocumentModel.getCompiledDocumentChildPaths(documentId);
-          console.log(`[EMAIL SERVICE] Found ${childDocumentPaths.length} child document paths using specialized method`);
-          
+                    
           // If that didn't work, fall back to the old method
           if (childDocumentPaths.length === 0 && isCompiledDocument) {
-            console.log(`[EMAIL SERVICE] No child documents found from first method, trying alternative approach`);
-            
+                        
             // Try to get the contained documents first
             const containedDocs = await DocumentModel.getContainedDocuments(parseInt(documentId));
-            console.log(`[EMAIL SERVICE] Found ${containedDocs.length} contained documents`);
-            
+                        
             if (containedDocs.length > 0) {
               // Extract document IDs and get paths
               for (const doc of containedDocs) {
@@ -150,11 +132,9 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
                     const childPath = await DocumentModel.getDocumentPath(doc.id);
                     if (childPath) {
                       childDocumentPaths.push(childPath);
-                      console.log(`[EMAIL SERVICE] Added contained document path for ID ${doc.id}: ${childPath}`);
-                    }
+                                          }
                   }
                 } catch (childError) {
-                  console.error(`[EMAIL SERVICE] Error retrieving contained document ${doc.id}:`, childError);
                 }
               }
             } else {
@@ -170,29 +150,24 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
               
               // Get file paths for all child documents
               const fetchedChildIds = result.rows.map((row: any) => row.id);
-              console.log(`[EMAIL SERVICE] Found ${fetchedChildIds.length} child documents using manual query`);
-              
+                            
               for (const childId of fetchedChildIds) {
                 try {
                   const childPath = await DocumentModel.getDocumentPath(childId);
                   if (childPath) {
                     childDocumentPaths.push(childPath);
-                    console.log(`[EMAIL SERVICE] Added child document path: ${childPath}`);
-                  }
+                                      }
                 } catch (childError) {
-                  console.error(`[EMAIL SERVICE] Error retrieving child document ${childId}:`, childError);
                 }
               }
             }
           }
         } catch (error) {
-          console.error(`[EMAIL SERVICE] Error fetching child documents:`, error);
         }
       }
     }
     
     if (!documentPath && childDocumentPaths.length === 0) {
-      console.error(`[EMAIL SERVICE] No documents found for ID: ${documentId}`);
       ctx.response.status = 404;
       ctx.response.body = { 
         success: false, 
@@ -201,9 +176,7 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
       return;
     }
     
-    console.log(`[EMAIL SERVICE] Found main document at path: ${documentPath}`);
-    console.log(`[EMAIL SERVICE] Found ${childDocumentPaths.length} child documents to attach`);
-    
+            
     // Verify at least one file exists
     let fileExists = false;
     let fileSize = 0;
@@ -216,11 +189,8 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
       const fileInfo = await Deno.stat(documentPath);
       fileExists = true;
       fileSize = fileInfo.size;
-          console.log(`[EMAIL SERVICE] ✅ Main file verified: ${documentPath} (${fileInfo.size} bytes)`);
-        } catch (mainDocError) {
-          console.error(`[EMAIL SERVICE] ⚠️ Error accessing main file: ${documentPath}`, mainDocError);
-          console.log(`[EMAIL SERVICE] Will check child documents for entire collection request`);
-        }
+                  } catch (mainDocError) {
+                  }
       }
       
       // If main document doesn't exist but we have child documents, check them
@@ -231,80 +201,63 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
             const childFileInfo = await Deno.stat(childPath);
             fileExists = true;
             fileSize += childFileInfo.size;
-            console.log(`[EMAIL SERVICE] ✅ Child file verified: ${childPath} (${childFileInfo.size} bytes)`);
-            // No need to break; let's check all files and sum up the size
+                        // No need to break; let's check all files and sum up the size
           } catch (childError) {
-            console.error(`[EMAIL SERVICE] ⚠️ Error accessing child file: ${childPath}`, childError);
           }
         }
       }
       
       // If no files were found, try FileCheckService as a last resort
       if (!fileExists) {
-        console.log(`[EMAIL SERVICE] No files found via direct paths, will attempt to find file in storage directories`);
-        
+                
         // Try to find the file using FileCheckService
         try {
           const fileName = documentPath?.split('/').pop() || documentPath?.split('\\').pop() || '';
-          console.log(`[EMAIL SERVICE] Searching for file name: ${fileName}`);
-          
+                    
           const results = await FileCheckService.findInStorage(fileName);
           const found = results.filter(r => r.exists);
           
           if (found.length > 0) {
-            console.log(`[EMAIL SERVICE] ✅ Found file in storage: ${found[0].path}`);
-            fileExists = true;
+                        fileExists = true;
           } else {
-            console.log(`[EMAIL SERVICE] ❌ File not found in any storage location`);
-            
+                        
             // As a last resort, check each child document with FileCheckService
             if (childDocumentPaths.length > 0) {
               for (const childPath of childDocumentPaths) {
                 const childFileName = childPath.split('/').pop() || childPath.split('\\').pop() || '';
-                console.log(`[EMAIL SERVICE] Searching for child file name: ${childFileName}`);
-                
+                                
                 const childResults = await FileCheckService.findInStorage(childFileName);
                 const childFound = childResults.filter(r => r.exists);
                 
                 if (childFound.length > 0) {
-                  console.log(`[EMAIL SERVICE] ✅ Found child file in storage: ${childFound[0].path}`);
-                  fileExists = true;
+                                    fileExists = true;
                   break; // At least one file found
                 }
               }
             }
           }
         } catch (searchError) {
-          console.error(`[EMAIL SERVICE] Error during file search:`, searchError);
         }
       }
     } catch (error) {
       verificationError = error instanceof Error ? error.message : String(error);
-      console.error(`[EMAIL SERVICE] ⚠️ Error accessing file: ${documentPath}`, verificationError);
-      console.log(`[EMAIL SERVICE] Will attempt to find file in storage directories`);
-      
       // Try to find the file using FileCheckService
       try {
         const fileName = documentPath?.split('/').pop() || documentPath?.split('\\').pop() || '';
-        console.log(`[EMAIL SERVICE] Searching for file name: ${fileName}`);
-        
+                
         const results = await FileCheckService.findInStorage(fileName);
         const found = results.filter(r => r.exists);
         
         if (found.length > 0) {
-          console.log(`[EMAIL SERVICE] ✅ Found file in storage: ${found[0].path}`);
-          fileExists = true;
+                    fileExists = true;
         } else {
-          console.log(`[EMAIL SERVICE] ❌ File not found in any storage location`);
-        }
+                  }
       } catch (searchError) {
-        console.error(`[EMAIL SERVICE] Error during file search:`, searchError);
       }
     }
     
     // Send the email with attachments and metadata
-    console.log(`[EMAIL SERVICE] Sending approval email with document attachment to ${email}`);
-    
+        
     try {
       // Import the background job service
       const { createEmailJob } = await import("../services/backgroundJobService.ts");
@@ -342,13 +295,9 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
         verificationError: verificationError,
         backgroundProcessing: true
       };
-      console.log(`[EMAIL SERVICE] ✅ Background job created for email to ${email} (Job ID: ${job.id})`);
-    } catch (error) {
-      console.error(`[EMAIL SERVICE] Error creating background job:`, error);
-      
+          } catch (error) {
       // Fallback to synchronous processing if background job fails
-      console.log(`[EMAIL SERVICE] Falling back to synchronous email sending to ${email}`);
-    const success = await sendApprovedRequestEmail(
+          const success = await sendApprovedRequestEmail(
       email,
       fullName || "User",
       documentTitle || "Requested Document",
@@ -361,8 +310,7 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
     );
     
     if (success) {
-      console.log(`[EMAIL SERVICE] ✅ Document successfully sent to ${email}`);
-      ctx.response.body = { 
+            ctx.response.body = { 
         success: true, 
         message: "Approval email sent successfully",
         documentPath: documentPath,
@@ -373,7 +321,6 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
           backgroundProcessing: false
       };
     } else {
-      console.error(`[EMAIL SERVICE] Failed to send approval email to ${email}`);
       ctx.response.status = 500;
       ctx.response.body = { 
         success: false, 
@@ -387,7 +334,6 @@ const sendApprovalEmail = async (ctx: RouterContext<any, any, any>) => {
       }
     }
   } catch (error: unknown) {
-    console.error("Error in sendApprovalEmail:", error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = { 
       success: false, 
@@ -405,11 +351,9 @@ const sendRejectionEmail = async (ctx: RouterContext<any, any, any>) => {
     const bodyParser = await ctx.request.body({ type: "json" });
     const { email, fullName, documentTitle, reason, debug } = await bodyParser.value;
     
-    console.log(`[EMAIL API] Received request to send rejection email to ${email} for document "${documentTitle}"`);
-    
+        
     // Validate required fields
     if (!email || !reason) {
-      console.error(`[EMAIL API] Missing required fields: email=${!!email}, reason=${!!reason}`);
       ctx.response.status = 400;
       ctx.response.body = { 
         success: false, 
@@ -437,13 +381,11 @@ const sendRejectionEmail = async (ctx: RouterContext<any, any, any>) => {
     // Check if result is boolean or object and respond accordingly
     if (typeof result === 'boolean') {
       if (result) {
-        console.log(`[EMAIL API] ✅ Rejection email sent successfully to ${email}`);
-      ctx.response.body = { 
+              ctx.response.body = { 
         success: true, 
         message: "Rejection email sent successfully" 
       };
     } else {
-        console.error(`[EMAIL API] ❌ Failed to send rejection email to ${email}`);
       ctx.response.status = 500;
       ctx.response.body = { 
         success: false, 
@@ -452,8 +394,7 @@ const sendRejectionEmail = async (ctx: RouterContext<any, any, any>) => {
       }
     } else {
       // Result is an object with detailed information
-      console.log(`[EMAIL API] Detailed rejection email result:`, result);
-      
+            
       // For TypeScript, safely check the object properties
       const resultObj = result as Record<string, unknown>;
       if (resultObj && resultObj.success === true) {
@@ -465,8 +406,6 @@ const sendRejectionEmail = async (ctx: RouterContext<any, any, any>) => {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[EMAIL API] Error in sendRejectionEmail: ${errorMessage}`, error);
-    
     ctx.response.status = 500;
     ctx.response.body = { 
       success: false, 
@@ -494,8 +433,7 @@ const checkDocumentFiles = async (ctx: RouterContext<any, any, any>) => {
       return;
     }
     
-    console.log(`[FILE CHECK API] Checking document files for ID: ${documentId}`);
-    
+        
     // Get the document path from the database
     const dbPath = await DocumentModel.getDocumentPath(documentId);
     
@@ -527,7 +465,6 @@ const checkDocumentFiles = async (ctx: RouterContext<any, any, any>) => {
       foundFiles: foundFiles
     };
   } catch (error: unknown) {
-    console.error("Error in checkDocumentFiles:", error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = { 
       success: false, 

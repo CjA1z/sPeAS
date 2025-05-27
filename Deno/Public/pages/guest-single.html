@@ -1006,73 +1006,56 @@
                     
                     // Guest document endpoint
                     try {
-                        console.log(`Fetching document ${docId} from guest documents API...`);
-                        const guestResponse = await fetch(`/api/guest/documents/${docId}`);
+                                                const guestResponse = await fetch(`/api/guest/documents/${docId}`);
                         
                         if (guestResponse.ok) {
                             const data = await guestResponse.json();
                             if (data.success && data.document) {
-                                console.log("Loaded data from guest API endpoint");
-                                documentData = data.document;
+                                                                documentData = data.document;
                             } else {
-                                console.warn(`Guest API: ${data.message || 'No data returned'}`);
                             }
                         } else {
-                            console.warn(`Guest API: ${guestResponse.status} ${guestResponse.statusText}`);
                         }
                     } catch (e) {
-                        console.warn(`Guest API error: ${e.message}`);
                     }
                     
                     // Public document endpoint (fallback)
                     if (!documentData) {
                         try {
-                            console.log(`Fetching document ${docId} from public documents API...`);
-                            const publicResponse = await fetch(`/api/public/documents/${docId}`);
+                                                        const publicResponse = await fetch(`/api/public/documents/${docId}`);
                             
                             if (publicResponse.ok) {
                                 const data = await publicResponse.json();
                                 if (data.success && data.document) {
-                                    console.log("Loaded data from public API endpoint");
-                                    documentData = data.document;
+                                                                        documentData = data.document;
                                 } else {
-                                    console.warn(`Public API: ${data.message || 'No data returned'}`);
                                 }
                             } else {
-                                console.warn(`Public API: ${publicResponse.status} ${publicResponse.statusText}`);
                             }
                         } catch (e) {
-                            console.warn(`Public API error: ${e.message}`);
                         }
                     }
                     
                     // Standard API with guest parameter (final fallback)
                     if (!documentData) {
                         try {
-                            console.log(`Fetching document ${docId} from standard API with guest parameter...`);
-                            const standardResponse = await fetch(`/api/documents/${docId}?guest=true`);
+                                                        const standardResponse = await fetch(`/api/documents/${docId}?guest=true`);
                             
                             if (standardResponse.ok) {
                                 const data = await standardResponse.json();
-                                console.log("Standard API response:", data);
-                                
+                                                                
                                 // Check if the response has success and document properties
                                 // Or if it's just a raw document object
                                 if (data.success && data.document) {
-                                    console.log("Loaded data from standard API endpoint (success wrapper)");
-                                    documentData = data.document;
+                                                                        documentData = data.document;
                                 } else if (data.id && data.title) {
                                     // Likely a direct document object
-                                    console.log("Loaded data from standard API endpoint (direct object)");
-                                    documentData = data;
+                                                                        documentData = data;
                                 } else {
-                                    console.warn(`Standard API: ${data.message || 'No data returned'}`);
                                 }
                             } else {
-                                console.warn(`Standard API: ${standardResponse.status} ${standardResponse.statusText}`);
                             }
                         } catch (e) {
-                            console.warn(`Standard API error: ${e.message}`);
                         }
                     }
                     
@@ -1083,54 +1066,43 @@
                     }
                     
                     // Process and enhance the data
-                    console.log(`Processing document data:`, documentData);
-                    console.log(`Author field before processing:`, documentData.author);
-                    
+                                                            
                     // If we don't have author information but have document ID, 
                     // try to fetch author information directly
                     if ((!documentData.author || documentData.author === "Unknown Author") && documentData.id) {
                         try {
                             // Try guest endpoint first
-                            console.log(`Attempting to fetch author information for document ID ${documentData.id}`);
-                            let authorResponse = await fetch(`/api/guest/documents/${documentData.id}/authors`);
+                                                        let authorResponse = await fetch(`/api/guest/documents/${documentData.id}/authors`);
                             
                             if (!authorResponse.ok) {
                                 // Try public endpoint next
-                                console.log(`Guest author endpoint failed, trying public endpoint...`);
-                                authorResponse = await fetch(`/api/public/documents/${documentData.id}/authors`);
+                                                                authorResponse = await fetch(`/api/public/documents/${documentData.id}/authors`);
                             }
                             
                             if (!authorResponse.ok) {
                                 // Try standard API endpoint as fallback
-                                console.log(`Public author endpoint failed, trying standard endpoint...`);
-                                authorResponse = await fetch(`/api/documents/${documentData.id}/authors`);
+                                                                authorResponse = await fetch(`/api/documents/${documentData.id}/authors`);
                             }
                             
                             if (authorResponse.ok) {
                                 const authorData = await authorResponse.json();
-                                console.log(`Author data received:`, authorData);
-                                
+                                                                
                                 if (authorData.authors && Array.isArray(authorData.authors) && authorData.authors.length > 0) {
                                     documentData.enhancedAuthors = authorData.authors;
-                                    console.log(`Found ${authorData.authors.length} authors, adding to document data`);
-                                }
+                                                                    }
                             } else {
-                                console.warn(`Could not fetch author details: ${authorResponse.status}`);
                             }
                         } catch (authorErr) {
-                            console.warn(`Error fetching author details:`, authorErr);
                         }
                     }
                     
                     // Handle author display
                     documentData.author = getAuthorDisplayName(documentData);
-                    console.log(`Author field after processing:`, documentData.author);
-                    
+                                        
                     // If document has contained_documents, process each one
                     if (documentData.contained_documents && Array.isArray(documentData.contained_documents)) {
                         documentData.contained_documents = documentData.contained_documents.map(doc => {
-                            console.log(`Processing contained document:`, doc);
-                            return {
+                                                        return {
                                 ...doc,
                                 author: getAuthorDisplayName(doc)
                             };
@@ -1142,12 +1114,8 @@
                     updateUI();
                     
                 } catch (error) {
-                    console.error('Error fetching document data:', error);
-                    
                     // Development environment fallback - simulate document data
                     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('local')) {
-                        console.warn("Using simulated document data for development environment");
-                        
                         mainDocumentData = {
                             doc_id: docId,
                             title: `Simulated Document #${docId}`,
@@ -1559,8 +1527,7 @@
                         formData.reason_details = `Request for access based on: ${selectedReasons.join(', ')}`;
                     }
                     
-                    console.log("Submitting access request:", formData);
-                    
+                                        
                     // Show a loading indicator
                     const submitButton = event.submitter;
                     const originalButtonText = submitButton.innerHTML;
@@ -1609,8 +1576,7 @@
                         }
                     })
                     .then(data => {
-                        console.log("Request submitted successfully:", data);
-
+                        
                         // Store pending status for the document
                         if (mainDocumentData.doc_id) {
                              localStorage.setItem('requestStatus_' + mainDocumentData.doc_id, 'pending');
@@ -1652,8 +1618,6 @@
                         }
                     })
                     .catch(error => {
-                        console.error("Error submitting request:", error);
-                        
                         // Reset the button state
                         submitButton.disabled = false;
                         submitButton.innerHTML = originalButtonText;
@@ -1707,8 +1671,7 @@
                     const queryId = urlParams.get('id');
                     
                     if (queryId) {
-                        console.log(`Found document ID in query parameter: ${queryId}`);
-                        return queryId;
+                                                return queryId;
                     }
                     
                     // Method 2: Try to extract ID from URL path segments
@@ -1719,8 +1682,7 @@
                     const numericId = parseInt(lastSegment);
                     
                     if (!isNaN(numericId)) {
-                        console.log(`Found document ID in path: ${numericId}`);
-                        return numericId.toString();
+                                                return numericId.toString();
                     }
                     
                     // Method 3: Check if second-to-last segment is "document" or "doc" and last is numeric
@@ -1730,8 +1692,7 @@
                         
                         if ((potentialTypeSegment === 'document' || potentialTypeSegment === 'doc') && 
                             !isNaN(parseInt(potentialIdSegment))) {
-                            console.log(`Found document ID in path structure: ${potentialIdSegment}`);
-                            return potentialIdSegment;
+                                                        return potentialIdSegment;
                         }
                     }
                     
@@ -1740,14 +1701,10 @@
                     const hashId = hashParams.get('id');
                     
                     if (hashId) {
-                        console.log(`Found document ID in hash: ${hashId}`);
-                        return hashId;
+                                                return hashId;
                     }
-                    
-                    console.warn("No document ID found in URL");
                     return null;
                 } catch (e) {
-                    console.error("Error extracting document ID from URL:", e);
                     return null;
                 }
             }
@@ -1755,10 +1712,8 @@
             // Initialize the page
             const documentId = getDocumentIdFromUrl();
             if (documentId) {
-                console.log(`Loading document ID: ${documentId}`);
-                loadDocumentData(documentId);
+                                loadDocumentData(documentId);
             } else {
-                console.error("No document ID provided in URL");
                 showGeneralMessage('Error: No document ID provided. Please check the URL.', true);
                 // Set minimal data for a graceful failure
                 mainDocumentData = { 
@@ -1788,7 +1743,6 @@
         if (window.NavbarModule) {
             window.NavbarModule.init();
         } else {
-            console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
         }
     </script>
     
@@ -1799,11 +1753,9 @@
                 // Get document ID from URL
                 const documentId = getDocumentIdFromUrl();
                 if (documentId) {
-                    console.log('Tracking guest visit for document:', documentId);
-                    initSingleDocumentTracking(documentId);
+                                        initSingleDocumentTracking(documentId);
                 }
             } else {
-                console.error('DocumentTracker not found! Make sure document-visit-tracker.js is loaded correctly.');
             }
         });
     </script>

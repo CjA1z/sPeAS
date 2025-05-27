@@ -22,24 +22,20 @@ window.NavbarModule = (function() {
     // Check if jQuery is available, load it if not
     function ensureJQuery(callback) {
         if (window.jQuery) {
-            console.log('jQuery is already available');
-            if (callback) callback();
+                        if (callback) callback();
             return;
         }
         
-        console.log('jQuery not found, loading from CDN...');
-        const script = document.createElement('script');
+                const script = document.createElement('script');
         script.src = JQUERY_CDN_URL;
         script.integrity = 'sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=';
         script.crossOrigin = 'anonymous';
         
         script.onload = function() {
-            console.log('jQuery loaded successfully from CDN');
-            if (callback) callback();
+                        if (callback) callback();
         };
         
         script.onerror = function() {
-            console.error('Failed to load jQuery from CDN');
             if (callback) callback(new Error('Failed to load jQuery'));
         };
         
@@ -48,31 +44,25 @@ window.NavbarModule = (function() {
 
     // Main initialization function - call this from each page
     function initNavbar() {
-        console.log('Navbar module initializing...');
-        console.log('DEBUG: Starting navbar initialization process');
-        
+                        
         // Prevent double initialization
         if (isInitialized) {
-            console.log('Navbar already initialized, skipping...');
-            return;
+                        return;
         }
         
         // Check if navbar container exists
         const navbarContainer = document.getElementById('navbarContainer');
         if (!navbarContainer) {
-            console.error('DEBUG: navbarContainer element not found in the DOM! Please add <div id="navbarContainer"></div> to your page.');
             return;
         } else {
-            console.log('DEBUG: navbarContainer found in the DOM');
-        }
+                    }
         
         // Check if we're on a page that should not display the navbar
         const currentPath = window.location.pathname;
         const excludedPages = ['/pages/doc-single.html', '/pages/doc-compiled.html', '/pages/doc-compiled-single.html'];
         
         if (excludedPages.some(page => currentPath.includes(page))) {
-            console.log('Navbar excluded on this page:', currentPath);
-            return; // Skip navbar initialization for excluded pages
+                        return; // Skip navbar initialization for excluded pages
         }
         
         // Add global logout function that can be called from anywhere
@@ -83,24 +73,20 @@ window.NavbarModule = (function() {
         
         // Add global function for login button
         window.handleLogin = function(event) {
-            console.log("Global handleLogin function called");
-            // Navigate to login page
+                        // Navigate to login page
             window.location.href = '/log-in.html';
         };
         
         // Ensure jQuery is available before proceeding
         ensureJQuery(function(error) {
             if (error) {
-                console.warn('Proceeding without jQuery');
             }
         
         // Make sure DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', setupNavbar);
-                console.log('DEBUG: DOM not ready, added DOMContentLoaded listener');
-        } else {
-                console.log('DEBUG: DOM already loaded, calling setupNavbar directly');
-            setupNavbar();
+                        } else {
+                            setupNavbar();
         }
         });
         
@@ -113,8 +99,7 @@ window.NavbarModule = (function() {
                     try {
                         userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo'));
                     } catch (e) {
-                        console.log('No user info found or invalid format');
-                    }
+                                            }
                     
                     // Get current page URL
                     const pageUrl = window.location.pathname + window.location.search;
@@ -127,8 +112,7 @@ window.NavbarModule = (function() {
                         metadata: {}
                     };
                     
-                    console.log(`Recording page visit for: ${pageUrl}`);
-                    
+                                        
                     // Send the visit data to the API
                     fetch('/api/page-visits', {
                         method: 'POST',
@@ -139,15 +123,11 @@ window.NavbarModule = (function() {
                         body: JSON.stringify(visitData)
                     }).then(response => {
                         if (!response.ok) {
-                            console.warn(`Failed to record page visit: ${response.status} ${response.statusText}`);
                             return;
                         }
-                        console.log('Page visit recorded successfully');
-                    }).catch(error => {
-                        console.error('Error recording page visit:', error);
+                                            }).catch(error => {
                     });
                 } catch (error) {
-                    console.error('Error in recordPageVisit:', error);
                     // Non-critical error, don't disrupt the user experience
                 }
             };
@@ -173,32 +153,27 @@ window.NavbarModule = (function() {
                         const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
                         
                         if (hoursSinceLogin > 24) {
-                            console.log('Clearing stale session user data (older than 24 hours)');
-                            sessionStorage.removeItem('userInfo');
+                                                        sessionStorage.removeItem('userInfo');
                         }
                     }
                     
                     // If no token or login status is false, clear it
                     if (!userInfo.token || userInfo.isLoggedIn !== true) {
-                        console.log('Clearing invalid session user data');
-                        sessionStorage.removeItem('userInfo');
+                                                sessionStorage.removeItem('userInfo');
                     }
                 } catch (e) {
-                    console.error('Error parsing session user data, clearing it:', e);
                     sessionStorage.removeItem('userInfo');
                 }
             }
             
             // Remove any existing localStorage items for backward compatibility
             if (localStorage.getItem('userInfo')) {
-                console.log('Removing localStorage user data (moving to session-only auth)');
-                            localStorage.removeItem('userInfo');
+                                            localStorage.removeItem('userInfo');
                         }
             if (localStorage.getItem('session_token')) {
                 localStorage.removeItem('session_token');
             }
         } catch (e) {
-            console.error('Error in cleanupUserData:', e);
         }
     }
 
@@ -207,22 +182,19 @@ window.NavbarModule = (function() {
         // Check for navbar container
         const navbarContainer = document.getElementById('navbarContainer');
         if (!navbarContainer) {
-            console.error('Navbar container not found! Please add <div id="navbarContainer"></div> to your page.');
             return;
         }
         
         // Check if navbar is already initialized or initializing
         if (navbarContainer.dataset.initialized === 'true' || navbarContainer.dataset.initializing === 'true') {
-            console.log('Navbar already initialized or initializing, skipping...');
-            return;
+                        return;
         }
 
         // Check user authentication and load appropriate navbar
         const userInfo = getUserInfo();
         const isLoggedIn = isUserLoggedIn(userInfo);
         
-        console.log(`User login status: ${isLoggedIn ? 'Logged in' : 'Not logged in'}`);
-        
+                
         // Add initialized flag to the container
         navbarContainer.dataset.initializing = 'true';
         
@@ -241,8 +213,7 @@ window.NavbarModule = (function() {
                     );
                     
                     if (hasNavElement && navbarContainer.dataset.initializing === 'true') {
-                        console.log('Navbar content loaded successfully, initializing functionality');
-                        observer.disconnect();
+                                                observer.disconnect();
                         
                         // Mark as initialized to prevent double initialization
                         navbarContainer.dataset.initializing = 'false';
@@ -272,8 +243,7 @@ window.NavbarModule = (function() {
         setTimeout(() => {
             const navElement = navbarContainer.querySelector('nav');
             if (navElement && navbarContainer.dataset.initialized !== 'true') {
-                console.log('Navbar found through timeout check, initializing functionality');
-                
+                                
                 // Mark as initialized
                 navbarContainer.dataset.initializing = 'false';
                 navbarContainer.dataset.initialized = 'true';
@@ -292,22 +262,17 @@ window.NavbarModule = (function() {
             // Check sessionStorage only
             const sessionUserInfo = sessionStorage.getItem('userInfo');
             
-            console.log('DEBUG: Raw user info found in storage:');
-            console.log('- sessionStorage:', sessionUserInfo ? 'present' : 'not found');
-            
+                                    
             // Parse the stored JSON data
             if (sessionUserInfo) {
                 try {
                     const userInfo = JSON.parse(sessionUserInfo);
-                    console.log('Found user info in sessionStorage');
-                    
+                                        
                     // Validate essential properties
                     if (!userInfo.token) {
-                        console.warn('Token missing in sessionStorage user info');
                     }
                     
                     if (userInfo.isLoggedIn !== true) {
-                        console.warn('isLoggedIn flag not true in sessionStorage user info');
                     }
                     
                     // Fetch additional user info from database if we have a token
@@ -316,27 +281,22 @@ window.NavbarModule = (function() {
                             .then(dbUserInfo => {
                                 if (dbUserInfo) {
                                     // Merge the existing userInfo with database info
-                                    console.log('Successfully fetched user profile from database');
-                                }
+                                                                    }
                             })
                             .catch(error => {
-                                console.error('Error fetching user profile from database:', error);
                             });
                     }
                     
                     return userInfo;
                 } catch (parseError) {
-                    console.error('Error parsing sessionStorage user info:', parseError);
                     // Clear invalid data
                     sessionStorage.removeItem('userInfo');
                     return null;
                 }
             }
             
-            console.log('No user info found in storage');
-            return null;
+                        return null;
         } catch (error) {
-            console.error('Error retrieving user info:', error);
             return null;
         }
     }
@@ -344,18 +304,15 @@ window.NavbarModule = (function() {
     // Fetch user profile information from the database
     async function fetchUserProfileFromDatabase(userInfo) {
         if (!userInfo || !userInfo.token) {
-            console.error('Cannot fetch user profile without a token');
             return null;
         }
         
         try {
-            console.log('Fetching user profile from database...');
-            
+                        
             // Make API call to fetch user data from database
             // Add userId to the URL as a query parameter
             const userId = userInfo.id || userInfo.user_id || '';
-            console.log('Fetching profile for user ID:', userId);
-            
+                        
             const response = await fetch(`/api/user/profile?userId=${userId}`, {
                 method: 'GET',
                 headers: {
@@ -369,8 +326,7 @@ window.NavbarModule = (function() {
             }
             
             const dbUserData = await response.json();
-            console.log('User profile data received:', dbUserData);
-            
+                        
             if (dbUserData) {
                 // Update session storage with the enriched user data
                 // Especially ensure we're using first_name from the database
@@ -385,9 +341,7 @@ window.NavbarModule = (function() {
                     profilePictureUrl: dbUserData.profilePictureUrl || dbUserData.profile_picture || null
                 };
                 
-                console.log('Updated user info with DB data:', updatedUserInfo);
-                console.log('Profile picture URL available:', updatedUserInfo.profile_picture || updatedUserInfo.profilePictureUrl || 'None');
-                
+                                                
                 // Update the session storage
                 sessionStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
                 
@@ -402,7 +356,6 @@ window.NavbarModule = (function() {
             
             return null;
         } catch (error) {
-            console.error('Error in fetchUserProfileFromDatabase:', error);
             return null;
         }
     }
@@ -410,16 +363,13 @@ window.NavbarModule = (function() {
     // Check if user is logged in
     function isUserLoggedIn(userInfo) {
         if (!userInfo) {
-            console.log('No user info found - not logged in');
-            return false;
+                        return false;
         }
         
-        console.log('DEBUG: Checking user info for login status:', JSON.stringify(userInfo, null, 2));
-        
+                
         // Check for token validity
         if (!userInfo.token) {
-            console.log('No token found in user info - not logged in');
-            return false;
+                        return false;
         }
         
         // Check for login timestamp and validate it's not too old (24 hours)
@@ -429,8 +379,7 @@ window.NavbarModule = (function() {
             const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
             
             if (hoursSinceLogin > 24) {
-                console.log('Login session expired (older than 24 hours) - clearing old data');
-                // Clear stale data
+                                // Clear stale data
                 sessionStorage.removeItem('userInfo');
                 return false;
             }
@@ -438,8 +387,7 @@ window.NavbarModule = (function() {
         
         // Final check for essential properties - ensuring isLoggedIn is explicitly true
         const isLoggedIn = userInfo.isLoggedIn === true && userInfo.token && userInfo.token.length > 0;
-        console.log(`User login status: ${isLoggedIn ? 'Valid session' : 'Invalid session'} - Token present: ${!!userInfo.token}, isLoggedIn flag: ${userInfo.isLoggedIn}`);
-        return isLoggedIn;
+                return isLoggedIn;
     }
 
     // Fetch and load the navbar HTML
@@ -447,8 +395,7 @@ window.NavbarModule = (function() {
         // Get the appropriate navbar URL
         const navbarUrl = isLoggedIn ? USER_NAVBAR_URL : GUEST_NAVBAR_URL;
         
-        console.log(`Loading navbar from ${navbarUrl} (User status: ${isLoggedIn ? 'Logged in' : 'Guest'})`);
-        
+                
         // Try both capitalizations of path
         const urls = [
             navbarUrl,
@@ -457,52 +404,41 @@ window.NavbarModule = (function() {
         
         // Check if jQuery is available
         if (typeof jQuery !== 'undefined') {
-            console.log('Using jQuery load method for navbar');
-            
+                        
             // Use jQuery's load method which handles insertion and script execution
             $(container).load(urls[0], function(response, status, xhr) {
                 if (status === "error") {
-                    console.log(`Failed to load navbar from ${urls[0]}, trying alternative path`);
-                    
+                                        
                     // Try the alternative capitalization
                     $(container).load(urls[1], function(response2, status2, xhr2) {
                         if (status2 === "error") {
-                            console.error(`Failed to load navbar from both paths: ${status}, ${status2}`);
                             createFallbackNavbar(container);
                         } else {
-                            console.log(`Navbar loaded successfully from alternative path: ${urls[1]}`);
-                        }
+                                                    }
                     });
                 } else {
-                    console.log(`Navbar loaded successfully from: ${urls[0]}`);
-                }
+                                    }
             });
         } else {
-            console.log('jQuery not available, using fetch API');
-            
+                        
             // Fallback to fetch API for browsers without jQuery
             fetch(urls[0])
                 .then(response => {
                     if (!response.ok) {
-                        console.log(`Fetch failed for ${urls[0]}, trying alternative path`);
-                        return fetch(urls[1]).then(altResponse => {
+                                                return fetch(urls[1]).then(altResponse => {
                             if (!altResponse.ok) {
                                 throw new Error(`Failed to load navbar from both paths`);
                             }
-                            console.log(`Navbar fetched successfully from: ${urls[1]}`);
-                            return altResponse.text();
+                                                        return altResponse.text();
                         });
                     }
-                    console.log(`Navbar fetched successfully from: ${urls[0]}`);
-                    return response.text();
+                                        return response.text();
                 })
                 .then(htmlContent => {
                     // Simple insertion of content
                     container.innerHTML = htmlContent;
-                    console.log('Navbar HTML inserted into container');
-                })
+                                    })
                 .catch(error => {
-            console.error('Error loading navbar:', error);
             createFallbackNavbar(container);
                 });
         }
@@ -510,16 +446,14 @@ window.NavbarModule = (function() {
 
     // Initialize navbar functionality after loading
     function initializeNavbarFunctionality(userInfo) {
-        console.log('Initializing navbar functionality with user info:', userInfo);
-        
+                
         // Add debug code to check for profile picture availability
         debugProfilePictureAvailability(userInfo);
         
         try {
             // Specifically initialize the profile badge for logged in users
             if (userInfo && isUserLoggedIn(userInfo)) {
-                console.log('User is logged in, updating profile UI');
-                
+                                
                 // Fetch fresh user data from database if not already done
                 if (userInfo.token && !userInfo.first_name) {
                     fetchUserProfileFromDatabase(userInfo)
@@ -534,7 +468,6 @@ window.NavbarModule = (function() {
                             initializeUserInterface(userInfo);
                         })
                         .catch(error => {
-                            console.error('Error fetching user profile during initialization:', error);
                             // Continue with what we have
                             initializeUserInterface(userInfo);
                         });
@@ -543,8 +476,7 @@ window.NavbarModule = (function() {
                     initializeUserInterface(userInfo);
                 }
             } else {
-                console.log('User is not logged in, setting up login buttons');
-                // Setup login buttons for non-logged in users
+                                // Setup login buttons for non-logged in users
                 setupLoginButtons();
             }
         
@@ -557,7 +489,6 @@ window.NavbarModule = (function() {
             // Set up search button
             setupSearch();
         } catch (error) {
-            console.error('Error in initializeNavbarFunctionality:', error);
         }
     }
 
@@ -565,24 +496,16 @@ window.NavbarModule = (function() {
     function debugProfilePictureAvailability(userInfo) {
         if (!userInfo) return;
         
-        console.log('------ PROFILE PICTURE DEBUG ------');
-        const profilePictureUrl = userInfo.profile_picture || userInfo.profilePictureUrl || null;
-        console.log('Profile picture URL available:', profilePictureUrl ? 'YES' : 'NO');
-        
+                const profilePictureUrl = userInfo.profile_picture || userInfo.profilePictureUrl || null;
+                
         if (profilePictureUrl) {
-            console.log('URL:', profilePictureUrl);
-            
+                        
             // Test image loading
             const testImg = new Image();
             testImg.onload = function() {
-                console.log('✅ Profile picture loaded successfully!');
-                console.log('Image dimensions:', this.width, 'x', this.height);
-            };
+                                            };
             testImg.onerror = function() {
-                console.error('❌ Failed to load profile picture!');
-                console.log('URL that failed:', this.src);
-                console.log('Try opening this URL directly in a new tab to diagnose.');
-            };
+                                            };
             
             // Set the source to test loading
             testImg.src = profilePictureUrl.startsWith('/') ? profilePictureUrl : `/${profilePictureUrl}`;
@@ -590,10 +513,8 @@ window.NavbarModule = (function() {
         
         // Check if profile badge already exists
         const profileBadgeButton = document.getElementById('profile-badge-button');
-        console.log('Profile badge button exists in DOM:', profileBadgeButton ? 'YES' : 'NO');
-        
-        console.log('-----------------------------------');
-    }
+                
+            }
 
     // Helper function to initialize the UI after getting user data
     function initializeUserInterface(userInfo) {
@@ -602,15 +523,13 @@ window.NavbarModule = (function() {
         const mobileUserAuthContainer = document.getElementById('mobile-user-auth-container');
         
         if (userAuthContainer) {
-            console.log('Found user-auth-container, initializing profile badge');
-            
+                        
             // Initialize user data display in the navbar
             updateProfileInfo(userInfo);
             
             // Add fallback implementations in case they're not defined in the navbar
             if (typeof window.createProfileBadge !== 'function') {
-                console.log('createProfileBadge function not found in navbar, using fallback implementation');
-                
+                                
                 window.createProfileBadge = function(user) {
                     // Generate initials
                     let initials = '';
@@ -748,8 +667,7 @@ window.NavbarModule = (function() {
             }
             
             if (typeof window.createMobileProfileSection !== 'function') {
-                console.log('createMobileProfileSection function not found in navbar, using fallback implementation');
-                
+                                
                 window.createMobileProfileSection = function(user) {
                     // Generate initials
                     let initials = '';
@@ -800,8 +718,7 @@ window.NavbarModule = (function() {
             }
             
             if (typeof window.handleUserNameClick !== 'function') {
-                console.log('handleUserNameClick function not found in navbar, using fallback implementation');
-                
+                                
                 window.handleUserNameClick = function(event) {
                     const userNamePartElement = document.getElementById('user-name-part');
                     if (!userNamePartElement) return;
@@ -836,7 +753,6 @@ window.NavbarModule = (function() {
                         confetti({...baseConfettiOptions, angle: 60, origin: {...baseConfettiOptions.origin, x: 0}});
                         confetti({...baseConfettiOptions, angle: 120, origin: {...baseConfettiOptions.origin, x: 1}});
                     } else {
-                        console.warn("Confetti library (confetti.js) not found or loaded.");
                     }
                 };
             }
@@ -844,8 +760,7 @@ window.NavbarModule = (function() {
             // Check if createProfileBadge function exists in the loaded navbar
             if (typeof window.createProfileBadge === 'function') {
                 // Use the createProfileBadge function from the navbar
-                console.log('Using createProfileBadge function from navbar');
-                const profileBadge = window.createProfileBadge(userInfo);
+                                const profileBadge = window.createProfileBadge(userInfo);
                 userAuthContainer.innerHTML = '';
                 userAuthContainer.appendChild(profileBadge);
                 
@@ -853,8 +768,7 @@ window.NavbarModule = (function() {
                 const logoutButtonDesktop = profileBadge.querySelector('#logout-button-desktop');
                 if (logoutButtonDesktop) {
                     logoutButtonDesktop.addEventListener('click', logout);
-                    console.log('Added event listener to desktop logout button');
-                }
+                                    }
                 
                 // Fix navigation links to ensure they work across page navigations
                 const navLinks = profileBadge.querySelectorAll('.dropdown-menu a[href]');
@@ -876,16 +790,14 @@ window.NavbarModule = (function() {
                             this.href = '/pages/userHistory.html';
                         }
                         
-                        console.log(`Navbar navigation to: ${this.href}`);
-                    });
+                                            });
                 });
                 
                 // Add event listener to user name
                 const userNamePart = profileBadge.querySelector('#user-name-part');
                 if (userNamePart && typeof window.handleUserNameClick === 'function') {
                     userNamePart.addEventListener('click', window.handleUserNameClick);
-                    console.log('Added event listener to user name element');
-                }
+                                    }
                 
                 // Also update mobile view if available
                 if (mobileUserAuthContainer && typeof window.createMobileProfileSection === 'function') {
@@ -897,8 +809,7 @@ window.NavbarModule = (function() {
                     const logoutButtonMobile = mobileProfileSection.querySelector('#logout-button-mobile');
                     if (logoutButtonMobile) {
                         logoutButtonMobile.addEventListener('click', logout);
-                        console.log('Added event listener to mobile logout button');
-                    }
+                                            }
                     
                     // Fix navigation links in mobile menu
                     const mobileNavLinks = mobileProfileSection.querySelectorAll('a[href]');
@@ -919,15 +830,12 @@ window.NavbarModule = (function() {
                                 this.href = '/pages/userHistory.html';
                             }
                             
-                            console.log(`Mobile navbar navigation to: ${this.href}`);
-                        });
+                                                    });
                     });
                 }
             } else {
-                console.error('createProfileBadge function not found in navbar');
             }
         } else {
-            console.warn('user-auth-container not found in the navbar');
         }
     }
 
@@ -935,19 +843,16 @@ window.NavbarModule = (function() {
     function updateProfileInfo(userInfo) {
         if (!userInfo) return;
         
-        console.log('Updating profile info with user data:', userInfo);
-        
+                
         // Check if we have a profile picture URL
         const profilePictureUrl = userInfo.profile_picture || userInfo.profilePictureUrl || null;
-        console.log('Profile picture URL found:', profilePictureUrl);
-        
+                
         // Update profile badge with profile picture if available
         if (profilePictureUrl) {
             const updateProfilePicture = () => {
                 const profileBadgeButton = document.getElementById('profile-badge-button');
                 if (profileBadgeButton) {
-                    console.log("Found profile-badge-button, adding profile picture");
-                    
+                                        
                     // Preserve classes before clearing content
                     const buttonClasses = profileBadgeButton.className;
                     
@@ -971,7 +876,6 @@ window.NavbarModule = (function() {
                     
                     // Add error handler to fall back to initials if image fails to load
                     imgElement.onerror = function() {
-                        console.error("Failed to load profile picture in navbar, falling back to initials");
                         this.style.display = 'none';
                         
                         // Generate initials
@@ -990,21 +894,18 @@ window.NavbarModule = (function() {
                     
                     // Add the image to the button
                     profileBadgeButton.appendChild(imgElement);
-                    console.log("Added profile picture to navbar badge");
-                    return true;
+                                        return true;
                 }
                 return false;
             };
             
             // Try immediately first
             if (!updateProfilePicture()) {
-                console.log("Profile badge button not found, setting up observer");
-                // Set up an observer to wait for the button to be created
+                                // Set up an observer to wait for the button to be created
                 const observer = new MutationObserver((mutations, obs) => {
                     const profileBadgeButton = document.getElementById('profile-badge-button');
                     if (profileBadgeButton) {
-                        console.log("Observer found profile-badge-button");
-                        updateProfilePicture();
+                                                updateProfilePicture();
                         obs.disconnect(); // Stop observing once we've found it
                     }
                 });
@@ -1015,8 +916,7 @@ window.NavbarModule = (function() {
                 // Set a timeout to stop the observer after 5 seconds to prevent memory leaks
                 setTimeout(() => {
                     observer.disconnect();
-                    console.log("Profile badge button observer timed out");
-                }, 5000);
+                                    }, 5000);
             }
             
             // Also update mobile profile section if it exists
@@ -1024,8 +924,7 @@ window.NavbarModule = (function() {
                 const mobileProfileImg = document.querySelector('#mobile-menu .rounded-full img');
                 if (mobileProfileImg) {
                     mobileProfileImg.src = profilePictureUrl.startsWith('/') ? profilePictureUrl : `/${profilePictureUrl}`;
-                    console.log("Updated mobile profile picture");
-                    return true;
+                                        return true;
                 }
                 return false;
             };
@@ -1094,8 +993,7 @@ window.NavbarModule = (function() {
             } else {
                 userNameElement.textContent = 'User';
             }
-            console.log('Updated user name element with:', userNameElement.textContent);
-        } else {
+                    } else {
             // Set up observer for user name element
             const nameObserver = new MutationObserver((mutations, obs) => {
                 const userNameElement = document.getElementById('user-name-part');
@@ -1111,8 +1009,7 @@ window.NavbarModule = (function() {
                     } else {
                         userNameElement.textContent = 'User';
                     }
-                    console.log('Observer updated user name element with:', userNameElement.textContent);
-                    obs.disconnect();
+                                        obs.disconnect();
                 }
             });
             
@@ -1166,29 +1063,24 @@ window.NavbarModule = (function() {
 
     // Set up dropdown menu toggle
     function setupDropdown() {
-        console.log('Setting up dropdown toggle functionality');
-        const profileButton = document.getElementById('profile-badge-button');
+                const profileButton = document.getElementById('profile-badge-button');
         const dropdownMenu = document.getElementById('dropdown-menu');
         
         if (profileButton && dropdownMenu) {
-            console.log('Found profile button and dropdown menu, adding event listeners');
-            
+                        
             // Add click event to toggle dropdown visibility
             profileButton.addEventListener('click', (event) => {
                 event.stopPropagation();
-                console.log('Profile button clicked, toggling dropdown');
-                
+                                
                 const isOpen = dropdownMenu.classList.contains('opacity-100');
                 
                 if (isOpen) {
                     // Close dropdown
-                    console.log('Closing dropdown');
-                    dropdownMenu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+                                        dropdownMenu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
                     dropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
                 } else {
                     // Open dropdown
-                    console.log('Opening dropdown');
-                    dropdownMenu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                                        dropdownMenu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
                     dropdownMenu.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
                 }
                 
@@ -1199,17 +1091,13 @@ window.NavbarModule = (function() {
             document.addEventListener('click', (event) => {
                 const profileBadgeContainer = document.getElementById('profile-badge-container-dynamic');
                 if (dropdownMenu.classList.contains('opacity-100') && profileBadgeContainer && !profileBadgeContainer.contains(event.target)) {
-                    console.log('Clicked outside dropdown, closing it');
-                    dropdownMenu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+                                        dropdownMenu.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
                     dropdownMenu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
                     profileButton.setAttribute('aria-expanded', 'false');
                 }
             });
         } else {
-            console.warn('Profile button or dropdown menu not found in the DOM');
-            console.log('profileButton:', profileButton ? 'Found' : 'Not found');
-            console.log('dropdownMenu:', dropdownMenu ? 'Found' : 'Not found');
-        }
+                                }
     }
 
     // Set up mobile menu toggle
@@ -1396,11 +1284,8 @@ window.NavbarModule = (function() {
 
     // Create a simple fallback navbar if everything else fails
     function createFallbackNavbar(container) {
-        console.log('Creating emergency fallback navbar');
-        console.log('DEBUG: Fallback navbar creation triggered. This means neither primary nor alternative navbar loading succeeded.');
-        
+                        
         if (!container) {
-            console.error('DEBUG: Container is null or undefined in createFallbackNavbar!');
             return;
         }
         
@@ -1426,14 +1311,11 @@ window.NavbarModule = (function() {
             const loginButton = container.querySelector('a[href="/log-in.html"]');
             if (loginButton) {
                 loginButton.addEventListener('click', function(event) {
-                    console.log('Emergency navbar login button clicked');
-                    window.location.href = '/log-in.html';
+                                        window.location.href = '/log-in.html';
                 });
             }
             
-            console.log('Emergency fallback navbar successfully created');
-        } catch (error) {
-            console.error('Error creating fallback navbar:', error);
+                    } catch (error) {
             // Ultimate fallback - just a simple login link
             container.innerHTML = '<div style="text-align: center; padding: 1rem;"><a href="/log-in.html" style="color: #006A4E;">Log In</a></div>';
         }
@@ -1441,12 +1323,9 @@ window.NavbarModule = (function() {
 
     // Function to handle user logout
     function logout() {
-        console.log('Logging out user...');
-        console.log('NavbarModule.logout called');
-        
+                        
         // Create visible log message
-        console.log('%c NavbarModule.logout - Active logout process initiated! ', 'background: #f44336; color: white; font-size: 14px; padding: 5px;');
-        
+                
         // 1. Clear all user data from client storage
         try {
             sessionStorage.removeItem('userInfo');
@@ -1454,9 +1333,7 @@ window.NavbarModule = (function() {
             // Clear localStorage for backward compatibility
             localStorage.removeItem('userInfo');
             localStorage.removeItem('session_token');
-            console.log('Cleared user data from client storage');
-        } catch (e) {
-            console.error('Error clearing client storage:', e);
+                    } catch (e) {
         }
         
         // 2. Clear cookies
@@ -1484,8 +1361,7 @@ window.NavbarModule = (function() {
                 credentials: 'include'
             }).catch(e => console.warn('POST to /auth/logout failed:', e))
         ]).finally(() => {
-            console.log('All logout attempts completed, redirecting to home page');
-            
+                        
             // 4. Redirect to home page - use timeout to ensure other operations complete
             setTimeout(() => {
                 // Add timestamp for cache busting
@@ -1522,6 +1398,5 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.NavbarModule && typeof window.NavbarModule.init === 'function') {
         window.NavbarModule.init();
     } else {
-        console.error('NavbarModule or init function not available');
     }
 }); 

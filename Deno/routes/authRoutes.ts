@@ -16,8 +16,7 @@ const getServerStartTime = (): number => {
 // Add function to set server start time from server.ts
 export function setServerStartTime(time: number): void {
   cachedServerStartTime = time;
-  console.log(`Auth routes: Server start time set to ${new Date(time).toISOString()}`);
-}
+  }
 
 // Auth route handlers
 const login = async (ctx: RouterContext<any, any, any>) => {
@@ -27,7 +26,6 @@ const login = async (ctx: RouterContext<any, any, any>) => {
       const loginJsPath = `${Deno.cwd()}/public/Components/js/login.js`;
       await Deno.stat(loginJsPath);
     } catch (fileError) {
-      console.error("login.js not found:", fileError);
       ctx.response.status = 500;
       ctx.response.body = { 
         message: "Authentication system unavailable", 
@@ -42,9 +40,7 @@ const login = async (ctx: RouterContext<any, any, any>) => {
       // Oak v12 body parsing
       const bodyParser = await ctx.request.body({type: "json"});
       body = await bodyParser.value;
-      console.log("Successfully parsed JSON body");
-    } catch (bodyError) {
-      console.error("Error parsing request body:", bodyError);
+          } catch (bodyError) {
       // Fallback to a simple object if JSON parsing fails
       body = {};
       
@@ -57,12 +53,10 @@ const login = async (ctx: RouterContext<any, any, any>) => {
       // If we still have no data, create dummy data for testing
       if (Object.keys(body).length === 0) {
         body = { ID: "test_user", Password: "password" };
-        console.log("Using fallback test credentials");
-      }
+              }
     }
     
-    console.log("Login request body:", body);
-    
+        
     // Get user info from request
     const userId = body.ID || body.id;
     const password = body.Password || body.password;
@@ -115,16 +109,13 @@ const login = async (ctx: RouterContext<any, any, any>) => {
           }
         } else {
           // Credentials don't match
-          console.log("Invalid credentials. Login rejected.");
-          userExists = false;
+                    userExists = false;
         }
       } else {
         // User doesn't exist in users table
-        console.log(`User ${userId} not found in users table. Login rejected.`);
-        userExists = false;
+                userExists = false;
       }
     } catch (dbError) {
-      console.error("Database error during credential validation:", dbError);
       userExists = false; // Don't allow login on database errors
     }
     
@@ -151,14 +142,12 @@ const login = async (ctx: RouterContext<any, any, any>) => {
           status: 'failed'
         });
       } catch (logError) {
-        console.error("Failed to log failed login attempt:", logError);
       }
       
       return;
     }
     
-    console.log(`Processing login for user ID: ${userId}, assigned role: ${userRole}`);
-    
+        
     // Update last_login timestamp in the users table
     try {
       const { client } = await import("../db/denopost_conn.ts");
@@ -175,10 +164,7 @@ const login = async (ctx: RouterContext<any, any, any>) => {
           [isoTimestamp, userId]
         );
         
-        console.log(`Updated last_login timestamp for user ${userId} to ${isoTimestamp}`);
-      } catch (isoError) {
-        console.warn("ISO timestamp format failed, trying SQL format:", isoError);
-        
+              } catch (isoError) {
         // If ISO format fails, try SQL timestamp format
         try {
           const updateSqlResult = await client.queryObject(
@@ -186,8 +172,7 @@ const login = async (ctx: RouterContext<any, any, any>) => {
             [sqlTimestamp, userId]
           );
           
-          console.log(`Updated last_login timestamp for user ${userId} to ${sqlTimestamp} (SQL format)`);
-        } catch (sqlError) {
+                  } catch (sqlError) {
           // Last resort: use a simple TIMESTAMP literal
           try {
             const updateLiteralResult = await client.queryObject(
@@ -195,14 +180,11 @@ const login = async (ctx: RouterContext<any, any, any>) => {
               [userId]
             );
             
-            console.log(`Updated last_login timestamp for user ${userId} using CURRENT_TIMESTAMP`);
-          } catch (literalError) {
-            console.error("All timestamp update methods failed:", literalError);
+                      } catch (literalError) {
           }
         }
       }
     } catch (updateError) {
-      console.error("Error updating last_login timestamp:", updateError);
       // Continue with login process even if timestamp update fails
     }
     
@@ -214,12 +196,10 @@ const login = async (ctx: RouterContext<any, any, any>) => {
         token = result as `${string}-${string}-${string}-${string}-${string}`;
       }
     } catch (tokenError) {
-      console.error("Token generation error:", tokenError);
     }
     
     // Log the user login with role information
-    console.log(`User login: ${userId} (${userRole}) logged in at ${new Date().toISOString()}`);
-    
+        
     // Log the successful login to the system logs
     try {
       await SystemLogsModel.createLog({
@@ -237,21 +217,17 @@ const login = async (ctx: RouterContext<any, any, any>) => {
         status: 'success'
       });
     } catch (logError) {
-      console.error("Failed to log successful login:", logError);
     }
     
     // Additional logging based on user role
     const lowerRole = String(userRole).toLowerCase();
     switch(lowerRole) {
       case "admin":
-        console.log(`ADMIN LOGIN: Administrator ${userId} accessed the system`);
-        break;
+                break;
       case "user":
-        console.log(`USER LOGIN: Regular user ${userId} accessed the system`);
-        break;
+                break;
       default:
-        console.log(`GUEST LOGIN: Guest user ${userId} accessed the system`);
-    }
+            }
     
     // Determine redirect URL based on user role
     let redirectUrl = "/public/index.html"; // Default redirect
@@ -275,7 +251,6 @@ const login = async (ctx: RouterContext<any, any, any>) => {
       serverTime: getServerStartTime() // Use the function instead of direct reference
     };
   } catch (error) {
-    console.error("Login error:", error);
     ctx.response.status = 400;
     ctx.response.body = { 
       message: "Login failed", 
@@ -300,23 +275,20 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
     
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
-      console.log("Found token in Authorization header");
-    } else if (ctx.cookies && typeof ctx.cookies.get === "function") {
+          } else if (ctx.cookies && typeof ctx.cookies.get === "function") {
       // Try different possible cookie names for the token
       const possibleCookies = ["session_token", "auth_token"];
       for (const cookieName of possibleCookies) {
         const cookieValue = ctx.cookies.get(cookieName);
         if (cookieValue) {
           token = cookieValue;
-          console.log(`Found token in ${cookieName} cookie`);
-          break;
+                    break;
         }
       }
     }
     
     // Log the start of logout process
-    console.log(`[${new Date().toISOString()}] Processing logout request`);
-    
+        
     // If we have a token, try to delete it from the database
     if (token) {
       try {
@@ -325,10 +297,8 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
         
         if (typeof token === 'object') {
           try {
-            console.log("Token is an object, attempting to stringify");
-            tokenString = JSON.stringify(token);
+                        tokenString = JSON.stringify(token);
           } catch (jsonError) {
-            console.error("Failed to stringify token object:", jsonError);
             tokenString = String(token);
           }
         } else {
@@ -338,18 +308,15 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
         // Log the token (safely)
         const tokenStart = tokenString.substring(0, 8);
         const tokenEnd = tokenString.length > 16 ? tokenString.substring(tokenString.length - 8) : '';
-        console.log(`Processing logout for token: ${tokenStart}...${tokenEnd}`);
-        
+                
         // Also try the raw token value if it's been encoded
         let decodedTokenString;
         try {
           decodedTokenString = decodeURIComponent(tokenString);
           if (decodedTokenString !== tokenString) {
-            console.log("Using decoded token value for deletion");
-          }
+                      }
         } catch (e) {
-          console.log("Token decoding failed, using original value");
-          decodedTokenString = tokenString;
+                    decodedTokenString = tokenString;
         }
         
         // Get the user ID from the session before deleting it
@@ -372,20 +339,16 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
               if (sessionResult.rows && sessionResult.rows.length > 0) {
                 const row = sessionResult.rows[0] as { user_id: string };
                 userId = row.user_id;
-                console.log(`Found user ID ${userId} for logout using token: ${tokenVal.substring(0, 8)}...`);
-                foundToken = true;
+                                foundToken = true;
                 break;
               }
             } catch (sessionError) {
-              console.error(`Error retrieving user ID with token ${tokenVal.substring(0, 8)}...`, sessionError);
             }
           }
           
           if (!foundToken) {
-            console.log("Could not find user ID for token in sessions table");
-          }
+                      }
         } catch (sessionError) {
-          console.error("Error retrieving user ID from session:", sessionError);
         }
         
         // Try to delete the token from the database using both formats
@@ -397,18 +360,15 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
           try {
             const deleteResult = await sessionService.deleteSessionToken(tokenVal);
             if (deleteResult) {
-              console.log(`Successfully deleted token from database using value: ${tokenVal.substring(0, 8)}...`);
-              success = true;
+                            success = true;
               break;
             }
           } catch (deleteError) {
-            console.error(`Error deleting token ${tokenVal.substring(0, 8)}...`, deleteError);
           }
         }
         
         if (!success) {
-          console.log("Token not found in database or already deleted");
-        }
+                  }
         
         // Update last_logout timestamp if we have a user ID
         if (userId) {
@@ -422,20 +382,15 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
                 [userId]
               );
               
-              console.log(`Updated last_logout timestamp for user ${userId}`);
-            } catch (updateError) {
-              console.error("Error updating last_logout timestamp:", updateError);
+                          } catch (updateError) {
             }
           } catch (dbError) {
-            console.error("Database connection error when updating last_logout:", dbError);
           }
         }
       } catch (error) {
-        console.error("Error during token deletion:", error);
       }
     } else {
-      console.log("No token provided in logout request");
-    }
+          }
     
     // Clear session cookie
     if (ctx.cookies && typeof ctx.cookies.set === "function") {
@@ -448,8 +403,7 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
     
     // Set more forceful redirect headers and status
     const redirectUrl = `/index.html?loggedOut=true&t=${Date.now()}`;
-    console.log(`[REDIRECT] Setting redirect to ${redirectUrl}`);
-    
+        
     ctx.response.headers.set("Location", redirectUrl);
     ctx.response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     ctx.response.headers.set("Pragma", "no-cache");
@@ -462,11 +416,8 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
     // Empty body for redirect
     ctx.response.body = null;
     
-    console.log("Logout successful, redirecting to index page");
-  } catch (error) {
+      } catch (error) {
     const err = error as Error;
-    console.error("Logout error:", err);
-    
     // More forceful redirect on error
     const errorRedirectUrl = `/index.html?loggedOut=true&error=true&t=${Date.now()}`;
     ctx.response.headers.set("Location", errorRedirectUrl);
@@ -477,8 +428,7 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = 302;
     ctx.response.body = null;
     
-    console.log(`[ERROR REDIRECT] Setting redirect to ${errorRedirectUrl}`);
-  }
+      }
 };
 
 // Export an array of routes

@@ -33,8 +33,7 @@ async function getOrCreateAuthor(fullName: string): Promise<Author> {
   
   if (findResult.rows.length > 0) {
     const author = findResult.rows[0] as unknown as Author;
-    console.log(`Found existing author: ${fullName} with ID: ${author.id}`);
-    return author;
+        return author;
   }
   
   // Author doesn't exist, create a new one
@@ -55,8 +54,7 @@ async function getOrCreateAuthor(fullName: string): Promise<Author> {
   }
   
   const newAuthor = createResult.rows[0] as unknown as Author;
-  console.log(`Created new author: ${fullName} with ID: ${newAuthor.id}`);
-  return newAuthor;
+    return newAuthor;
 }
 
 // Define document-author relationship interface
@@ -74,8 +72,7 @@ interface DocumentAuthor {
  */
 export async function createDocumentAuthors(documentId: string, authors: string[]): Promise<DocumentAuthor[]> {
   try {
-    console.log(`Creating document-author relationships for document ID: ${documentId} with authors:`, authors);
-    
+        
     if (!documentId) {
       throw new Error("Document ID is required");
     }
@@ -87,8 +84,7 @@ export async function createDocumentAuthors(documentId: string, authors: string[
     // First, clear any existing relationships for this document
     const clearQuery = "DELETE FROM document_authors WHERE document_id = $1";
     await client.queryObject(clearQuery, [documentId]);
-    console.log(`Cleared existing author relationships for document ID: ${documentId}`);
-    
+        
     // Process each author
     const results: DocumentAuthor[] = [];
     
@@ -116,13 +112,11 @@ export async function createDocumentAuthors(documentId: string, authors: string[
         throw new Error(`Failed to create document-author relationship for author: ${authorName}`);
       }
       
-      console.log(`Created document-author relationship for document ID: ${documentId}, author: ${authorName}, order: ${i+1}`);
-      results.push(insertResult.rows[0] as unknown as DocumentAuthor);
+            results.push(insertResult.rows[0] as unknown as DocumentAuthor);
     }
     
     return results;
   } catch (error) {
-    console.error("Error creating document-author relationships:", error);
     throw new Error(`Failed to create document-author relationships: ${(error as Error).message}`);
   }
 }
@@ -149,7 +143,6 @@ export async function getDocumentAuthors(documentId: string): Promise<(Author & 
     const result = await client.queryObject(query, [documentId]);
     return result.rows as unknown as (Author & { author_order: number })[];
   } catch (error) {
-    console.error("Error getting document authors:", error);
     throw new Error(`Failed to get document authors: ${(error as Error).message}`);
   }
 } 

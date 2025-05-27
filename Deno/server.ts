@@ -7,9 +7,6 @@ config({
   path: "D:/Documents/Capstone/Peas/paulinian-electronic-archiving-system/deno/.env", 
   export: true 
 });
-console.log("Environment variables loaded from .env file");
-console.log("SMTP Username:", Deno.env.get("SMTP_USERNAME"));
-console.log("SMTP Password set:", Deno.env.get("SMTP_PASSWORD") ? "Yes" : "No");
 
 // -----------------------------
 // SECTION: Imports
@@ -77,8 +74,7 @@ export const SERVER_START_TIME = Date.now();
 // Setup visit counters tables if needed
 async function ensureVisitCounterTablesExist() {
   try {
-    console.log("Checking if visit counter tables exist and creating them if needed...");
-    
+        
     // Document visits table
     await client.queryObject(`
       CREATE TABLE IF NOT EXISTS document_visits (
@@ -119,9 +115,7 @@ async function ensureVisitCounterTablesExist() {
       CREATE INDEX IF NOT EXISTS idx_page_visits_counter_date ON page_visits_counter(date);
     `);
     
-    console.log(" Visit counter tables are ready");
-  } catch (error) {
-    console.error(" Error setting up visit counter tables:", error);
+      } catch (error) {
   }
 }
 
@@ -133,13 +127,10 @@ try {
     if (authRoutesModule.setServerStartTime) {
       authRoutesModule.setServerStartTime(SERVER_START_TIME);
     } else {
-      console.warn("authRoutes.ts does not export setServerStartTime function");
     }
   }).catch(err => {
-    console.error("Failed to update auth routes with server start time:", err);
   });
 } catch (error) {
-  console.error("Error updating auth routes with server start time:", error);
 }
 
 // -----------------------------
@@ -150,7 +141,6 @@ app.use(async (ctx, next) => {
   try {
     await next();
   } catch (err) {
-    console.error("Server error:", err);
     ctx.response.status = 500;
     ctx.response.body = {
       message: "Internal server error",
@@ -164,8 +154,7 @@ app.use(async (ctx, next) => {
   const start = Date.now();
   await next();
   const ms = Date.now() - start;
-  console.log(`${ctx.request.method} ${ctx.request.url.pathname} - ${ms}ms`);
-});
+  });
 
 // Add static file serving middleware
 app.use(async (ctx, next) => {
@@ -217,18 +206,15 @@ app.use(async (ctx, next) => {
       let correctPath;
       if (ctx.request.url.pathname.includes('users/profile-picture')) {
         correctPath = `storage/users/profile-picture/${filename}`;
-        console.log(`Serving user profile picture: ${filename} from path: ${correctPath}`);
-      } else {
+              } else {
         correctPath = `storage/authors/profile-pictures/${filename}`;
-        console.log(`Serving author profile picture: ${filename} from path: ${correctPath}`);
-      }
+              }
       
       await ctx.send({
         root: workspaceRoot,
         path: correctPath,
       });
     } catch (err) {
-      console.error(`Error serving profile picture: ${err instanceof Error ? err.message : String(err)}`);
       await next();
     }
   } else {
@@ -249,14 +235,12 @@ app.use(async (ctx, next) => {
       
       // Normalize the path to handle Windows-style paths
       const normalizedPath = path.replace(/^[A-Z]:\//, '');
-      console.log(`Attempting to serve file: ${normalizedPath} from workspace root: ${workspaceRoot}`);
-      
+            
       await ctx.send({
         root: workspaceRoot,  // Use the workspace root to find the file
         path: normalizedPath,
       });
     } catch (err) {
-      console.error(`Error serving file from storage: ${err.message}`);
       await next();
     }
   } else {
@@ -331,8 +315,7 @@ router.get("/api/documents", async (ctx) => {
     const category = url.searchParams.get("category") || null;
     const search = url.searchParams.get("search") || null;
     
-    console.log(`[SERVER] Document request: page=${rawPage}, size=${rawLimit}, sort=${sort}, category=${category || 'All'}, search=${search || 'none'}`);
-    
+        
     // Validate page and limit parameters
     const page = parseInt(rawPage);
     const limit = parseInt(rawLimit);
@@ -358,54 +341,42 @@ router.get("/api/documents", async (ctx) => {
       order: sort === "latest" ? "DESC" : "ASC"
     });
     
-    console.log(`[SERVER] Got ${response.documents?.length || 0} documents from database`);
-    
+        
     // Detailed logging
     if (response.documents && response.documents.length > 0) {
-      console.log(`[SERVER] First few documents from DB:`);
-      response.documents.slice(0, 3).forEach(doc => {
-        console.log(`[SERVER] Document ID=${doc.id}, Title="${doc.title}", is_compiled=${doc.is_compiled}, deleted_at=${doc.deleted_at || 'NULL'}`);
-      });
+            response.documents.slice(0, 3).forEach(doc => {
+              });
     }
     
     // Make sure all documents are filtered to exclude deleted items
     if (response.documents) {
-      console.log(`[SERVER] Starting to filter ${response.documents.length} documents`);
-      
+            
       // Check for compiled documents that might be deleted
       const filteredDocuments = response.documents.filter(doc => {
         // Debug
-        console.log(`[SERVER] Filtering document ID=${doc.id}, deleted_at=${doc.deleted_at || 'NULL'}, is_compiled=${doc.is_compiled}`);
-        
+                
         // If document has deleted_at timestamp, it should be filtered out
         if (doc.deleted_at) {
-          console.warn(`[SERVER] Filtering out document ${doc.id} with deleted_at set: ${doc.deleted_at}`);
           return false;
         }
         
         // For compiled documents, check the delete status differently
         if (doc.is_compiled === true) {
-          console.log(`[SERVER] Special check for compiled document ${doc.id}, deleted_at=${doc.deleted_at || 'NULL'}`);
-          // Only filter out if we know for sure it's deleted
+                    // Only filter out if we know for sure it's deleted
           if (doc.deleted_at !== null && doc.deleted_at !== undefined) {
-            console.warn(`[SERVER] Filtering out compiled document ${doc.id} with deleted_at set`);
             return false;
           }
           // If deleted_at is null/undefined, keep the document
-          console.log(`[SERVER] Keeping compiled document ${doc.id} (deleted_at is ${doc.deleted_at === null ? 'null' : 'undefined'})`);
-          return true;
+                    return true;
         }
         
-        console.log(`[SERVER] Keeping regular document ${doc.id} (no deleted_at)`);
-        return true;
+                return true;
       });
       
       // Log any discrepancies
       if (filteredDocuments.length !== response.documents.length) {
-        console.warn(`[SERVER] Filtered out ${response.documents.length - filteredDocuments.length} deleted documents that were incorrectly returned`);
       } else {
-        console.log(`[SERVER] No documents were filtered out`);
-      }
+              }
       
       // Replace documents with filtered list
       response.documents = filteredDocuments;
@@ -429,9 +400,7 @@ router.get("/api/documents", async (ctx) => {
       totalDocuments: response.totalCount,
       page
     };
-    console.log(`[SERVER] Finished processing request, returning ${response.documents?.length || 0} documents`);
-  } catch (error) {
-    console.error("[SERVER] Error fetching documents:", error);
+      } catch (error) {
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to fetch documents",
@@ -463,7 +432,6 @@ router.post("/api/documents", async (ctx) => {
     ctx.response.headers = response.headers;
     ctx.response.body = await response.json();
   } catch (error) {
-    console.error("Error creating document:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: error.message };
   }
@@ -473,8 +441,7 @@ router.post("/api/documents", async (ctx) => {
 router.get("/api/documents/:id/children", async (ctx) => {
   try {
     const docId = ctx.params.id;
-    console.log(`Server: Handling request for child documents of document ID: ${docId}`);
-    
+        
     // Convert context to Request for the controller
     const request = new Request(`${ctx.request.url.origin}/api/documents/${docId}/children`, {
       method: "GET",
@@ -489,7 +456,6 @@ router.get("/api/documents/:id/children", async (ctx) => {
     ctx.response.headers = response.headers;
     ctx.response.body = await response.json();
   } catch (error) {
-    console.error(`Error handling child documents request:`, error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to fetch child documents",
@@ -508,8 +474,7 @@ router.get("/api/categories", getCategories);
 router.get("/api/document-authors/:documentId", async (ctx) => {
   try {
     const documentId = ctx.params.documentId;
-    console.log(`Server: Handling request for authors of document ID: ${documentId}`);
-    
+        
     // Get document authors from the controller
     const authors = await getDocumentAuthors(documentId);
     
@@ -520,7 +485,6 @@ router.get("/api/document-authors/:documentId", async (ctx) => {
       authors: authors
     };
   } catch (error) {
-    console.error(`Error fetching authors for document ${ctx.params.documentId}:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to fetch document authors",
@@ -532,8 +496,7 @@ router.get("/api/document-authors/:documentId", async (ctx) => {
 // Add endpoint to get all authors
 router.get("/api/authors/all", async (ctx) => {
   try {
-    console.log("Server: Handling request for all authors");
-    
+        
     // Import AuthorModel dynamically to avoid circular dependencies
     const { AuthorModel } = await import("./models/authorModel.ts");
     
@@ -579,7 +542,6 @@ router.get("/api/authors/all", async (ctx) => {
       authors: formattedAuthors
     };
   } catch (error) {
-    console.error("Error fetching all authors:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: error instanceof Error ? error.message : "Unknown error", 
@@ -595,8 +557,7 @@ router.get("/api/authors/search", async (ctx) => {
     const url = new URL(ctx.request.url);
     const query = url.searchParams.get("q") || '';
     
-    console.log(`Server: Handling author search request for query: "${query}"`);
-    
+        
     if (!query) {
       ctx.response.status = 200;
       ctx.response.body = [];
@@ -634,7 +595,6 @@ router.get("/api/authors/search", async (ctx) => {
     ctx.response.status = 200;
     ctx.response.body = authors;
   } catch (error) {
-    console.error("Error searching authors:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: error instanceof Error ? error.message : "Unknown error" 
@@ -652,8 +612,7 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
       return;
     }
     
-  console.log(`Fetching works for author ID: ${authorId}`);
-  
+    
   try {
     // Get document IDs authored by this author
     const docIds = await AuthorModel.getDocuments(authorId);
@@ -663,8 +622,7 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
     for (const docId of docIds) {
       const doc = await DocumentModel.getById(docId);
       if (doc) {
-        console.log(`Processing document ${docId}, type: ${doc.document_type}`);
-        
+                
         // Get topics for this document
         const topicsQuery = `
           SELECT ra.id, ra.name
@@ -679,9 +637,7 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
             id: topic.id,
             name: topic.name || '',
           }));
-          console.log(`Found ${(doc as any).topics.length} topics directly for document ${docId}`);
-        } catch (error) {
-          console.error(`Error fetching topics for document ${docId}:`, error instanceof Error ? error.message : String(error));
+                  } catch (error) {
           (doc as any).topics = [];
         }
 
@@ -705,8 +661,7 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
             default:
               categoryName = doc.document_type;
           }
-          console.log(`Using document_type "${doc.document_type}" as category for document ${docId}`);
-        }
+                  }
 
         // If no topics, but we might have research agendas elsewhere
         // Skip the category_research_agenda query since that table doesn't exist
@@ -732,8 +687,7 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
 
     // Helper function to format document dates based on type
     function formatDocumentDate(doc: any): string {
-      console.log(`Formatting date for document type: ${doc.document_type}, pub date: ${doc.publication_date}, start: ${doc.start_year}, end: ${doc.end_year}`);
-      
+            
       // For single documents (THESIS or DISSERTATION) with publication date
       if (doc.publication_date && (doc.document_type === 'THESIS' || doc.document_type === 'DISSERTATION')) {
         try {
@@ -741,7 +695,6 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
           // Format as Month Year (e.g., "May 2023")
           return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         } catch (e) {
-          console.error("Error formatting publication date:", e);
           return String(doc.publication_date);
         }
       }
@@ -778,7 +731,6 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
       works,
     };
   } catch (error) {
-    console.error('Error fetching author works:', error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch author works',
@@ -797,8 +749,7 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
       return;
     }
     
-  console.log(`Synchronizing authors for compiled document ID: ${compiledDocId}`);
-  
+    
   try {
     // Get child documents for this compiled document
     const childDocsResponse = await fetchChildDocuments(compiledDocId);
@@ -819,8 +770,7 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
     
     // Process each child document to collect all authors
     for (const doc of childDocs) {
-      console.log(`Processing child document: ${doc.id} with ${doc.authors.length} authors`);
-      
+            
       // Process each author of this document
       for (const author of doc.authors) {
         if (!authorMap.has(author.id)) {
@@ -836,8 +786,7 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
       full_name: name
     }));
 
-    console.log(`Found ${uniqueAuthors.length} unique authors across ${childDocs.length} child documents`);
-
+    
     ctx.response.status = 200;
     ctx.response.body = {
       compiledDocId,
@@ -847,7 +796,6 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
       status: 'success'
     };
   } catch (error) {
-    console.error('Error synchronizing compiled document authors:', error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to synchronize compiled document authors',
@@ -927,7 +875,6 @@ router.put("/api/authors/:authorId", async (ctx) => {
       author: updatedAuthor
     };
   } catch (error) {
-    console.error(`Error updating author ${authorId}:`, error);
     ctx.response.status = 500;
     ctx.response.body = { error: error instanceof Error ? error.message : "Unknown error" };
   }
@@ -950,8 +897,7 @@ router.post("/api/document-research-agenda/link", async (ctx) => {
       return;
     }
     
-    console.log(`Linking ${body.agenda_items.length} research agenda items to document ${body.document_id}`);
-    
+        
     const result = await ResearchAgendaModel.linkItemsToDocumentByName(
       parseInt(body.document_id.toString()),
       body.agenda_items
@@ -968,7 +914,6 @@ router.post("/api/document-research-agenda/link", async (ctx) => {
       ctx.response.body = { error: "Failed to link research agenda items to document" };
     }
   } catch (error) {
-    console.error("Error linking research agenda items:", error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to link research agenda items",
@@ -1004,7 +949,6 @@ app.use(unifiedArchiveRoutes);
 app.use(unifiedArchiveAllowedMethods);
 
 // Log that unified archive API is available
-console.log("Unified Archive API routes registered");
 
 // -----------------------------
 // SECTION: Document Metadata Update Route
@@ -1040,7 +984,6 @@ router.put("/api/documents/:id/metadata", async (ctx) => {
     ctx.response.body = await updateResponse.json();
     
   } catch (error) {
-    console.error("Error updating document metadata:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to update document metadata",
@@ -1072,8 +1015,7 @@ router.post("/api/ensure-directory", async (ctx) => {
       return;
     }
     
-    console.log(`Ensuring directory exists: ${path}`);
-    
+        
     // Get the workspace root directory (parent of Deno directory)
     const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
     
@@ -1081,13 +1023,11 @@ router.post("/api/ensure-directory", async (ctx) => {
     let fullPath = path;
     if (path.includes("Deno/storage/")) {
       fullPath = path.replace("Deno/storage/", "storage/");
-      console.log(`Fixed path: ${fullPath}`);
-    }
+          }
     
     // Create absolute path from workspace root
     const absolutePath = join(workspaceRoot, fullPath);
-    console.log(`Creating directory at absolute path: ${absolutePath}`);
-    
+        
     // Create the directory
     await ensureDir(absolutePath);
     
@@ -1097,10 +1037,8 @@ router.post("/api/ensure-directory", async (ctx) => {
       if (!stat.isDirectory) {
         throw new Error(`Path exists but is not a directory: ${absolutePath}`);
       }
-      console.log(`Directory verified at: ${absolutePath}`);
-    } catch (verifyError: unknown) {
+          } catch (verifyError: unknown) {
       const errorMessage = verifyError instanceof Error ? verifyError.message : String(verifyError);
-      console.error(`Error verifying directory: ${errorMessage}`);
       throw new Error(`Failed to verify directory: ${errorMessage}`);
     }
     
@@ -1111,7 +1049,6 @@ router.post("/api/ensure-directory", async (ctx) => {
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error creating directory:", errorMessage);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to create directory",
@@ -1125,18 +1062,15 @@ router.post("/api/ensure-directory", async (ctx) => {
 // -----------------------------
 // Create required directories for storage
 async function setupDirectories() {
-  console.log("Setting up storage directories...");
-  
+    
   try {
     // Get the workspace root directory (parent of Deno directory)
     const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
-    console.log("Workspace root:", workspaceRoot);
-    
+        
     // Create main storage directory at the workspace root level
     const storageBase = join(workspaceRoot, 'storage');
     await ensureDir(storageBase);
-    console.log("Created main storage directory at:", storageBase);
-    
+        
     // Create only the necessary document type directories
     const directories = [
       join(storageBase, 'thesis'),
@@ -1150,25 +1084,19 @@ async function setupDirectories() {
     // Create all directories
     for (const dir of directories) {
       await ensureDir(dir);
-      console.log("Created directory:", dir);
-    }
+          }
     
-    console.log("Storage directories created successfully at workspace root level");
-    
+        
     // List the directories that were created to verify
     try {
-      console.log("\nVerifying storage directories:");
-      for await (const entry of Deno.readDir(storageBase)) {
+            for await (const entry of Deno.readDir(storageBase)) {
         if (entry.isDirectory) {
-          console.log(`- ${entry.name}`);
-        }
+                  }
       }
     } catch (listError) {
-      console.error("Error listing directories:", listError);
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error creating storage directories:", errorMessage);
     throw new Error(`Failed to create storage directories: ${errorMessage}`);
   }
 }
@@ -1176,19 +1104,16 @@ async function setupDirectories() {
 // Function to run database migrations
 // Removed - related to document views functionality
 // async function runMigrations() {
-//   console.log("[DATABASE] Running migrations...");
-//   
+//   //   
 //   try {
 //     // Document Views table
-//     console.log("[DATABASE] Migrating document_views table...");
-//     const documentViewsMigration = await readTextFile("./db/migrations/document_views_table.sql");
+//     //     const documentViewsMigration = await readTextFile("./db/migrations/document_views_table.sql");
 //     await client.queryArray(documentViewsMigration);
 //     
 //     // Call the migration function
 //     await client.queryArray("SELECT migrate_document_views()");
 //     
-//     console.log("[DATABASE] Migrations completed successfully");
-//   } catch (error) {
+//     //   } catch (error) {
 //     console.error("[DATABASE] Error running migrations:", error);
 //   }
 // }
@@ -1197,17 +1122,14 @@ async function setupDirectories() {
 // SECTION: Server Startup
 // -----------------------------
 async function startServer() {
-  console.log(`[SERVER] Starting server at ${new Date().toISOString()}`);
-  
+    
   try {
     // Create necessary directories
     await setupDirectories();
     
     // Connect to the database
-    console.log("Connecting to database...");
-    await connectToDb();
-    console.log("[SERVER] Database connected successfully");
-    
+        await connectToDb();
+        
     // Run database diagnostics
     await diagnoseDatabaseIssues();
     
@@ -1219,18 +1141,15 @@ async function startServer() {
     app.use(router.allowedMethods());
     
     // Register author visits routes
-    console.log("Registering author visits routes...");
-    app.use(authorVisitsRoutes);
+        app.use(authorVisitsRoutes);
     app.use(authorVisitsAllowedMethods);
     
     // Register page visits routes
-    console.log("Registering page visits routes...");
-    app.use(pageVisitsRoutes);
+        app.use(pageVisitsRoutes);
     app.use(pageVisitsAllowedMethods);
     
     // Register system logs routes
-    console.log("Registering system logs routes...");
-    app.use(systemLogsRoutes);
+        app.use(systemLogsRoutes);
     app.use((ctx, next) => {
       if (ctx.request.method === "OPTIONS" && 
           ctx.request.url.pathname.startsWith("/api/system-logs")) {
@@ -1247,20 +1166,17 @@ async function startServer() {
     });
     
     // Register keywords routes
-    console.log("Registering keywords routes...");
-    app.use(keywordsRoutes.routes());
+        app.use(keywordsRoutes.routes());
     app.use(keywordsRoutes.allowedMethods());
     
     // Register reports routes
-    console.log("Registering reports routes...");
-    app.use(reportsRoutes.routes());
+        app.use(reportsRoutes.routes());
     app.use(reportsRoutes.allowedMethods());
     
     // Custom 404 handler - must be added last in the middleware chain
     app.use(async (ctx) => {
       // This middleware will only be reached if no other middleware handled the request
-      console.log(`[404] Not Found: ${ctx.request.method} ${ctx.request.url.pathname}`);
-      
+            
       try {
         // Set status to 404
         ctx.response.status = 404;
@@ -1274,21 +1190,17 @@ async function startServer() {
           const customErrorPath = `${Deno.cwd()}/Public/pages/miscellaneous/404.html`;
           try {
             // Normalize the path to handle different file systems
-            console.log(`[404] Attempting to read file from: ${customErrorPath}`);
-            const content = await Deno.readTextFile(customErrorPath);
+                        const content = await Deno.readTextFile(customErrorPath);
             ctx.response.type = "text/html";
             ctx.response.body = content;
           } catch (e: unknown) {
             // Try alternative path with lowercase
             try {
               const lowerCasePath = `${Deno.cwd()}/public/pages/miscellaneous/404.html`;
-              console.log(`[404] First attempt failed, trying: ${lowerCasePath}`);
-              const content = await Deno.readTextFile(lowerCasePath);
+                            const content = await Deno.readTextFile(lowerCasePath);
               ctx.response.type = "text/html";
               ctx.response.body = content;
             } catch (innerE: unknown) {
-              console.error(`Failed to read 404.html: ${e instanceof Error ? e.message : String(e)}`);
-              console.error(`Also failed with lowercase path: ${innerE instanceof Error ? innerE.message : String(innerE)}`);
               // Fallback to simple text response if file can't be read
               ctx.response.type = "text/plain";
               ctx.response.body = "404 - Page Not Found";
@@ -1304,17 +1216,14 @@ async function startServer() {
           };
         }
       } catch (err: unknown) {
-        console.error(`Error in 404 handler: ${err instanceof Error ? err.message : String(err)}`);
         ctx.response.status = 500;
         ctx.response.body = "Internal Server Error";
       }
     });
     
     // Start the server
-    console.log(`🌐 Server running on http://localhost:${PORT}`);
-    await app.listen({ port: Number(PORT) });
+        await app.listen({ port: Number(PORT) });
   } catch (error) {
-    console.error(`[SERVER] Failed to start server: ${error.message}`);
     Deno.exit(1);
   }
 }
@@ -1330,7 +1239,6 @@ router.get('/api/affiliations', async (ctx) => {
     ctx.response.type = "json";
     ctx.response.body = result.rows.map((row: any) => row.affiliation);
   } catch (error) {
-    console.error("Error fetching affiliations:", error);
     ctx.response.status = 500;
     ctx.response.type = "json";
     ctx.response.body = { error: error instanceof Error ? error.message : "Unknown error" };
@@ -1444,7 +1352,6 @@ router.get("/api/email-logs", async (ctx) => {
     };
     
   } catch (error) {
-    console.error("Error retrieving email logs:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Server error while retrieving email logs",
@@ -1477,7 +1384,6 @@ router.get("/api/compiled-documents/:id", async (ctx) => {
       const childDocsResponse = await fetchChildDocuments(id);
       childDocs = childDocsResponse.documents || [];
     } catch (childError) {
-      console.warn(`Could not fetch child documents for compiled doc ${id}:`, childError);
     }
     
     // Fetch authors for the document if they're not already included
@@ -1492,7 +1398,6 @@ router.get("/api/compiled-documents/:id", async (ctx) => {
         authors = authorsData || [];
       }
     } catch (authorError) {
-      console.warn(`Could not fetch authors for compiled doc ${id}:`, authorError);
     }
     
     // Combine all data
@@ -1502,11 +1407,9 @@ router.get("/api/compiled-documents/:id", async (ctx) => {
       child_documents: childDocs
     };
     
-    console.log(`Fetched compiled document ${id} with ${childDocs.length} child documents and ${authors.length} authors`);
-    
+        
     ctx.response.body = result;
   } catch (error) {
-    console.error(`Error fetching compiled document: ${error.message}`);
     ctx.response.status = 500;
     ctx.response.body = { error: "Failed to fetch compiled document" };
   }
@@ -1538,7 +1441,6 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
     try {
       visitStats = await PageVisitsModel.getDocumentVisitCounters(id.toString());
     } catch (visitError) {
-      console.warn(`Could not fetch visit statistics for compiled doc ${id}:`, visitError);
     }
     
     // Get child documents
@@ -1559,7 +1461,6 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
             childDoc.guest_count = childVisitStats.guest || 0;
             childDoc.user_count = childVisitStats.user || 0;
           } catch (childVisitError) {
-            console.warn(`Could not fetch visit statistics for child doc ${childId}:`, childVisitError);
             childDoc.visit_count = 0;
             childDoc.guest_count = 0;
             childDoc.user_count = 0;
@@ -1571,7 +1472,6 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
       childDocs.sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
       
     } catch (childError) {
-      console.warn(`Could not fetch child documents for compiled doc ${id}:`, childError);
     }
     
     // Fetch authors for the document if they're not already included
@@ -1586,7 +1486,6 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
         authors = authorsData || [];
       }
     } catch (authorError) {
-      console.warn(`Could not fetch authors for compiled doc ${id}:`, authorError);
     }
     
     // Combine all data
@@ -1599,11 +1498,9 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
       user_count: visitStats.user || 0
     };
     
-    console.log(`Fetched detailed compiled document ${id} with ${childDocs.length} child documents and visit stats`);
-    
+        
     ctx.response.body = result;
   } catch (error) {
-    console.error(`Error fetching compiled document details: ${error.message}`);
     ctx.response.status = 500;
     ctx.response.body = { error: "Failed to fetch compiled document details" };
   }
@@ -1613,8 +1510,7 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
 router.get("/api/compiled-documents/:id/children", async (ctx) => {
   try {
     const id = ctx.params.id;
-    console.log(`Handling request for children of compiled document ID: ${id}`);
-    
+        
     if (!id) {
       ctx.response.status = 400;
       ctx.response.body = { error: "Compiled document ID is required" };
@@ -1624,16 +1520,14 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
     // Get the category parameter if specified in the request
     const url = new URL(ctx.request.url);
     const categoryParam = url.searchParams.get('category');
-    console.log(`Category parameter for document ${id}: ${categoryParam || 'none'}`);
-    
+        
     // Fetch child documents
     const childDocumentsResponse = await fetchChildDocuments(id);
     let childDocuments = childDocumentsResponse.documents || [];
     
     // If we have a category parameter and child documents, filter by category
     if (categoryParam && childDocuments.length > 0) {
-      console.log(`Filtering ${childDocuments.length} documents by category: ${categoryParam}`);
-      const originalCount = childDocuments.length;
+            const originalCount = childDocuments.length;
       
       // Convert category param to uppercase for case-insensitive comparison
       const targetCategory = categoryParam.toUpperCase();
@@ -1644,8 +1538,7 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
         return docType === targetCategory;
       });
       
-      console.log(`Filtered to ${childDocuments.length} documents (removed ${originalCount - childDocuments.length})`);
-    }
+          }
     
     // Process and enhance child documents if needed
     const enhancedChildren = await Promise.all(childDocuments.map(async (doc) => {
@@ -1656,7 +1549,6 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
             const authors = await getDocumentAuthors(String(doc.id));
             doc.authors = authors || [];
           } catch (err) {
-            console.warn(`Error fetching authors for child document ${doc.id}:`, err);
           }
         }
         
@@ -1667,13 +1559,11 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
           document_type: doc.document_type || categoryParam // Use category param as fallback if document_type is missing
         };
       } catch (docError) {
-        console.warn(`Error enhancing child document ${doc.id}:`, docError);
         return doc;
       }
     }));
     
-    console.log(`Returning ${enhancedChildren.length} child documents for compiled document ${id}`);
-    
+        
     ctx.response.status = 200;
     ctx.response.body = { 
       parent_id: id,
@@ -1682,7 +1572,6 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
       count: enhancedChildren.length
     };
   } catch (error) {
-    console.error(`Error fetching child documents for compiled document ${ctx.params.id}:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to fetch child documents",
@@ -1695,8 +1584,7 @@ router.get("/api/compiled-documents/:id/children", async (ctx) => {
 router.get("/compiled-documents/:id/children", async (ctx) => {
   // Redirect to the API version of the endpoint
   const id = ctx.params.id;
-  console.log(`Redirecting /compiled-documents/${id}/children to /api/compiled-documents/${id}/children`);
-  
+    
   try {
     // Reuse the same handler as the API endpoint
     const apiRequest = new Request(`${ctx.request.url.origin}/api/compiled-documents/${id}/children`, {
@@ -1712,7 +1600,6 @@ router.get("/compiled-documents/:id/children", async (ctx) => {
     ctx.response.headers = apiResponse.headers;
     ctx.response.body = await apiResponse.json();
   } catch (error) {
-    console.error(`Error in compiled documents redirect handler:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to fetch child documents", 
@@ -1734,14 +1621,12 @@ router.get("/api/user/profile", async (ctx) => {
   ctx.response.headers = response.headers;
   ctx.response.body = await response.json();
   
-  console.log(`[SERVER] User profile request processed, status: ${response.status}`);
-});
+  });
 
 // Register user password update endpoint
 router.put("/api/user/profile/password", async (ctx) => {
   try {
-    console.log(`[SERVER] Processing password update request`);
-    
+        
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
     
@@ -1781,7 +1666,6 @@ router.put("/api/user/profile/password", async (ctx) => {
       }
     }
   } catch (error) {
-    console.error(`[SERVER] Error handling password update request:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error processing password update",
@@ -1793,13 +1677,11 @@ router.put("/api/user/profile/password", async (ctx) => {
 // Register profile picture upload endpoint
 router.post("/api/user/profile/picture", async (ctx) => {
   try {
-    console.log(`[SERVER] Processing profile picture upload request`);
-    
+        
     // Directly call the handler with the context
     await handleUserProfilePictureUpload(ctx);
     
   } catch (error) {
-    console.error(`[SERVER] Error handling profile picture upload:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error processing profile picture upload",
@@ -1810,8 +1692,7 @@ router.post("/api/user/profile/picture", async (ctx) => {
 
 // Register logout endpoint 
 router.post("/logout", async (ctx) => {
-  console.log("[SERVER] Processing logout POST request");
-  
+    
   const request = new Request(ctx.request.url.toString(), {
     method: "POST",
     headers: ctx.request.headers
@@ -1827,16 +1708,13 @@ router.post("/logout", async (ctx) => {
   }
   
   if (response.status === 302) {
-    console.log("[SERVER] Logout successful, redirecting to:", response.headers.get("Location"));
-  } else {
-    console.warn("[SERVER] Logout returned non-redirect status:", response.status);
+      } else {
   }
 });
 
 // Also handle GET requests to /logout (for direct link access)
 router.get("/logout", async (ctx) => {
-  console.log("[SERVER] Processing logout GET request");
-  
+    
   const request = new Request(ctx.request.url.toString(), {
     method: "GET",
     headers: ctx.request.headers
@@ -1852,17 +1730,14 @@ router.get("/logout", async (ctx) => {
   }
   
   if (response.status === 302) {
-    console.log("[SERVER] GET Logout successful, redirecting to:", response.headers.get("Location"));
-  } else {
-    console.warn("[SERVER] GET Logout returned non-redirect status:", response.status);
+      } else {
   }
 });
 
 // Add route for most visited documents
 router.get("/api/documents/most-visited", async (ctx) => {
   try {
-    console.log("[SERVER] Fetching most visited documents");
-    
+        
     // Extract query parameters
     const url = new URL(ctx.request.url);
     const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -1872,8 +1747,7 @@ router.get("/api/documents/most-visited", async (ctx) => {
     const { PageVisitsModel } = await import("./models/pageVisitsModel.ts");
     const documents = await PageVisitsModel.getMostVisitedDocuments(limit, days);
     
-    console.log(`[SERVER] Found ${documents.length} most visited documents`);
-    
+        
     // Format response to match expected format in frontend
     ctx.response.status = 200;
     ctx.response.body = { 
@@ -1887,7 +1761,6 @@ router.get("/api/documents/most-visited", async (ctx) => {
       }))
     };
   } catch (error) {
-    console.error("[SERVER] Error fetching most visited documents:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -1896,8 +1769,7 @@ router.get("/api/documents/most-visited", async (ctx) => {
 // Add route for recording document view
 router.post("/api/document-views", async (ctx) => {
   try {
-    console.log("[SERVER] Recording document view");
-    // TODO: Fix DocumentViewController implementation
+        // TODO: Fix DocumentViewController implementation
     // const request = new Request(ctx.request.url.toString(), {
     //   method: ctx.request.method,
     //   headers: ctx.request.headers,
@@ -1914,7 +1786,6 @@ router.post("/api/document-views", async (ctx) => {
     ctx.response.status = 200;
     ctx.response.body = { success: true };
   } catch (error) {
-    console.error("[SERVER] Error recording document view:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -1923,8 +1794,7 @@ router.post("/api/document-views", async (ctx) => {
 // Add route for getting document view statistics
 router.get("/api/document-views/stats", async (ctx) => {
   try {
-    console.log("[SERVER] Fetching document view statistics");
-    // TODO: Fix DocumentViewController implementation
+        // TODO: Fix DocumentViewController implementation
     // const request = new Request(ctx.request.url.toString(), {
     //   method: ctx.request.method,
     //   headers: ctx.request.headers
@@ -1940,7 +1810,6 @@ router.get("/api/document-views/stats", async (ctx) => {
     ctx.response.status = 200;
     ctx.response.body = { stats: {} };
   } catch (error) {
-    console.error("[SERVER] Error fetching document view statistics:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -1962,8 +1831,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
     const categoryParam = url.searchParams.get('category');
     const format = url.searchParams.get('format') || 'auto'; // Get format parameter
     
-    console.log(`Fetching foreword for document ID: ${id}, category param: ${categoryParam || 'none'}, format: ${format}`);
-    
+        
     // First, get the category of the compiled document from the database
     const categoryQuery = `
       SELECT category 
@@ -1984,8 +1852,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
     
     // Use the explicitly provided category parameter if available, otherwise use the database value
     const category = categoryParam || dbCategory;
-    console.log(`Using category ${category} for foreword lookup (DB: ${dbCategory}, Param: ${categoryParam || 'none'})`);
-    
+        
     // Fetch the foreword file path from the compiled_documents table
     const forewordQuery = `
       SELECT foreword
@@ -2010,8 +1877,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
       return;
     }
     
-    console.log(`Found foreword file path: ${forewordPath}`);
-    
+        
     // Try to load the foreword file
     try {
       // Get the workspace root directory (parent of Deno directory)
@@ -2022,8 +1888,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
       
       // Create absolute path from workspace root
       const absolutePath = join(workspaceRoot, normalizedPath);
-      console.log(`Attempting to read foreword from: ${absolutePath}`);
-      
+            
       // Check if the file exists
       await Deno.stat(absolutePath);
       
@@ -2032,8 +1897,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
       
       // If it's a PDF and format isn't explicitly set to 'json', serve it directly with the proper content type
       if (isPdf && format !== 'json') {
-        console.log(`Serving PDF foreword file directly with application/pdf content type`);
-        
+                
         // Set PDF content type header
         ctx.response.headers.set('Content-Type', 'application/pdf');
         
@@ -2059,7 +1923,6 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
         foreword_path: forewordPath
       };
     } catch (fileError) {
-      console.error(`Error reading foreword file: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
       ctx.response.status = 404;
       ctx.response.body = { 
         error: `Failed to read foreword file for compiled document ${id}`,
@@ -2067,7 +1930,6 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
       };
     }
   } catch (error) {
-    console.error(`Error fetching foreword for compiled document ${id}:`, error instanceof Error ? error.message : String(error));
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to fetch foreword for compiled document",
@@ -2079,8 +1941,7 @@ router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
 // Add route for user library
 router.all("/api/user/library(/.*)?", async (ctx) => {
   try {
-    console.log(`[SERVER] Processing ${ctx.request.method} request to ${ctx.request.url.pathname}`);
-    
+        
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
     
@@ -2120,7 +1981,6 @@ router.all("/api/user/library(/.*)?", async (ctx) => {
       }
     }
   } catch (error) {
-    console.error(`[SERVER] Error handling user library request:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error processing user library request",
@@ -2132,8 +1992,7 @@ router.all("/api/user/library(/.*)?", async (ctx) => {
 // Add endpoint to save compiled documents to user's library
 router.post("/api/compiled-documents/save-to-library", async (ctx) => {
   try {
-    console.log(`[SERVER] Processing request to save compiled document to library`);
-    
+        
     // Verify user authentication
     const authHeader = ctx.request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -2177,8 +2036,7 @@ router.post("/api/compiled-documents/save-to-library", async (ctx) => {
         return;
       }
       
-      console.log(`[SERVER] Adding compiled document ${documentId} to library for user ${userId}`);
-      
+            
       // Import the UserLibraryModel dynamically
       const { UserLibraryModel } = await import("./models/userLibraryModel.ts");
       
@@ -2213,12 +2071,10 @@ router.post("/api/compiled-documents/save-to-library", async (ctx) => {
         throw new Error("Failed to add compiled document to library");
       }
     } catch (authError) {
-      console.error(`[SERVER] Authentication error:`, authError);
       ctx.response.status = 401;
       ctx.response.body = { error: "Authentication failed" };
     }
   } catch (error) {
-    console.error(`[SERVER] Error saving compiled document to library:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to add compiled document to library",
@@ -2230,8 +2086,7 @@ router.post("/api/compiled-documents/save-to-library", async (ctx) => {
 // Also add a matching endpoint for the alternative method
 router.post("/api/library/save-compiled", async (ctx) => {
   try {
-    console.log(`[SERVER] Processing alternative request to save compiled document to library`);
-    
+        
     // Verify user authentication
     const authHeader = ctx.request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -2273,8 +2128,7 @@ router.post("/api/library/save-compiled", async (ctx) => {
       return;
     }
     
-    console.log(`[SERVER] Adding compiled document ${documentId} to library for user ${userId} via alternative method`);
-    
+        
     // Import the UserLibraryModel dynamically
     const { UserLibraryModel } = await import("./models/userLibraryModel.ts");
     
@@ -2309,7 +2163,6 @@ router.post("/api/library/save-compiled", async (ctx) => {
       throw new Error("Failed to add compiled document to library");
     }
   } catch (error) {
-    console.error(`[SERVER] Error saving compiled document to library via alternative method:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to add compiled document to library",
@@ -2328,8 +2181,7 @@ import {
 // Add route for analytics document view recording
 router.post("/api/analytics/document-view", async (ctx) => {
   try {
-    console.log(`[SERVER] Recording document view`);
-    
+        
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
     
@@ -2369,7 +2221,6 @@ router.post("/api/analytics/document-view", async (ctx) => {
       }
     }
   } catch (error) {
-    console.error(`[SERVER] Error recording document view:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error recording document view",
@@ -2381,8 +2232,7 @@ router.post("/api/analytics/document-view", async (ctx) => {
 // Add route for analytics document download recording
 router.post("/api/analytics/document-download", async (ctx) => {
   try {
-    console.log(`[SERVER] Recording document download`);
-    
+        
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
     
@@ -2422,7 +2272,6 @@ router.post("/api/analytics/document-download", async (ctx) => {
       }
     }
   } catch (error) {
-    console.error(`[SERVER] Error recording document download:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error recording document download",
@@ -2434,8 +2283,7 @@ router.post("/api/analytics/document-download", async (ctx) => {
 // Add route for user history
 router.get("/api/user/history", async (ctx) => {
   try {
-    console.log(`[SERVER] Fetching user document history`);
-    
+        
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
     
@@ -2467,7 +2315,6 @@ router.get("/api/user/history", async (ctx) => {
       }
     }
   } catch (error) {
-    console.error(`[SERVER] Error fetching user document history:`, error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Internal server error fetching user document history",
@@ -2494,8 +2341,7 @@ router.post("/api/documents/by-ids", async (ctx) => {
       return;
     }
     
-    console.log(`[SERVER] Fetching documents by IDs: ${body.documentIds.join(', ')}`);
-    
+        
     // Query the database for the documents
     const query = `
       SELECT id, title, document_type, abstract, publication_date, 
@@ -2507,8 +2353,7 @@ router.post("/api/documents/by-ids", async (ctx) => {
     
     const result = await client.queryObject(query, [body.documentIds]);
     
-    console.log(`[SERVER] Found ${result.rows.length} documents by IDs`);
-    
+        
     // Map the results to the expected format
     const documents = result.rows.map((row: any) => ({
       id: row.id,
@@ -2526,7 +2371,6 @@ router.post("/api/documents/by-ids", async (ctx) => {
     ctx.response.status = 200;
     ctx.response.body = { documents };
   } catch (error) {
-    console.error("[SERVER] Error fetching documents by IDs:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -2536,8 +2380,7 @@ router.post("/api/documents/by-ids", async (ctx) => {
 router.get(/\.(pdf)$/i, async (ctx) => {
   try {
     const urlPath = ctx.request.url.pathname;
-    console.log(`PDF file requested: ${urlPath}`);
-    
+        
     // Map URL path to file system path
     let filePath = urlPath;
     
@@ -2550,8 +2393,7 @@ router.get(/\.(pdf)$/i, async (ctx) => {
     
     // Get absolute path
     const absolutePath = join(Deno.cwd(), '..', filePath);
-    console.log(`Serving PDF from: ${absolutePath}`);
-    
+        
     try {
       // Check if file exists
       await Deno.stat(absolutePath);
@@ -2569,12 +2411,10 @@ router.get(/\.(pdf)$/i, async (ctx) => {
       ctx.response.body = file;
       
     } catch (err: unknown) {
-      console.error(`Error serving PDF file: ${err instanceof Error ? err.message : String(err)}`);
       ctx.response.status = 404;
       ctx.response.body = { error: 'PDF file not found' };
     }
   } catch (error: unknown) {
-    console.error(`General error serving PDF: ${error instanceof Error ? error.message : String(error)}`);
     ctx.response.status = 500;
     ctx.response.body = { error: 'Internal server error' };
   }

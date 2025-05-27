@@ -86,7 +86,6 @@ export class PageVisitsModel {
       
       return parseInt((result.rows[0] as any)?.visit_count.toString() || "0");
     } catch (error) {
-      console.error("Error recording page visit counter:", error);
       return 0;
     }
   }
@@ -111,7 +110,6 @@ export class PageVisitsModel {
       
       return parseInt((result.rows[0] as any)?.visit_count.toString() || "0");
     } catch (error) {
-      console.error("Error recording document visit counter:", error);
       return 0;
     }
   }
@@ -166,7 +164,6 @@ export class PageVisitsModel {
       
       return result.rows[0] as PageVisit || null;
     } catch (error) {
-      console.error("Error recording page visit:", error);
       return null;
     }
   }
@@ -186,7 +183,6 @@ export class PageVisitsModel {
       
       return parseInt((result.rows[0] as CountResult)?.count.toString() || "0");
     } catch (error) {
-      console.error("Error getting total page visits:", error);
       return 0;
     }
   }
@@ -220,7 +216,6 @@ export class PageVisitsModel {
       
       return { guest: guestCount, user: userCount };
     } catch (error) {
-      console.error("Error getting page visit breakdown:", error);
       return { guest: 0, user: 0 };
     }
   }
@@ -259,7 +254,6 @@ export class PageVisitsModel {
         user: userCount
       };
     } catch (error) {
-      console.error("Error getting total visit stats:", error);
       return { total: 0, guest: 0, user: 0 };
     }
   }
@@ -300,7 +294,6 @@ export class PageVisitsModel {
         user: userCount
       };
     } catch (error) {
-      console.error("Error getting homepage visit stats:", error);
       return { total: 0, guest: 0, user: 0 };
     }
   }
@@ -331,8 +324,7 @@ export class PageVisitsModel {
 
         // If we got results, return them
         if (result.rows.length > 0) {
-          console.log("Using document_visits table joined with documents for most visited documents");
-          return result.rows.map((row: any) => ({
+                    return result.rows.map((row: any) => ({
             document_id: row.document_id,
             document_type: row.document_type || 'single',
             title: row.title || 'Untitled Document',
@@ -341,13 +333,11 @@ export class PageVisitsModel {
           }));
         }
       } catch (innerError) {
-        console.error("Error getting most visited documents from document_visits:", innerError);
         // Continue to legacy implementation
       }
 
       // Legacy implementation using page_visits table
-      console.log("Falling back to legacy page_visits table for most visited documents");
-      // Build the SQL query with optional time limit
+            // Build the SQL query with optional time limit
       let sql = `
         SELECT 
           (metadata->>'documentId') as document_id,
@@ -409,12 +399,10 @@ export class PageVisitsModel {
           });
         }
       } catch (titleError) {
-        console.error("Error getting document titles:", titleError);
       }
       
       return documentsWithoutTitles;
     } catch (error) {
-      console.error("Error getting most visited documents:", error);
       return [];
     }
   }
@@ -468,7 +456,6 @@ export class PageVisitsModel {
         last_visit_date: lastVisitDate
       };
     } catch (error) {
-      console.error(`Error getting visit stats for document ${documentId}:`, error);
       return { total: 0, guest: 0, user: 0 };
     }
   }
@@ -552,7 +539,6 @@ export class PageVisitsModel {
       
       return { total, guest: guestCount, user: userCount, daily };
     } catch (error) {
-      console.error(`Error getting visit counters for document ${documentId}:`, error);
       return { total: 0, guest: 0, user: 0, daily: [] };
     }
   }
@@ -639,7 +625,6 @@ export class PageVisitsModel {
       
       return { total, guest: guestCount, user: userCount, daily };
     } catch (error) {
-      console.error(`Error getting visit counters for page ${pagePath}:`, error);
       return { total: 0, guest: 0, user: 0, daily: [] };
     }
   }
@@ -671,7 +656,6 @@ export class PageVisitsModel {
         total_visits: parseInt(row.total_visits.toString())
       }));
     } catch (error) {
-      console.error("Error getting most visited pages:", error);
       return [];
     }
   }
@@ -706,7 +690,6 @@ export class PageVisitsModel {
         documentsDeleted: parseInt((documentsResult.rows[0] as any)?.deleted?.toString() || "0")
       };
     } catch (error) {
-      console.error("Error purging old visit data:", error);
       return { pagesDeleted: 0, documentsDeleted: 0 };
     }
   }

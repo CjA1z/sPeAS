@@ -60,7 +60,6 @@ function convertBigIntToNumber(data: any): any {
               result[key] = data[key];
             }
           } catch (e) {
-            console.warn(`Error converting date field ${key}:`, e);
             result[key] = data[key];
           }
         }
@@ -106,8 +105,7 @@ export async function getAllArchivedDocuments(ctx: any) {
     const search = url.searchParams.get("search") || "";
     const compiledOnly = url.searchParams.get("compiled_only") === "true";
     
-    console.log(`[UNIFIED ARCHIVE] Getting archived documents: page=${page}, size=${size}, type=${type}, search=${search}, compiledOnly=${compiledOnly}`);
-    
+        
     // Calculate offset based on page and size
     const offset = (page - 1) * size;
     
@@ -252,8 +250,7 @@ export async function getAllArchivedDocuments(ctx: any) {
     const result = await client.queryObject(finalQuery, params);
     const documents = result.rows;
     
-    console.log(`[UNIFIED ARCHIVE] Found ${documents.length} archived documents (${totalCount} total)`);
-    
+        
     // Get category counts for filter UI
     const categoryCounts = await getArchivedCategoryCounts();
     
@@ -272,7 +269,6 @@ export async function getAllArchivedDocuments(ctx: any) {
     ctx.response.body = responseData;
     
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error getting archived documents:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch archived documents',
@@ -295,8 +291,7 @@ export async function getArchivedDocumentById(ctx: any) {
       return;
     }
     
-    console.log(`[UNIFIED ARCHIVE] Getting archived document: id=${id}`);
-    
+        
     // Try to fetch document
     const query = `
       SELECT 
@@ -353,7 +348,6 @@ export async function getArchivedDocumentById(ctx: any) {
     ctx.response.body = convertBigIntToNumber(document);
     
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error getting archived document:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch archived document',
@@ -375,8 +369,7 @@ export async function archiveDocument(ctx: any) {
     // Check if ID is in the URL parameters (for /api/archives/compiled/:id endpoint)
     if (ctx.params && ctx.params.id) {
       documentId = ctx.params.id;
-      console.log(`[UNIFIED ARCHIVE] Archiving document from URL params: id=${documentId}`);
-      isCompiled = true; // Assume it's a compiled document when using this route
+            isCompiled = true; // Assume it's a compiled document when using this route
     } else {
       // Parse request body (for /api/archives endpoint)
       const bodyParser = await ctx.request.body({ type: "json" });
@@ -393,8 +386,7 @@ export async function archiveDocument(ctx: any) {
       return;
     }
     
-    console.log(`[UNIFIED ARCHIVE] Archiving document: id=${documentId}, archiveChildren=${archiveChildren}, isCompiled=${isCompiled}`);
-    
+        
     // Handle compiled documents specially if isCompiled flag is set
     if (isCompiled) {
       return await archiveCompiledDocument(ctx, documentId, archiveChildren);
@@ -472,8 +464,7 @@ export async function archiveDocument(ctx: any) {
           );
           
           childDocuments = archiveChildrenResult.rows;
-          console.log(`[UNIFIED ARCHIVE] Archived ${childDocuments.length} child documents`);
-        }
+                  }
       }
       
       // Also update the compiled_documents table if this is a compiled document
@@ -507,7 +498,6 @@ export async function archiveDocument(ctx: any) {
     }
     
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error archiving document:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to archive document',
@@ -522,8 +512,7 @@ export async function archiveDocument(ctx: any) {
  */
 async function archiveCompiledDocument(ctx: any, compiledDocId: number, archiveChildren: boolean = true) {
   try {
-    console.log(`[UNIFIED ARCHIVE] Archiving compiled document: id=${compiledDocId}`);
-    
+        
     // Begin transaction
     await client.queryObject("BEGIN");
     
@@ -609,8 +598,7 @@ async function archiveCompiledDocument(ctx: any, compiledDocId: number, archiveC
           );
           
           childDocuments = archiveChildrenResult.rows;
-          console.log(`[UNIFIED ARCHIVE] Archived ${childDocuments.length} child documents of compiled document ${compiledDocId}`);
-        }
+                  }
       }
       
       // Commit transaction
@@ -632,7 +620,6 @@ async function archiveCompiledDocument(ctx: any, compiledDocId: number, archiveC
       throw error;
     }
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error archiving compiled document:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to archive compiled document',
@@ -654,8 +641,7 @@ export async function restoreDocument(ctx: any) {
       return;
     }
     
-    console.log(`[UNIFIED ARCHIVE] Attempting to restore document/compilation: id=${id}`);
-    
+        
     // Begin transaction
     await client.queryObject("BEGIN");
     
@@ -671,8 +657,7 @@ export async function restoreDocument(ctx: any) {
       
       // If not found in documents table, check compiled_documents table
       if (checkResult.rows.length === 0) {
-        console.log(`[UNIFIED ARCHIVE] Document ${id} not found in documents table, checking compiled_documents table`);
-        
+                
         const checkCompiledQuery = `
           SELECT id, category as document_type, volume, start_year, end_year, deleted_at 
           FROM compiled_documents 
@@ -712,8 +697,7 @@ export async function restoreDocument(ctx: any) {
         `;
         
         await client.queryObject(restoreCompiledQuery, [id]);
-        console.log(`[UNIFIED ARCHIVE] Restored compiled document ${id} from compiled_documents table`);
-        
+                
         // Also restore any child documents linked to this compilation
         const childQuery = `
           SELECT document_id
@@ -736,8 +720,7 @@ export async function restoreDocument(ctx: any) {
           
           const restoreChildrenResult = await client.queryObject(restoreChildrenQuery, [childIds]);
           const restoredChildCount = restoreChildrenResult.rowCount || 0;
-          console.log(`[UNIFIED ARCHIVE] Restored ${restoredChildCount} child documents for compiled document ${id}`);
-        }
+                  }
       } else {
         // Found in documents table
         const document = checkResult.rows[0] as any;
@@ -781,8 +764,7 @@ export async function restoreDocument(ctx: any) {
           `;
           
           await client.queryObject(restoreQuery, [id]);
-          console.log(`[UNIFIED ARCHIVE] Restored document ${id} from documents table`);
-          
+                    
           // If this is a compiled document, also update the compiled_documents table
           if (document.compiled_parent_id) {
             const updateCompiledQuery = `
@@ -792,8 +774,7 @@ export async function restoreDocument(ctx: any) {
             `;
             
             await client.queryObject(updateCompiledQuery, [id]);
-            console.log(`[UNIFIED ARCHIVE] Also restored compiled document ${id} reference`);
-          }
+                      }
         }
       }
       
@@ -846,7 +827,6 @@ export async function restoreDocument(ctx: any) {
     }
     
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error restoring document:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to restore document',
@@ -868,8 +848,7 @@ export async function getArchivedChildDocuments(ctx: any) {
       return;
     }
     
-    console.log(`[UNIFIED ARCHIVE] Getting archived child documents for compiled document: id=${id}`);
-    
+        
     // First check if the parent document exists and is a compiled document
     const checkParentQuery = `
       SELECT id, compiled_parent_id 
@@ -924,7 +903,6 @@ export async function getArchivedChildDocuments(ctx: any) {
     });
     
   } catch (error) {
-    console.error('[UNIFIED ARCHIVE] Error getting archived child documents:', error);
     ctx.response.status = 500;
     ctx.response.body = {
       error: 'Failed to fetch archived child documents',
@@ -985,7 +963,6 @@ async function getArchivedCategoryCounts() {
     const result = await client.queryObject(query);
     return result.rows;
   } catch (error) {
-    console.error('Error getting archived category counts:', error);
     return [];
   }
 }
@@ -1007,8 +984,7 @@ export async function hardDeleteArchivedDocument(ctx: any) {
       return;
     }
     
-    console.log(`[UNIFIED ARCHIVE] Hard deleting document with ID: ${id}`);
-    
+        
     // First check if the document exists in the archives
     const checkQuery = `
       SELECT 
@@ -1073,8 +1049,7 @@ export async function hardDeleteArchivedDocument(ctx: any) {
             
             const deleteChildrenResult = await client.queryObject(deleteChildrenQuery, [childIds]);
             childDocumentsDeleted = deleteChildrenResult.rowCount || 0;
-            console.log(`[UNIFIED ARCHIVE] Deleted ${childDocumentsDeleted} child documents for compiled document ${id}`);
-          }
+                      }
         }
         
         // Handle hard delete of the document itself
@@ -1131,8 +1106,7 @@ export async function hardDeleteArchivedDocument(ctx: any) {
             
             const deleteChildrenResult = await client.queryObject(deleteChildrenQuery, [childIds]);
             childDocumentsDeleted = deleteChildrenResult.rowCount || 0;
-            console.log(`[UNIFIED ARCHIVE] Deleted ${childDocumentsDeleted} child documents for compiled document ${id}`);
-          }
+                      }
         }
         
         // Handle hard delete of the compiled document itself
@@ -1172,8 +1146,6 @@ export async function hardDeleteArchivedDocument(ctx: any) {
       throw error;
     }
   } catch (error) {
-    console.error("[UNIFIED ARCHIVE] Error hard deleting document:", error);
-    
     ctx.response.status = 500;
     ctx.response.body = { 
       error: error instanceof Error ? error.message : "Unknown error occurred", 

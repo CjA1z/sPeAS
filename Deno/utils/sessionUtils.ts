@@ -29,8 +29,7 @@ export async function verifySessionToken(token: string): Promise<SessionData | n
     );
     
     if (!result.rows || result.rows.length === 0) {
-      console.log(`Token validation failed: ${token.substring(0, 8)}... not found or expired`);
-      return null;
+            return null;
     }
     
     const row = result.rows[0] as {
@@ -47,15 +46,13 @@ export async function verifySessionToken(token: string): Promise<SessionData | n
       role = 'ADMIN';
     }
     
-    console.log(`Token validated successfully for user ${row.user_id} with role ${role}`);
-    
+        
     return {
       id: row.user_id,
       role: role,
       isLoggedIn: true
     };
   } catch (error) {
-    console.error("Error verifying session token:", error);
     return null;
   }
 } 

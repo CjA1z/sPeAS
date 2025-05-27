@@ -12,8 +12,7 @@ interface CategoryWithCount {
  */
 export async function getCategories(ctx: Context) {
   try {
-    console.log("Getting categories with document counts including compiled documents");
-    
+        
     // First attempt: Just return a simple list of known categories
     const knownCategories = [
       { name: "THESIS", count: 0 }, 
@@ -87,23 +86,19 @@ export async function getCategories(ctx: Context) {
             if (knownCat.name.toUpperCase() === category.toUpperCase() || 
                 category.toUpperCase().includes(knownCat.name.toUpperCase())) {
               knownCat.count += count;
-              console.log(`Added ${count} compiled documents to ${knownCat.name}, new total: ${knownCat.count}`);
-              break;
+                            break;
             }
           }
         }
       }
       
-      console.log("Successfully fetched category counts including compiled documents");
-    } catch (dbError) {
-      console.error("Database error getting category counts:", dbError);
+          } catch (dbError) {
       // Continue with hardcoded values if necessary
     }
     
     // Return the categories
     ctx.response.body = knownCategories;
   } catch (error) {
-    console.error("Error fetching categories:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to fetch categories",

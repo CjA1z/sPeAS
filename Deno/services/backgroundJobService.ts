@@ -68,8 +68,7 @@ async function initializeLogDir() {
   if (!logInitialized) {
     await ensureDir(LOG_DIR);
     logInitialized = true;
-    console.log(`[BACKGROUND] Log directory initialized: ${LOG_DIR}`);
-  }
+      }
 }
 
 /**
@@ -92,8 +91,7 @@ export function createJob(type: string, data: Record<string, any>): Job {
   };
   
   jobQueue.push(job);
-  console.log(`[BACKGROUND] Created new ${type} job: ${jobId}`);
-  
+    
   // Trigger processing if not already running
   if (!isProcessing) {
     processNextJob();
@@ -167,8 +165,7 @@ async function processNextJob() {
     job.status = 'processing';
     job.updatedAt = new Date();
     
-    console.log(`[BACKGROUND] Processing job ${job.id} of type ${job.type}`);
-    
+        
     // Process job based on type
     switch (job.type) {
       case 'email':
@@ -181,8 +178,7 @@ async function processNextJob() {
     // Mark job as completed
     job.status = 'completed';
     job.updatedAt = new Date();
-    console.log(`[BACKGROUND] Job ${job.id} completed successfully`);
-    
+        
     // Log job completion
     await logJob(job);
     
@@ -191,9 +187,6 @@ async function processNextJob() {
     job.status = 'failed';
     job.updatedAt = new Date();
     job.error = error instanceof Error ? error.message : String(error);
-    
-    console.error(`[BACKGROUND] Job ${job.id} failed:`, error);
-    
     // Log job failure
     await logJob(job);
   } finally {
@@ -227,8 +220,7 @@ async function processEmailJob(job: EmailJob) {
     case 'approval':
       {
         const { fullName, documentTitle, documentId, childDocumentPaths, documentAuthor, documentCategory, documentKeywords } = job.data;
-        console.log(`[BACKGROUND] Sending approval email for document: ${documentTitle} to ${to}`);
-        job.result = await sendApprovedRequestEmail(
+                job.result = await sendApprovedRequestEmail(
           to, 
           fullName || 'User', 
           documentTitle || 'Requested Document', 
@@ -245,8 +237,7 @@ async function processEmailJob(job: EmailJob) {
     case 'rejection':
       {
         const { fullName, documentTitle, reason } = job.data;
-        console.log(`[BACKGROUND] Sending rejection email for document: ${documentTitle} to ${to}`);
-        job.result = await sendRejectedRequestEmail(
+                job.result = await sendRejectedRequestEmail(
           to,
           fullName || 'User',
           documentTitle || 'Requested Document',
@@ -258,8 +249,7 @@ async function processEmailJob(job: EmailJob) {
     case 'confirmation':
       {
         const { fullName, requestId, documentInfo, requestInfo } = job.data;
-        console.log(`[BACKGROUND] Sending confirmation email for request: ${requestId} to ${to}`);
-        job.result = await sendRequestConfirmationEmail(
+                job.result = await sendRequestConfirmationEmail(
           to,
           fullName || 'User',
           documentInfo || { title: 'Requested Document' },
@@ -271,8 +261,7 @@ async function processEmailJob(job: EmailJob) {
     
     default:
       // Generic email sending for other types
-      console.log(`[BACKGROUND] Sending generic email to ${to}`);
-      job.result = await sendEmailWithAttachment(to, subject, text, html, attachmentPath, attachmentName);
+            job.result = await sendEmailWithAttachment(to, subject, text, html, attachmentPath, attachmentName);
       break;
   }
 }
@@ -318,7 +307,6 @@ async function logJob(job: Job) {
     if (error instanceof Deno.errors.NotFound) {
       await Deno.writeTextFile(logFile, JSON.stringify(logEntry) + '\n');
     } else {
-      console.error(`[BACKGROUND] Error logging job:`, error);
     }
   }
 }
@@ -344,6 +332,5 @@ setInterval(() => {
   
   const removedCount = oldJobCount - jobQueue.length;
   if (removedCount > 0) {
-    console.log(`[BACKGROUND] Cleaned up ${removedCount} old jobs`);
-  }
+      }
 }, 3600000); // Clean up every hour 

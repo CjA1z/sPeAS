@@ -1185,7 +1185,6 @@
                 }
                 return await response.json();
             } catch (error) {
-                console.error(`Error fetching from ${url}:`, error);
                 return null;
             }
         }
@@ -1201,11 +1200,9 @@
                 const searchResults = [];
                 
                 // Detailed logging of current page and API params
-                console.log(`Making API request with: page=${currentPage}, size=${RESULTS_PER_PAGE}`);
-                
+                                
                 // Fetch documents
                 const documents = await fetchDocuments(API.documents, query, filters).catch(err => {
-                    console.error("Error fetching documents:", err);
                     return [];
                 });
                 
@@ -1221,8 +1218,7 @@
                     const category = doc.category || 'Unknown';
                     categoryBreakdown[category] = (categoryBreakdown[category] || 0) + 1;
                 });
-                console.log('Category breakdown:', categoryBreakdown);
-                
+                                
                 // Add documents to search results
                 if (documents && documents.length > 0) {
                     searchResults.push(...documents);
@@ -1242,13 +1238,10 @@
                             documentCount: author.worksCount || author.document_count || 0,
                             relevanceScore: 0.8
                         }));
-                        console.log("Successfully fetched authors from API:", authors.length);
-                    }
+                                            }
                 } catch (e) {
-                    console.warn("API endpoint for authors not available, extracting from documents instead");
                     authors = extractAuthorsFromDocuments(documents, query);
-                    console.log("Extracted authors from documents:", authors.length);
-                }
+                                    }
                 
                 if (authors.length > 0) {
                     searchResults.push(...authors);
@@ -1272,8 +1265,7 @@
                             documentCount: keyword.count || 0,
                             relevanceScore: 0.7
                         }));
-                        console.log("Successfully fetched keywords with document counts:", keywords.length);
-                    }
+                                            }
                     
                     // 2. If first endpoint failed, try trending-keywords
                     if (keywords.length === 0) {
@@ -1287,8 +1279,7 @@
                                 documentCount: keyword.document_count || keyword.count || 0,
                                 relevanceScore: 0.7
                             }));
-                            console.log("Successfully fetched trending keywords:", keywords.length);
-                        }
+                                                    }
                     }
                     
                     // 3. If both previous endpoints failed, try regular keywords endpoint
@@ -1303,15 +1294,12 @@
                                 documentCount: keyword.document_count || keyword.count || 0,
                                 relevanceScore: 0.7
                             }));
-                            console.log("Successfully fetched regular keywords:", keywords.length);
-                        }
+                                                    }
                     }
                 } catch (e) {
                     // 4. If all API attempts fail, extract from documents
-                    console.warn("API endpoints for keywords not available, extracting from documents instead:", e);
                     keywords = extractKeywordsFromDocuments(documents, query);
-                    console.log("Extracted keywords from documents:", keywords.length);
-                }
+                                    }
 
                 if (keywords.length > 0) {
                     searchResults.push(...keywords);
@@ -1319,13 +1307,11 @@
                 
                 // If no results found, return empty array
                 if (searchResults.length === 0) {
-                    console.log("No results found from APIs or extraction.");
-                    return [];
+                                        return [];
                 }
                 
                 return searchResults;
             } catch (error) {
-                console.error('Error performing search:', error);
                 return []; // Fallback to empty array in case of error
             }
         }
@@ -1422,8 +1408,7 @@
                 if (query) documentUrl.searchParams.append('search', query);
                 
                 // Log current page for debugging
-                console.log(`Current page being requested: ${currentPage}`);
-                
+                                
                 // Request both single and compiled documents - just like navbar
                 documentUrl.searchParams.append('doc_types', 'all');
                 
@@ -1432,8 +1417,7 @@
                     ? filters.category.map(cat => cat.toUpperCase()) 
                     : [];
                 
-                console.log("Selected categories for filtering:", selectedCategories);
-                
+                                
                 // For backward compatibility, just fetch all documents without category filter
                 // if multiple categories are selected - we'll filter on client side
                 // THIS IS EXACTLY HOW NAVBAR DOES IT
@@ -1470,8 +1454,7 @@
                     documentUrl.searchParams.append('sort', sortParam);
                 }
                 
-                console.log(`Fetching documents from ${endpoint} with page ${currentPage}:`, documentUrl.toString());
-                
+                                
                 // Fetch documents
                 const documentsResponse = await fetchData(documentUrl.toString());
                 console.log("API response structure:", {
@@ -1495,8 +1478,7 @@
                             return selectedCategories.includes(normalizedType);
                         });
                         
-                        console.log(`Filtered from ${documentsResponse.documents.length} to ${documents.length} matching selected categories`);
-                    }
+                                            }
                     
                     // Transform document data to match our expected format
                     const processedDocuments = documents.map(doc => {
@@ -1592,8 +1574,7 @@
                     updateCategoryTilesWithCounts(categoryCounts);
                     
                     // Log document type information for each document to debug display issues
-                    console.log("Document information details:");
-                    processedDocuments.slice(0, 3).forEach((doc, index) => {
+                                        processedDocuments.slice(0, 3).forEach((doc, index) => {
                         console.log(`Document ${index} (ID ${doc.id}):`, {
                             title: doc.title?.substring(0, 30),
                             is_compiled: doc.is_compiled,
@@ -1620,11 +1601,9 @@
                     
                     return processedDocuments;
                 } else {
-                    console.warn(`No documents found or invalid response format from ${endpoint}:`, documentsResponse);
                     return [];
                 }
             } catch (error) {
-                console.error(`Error fetching documents from ${endpoint}:`, error);
                 return [];
             }
         }
@@ -1713,7 +1692,6 @@
                         throw new Error('No author data available or invalid format');
                     })
                     .catch(error => {
-                        console.error('Error loading authors from API:', error);
                         // Fallback to extracting from documents
                         return fetchData(`${API.documents}?limit=100`)
                             .then(data => {
@@ -1738,7 +1716,6 @@
                                 return [];
                             })
                             .catch(err => {
-                                console.error('Error extracting authors from documents:', err);
                                 return [];
                             });
                     })
@@ -1827,8 +1804,7 @@
                         });
                     }
                     
-                    console.log('Category counts from documents:', categoryCounts, 'Total:', totalDocuments);
-                    
+                                        
                     // Update stored category counts
                     categoryCountsFromAPI = categoryCounts;
                     
@@ -1836,7 +1812,6 @@
                     updateCategoryTilesWithCounts(categoryCounts);
                     
                 } catch (error) {
-                    console.error('Error fetching category counts:', error);
                 }
             }
 
@@ -2200,8 +2175,7 @@
                 // Use API-provided total pages if available
                 const totalPages = Math.max(1, Math.ceil(totalItems / RESULTS_PER_PAGE));
                 
-                console.log(`Rendering pagination: totalItems=${totalItems}, totalPages=${totalPages}, currentPage=${currentPage}`);
-                
+                                
                 if (totalPages <= 1 && totalItems > 0) { 
                      paginationContainerEl.style.display = 'none';
                      endOfResultsEl.style.display = 'block';
@@ -2248,8 +2222,7 @@
                     pageLink.addEventListener('click', function(e) { 
                         e.preventDefault(); 
                         currentPage = pageNumber;
-                        console.log("Changing to page:", currentPage);
-                        
+                                                
                         // When changing pages, don't re-fetch all results, just render the appropriate page
                         renderNewResults();
                         
@@ -2319,8 +2292,7 @@
                 if (keywordParam) {
                     filterTagsInput.value = keywordParam;
                     filterTagsInput.classList.add('filter-active');
-                    console.log(`Found keyword parameter in URL: ${keywordParam}`);
-                }
+                                    }
 
                 const authorRegex = /author:"([^"]+)"/gi; let match = authorRegex.exec(remainingQuery);
                 if (match && match[1]) { const authorName = match[1]; const authorOption = Array.from(filterAuthorEl.options).find(opt => opt.value.toLowerCase() === authorName.toLowerCase()); if (authorOption) filterAuthorEl.value = authorOption.value; remainingQuery = remainingQuery.replace(match[0], '').trim(); }
@@ -2487,7 +2459,6 @@
                 displayResults();
                     })
                     .catch(error => {
-                        console.error('Error applying filters and searching:', error);
                         resultsListContainer.innerHTML = '<p class="error-message">An error occurred while searching. Please try again later.</p>';
                     });
             }
@@ -2697,8 +2668,7 @@
                     }
                 });
             
-            console.log("Updated category counts from search results:", categoryCounts);
-            
+                        
             // Update category count in DOM
             PREDEFINED_CATEGORIES.forEach(categoryName => {
                 const countElements = document.querySelectorAll(`.category-count-${categoryName.toLowerCase().replace(/\s+/g, '-')}`);
@@ -2735,7 +2705,6 @@
             if (window.NavbarModule) {
                 window.NavbarModule.init('#navbarContainer');
             } else {
-                console.error('NavbarModule not found. Please check the path to navbar-loader.js');
                 // Fallback: Try to directly load the default navbar
                 fetch('/Components/NavBar/default-NavBar.html')
                     .then(response => {
@@ -2748,7 +2717,6 @@
                         document.getElementById('navbarContainer').innerHTML = html;
                     })
                     .catch(error => {
-                        console.error('Error loading navbar:', error);
                     });
             }
         });

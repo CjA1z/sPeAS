@@ -89,14 +89,11 @@ function initializeResearchAgendaSearch(inputElement, suggestionsElement, select
             });
             
             // Log the raw response for debugging
-            console.log("Keywords search raw response status:", response.status);
-            
+                        
             const data = await response.json();
-            console.log("Keywords search response data:", data);
-            
+                        
             displayResearchAgendaResults(data, inputElement, suggestionsElement, selectedContainer);
         } catch (error) {
-            console.error("Error fetching keywords:", error);
             suggestionsElement.innerHTML = "<div class='topic-suggestion-item text-danger'>Error fetching keywords</div>";
         }
     };
@@ -124,16 +121,13 @@ function displayResearchAgendaResults(data, inputElement, suggestionsElement, se
     suggestionsElement.innerHTML = ""; // Clear previous list
     suggestionsElement.style.display = "block"; // Make sure dropdown is visible
     
-    console.log("Displaying research agenda results, data is array?", Array.isArray(data));
-    
+        
     if (!Array.isArray(data)) {
-        console.error("Unexpected API response:", data);
         suggestionsElement.innerHTML = "<div class='topic-suggestion-item text-danger'>Unexpected response</div>";
         return;
     }
     
-    console.log("Number of research agenda items found:", data.length);
-    
+        
     if (data.length === 0) {
         // If no items found, show option to create new one
         const addItem = document.createElement("div");
@@ -146,17 +140,14 @@ function displayResearchAgendaResults(data, inputElement, suggestionsElement, se
     } else {
         // Display found topics
         data.forEach((topic, index) => {
-            console.log(`Topic ${index}:`, topic);
-            
+                        
             // Check if the topic has the necessary properties
             if (!topic || typeof topic !== 'object') {
-                console.error(`Invalid topic data at index ${index}:`, topic);
                 return;
             }
             
             const topicName = topic.name || "Unknown Topic";
-            console.log(`Topic ${index} name:`, topicName);
-            
+                        
             const topicItem = document.createElement("div");
             topicItem.textContent = topicName;
             topicItem.classList.add("topic-suggestion-item");
@@ -177,9 +168,7 @@ function displayResearchAgendaResults(data, inputElement, suggestionsElement, se
         
         // Log the first topic to help debug
         if (data.length > 0) {
-            console.log("First topic full object:", data[0]);
-            console.log("First topic fields:", Object.keys(data[0]));
-        }
+                                }
         
         // Always add option to create new topic as the last item
         const createNewTopicItem = document.createElement("div");
@@ -215,7 +204,6 @@ async function addSingleTopic(topicName, selectedContainer) {
         const result = await response.json();
         
         if (!response.ok) {
-            console.error('Error creating research agenda item:', result);
             // If there was an error but it's because the item already exists,
             // we can still add it to the selected topics
             if (!result.error || !result.error.includes("already exists")) {
@@ -223,8 +211,7 @@ async function addSingleTopic(topicName, selectedContainer) {
             }
         }
         
-        console.log('Topic creation result:', result);
-        
+                
         // Only add if not already selected in this container
         const topicsInContainer = new Set();
         selectedContainer.querySelectorAll('.selected-topic').forEach(topic => {
@@ -288,7 +275,6 @@ async function addSingleTopic(topicName, selectedContainer) {
         }
         
     } catch (error) {
-        console.error('Error creating topic:', error);
     }
     }
 
@@ -301,7 +287,6 @@ async function addSingleTopic(topicName, selectedContainer) {
 // Function to create multiple research agenda items at once
 window.createMultipleTopics = async function(topicNames, container) {
     if (!Array.isArray(topicNames) || topicNames.length === 0) {
-        console.error('No topics to create');
         return { created: [], errors: [] };
     }
     
@@ -312,8 +297,7 @@ window.createMultipleTopics = async function(topicNames, container) {
             description: '' // Optional description
         }));
         
-        console.log(`Attempting to create ${topicsToCreate.length} research agenda items in batch`);
-        
+                
         // Call the batch creation API
         const response = await fetch('/research-agenda-items/batch', {
             method: 'POST',
@@ -326,8 +310,7 @@ window.createMultipleTopics = async function(topicNames, container) {
         const result = await response.json();
         
         if (response.ok) {
-            console.log('Batch creation result:', result);
-            
+                        
             // Add successfully created topics to the selected container
             if (result.created && Array.isArray(result.created) && container) {
                 result.created.forEach(topic => {
@@ -339,11 +322,9 @@ window.createMultipleTopics = async function(topicNames, container) {
             
             return result;
         } else {
-            console.error('Error in batch creation:', result);
             return { created: [], errors: result.error ? [{ error: result.error }] : [] };
         }
     } catch (error) {
-        console.error('Error creating multiple research agenda items:', error);
         return { 
             created: [], 
             errors: [{ error: error.message || 'Unknown error during batch creation' }] 

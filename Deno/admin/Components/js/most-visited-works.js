@@ -11,25 +11,21 @@ async function updateMostVisitedWorks() {
     const days = 0;
     const limit = 5; // Always use exactly 5 documents
     try {
-        console.log('Fetching most visited documents data (all time)...');
-        
+                
         // Use DocumentTracker's function to get most visited documents if available
         if (window.DocumentTracker && typeof window.DocumentTracker.getMostVisitedDocuments === 'function') {
-            console.log('Using DocumentTracker.getMostVisitedDocuments()');
-            const documents = await window.DocumentTracker.getMostVisitedDocuments(limit, days);
+                        const documents = await window.DocumentTracker.getMostVisitedDocuments(limit, days);
             if (documents && documents.length > 0) {
                 updateWorksTable(documents);
                 return;
             }
-            console.log('DocumentTracker returned no documents, falling back to API');
-        }
+                    }
         
         // Fallback to direct API call - use the page-visits endpoint that we implemented
         const response = await fetch(`/api/page-visits/most-visited-documents?limit=${limit}&days=${days}`);
         
         if (!response.ok) {
-            console.log(`API request failed with status: ${response.status}`);
-            // Try compatibility endpoint as second fallback
+                        // Try compatibility endpoint as second fallback
             try {
                 const compatResponse = await fetch(`/api/most-visited-documents?limit=${limit}&period=${days}`);
                 if (compatResponse.ok) {
@@ -53,7 +49,6 @@ async function updateMostVisitedWorks() {
                                     };
                                 }
                             } catch (err) {
-                                console.warn(`Could not fetch details for document ${doc.id}:`, err);
                             }
                             
                             // Fallback with minimal data
@@ -71,7 +66,6 @@ async function updateMostVisitedWorks() {
         }
                 }
             } catch (compatError) {
-                console.warn('Compatibility endpoint also failed:', compatError);
             }
             
             // Use default documents endpoint as last resort
@@ -80,8 +74,7 @@ async function updateMostVisitedWorks() {
         }
         
         const data = await response.json();
-        console.log('API data received:', data);
-        
+                
         if (!data.documents) {
             // Check if response is already an array of documents
             if (Array.isArray(data) && data.length > 0) {
@@ -90,15 +83,13 @@ async function updateMostVisitedWorks() {
             return;
         }
         
-            console.log('No documents returned from API');
-            await fetchRecentDocuments();
+                        await fetchRecentDocuments();
             return;
         }
         
         // Ensure only 5 documents are displayed
         updateWorksTable(data.documents.slice(0, limit));
     } catch (error) {
-        console.error('Error updating most visited works:', error);
         await fetchRecentDocuments();
     }
 }
@@ -106,22 +97,18 @@ async function updateMostVisitedWorks() {
 // Function to fetch recent documents when visit data is not available
 async function fetchRecentDocuments() {
     try {
-        console.log('Fetching most recent documents as fallback...');
-        
+                
         const response = await fetch(`/api/documents?limit=5&sort=latest`);
         
         if (!response.ok) {
-            console.log(`API request failed with status: ${response.status}`);
-            displayErrorMessage();
+                        displayErrorMessage();
             return;
         }
         
         const data = await response.json();
-        console.log('Recent documents data received:', data);
-        
+                
         if (!data.documents || data.documents.length === 0) {
-            console.log('No documents returned from API');
-            displayNoDataMessage();
+                        displayNoDataMessage();
             return;
         }
         
@@ -142,7 +129,6 @@ async function fetchRecentDocuments() {
         // Update the table
         updateWorksTable(documentsWithVisits);
     } catch (error) {
-        console.error('Error fetching recent documents:', error);
         displayErrorMessage();
     }
 }
@@ -196,12 +182,10 @@ function getDocumentTypeIcon(type, category) {
 
 // Function to display data in the existing table
 function updateWorksTable(documents) {
-    console.log('Documents to display in works table:', documents);
-    
+        
     // Get the table body
     const tableBody = document.getElementById('most-visited-works-tbody');
     if (!tableBody) {
-        console.error('Could not find most visited works table body');
         return;
     }
     
@@ -321,7 +305,6 @@ async function fetchChildDocuments(compiledDocs) {
                     }
                 }
             } catch (error) {
-                console.warn(`Error fetching child documents for ${docId}:`, error);
     }
         }
     }
@@ -335,25 +318,21 @@ function renderDocumentsToTable(documents, tableBody) {
     const filteredDocuments = documents.filter(doc => {
         // Skip any documents that explicitly have a parent_id or compiled_document_id
         if (doc.parent_id || doc.compiled_document_id || doc.parent_document_id) {
-            console.log(`Filtering out child document ${doc.id || doc.document_id} with parent ${doc.parent_id || doc.compiled_document_id || doc.parent_document_id}`);
-            return false;
+                        return false;
         }
         
         // Filter out if the document has a relationship property indicating it's a child
         if (doc.is_child === true || doc.child_order !== undefined || doc.order_index !== undefined) {
-            console.log(`Filtering out child document ${doc.id || doc.document_id} based on child indicators`);
-            return false;
+                        return false;
         }
         
         return true;
     });
     
-    console.log(`After child filtering: ${filteredDocuments.length} of ${documents.length} documents remain`);
-    
+        
     // Add each document to the table
     filteredDocuments.forEach((doc) => {
-        console.log('Rendering document:', doc);
-        
+                
         // Create a row
         const row = document.createElement('tr');
         row.className = 'most-visited-row';
@@ -660,7 +639,6 @@ async function showCompiledDocumentBreakdown(compiledDoc) {
     const docId = compiledDoc.document_id || compiledDoc.id;
     
     if (!docId) {
-        console.error('No document ID available for compiled document');
         return;
     }
     
@@ -736,8 +714,6 @@ async function showCompiledDocumentBreakdown(compiledDoc) {
         
         if (!response.ok) {
             // Fallback to regular documents endpoint if compiled endpoint fails
-            console.warn(`Failed to fetch compiled document details: ${response.status}, trying fallback`);
-            
             // Try fallback to regular document endpoint
             const fallbackResponse = await fetch(`/api/documents/${docId}`);
             if (!fallbackResponse.ok) {
@@ -753,7 +729,6 @@ async function showCompiledDocumentBreakdown(compiledDoc) {
         await updateModalContent(modalContent, compiledDoc, detailedData);
         
     } catch (error) {
-        console.error('Error fetching document details:', error);
         modalContent.innerHTML = `
             <h3>${compiledDoc.title || 'Compiled Document Details'}</h3>
             <div style="padding: 20px; text-align: center; color: #e53935;">
@@ -816,7 +791,6 @@ async function updateModalContent(modalContent, basicDocData, detailedData) {
                 }
             }
         } catch (err) {
-            console.warn('Error fetching child documents:', err);
         }
     }
     
@@ -843,7 +817,6 @@ async function updateModalContent(modalContent, basicDocData, detailedData) {
                     }
                 }
             } catch (err) {
-                console.warn(`Error fetching visit data for child document ${child.id || child.document_id}:`, err);
                 // Set fallback values
                 child.visit_count = child.visit_count || 0;
                 child.guest_count = child.guest_count || 0;
@@ -1060,15 +1033,13 @@ function formatDate(doc) {
         
         return 'N/A';
     } catch (error) {
-        console.error('Error formatting date:', error);
         return 'N/A';
     }
 }
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing most visited works component...');
-    
+        
     // Add CSS for tooltip to the page
     const style = document.createElement('style');
     style.textContent = `

@@ -880,16 +880,13 @@
         try {
             // Check if NavbarModule already defined a fetch for this URL
             if (window.NavbarModule && window.NavbarModule.cachedResponses && window.NavbarModule.cachedResponses[url]) {
-                console.log(`Using cached response from NavbarModule for ${url}`);
-                return window.NavbarModule.cachedResponses[url];
+                                return window.NavbarModule.cachedResponses[url];
             }
             
             // Fetch data from server
-            console.log(`Fetching data from: ${url}`);
-            const response = await fetch(url, options);
+                        const response = await fetch(url, options);
             if (!response.ok) {
                 const errorBody = await response.text();
-                console.error(`HTTP error! Status: ${response.status}`, errorBody);
                 throw new Error(`HTTP error! Status: ${response.status}. Body: ${errorBody}`);
             }
             
@@ -912,7 +909,6 @@
             
             return data;
         } catch (error) {
-            console.error('Fetch operation failed:', error);
             throw error;
         }
     }
@@ -984,7 +980,6 @@
                                 years.add(year.toString());
                             }
                         } catch (e) {
-                            console.warn("Could not parse date:", doc.publication_date);
                         }
                     }
                 });
@@ -1005,7 +1000,6 @@
                 totalDocuments
             };
         } catch (error) {
-            console.error("Error fetching filters data:", error);
             // If API fails, use predefined categories with default counts
             const defaultCounts = {};
             PREDEFINED_CATEGORIES.forEach(cat => defaultCounts[cat] = 0);
@@ -1024,21 +1018,17 @@
             // First try trending keywords endpoint
             try {
                 const data = await fetchData(API.trendingKeywords);
-                console.log("Top trending keywords loaded:", data);
-                
+                                
                 if (data && data.keywords && data.keywords.length > 0) {
                     return { top_keywords: data.keywords };
                 }
             } catch (trendingErr) {
-                console.log("Trending keywords API not available, using regular keywords:", trendingErr);
-            }
+                            }
             
             // Fallback to regular keywords
             const keywords = await fetchData(API.keywords);
-            console.log("Regular keywords loaded:", keywords);
-            return { top_keywords: keywords || [] };
+                        return { top_keywords: keywords || [] };
         } catch (error) {
-            console.error("Error fetching keywords:", error);
             return { top_keywords: [] };
         }
     }
@@ -1055,8 +1045,7 @@
                 ? filters.category.map(cat => cat.toUpperCase()) 
                 : [];
                 
-            console.log("Selected categories for filtering:", selectedCategories);
-            
+                        
             // For backward compatibility, just fetch all documents without category filter
             // if multiple categories are selected - we'll filter on client side
             if (selectedCategories.length === 1) {
@@ -1081,8 +1070,7 @@
             }
             url.searchParams.append('page', '1');
             
-            console.log('Performing document search:', url.toString());
-            
+                        
             // Fetch documents
             const documentData = await fetchData(url.toString());
             let documents = documentData?.documents || [];
@@ -1098,8 +1086,7 @@
                     return selectedCategories.includes(normalizedType);
                 });
                 
-                console.log(`Filtered ${documentData?.documents?.length || 0} documents to ${documents.length} matching selected categories`);
-            }
+                            }
             
             // Process documents to add correct URLs and normalize metadata
             documents = documents.map(doc => {
@@ -1132,8 +1119,7 @@
                 const publicationDate = doc.publication_date || null;
                 
                 // Log document metadata for debugging
-                console.log(`Document ID: ${doc.id}, Title: ${doc.title}, Publication Date: ${publicationDate}`);
-                
+                                
                 // Return enriched document object
                 return {
                     ...doc,
@@ -1165,7 +1151,6 @@
                             url: `/pages/authorprofile.html?id=${author.id}`
                         }));
                 } catch (authorErr) {
-                    console.warn("Could not fetch author data:", authorErr);
                 }
             }
             
@@ -1189,7 +1174,6 @@
                             }));
                     }
                 } catch (kwErr) {
-                    console.warn("Could not fetch keyword data:", kwErr);
                 }
             }
             
@@ -1215,7 +1199,6 @@
                 }
             };
         } catch (error) {
-            console.error("Error performing search:", error);
             return {
                 query: searchQuery,
                 results: {
@@ -1246,7 +1229,6 @@
             }
             return {isAuthenticated: false, user: null};
         } catch (error) {
-            console.error("Error checking authentication status:", error);
             return {isAuthenticated: false, user: null};
         }
     }
@@ -1256,8 +1238,7 @@
         // Make this function available in the global scope
         window.createProfileBadge = createProfileBadge;
         
-        console.log("Creating profile badge with user data:", user);
-        
+                
         const profileBadgeContainer = document.createElement('div'); 
         profileBadgeContainer.id = 'profile-badge-container-dynamic'; 
         profileBadgeContainer.className = 'relative inline-block text-left'; 
@@ -1271,8 +1252,7 @@
         
         // Check for profile picture in different possible property names
         const profilePicture = user.profilePicture || user.profile_picture || null;
-        console.log("Profile picture in createProfileBadge:", profilePicture);
-        
+                
         // Check if we have a profile picture
         if (profilePicture) {
             // Use profile picture from database
@@ -1283,11 +1263,9 @@
             imgElement.alt = 'Profile';
             imgElement.style.borderRadius = '50%';  // Force circular shape
             
-            console.log("Adding profile picture to badge:", imgElement.src);
-            
+                        
             // If image fails to load, fall back to initials
             imgElement.onerror = function() {
-                console.error("Failed to load profile picture in createProfileBadge, falling back to initials");
                 this.style.display = 'none';
                 
                 // Generate initials
@@ -1403,8 +1381,7 @@
         // Make this function available in the global scope
         window.createMobileProfileSection = createMobileProfileSection;
 
-        console.log("Creating mobile profile section with user data:", user);
-        
+                
         // Generate initials - prioritize first_name from database
         let initials = '??';
         if (user.first_name && user.last_name) {
@@ -1433,8 +1410,7 @@
         
         // Check for profile picture in different possible property names
         const profilePicture = user.profilePicture || user.profile_picture || null;
-        console.log("Mobile profile picture:", profilePicture);
-        
+                
         const section = document.createElement('div');
         
         // Create the profile HTML based on whether we have a profile picture
@@ -1526,7 +1502,6 @@
             confetti({...baseConfettiOptions, angle:60, origin:{...baseConfettiOptions.origin, x:0}}); 
             confetti({...baseConfettiOptions, angle:120, origin:{...baseConfettiOptions.origin, x:1}}); 
         } else { 
-            console.warn("Confetti library (confetti.js) not found or loaded."); 
         } 
     }
     
@@ -1659,8 +1634,7 @@
             });
         }
         
-        console.log(`Populated ${categories.length + 1} category buttons with direct event handlers`);
-    }
+            }
     function handleCategoryButtonClick(event) {
         const clickedButton = event.target.closest(`.${CATEGORY_FILTER_BUTTON_CLASS}`);
         if (!categoryButtonsContainerOverlay || !clickedButton) return;
@@ -1698,8 +1672,7 @@
             // Show count of active filters if multiple are selected
             if (activeSpecificButtons.length > 1) {
                 const activeCategories = activeSpecificButtons.map(btn => btn.getAttribute(DATA_CATEGORY_ATTR));
-                console.log(`${activeSpecificButtons.length} categories selected:`, activeCategories);
-                
+                                
                 // Update tooltips with additional info about multiple selection
                 activeSpecificButtons.forEach(btn => {
                     btn.setAttribute('title', `Selected - Click to deselect (${activeSpecificButtons.length} categories selected)`);
@@ -1760,8 +1733,7 @@
                             
                             // Add new handlers
                             newButton.addEventListener('click', function(e) {
-                                console.log("Direct category button click:", this.getAttribute(DATA_CATEGORY_ATTR));
-                                handleCategoryButtonClick(e);
+                                                                handleCategoryButtonClick(e);
                             });
                         });
                     }
@@ -1777,11 +1749,8 @@
                 updateKeywordsConveyor(fallbackKeywords);
             }
             
-            console.log("Filters and keywords initialized from API data");
-            return true;
+                        return true;
         } catch (error) {
-            console.error("Error initializing filters and keywords:", error);
-            
             // Use fallbacks if API fails
             // Fallback for top keywords
             if (keywordsConveyorBelt) {
@@ -1828,7 +1797,6 @@
     }
     async function performSearchOverlay() {
         if (!searchResultsOverlay || !searchInputOverlay || !loadingSpinnerOverlay ) {
-            console.error("Search UI elements missing for performSearchOverlay!");
             return;
         }
         
@@ -1870,7 +1838,6 @@
             const apiResponse = await performSearch(query, filtersToApply);
             displaySearchResultsOverlay(apiResponse, query);
         } catch (error) {
-            console.error("Error performing search:", error);
             searchResultsOverlay.innerHTML = `<p class="search-no-results">Error fetching search results.</p>`;
             showAllResultsContainer.classList.add(HIDDEN_CLASS);
         } finally {
@@ -1943,7 +1910,6 @@
                     });
                 }
             } catch (e) {
-                console.warn("Could not parse publication date:", item.publication_date);
                 formattedDate = item.publication_date; // Use as-is if parsing fails
             }
         }
@@ -2112,8 +2078,7 @@
             // Get user info either from NavbarModule or call the API
             let authData;
             if (isLoadedViaNavbarLoader) {
-                console.log("Using user info from NavbarModule");
-                authData = {
+                                authData = {
                     isAuthenticated: window.NavbarModule.userInfo.isLoggedIn,
                     user: window.NavbarModule.userInfo
                 };
@@ -2122,14 +2087,11 @@
                 // Directly access sessionStorage as fallback (for standalone usage)
                 try {
                     const userInfoStr = sessionStorage.getItem('userInfo');
-                    console.log("DEBUG: localStorage userInfo =", localStorage.getItem('userInfo'));
-                    console.log("DEBUG: sessionStorage userInfo =", userInfoStr);
-                    
+                                                            
                     if (userInfoStr) {
                         const userInfo = JSON.parse(userInfoStr);
                         if (userInfo && userInfo.isLoggedIn) {
-                            console.log("Using user info from sessionStorage");
-                            authData = {
+                                                        authData = {
                                 isAuthenticated: true,
                                 user: userInfo
                             };
@@ -2140,8 +2102,7 @@
                         }
                     } else {
                         // Try API as last resort
-                        console.log("No user info in storage, trying API...");
-                        const apiUrl = '/api/v1/auth/status';
+                                                const apiUrl = '/api/v1/auth/status';
                         
                         try {
                             const data = await fetchData(apiUrl);
@@ -2153,13 +2114,11 @@
                                 currentUser = null;
                             }
                         } catch (apiErr) {
-                            console.warn("API auth check failed:", apiErr);
                             authData = { isAuthenticated: false, user: null };
                             currentUser = null;
                         }
                     }
                 } catch (storageErr) {
-                    console.error("Error accessing storage:", storageErr);
                     authData = { isAuthenticated: false, user: null };
                     currentUser = null;
                 }
@@ -2178,14 +2137,12 @@
                     window.NavbarModule.formattedUser = formattedUser;
                 }
             } else {
-                console.warn("User not authenticated, redirecting to login page");
                 // Redirect to login if loaded directly (not via navbar-loader)
                 if (!isLoadedViaNavbarLoader) {
                     window.location.href = '/login.html';
                 }
             } 
         } catch (error) { 
-            console.error("Error in auth check and UI setup:", error);
             // If loaded directly, redirect to login
             if (!(window.NavbarModule && window.NavbarModule.userInfo)) {
                 window.location.href = '/login.html';
@@ -2227,8 +2184,7 @@
         else if (user.profilePictureUrl) profilePic = user.profilePictureUrl;
         
         if (profilePic) {
-            console.log("Formatted user data will include profile picture:", profilePic);
-        }
+                    }
 
         // Create formatted user object
         return {
@@ -2247,13 +2203,10 @@
     }
     
     async function updateUIForAuthenticatedUser(user) {
-        console.log("Updating UI for authenticated user:", user);
-        
+                
         // Debug logging for profile picture
-        console.log("DEBUG: Profile picture available:", user.profilePicture ? "YES" : "NO");
-        if (user.profilePicture) {
-            console.log("DEBUG: Profile picture URL:", user.profilePicture);
-        }
+                if (user.profilePicture) {
+                    }
         
         // Update user profile elements if they exist
         if (userAuthContainer) {
@@ -2307,20 +2260,17 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Check if we're loaded via navbar-loader.js or directly
         const isLoadedViaNavbarLoader = window.NavbarModule !== undefined && window.NavbarModule.cachedResponses !== undefined;
-        console.log("Navbar loaded via navbar-loader.js:", isLoadedViaNavbarLoader);
-        
+                
         // Force initialize category buttons regardless of loading method
         setTimeout(() => {
-            console.log("Forcing initialization of UI elements");
-            
+                        
             // Initialize or refresh the UI components
             try {
                 // Always initialize category buttons with default values
                 // even if we later update them with real data
                 if (categoryButtonsContainerOverlay) {
                     if (categoryButtonsContainerOverlay.children.length === 0) {
-                        console.log("Initializing category buttons with default values");
-                        const emptyCounts = {};
+                                                const emptyCounts = {};
                         PREDEFINED_CATEGORIES.forEach(cat => emptyCounts[cat] = 0);
                         populateCategoryButtons(PREDEFINED_CATEGORIES, emptyCounts, 0);
                     }
@@ -2328,8 +2278,7 @@
                     // CRITICAL: Make sure to wire up event handlers directly after initialization
                     // Remove any existing handlers first to prevent duplicates
                     const buttons = categoryButtonsContainerOverlay.querySelectorAll(`.${CATEGORY_FILTER_BUTTON_CLASS}`);
-                    console.log(`Found ${buttons.length} category buttons to initialize`);
-                    
+                                        
                     buttons.forEach(button => {
                         // Remove old handlers if any (we can't directly remove them but we can replace the element)
                         const newButton = button.cloneNode(true);
@@ -2337,20 +2286,16 @@
                         
                         // Add new direct handler to each button
                         newButton.addEventListener('click', function(e) {
-                            console.log("Direct category button click:", this.getAttribute(DATA_CATEGORY_ATTR));
-                            handleCategoryButtonClick(e);
+                                                        handleCategoryButtonClick(e);
                         });
                     });
                     
-                    console.log("Category button handlers attached directly to buttons");
-                } else {
-                    console.error("Category buttons container not found: categoryButtonsContainerOverlay");
+                                    } else {
                 }
                 
                 // Initialize top keywords conveyor with default values if empty
                 if (keywordsConveyorBelt && keywordsConveyorBelt.children.length === 0) {
-                    console.log("Initializing keywords conveyor with default values");
-                    const defaultKeywords = ["Thesis", "Research", "Academic", "Journal", "Paper"];
+                                        const defaultKeywords = ["Thesis", "Research", "Academic", "Journal", "Paper"];
                     updateKeywordsConveyor(defaultKeywords);
                 }
                 
@@ -2368,7 +2313,6 @@
                     initializeFiltersAndTopKeywords();
                 }
             } catch (error) {
-                console.error("Error during forced initialization:", error);
             }
         }, 100);
         
@@ -2388,9 +2332,7 @@
                 }
             });
             
-            console.log("Category button event handlers initialized");
-        } else {
-            console.error("Category buttons container not found");
+                    } else {
         }
         
         const debouncedPerformSearch = debounceOverlay(performSearchOverlay, DEBOUNCE_DELAY);
@@ -2541,9 +2483,7 @@
 
     // Function to update the keywords conveyor
     function updateKeywordsConveyor(keywordsToDisplay) {
-        console.log("Updating keywords conveyor with:", keywordsToDisplay);
-        if (!keywordsConveyorBelt || !Array.isArray(keywordsToDisplay)) {
-            console.error("Failed to update keywords conveyor - missing belt or invalid keywords:", keywordsConveyorBelt, keywordsToDisplay);
+                if (!keywordsConveyorBelt || !Array.isArray(keywordsToDisplay)) {
             return;
         }
         
@@ -2553,8 +2493,7 @@
         
         // If no keywords, add some placeholders
         if (keywordsToDisplay.length === 0) {
-            console.log("No keywords found, adding placeholders");
-            keywordsToDisplay = ["Thesis", "Research", "Academic", "Journal", "Paper", "University", "Education", "Literature", "Theory", "Analysis"];
+                        keywordsToDisplay = ["Thesis", "Research", "Academic", "Journal", "Paper", "University", "Education", "Literature", "Theory", "Analysis"];
         }
         
         const createKeywordItem = (term) => {
@@ -2616,21 +2555,18 @@
             conveyorScrollRightBtn.addEventListener('click', () => triggerConveyorArrowScroll('right'));
         }
         
-        console.log("Keywords conveyor updated successfully");
-    }
+            }
 
     // Function to load filters data when search is opened
     async function loadFiltersData() {
-        console.log("Loading filters data...");
-        if (loadingSpinnerOverlay) {
+                if (loadingSpinnerOverlay) {
             loadingSpinnerOverlay.classList.add(VISIBLE_CLASS);
         }
         
         try {
             // If the NavbarModule has already loaded this data, use it
             if (window.NavbarModule && window.NavbarModule.filtersLoaded) {
-                console.log("Using filters data already loaded by NavbarModule");
-                
+                                
                 // Try to get categories from navbar-loader's cache
                 if (window.NavbarModule.categoryData) {
                     populateCategoryButtons(
@@ -2664,8 +2600,7 @@
             }
             
             // Load both filters and top keywords in parallel
-            console.log("Fetching fresh filter data and top keywords");
-            let filtersAndCountsData, topKeywordsData;
+                        let filtersAndCountsData, topKeywordsData;
             
             try {
                 [filtersAndCountsData, topKeywordsData] = await Promise.all([
@@ -2673,14 +2608,11 @@
                     fetchTopKeywords()
                 ]);
             } catch (error) {
-                console.error("Error fetching filter data:", error);
                 filtersAndCountsData = { categoryCounts: {}, authors: [], keywords: [], years: [], totalDocuments: 0 };
                 topKeywordsData = { top_keywords: [] };
             }
             
-            console.log("Filter data loaded:", filtersAndCountsData);
-            console.log("Top keywords loaded:", topKeywordsData);
-            
+                                    
             // Populate category buttons
             if (PREDEFINED_CATEGORIES.length > 0 && filtersAndCountsData.categoryCounts) {
                 populateCategoryButtons(
@@ -2741,7 +2673,6 @@
                 window.NavbarModule.filtersLoaded = true;
             }
         } catch (error) {
-            console.error("Error loading search filters or keywords:", error);
         } finally {
             if (loadingSpinnerOverlay) {
                 loadingSpinnerOverlay.classList.remove(VISIBLE_CLASS);

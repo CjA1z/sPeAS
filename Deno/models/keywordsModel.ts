@@ -30,7 +30,6 @@ export class KeywordsModel {
       
       return keywords;
     } catch (error) {
-      console.error("Error getting all keywords:", error);
       return [];
     }
   }
@@ -88,7 +87,6 @@ export class KeywordsModel {
       
       return limitedTrendingKeywords;
     } catch (error) {
-      console.error("Error getting trending keywords:", error);
       // Fall back to random keywords on error
       return await this.getRandomKeywords(Math.min(limit, 10));
     }
@@ -119,7 +117,6 @@ export class KeywordsModel {
         count: 1
       }));
     } catch (error) {
-      console.error("Error getting random keywords:", error);
       return [];
     }
   }
@@ -151,7 +148,6 @@ export class KeywordsModel {
         count: parseInt(row.count.toString())
       }));
     } catch (error) {
-      console.error("Error getting keywords with counts:", error);
       return [];
     }
   }

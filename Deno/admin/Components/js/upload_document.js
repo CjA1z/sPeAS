@@ -329,24 +329,29 @@ async function handleSingleDocumentSubmit(e) {
     
     try {
         // Show loading state
-        showLoading('Uploading document...');
+        showLoading('Processing document...');
         
         // Get form data
         const formData = new FormData(e.target);
         
-        // Get file
+        // Get file ID from hidden input
         const fileInput = document.getElementById('single-file-upload');
-        if (fileInput.files.length === 0) {
-            showError('Please select a file to upload');
+        const hiddenFileIdInput = fileInput.nextElementSibling;
+        
+        if (!hiddenFileIdInput || !hiddenFileIdInput.value) {
+            showError('No file has been uploaded. Please select and upload a file first.');
             return;
         }
+        
+        // Use the pre-uploaded file data
+        const fileId = hiddenFileIdInput.value;
+        const filePath = fileId; // The fileId contains the path from pre-upload
         
         // Prepare document data
         const categorySelect = document.getElementById('single-category');
         const categoryValue = categorySelect.value;
         
-        // Collect selected research agenda items from the topicInput
-        // This is needed because the form doesn't have a researchAgenda field, but uses topicInput + selectedTopics
+        // Collect selected research agenda items
         const selectedTopics = document.getElementById('selectedTopics');
         const researchAgendaItems = [];
         if (selectedTopics) {
@@ -355,60 +360,9 @@ async function handleSingleDocumentSubmit(e) {
             });
             
             if (researchAgendaItems.length > 0) {
-                // Add to formData for the backend
                 formData.set('researchAgenda', researchAgendaItems.join(','));
             }
         }
-        
-        // Ensure the directory exists before uploading
-        const documentType = mapCategoryToDocumentType(categoryValue);
-        // Use only the allowed directories (thesis, dissertation, confluence, synergy, hello)
-        let validStorageType = documentType.toLowerCase();
-        
-        // If documentType would create a directory we've removed, use hello instead
-        if (validStorageType !== 'thesis' && 
-            validStorageType !== 'dissertation' && 
-            validStorageType !== 'confluence' && 
-            validStorageType !== 'synergy') {
-            validStorageType = 'hello';
-        }
-        
-        const storagePath = `storage/${validStorageType}/`;
-        await ensureDirectoriesExist(storagePath);
-        
-        // First upload the file
-        const file = fileInput.files[0];
-        const fileData = new FormData();
-        fileData.append('file', file, file.name); // Add filename explicitly
-        fileData.append('storagePath', storagePath);
-        
-        // Add document type and category information
-        fileData.append('document_type', documentType.toUpperCase());
-        fileData.append('category', categoryValue);
-        
-        console.log('Uploading single document file:', file.name, 'Size:', file.size, 'bytes', 'Path:', storagePath);
-        
-        // Upload file first
-        const fileUploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: fileData
-        });
-        
-        if (!fileUploadResponse.ok) {
-            let errorMessage;
-            try {
-            const errorData = await fileUploadResponse.json();
-                errorMessage = errorData.error || errorData.details || 'Failed to upload file';
-            } catch (jsonError) {
-                errorMessage = `Failed to upload file: ${fileUploadResponse.status} ${fileUploadResponse.statusText}`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const fileResult = await fileUploadResponse.json();
-        const filePath = fileResult.filePath;
-        
-        console.log('File upload successful:', fileResult);
         
         // Create publication date from month and year if both exist
         const pubMonth = formData.get('pubMonth');
@@ -419,56 +373,19 @@ async function handleSingleDocumentSubmit(e) {
             publicationDate = `${pubYear}-${pubMonth}-01`; // Use first day of month
         }
         
-        // Extract abstract from the file before saving to database
-        showLoading('Extracting abstract from PDF...');
-        let abstract = '';
-        let pageCount = 0;
-        
-        // If it's a PDF file, extract the abstract properly
-        if (file.type === 'application/pdf') {
-            try {
-                abstract = await extractPDFAbstractPromise(file);
-                console.log('Abstract extracted successfully:', abstract.substring(0, 100) + '...');
-                
-                // Get page count if available from server response
-                if (fileResult.metadata && fileResult.metadata.pageCount) {
-                    pageCount = fileResult.metadata.pageCount;
-                }
-            } catch (extractionError) {
-                console.error('Error extracting abstract:', extractionError);
-                abstract = 'Failed to extract abstract from document.';
-            }
-        } else {
-            abstract = 'No abstract available for non-PDF documents.';
-        }
-        
-        // Use server-provided metadata as fallback
-        if (!abstract && fileResult.metadata && fileResult.metadata.abstract) {
-            abstract = fileResult.metadata.abstract;
-        }
-        
-        // Final fallback if extraction completely fails
-        if (!abstract || abstract.trim() === '') {
-            abstract = 'No abstract could be extracted from this document.';
-        }
-        
-        // Create document object with the actual extracted abstract
+        // Create document object with the file path from pre-upload
         const documentData = {
             title: formData.get('title'),
-            abstract: abstract,
+            abstract: fileInput.dataset.abstract || 'Abstract will be processed by the server.',
             publication_date: publicationDate,
             file_path: filePath,
             is_public: true, // Default to public
             document_type: mapCategoryToDocumentType(categoryValue),
             research_agenda: formData.get('researchAgenda') || null,
-            category_id: null,
-            pages: pageCount
+            category_id: null
         };
         
-        // Update the preview with the document data
-        updateDocumentPreview(fileResult);
-        
-        // Save document to database with the actual extracted abstract
+        // Save document to database
         showLoading('Saving document to database...');
         const documentResponse = await fetch('/api/documents', {
             method: 'POST',
@@ -481,7 +398,7 @@ async function handleSingleDocumentSubmit(e) {
         if (!documentResponse.ok) {
             let errorMessage;
             try {
-            const errorData = await documentResponse.json();
+                const errorData = await documentResponse.json();
                 errorMessage = errorData.error || 'Failed to save document';
             } catch (jsonError) {
                 errorMessage = `Failed to save document: ${documentResponse.status} ${documentResponse.statusText}`;
@@ -491,38 +408,6 @@ async function handleSingleDocumentSubmit(e) {
         
         const result = await documentResponse.json();
         const documentId = result.id;
-        
-        // Now that we have the document ID, create the file record
-        const fileRecord = {
-            file_name: fileResult.originalName,
-            file_path: filePath,
-            file_size: fileResult.size,
-            file_type: fileResult.fileType || 'application/octet-stream',
-            document_id: documentId
-        };
-        
-        // Save file record to database
-        // REMOVED: No longer creating separate file records
-        // We now rely entirely on the documents.file_path field
-        // try {
-        //     const fileRecordResponse = await fetch('/api/files', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         },
-        //         body: JSON.stringify(fileRecord)
-        //     });
-        //     
-        //     if (!fileRecordResponse.ok) {
-        //         const errorData = await fileRecordResponse.json();
-        //         console.warn('Warning: Failed to create file record:', errorData.error || 'Unknown error');
-        //     } else {
-        //         console.log('File record created successfully');
-        //     }
-        // } catch (fileRecordError) {
-        //     console.warn('Warning: Error creating file record:', fileRecordError);
-        //     // Continue even if file record creation fails
-        // }
         
         // Save author information
         if (formData.get('author')) {
@@ -544,7 +429,7 @@ async function handleSingleDocumentSubmit(e) {
                 });
                 
                 if (!authorResponse.ok) {
-                    console.warn('Warning: Authors may not have been saved correctly');
+                    console.warn('Warning: Failed to save author information');
                 }
             }
         }
@@ -554,40 +439,26 @@ async function handleSingleDocumentSubmit(e) {
             const researchAgendaItems = formData.get('researchAgenda').split(',').map(item => item.trim()).filter(item => item !== '');
             
             if (researchAgendaItems.length > 0) {
-                // First add items to the old endpoint for backward compatibility
                 const researchAgendaData = {
                     document_id: documentId,
                     agenda_items: researchAgendaItems
                 };
                 
-                // Send research agenda items to the document-research-agenda endpoint
-                const researchAgendaResponse = await fetch('/document-research-agenda', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(researchAgendaData)
+                // Send to both old and new endpoints for compatibility
+                await Promise.all([
+                    fetch('/document-research-agenda', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(researchAgendaData)
+                    }),
+                    fetch('/api/document-research-agenda/link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(researchAgendaData)
+                    })
+                ]).catch(error => {
+                    console.warn('Warning: Failed to save some research agenda information', error);
                 });
-                
-                if (!researchAgendaResponse.ok) {
-                    console.warn('Warning: Research agenda items may not have been saved correctly to old endpoint');
-                }
-                
-                // Now also use the new linkage endpoint that creates entries in the junction table
-                const linkResponse = await fetch('/api/document-research-agenda/link', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(researchAgendaData)
-                });
-                
-                if (!linkResponse.ok) {
-                    console.warn('Warning: Failed to link research agenda items in junction table');
-                } else {
-                    const linkResult = await linkResponse.json();
-                    console.log('Research agenda linking result:', linkResult);
-                }
             }
         }
         
@@ -598,7 +469,6 @@ async function handleSingleDocumentSubmit(e) {
         });
         
     } catch (error) {
-        console.error('Upload error:', error);
         showError(error.message || 'An error occurred during upload');
     } finally {
         hideLoading();
@@ -736,11 +606,9 @@ function extractPDFAbstractPromise(file) {
                         resolve("No abstract found in the document.");
                     }
                 } catch (error) {
-                    console.error('Error extracting abstract:', error);
                     reject(error);
                 }
             }).catch(function(error) {
-                console.error('Error loading PDF:', error);
                 reject(error);
             });
         };
@@ -777,33 +645,24 @@ async function handleCompiledDocumentSubmit(e) {
         
         // Debug information - log research sections
         const researchSections = document.querySelectorAll('.research-section');
-        console.log(`Found ${researchSections.length} research sections`);
-        
+                
         // Count sections with valid files
         let sectionsWithFiles = 0;
         researchSections.forEach((section, index) => {
             // Use the broader selector to find file inputs
             const fileInput = section.querySelector('input[type="file"], .research-file, .hidden-file-input, #file-upload-' + (index+1));
             
-            console.log(`Section ${index+1} file input element:`, fileInput);
-            
+                        
             if (fileInput) {
-                console.log(`Section ${index+1} file input name:`, fileInput.name);
-                console.log(`Section ${index+1} file input id:`, fileInput.id);
-                console.log(`Section ${index+1} has files:`, fileInput.files ? fileInput.files.length : 0);
-                
+                                                                
                 if (fileInput.files && fileInput.files.length > 0) {
                     sectionsWithFiles++;
-                    console.log(`Section ${index+1} has file: ${fileInput.files[0].name}`);
-        } else {
-                    console.log(`Section ${index+1} has no file or empty files collection`);
-                }
+                            } else {
+                                    }
             } else {
-                console.log(`Section ${index+1} - NO file input found!`);
-            }
+                            }
         });
-        console.log(`${sectionsWithFiles} out of ${researchSections.length} sections have files`);
-        
+                
         // Validate required fields
         const title = formData.get('title');
         const category = formData.get('category');
@@ -854,8 +713,7 @@ async function handleCompiledDocumentSubmit(e) {
                 // Create a specific path for foreword files with their own subfolder
                 const baseStoragePath = compiledStoragePath;
                 const forewordPath = `${baseStoragePath}forewords/`;
-            console.log(`Using foreword storage path: ${forewordPath}`);
-            
+                        
             const forewordFormData = new FormData();
                 forewordFormData.append('file', forewordFile);
             forewordFormData.append('storagePath', forewordPath);
@@ -864,8 +722,7 @@ async function handleCompiledDocumentSubmit(e) {
                 forewordFormData.append('is_foreword', 'true'); // Flag to indicate this is a foreword file
                 
                 // First ensure the directory exists using direct API call
-                console.log(`Ensuring foreword directory exists: ${forewordPath}`);
-                await fetch('/api/ensure-directory', {
+                                await fetch('/api/ensure-directory', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -880,16 +737,13 @@ async function handleCompiledDocumentSubmit(e) {
                 // Wait a moment to ensure directory creation completes
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
-                console.log('Attempting to upload foreword file...');
-            const forewordFileResponse = await fetch('/api/upload', {
+                            const forewordFileResponse = await fetch('/api/upload', {
                 method: 'POST',
                 body: forewordFormData
             });
             
             if (!forewordFileResponse.ok) {
                 const errorData = await forewordFileResponse.json();
-                console.error('Failed to upload foreword file:', errorData.error || 'Unknown error');
-                
                 // Show a warning but continue with the submission process
                 await Swal.fire({
                     title: 'Foreword Upload Warning',
@@ -912,34 +766,27 @@ async function handleCompiledDocumentSubmit(e) {
             } else {
                 const forewordResult = await forewordFileResponse.json();
                 forewordFilePath = forewordResult.filePath;
-                console.log('Uploaded foreword file to:', forewordFilePath);
-                
+                                
                 // Try to extract abstract from foreword file
                     if (forewordFile.type === 'application/pdf') {
                     try {
-                        console.log('Extracting abstract from foreword PDF...');
-                            forewordAbstract = await extractPDFAbstractPromise(forewordFile);
-                        console.log('Foreword abstract extracted:', forewordAbstract?.substring(0, 100) + '...');
-                    } catch (extractionError) {
-                        console.error('Error extracting foreword abstract:', extractionError);
+                                                    forewordAbstract = await extractPDFAbstractPromise(forewordFile);
+                                            } catch (extractionError) {
                         forewordAbstract = 'Failed to extract abstract from foreword document.';
                     }
                     
                     // Use server-provided metadata as fallback
                     if ((!forewordAbstract || forewordAbstract.trim() === '') && forewordResult.metadata && forewordResult.metadata.abstract) {
                         forewordAbstract = forewordResult.metadata.abstract;
-                        console.log('Using server-extracted foreword abstract:', forewordAbstract?.substring(0, 100) + '...');
-                    }
+                                            }
                 }
                 }
             } catch (error) {
-                console.error('Error handling foreword file:', error);
                 forewordFilePath = null;
                 forewordAbstract = null;
             }
         } else {
-            console.log('No foreword file found');
-        }
+                    }
         
         // Ensure the directory exists
         await ensureDirectoriesExist(compiledStoragePath);
@@ -987,13 +834,11 @@ async function handleCompiledDocumentSubmit(e) {
         
         if (!compiledDocResponse.ok) {
             const errorData = await compiledDocResponse.json();
-            console.warn('Warning: Failed to create compiled document entry:', errorData.error);
             throw new Error(`Failed to create compiled document entry: ${errorData.error || 'Unknown error'}`);
         }
         
         const compiledDocResult = await compiledDocResponse.json();
-        console.log('Created compiled document entry with ID:', compiledDocResult.id);
-        
+                
         // Store the compiled document ID (this is the ID in the compiled_documents table)
         const compiledDocEntryId = compiledDocResult.id;
         
@@ -1010,29 +855,23 @@ async function handleCompiledDocumentSubmit(e) {
             // Try multiple selectors for finding the title input
             const titleInput = section.querySelector('.research-title, input[name^="research"][name$="[study_title]"], #study-title-' + (i+1));
             
-            console.log(`Section ${i+1} title input:`, titleInput);
-            if (titleInput) {
-                console.log(`Section ${i+1} title value:`, titleInput.value);
-            }
+                        if (titleInput) {
+                            }
             
             if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                console.log(`Skipping section ${i+1} - no file uploaded`);
-                continue; // Skip sections without files
+                                continue; // Skip sections without files
             }
             
             if (!titleInput) {
-                console.log(`ERROR: Title input not found for section ${i+1}`);
-                throw new Error(`Title input not found for section ${i+1}. Please refresh the page and try again.`);
+                                throw new Error(`Title input not found for section ${i+1}. Please refresh the page and try again.`);
             }
             
             if (!titleInput.value || titleInput.value.trim() === '') {
-                console.log(`ERROR: Missing title for section ${i+1}`);
-                throw new Error(`Each study must have a title (section ${i+1} is missing a title)`);
+                                throw new Error(`Each study must have a title (section ${i+1} is missing a title)`);
             }
             
             const file = fileInput.files[0];
-            console.log(`Processing study ${i+1} file: ${file.name} (${file.size} bytes) for section with title: ${titleInput.value}`);
-            
+                        
             // Create study-specific file upload
             const studyFormData = new FormData();
             studyFormData.append('file', file);
@@ -1065,8 +904,7 @@ async function handleCompiledDocumentSubmit(e) {
                 abstractContent.textContent.trim() !== '' && 
                 !abstractContent.textContent.includes('Abstract will be extracted') &&
                 !abstractContent.textContent.includes('Extracting abstract')) {
-                console.log(`Using extracted abstract from PDF for section ${i+1}`);
-                abstractText = abstractContent.textContent.trim();
+                                abstractText = abstractContent.textContent.trim();
             }
             
             // Create study document data (will be linked to the compiled document)
@@ -1087,13 +925,11 @@ async function handleCompiledDocumentSubmit(e) {
                 // Only override abstract if we don't already have one from the UI extraction
                 if (abstractText === 'No abstract provided' && fileResult.metadata.abstract) {
                     studyData.abstract = fileResult.metadata.abstract;
-                    console.log(`Using metadata abstract from API for section ${i+1}`);
-                }
+                                    }
                 studyData.pages = fileResult.metadata.pageCount || 0;
             }
             
-            console.log(`Saving child document with abstract length: ${studyData.abstract.length} chars`);
-            
+                        
             // Save study document to database
             const studyPromise = fetch('/api/documents', {
                 method: 'POST',
@@ -1119,16 +955,14 @@ async function handleCompiledDocumentSubmit(e) {
                 // Process authors if present
                 if (authorInput && authorInput.value && authorInput.value.trim() !== '') {
                     try {
-                        console.log(`Processing authors for study ${i+1} with ID ${studyDocId}`);
-                        
+                                                
                         // Split authors by semicolon and clean up
                         const authors = authorInput.value.split(';')
                             .map(name => name.trim())
                             .filter(name => name !== '');
                         
                         if (authors.length > 0) {
-                            console.log(`Found ${authors.length} authors for study ${i+1}: ${authors.join(', ')}`);
-                            
+                                                        
                             // Prepare data for document-authors endpoint
                             const authorData = {
                                 document_id: studyDocId,
@@ -1149,16 +983,13 @@ async function handleCompiledDocumentSubmit(e) {
                                 console.warn(`Warning: Authors may not have been saved correctly for study ${i+1}:`, 
                                     authorResponse.status, errorText);
                             } else {
-                                console.log(`Successfully associated ${authors.length} authors with study ${i+1}`);
-                            }
+                                                            }
                         }
                     } catch (authorError) {
-                        console.error(`Error processing authors for study ${i+1}:`, authorError);
                         // Continue with document creation even if author association fails
                     }
                 } else {
-                    console.log(`No authors specified for study ${i+1}`);
-                }
+                                    }
                 
                 // Add research agenda items if provided
                 if (section.querySelector('.research-agenda-input')) {
@@ -1180,8 +1011,7 @@ async function handleCompiledDocumentSubmit(e) {
                     
                     if (researchAgendaItems.length > 0) {
                         // Log what we found for debugging
-                        console.log(`Found ${researchAgendaItems.length} research agenda items for section ${i+1}:`, researchAgendaItems);
-                        
+                                                
                         // First add items to research_agenda table (backwards compatibility)
                         const researchAgendaData = {
                             document_id: studyDocId,
@@ -1199,7 +1029,6 @@ async function handleCompiledDocumentSubmit(e) {
                             });
                             
                             if (!researchAgendaResponse.ok) {
-                                console.warn(`Warning: Research agenda items for section ${i+1} may not have been saved correctly`);
                             }
                             
                             // Now also link to the junction table
@@ -1212,13 +1041,10 @@ async function handleCompiledDocumentSubmit(e) {
                             });
                             
                             if (!linkResponse.ok) {
-                                console.warn(`Warning: Failed to link research agenda items for section ${i+1}`);
                             } else {
                                 const linkResult = await linkResponse.json();
-                                console.log(`Research agenda linking result for section ${i+1}:`, linkResult);
-                            }
+                                                            }
                         } catch (agendaError) {
-                            console.warn(`Error saving research agenda items for section ${i+1}:`, agendaError);
                         }
                     }
                 }
@@ -1235,9 +1061,6 @@ async function handleCompiledDocumentSubmit(e) {
         // Link all child documents to the compiled document if we have a valid compiled doc ID
         if (studyDocumentIds.length > 0) {
             try {
-                console.debug(`Creating junction table entries for compiled document ${compiledDocEntryId} with ${studyDocumentIds.length} child documents`);
-                console.debug('Child document IDs:', studyDocumentIds);
-                        
                 const linkResponse = await fetch('/api/compiled-documents/add-documents', {
                     method: 'POST',
                     headers: {
@@ -1251,49 +1074,29 @@ async function handleCompiledDocumentSubmit(e) {
                 
                 if (!linkResponse.ok) {
                     const errorData = await linkResponse.json();
-                    console.warn('Warning: Failed to link some child documents to compilation:', errorData.error);
                     // Continue anyway since the documents were created, but show a more informative message
                     showError(`Compiled document created, but some studies may not appear in the list. Please check the console for details or try refreshing the document list.`);
                 } else {
                     const linkResult = await linkResponse.json();
-                    console.debug('Junction table entries created:', linkResult);
-                    
                     // Check if any failures occurred
                     if (linkResult.results && linkResult.results.some(r => !r.success)) {
                         const failedCount = linkResult.results.filter(r => !r.success).length;
-                        console.warn(`${failedCount} out of ${linkResult.results.length} document links failed`);
                         showError(`Compiled document created, but ${failedCount} studies may not appear in the list. Please check the console for details.`);
                     }
                 }
             } catch (linkError) {
-                console.error('Error linking child documents to compilation:', linkError);
                 // Continue anyway since the documents were created
                 showError(`Compiled document created, but studies may not appear in the list due to an error: ${linkError.message}`);
             }
         }
         
         // Display upload summary in the console
-        console.log("-------------------------------------------");
-        console.log("📊 COMPILED DOCUMENT UPLOAD SUMMARY");
-        console.log("-------------------------------------------");
-        console.log(`✅ Compiled Document ID: ${compiledDocEntryId}`);
-        console.log(`📚 Title: ${formData.get('title') || `${category} ${formData.get('volume') || ''}`}`);
-        console.log(`📚 Type: ${documentType}`);
-        console.log(`📚 Category: ${category}`);
-        console.log(`📚 Volume: ${formData.get('volume') || 'N/A'}`);
-        
+                                                                        
         if (documentType === "SYNERGY") {
-            console.log(`📚 Department: ${departmentId ? getSelectedDepartmentText() : 'N/A'}`);
-        } else {
-            console.log(`📚 Issue: ${formData.get('issued-no') || 'N/A'}`);
-        }
+                    } else {
+                    }
         
-        console.log(`📚 Years: ${formData.get('pub-year-start') || 'N/A'} - ${formData.get('pub-year-end') || 'N/A'}`);
-        console.log(`📚 Child Studies: ${studyDocumentIds.length} (found ${researchSections.length} research sections, ${sectionsWithFiles} with files)`);
-        console.log(`📁 Storage Path: ${compiledStoragePath}`);
-        console.log(`📄 Foreword Path: ${forewordFilePath || 'No foreword attached'}`);
-        console.log("-------------------------------------------");
-        
+                                                
         hideLoading();
         
         // Show success message or warning if files were skipped
@@ -1322,19 +1125,15 @@ async function handleCompiledDocumentSubmit(e) {
                     researchContainer.innerHTML = '';
                     addResearchSection(); // Add one empty section
                 } else {
-                    console.warn('Research sections container not found when trying to clear sections');
                 }
             });
         }
         
     } catch (error) {
         hideLoading();
-        console.error('Error creating compiled document:', error);
-        
         // Provide more detailed error information
         let errorMessage = error.message;
         if (error.stack) {
-            console.error('Error stack:', error.stack);
         }
         
         // Check if it's a TypeError with 'null' in the message (common for DOM element issues)
@@ -1361,7 +1160,6 @@ async function ensureDirectoriesExist(path) {
             body: JSON.stringify({ path })
         });
     } catch (error) {
-        console.warn('Could not ensure directory exists:', path, error);
         // Continue anyway as the upload might still work if directory exists
     }
 }
@@ -1484,8 +1282,7 @@ function updatePreviewIcon(category) {
     }
     
     previewIcon.src = iconPath;
-    console.log('Updated single document preview icon to:', iconPath);
-}
+    }
 
 // Function to update compiled document preview
 function updateCompiledPreview() {
@@ -1553,8 +1350,7 @@ function updateCompiledPreview() {
     }
     
     previewIcon.src = iconPath;
-    console.log('Updated compiled document preview icon to:', iconPath);
-    }
+        }
 }
 
 /**
@@ -1804,11 +1600,9 @@ function extractPDFAbstract(file, abstractElement) {
                     abstractElement.textContent = "No abstract found in the document.";
                 }
             } catch (error) {
-                console.error('Error extracting abstract:', error);
                 abstractElement.textContent = "Error extracting abstract from PDF.";
             }
         }).catch(function(error) {
-            console.error('Error loading PDF:', error);
             abstractElement.textContent = 'Unable to load PDF content. Try a different file.';
         });
     };
@@ -1990,8 +1784,7 @@ function setupStudyFileInputs() {
                         }
                     }
                     
-                    console.log(`File selected for research section ${fileId}: ${fileName} (${fileSize} KB)`);
-                    
+                                        
                     // Also add a visual indication that the file was selected
                     const uploadContainer = container.querySelector(`#file-upload-container-${fileId}`);
                     if (uploadContainer) {
@@ -2147,7 +1940,6 @@ async function handleFileSelection(event) {
             document.getElementById('page-count-value').textContent = pageCount;
         }
     } catch (error) {
-        console.error('File upload error:', error);
         uploadBox.classList.remove('loading');
         uploadBox.classList.add('error');
         showError(`Upload failed: ${error.message}`);
@@ -2201,7 +1993,6 @@ async function fetchDepartments() {
         }
         return await response.json();
     } catch (error) {
-        console.error("Error fetching departments:", error);
         return [];
     }
 }
@@ -2231,7 +2022,6 @@ async function populateDepartmentalDropdown() {
         // Add an event listener to update the preview when selection changes
         departmentalSelect.addEventListener('change', updateCompiledPreview);
     } catch (error) {
-        console.error("Error populating departmental dropdown:", error);
     }
 }
 
@@ -2284,7 +2074,6 @@ function addResearchSection() {
     // Find the sections container
     const sectionsContainer = document.getElementById('research-sections-container');
     if (!sectionsContainer) {
-        console.error('Research sections container not found');
         return;
     }
     
@@ -2388,8 +2177,7 @@ function addResearchSection() {
                     }
                 }
                 
-                console.log(`File selected for research section ${nextId}: ${fileName} (${fileSize} KB)`);
-                
+                                
                 // Also add a visual indication that the file was selected
                 const uploadContainer = newSection.querySelector(`#file-upload-container-${nextId}`);
                 if (uploadContainer) {
@@ -2446,8 +2234,7 @@ function addResearchSection() {
         }
     }
     
-    console.log(`Added new research section ${nextId}`);
-    
+        
     // Update the studies list in the preview
     if (typeof updateStudiesList === 'function') {
         updateStudiesList();
@@ -2513,8 +2300,7 @@ function validateResearchSections() {
         // Check title input
         const titleInput = section.querySelector('.study-title-input, input[name^="research"][name$="[study_title]"], #study-title-' + sectionId);
         if (!titleInput || !titleInput.value.trim()) {
-            console.log(`Validation error: Missing title for research section ${sectionId}`);
-            if (titleInput) {
+                        if (titleInput) {
                 titleInput.classList.add('border-red-500');
                 titleInput.classList.remove('border-gray-300');
             }
@@ -2529,7 +2315,6 @@ function validateResearchSections() {
         // Check author input
         const authorInput = section.querySelector('.authors-input, input[name^="research"][name$="[authors]"], #authors-' + sectionId);
         if (!authorInput || !authorInput.value.trim()) {
-            console.warn(`Warning: No authors specified for research section ${sectionId}`);
             if (authorInput) {
                 // Add a visual warning but don't make it a validation error
                 authorInput.classList.add('border-yellow-500');
@@ -2548,8 +2333,7 @@ function validateResearchSections() {
         const fileNameDisplay = section.querySelector('.file-name-display');
         
         if (!fileUploadInput || !fileUploadInput.files || fileUploadInput.files.length === 0) {
-            console.log(`Validation error: Missing file for research section ${sectionId}`);
-            const fileUploadContainer = section.querySelector(`#file-upload-container-${sectionId}`);
+                        const fileUploadContainer = section.querySelector(`#file-upload-container-${sectionId}`);
             if (fileUploadContainer) {
                 fileUploadContainer.classList.add('border-red-500');
                 fileUploadContainer.classList.remove('border-gray-300', 'border-dashed');
@@ -2565,8 +2349,7 @@ function validateResearchSections() {
     });
     
     if (!isValid) {
-        console.log('Validation failed for research sections');
-    }
+            }
     
     return isValid;
 }
@@ -2575,31 +2358,23 @@ function validateResearchSections() {
  * Log all data in study sections for debugging
  */
 function logStudySectionData() {
-    console.log('--- STUDY SECTION DATA DUMP ---');
-    const sections = document.querySelectorAll('.research-section');
+        const sections = document.querySelectorAll('.research-section');
     
     sections.forEach((section, index) => {
         const sectionId = index + 1;
-        console.log(`\nSection ${sectionId} data:`);
-        
+                
         // Title field
         const titleInput = section.querySelector('.research-title, input[name^="research"][name$="[study_title]"], #study-title-' + sectionId);
-        console.log(`- Title element:`, titleInput);
-        console.log(`- Title value:`, titleInput ? titleInput.value : 'NOT FOUND');
-        
+                        
         // Abstract field
         const abstractInput = section.querySelector('.research-abstract, textarea[name^="research"][name$="[abstract]"], #research-abstract-' + sectionId);
-        console.log(`- Abstract element:`, abstractInput);
-        console.log(`- Abstract value:`, abstractInput ? abstractInput.value : 'NOT FOUND');
-        
+                        
         // File input
         const fileInput = section.querySelector('input[type="file"], .research-file, .hidden-file-input, #file-upload-' + sectionId);
-        console.log(`- File input element:`, fileInput);
-        console.log(`- File selected:`, fileInput && fileInput.files && fileInput.files.length > 0 ? 
+                console.log(`- File selected:`, fileInput && fileInput.files && fileInput.files.length > 0 ? 
             `${fileInput.files[0].name} (${fileInput.files[0].size} bytes)` : 'NO FILE');
     });
-    console.log('--- END DATA DUMP ---');
-}
+    }
 
 /**
  * Extract just the department code from the selected department text
@@ -2640,3 +2415,145 @@ function mapCategoryToDocumentType(category) {
             return 'HELLO'; // Default fallback
     }
 }
+
+// ... existing code ...
+async function extractPDFText(page) {
+    const textContent = await page.getTextContent();
+    const pageItems = textContent.items;
+    
+    // Sort items by vertical position (top to bottom)
+    pageItems.sort((a, b) => b.transform[5] - a.transform[5]);
+    
+    // Group items by lines based on y-position
+    const lines = [];
+    let currentLine = [];
+    let lastY = null;
+    const yThreshold = 3; // Threshold for considering items on the same line
+    
+    pageItems.forEach(item => {
+        const y = item.transform[5];
+        
+        if (lastY === null || Math.abs(y - lastY) > yThreshold) {
+            if (currentLine.length > 0) {
+                // Sort items in line by x-position (left to right)
+                currentLine.sort((a, b) => a.transform[4] - b.transform[4]);
+                lines.push(currentLine.map(item => item.str).join(''));
+            }
+            currentLine = [item];
+        } else {
+            currentLine.push(item);
+        }
+        lastY = y;
+    });
+    
+    if (currentLine.length > 0) {
+        currentLine.sort((a, b) => a.transform[4] - b.transform[4]);
+        lines.push(currentLine.map(item => item.str).join(''));
+    }
+    
+    return lines;
+}
+
+async function findAbstractInText(textLines) {
+    const abstractMarkers = [
+        /(?:GRADUATE|GRADUATE\s+SCHOOL|SCHOOL\s+OF\s+GRADUATE\s+STUDIES).*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/i,
+        /COLLEGE\s+OF.*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/i,
+        /UNIVERSITY.*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/i,
+        /DEPARTMENT\s+OF.*?(?:ABSTRACT|A\s*B\s*S\s*T\s*R\s*A\s*C\s*T)/i,
+        /\b(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|ABSTRACT)[\\s\\.:]*$/i,
+        /^\s*(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|Abstract)[\s\.:]*$/i,
+        /^(?:\d+\.)?\s*(?:A\s*B\s*S\s*T\s*R\s*A\s*C\s*T|Abstract)[\s\.:]*$/i,
+        /THESIS\s+ABSTRACT/i,
+        /DISSERTATION\s+ABSTRACT/i,
+        /RESEARCH\s+ABSTRACT/i
+    ];
+    
+    const endMarkers = [
+        /^(?:1\.|I\.|1\s+)?(?:Introduction|Background)\b/i,
+        /\bKeywords?\s*:/i,
+        /\bIndex Terms\s*:/i,
+        /\bAcknowledg?ements?\b/i,
+        /\bReferences\b/i,
+        /\bChapter\s+\d+/i,
+        /\bSection\s+\d+/i,
+        /\bMethodology\b/i,
+        /\bMaterials?\s+and\s+Methods?\b/i
+    ];
+    
+    let abstractStartIndex = -1;
+    let abstractEndIndex = -1;
+    
+    // Find start of abstract
+    for (let i = 0; i < textLines.length; i++) {
+        const line = textLines[i];
+        if (abstractMarkers.some(marker => marker.test(line))) {
+            abstractStartIndex = i;
+            break;
+        }
+    }
+    
+    if (abstractStartIndex === -1) {
+        return null;
+    }
+    
+    // Find end of abstract
+    for (let i = abstractStartIndex + 1; i < textLines.length; i++) {
+        const line = textLines[i];
+        if (endMarkers.some(marker => marker.test(line))) {
+            abstractEndIndex = i;
+            break;
+        }
+    }
+    
+    // If no end marker found, take a reasonable chunk of text
+    if (abstractEndIndex === -1) {
+        abstractEndIndex = Math.min(abstractStartIndex + 20, textLines.length);
+    }
+    
+    // Extract and clean abstract text
+    const abstractLines = textLines.slice(abstractStartIndex + 1, abstractEndIndex);
+    let abstractText = abstractLines.join('\n');
+    
+    // Clean up the text
+    abstractText = abstractText
+        .replace(/^[\d\s\w]+$|Page \d+|^\d+$/gm, '') // Remove page numbers and headers
+        .replace(/\n{3,}/g, '\n\n') // Normalize multiple line breaks
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
+    
+    return abstractText.length > 50 ? abstractText : null;
+}
+
+// Update the main extraction function
+async function extractPDFAbstract(file, abstractElement) {
+    if (!file || !abstractElement) return;
+    
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+        
+        // Search through first few pages
+        const maxPagesToSearch = Math.min(5, pdf.numPages);
+        let abstractText = null;
+        
+        for (let pageNum = 1; pageNum <= maxPagesToSearch && !abstractText; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textLines = await extractPDFText(page);
+            abstractText = await findAbstractInText(textLines);
+        }
+        
+        if (abstractText) {
+            // Clean and format the abstract
+            abstractText = cleanAbstractText(abstractText);
+            const formattedAbstract = formatAbstract(abstractText);
+            abstractElement.innerHTML = formattedAbstract;
+            addEnhancedStyling();
+        } else {
+            abstractElement.textContent = "No abstract found in the document.";
+        }
+    } catch (error) {
+        console.error('Abstract extraction error:', error);
+        abstractElement.textContent = "Error extracting abstract from PDF.";
+    }
+}
+// ... existing code ...

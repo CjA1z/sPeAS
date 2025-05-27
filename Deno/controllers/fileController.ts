@@ -47,7 +47,6 @@ export async function createFile(fileData: FileData) {
     const result = await client.queryObject(query, params);
     return result.rows[0];
   } catch (error) {
-    console.error("Database error creating file:", error);
     throw new Error(`Failed to create file record: ${(error as Error).message}`);
   }
 }
@@ -64,7 +63,6 @@ export async function getFileById(id: string) {
     
     return result.rows.length ? result.rows[0] : null;
   } catch (error) {
-    console.error("Database error getting file:", error);
     throw new Error(`Failed to get file: ${(error as Error).message}`);
   }
 }
@@ -81,7 +79,6 @@ export async function getFilesByDocumentId(documentId: string) {
     
     return result.rows;
   } catch (error) {
-    console.error("Database error getting files by document ID:", error);
     throw new Error(`Failed to get files by document ID: ${(error as Error).message}`);
   }
 }
@@ -128,7 +125,6 @@ export async function updateFile(id: string, fileData: Partial<FileData>) {
     
     return result.rows[0];
   } catch (error) {
-    console.error("Database error updating file:", error);
     throw new Error(`Failed to update file: ${(error as Error).message}`);
   }
 }
@@ -149,7 +145,6 @@ export async function deleteFile(id: string) {
     
     return true;
   } catch (error) {
-    console.error("Database error deleting file:", error);
     throw new Error(`Failed to delete file: ${(error as Error).message}`);
   }
 } 

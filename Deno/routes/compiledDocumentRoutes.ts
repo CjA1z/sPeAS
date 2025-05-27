@@ -128,7 +128,6 @@ const updateCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
             }
         } catch (e) {
             const error = e as Error;
-            console.error("Error processing multipart/form-data:", error);
             ctx.response.status = 400;
             ctx.response.body = { error: "Error processing form data: " + error.message };
             return;
@@ -140,7 +139,6 @@ const updateCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
             body = await bodyParser.value;
         } catch (e) {
             const error = e as Error;
-            console.error("Error processing request body:", error);
             ctx.response.status = 400;
             ctx.response.body = { error: "Invalid request format: " + error.message };
             return;
@@ -211,7 +209,6 @@ const hardDeleteCompiledDocument = async (ctx: RouterContext<any, any, any>) => 
             };
         }
     } catch (error) {
-        console.error(`Error hard deleting compiled document ${id}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -268,7 +265,6 @@ const getCompiledDocumentChildren = async (ctx: RouterContext<any, any, any>) =>
         // Return the found documents
         ctx.response.body = result.rows;
     } catch (error) {
-        console.error(`Error fetching children of compiled document ${compiledDocId}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             error: error instanceof Error ? error.message : "Unknown error occurred", 
@@ -314,7 +310,6 @@ const getCompiledDocumentItems = async (ctx: RouterContext<any, any, any>) => {
             success: true
         };
     } catch (error) {
-        console.error(`Error fetching items for compiled document ${compiledDocId}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             error: error instanceof Error ? error.message : "Unknown error occurred", 

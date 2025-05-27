@@ -17,15 +17,10 @@ try {
   try { await dotenv.config({ path: "../.env", export: true }); } catch (_) { /* ignore */ }
   try { await dotenv.config({ path: "../../.env", export: true }); } catch (_) { /* ignore */ }
   try { await dotenv.config({ path: "./Deno/.env", export: true }); } catch (_) { /* ignore */ }
-  console.log("[EMAIL] Attempted to load .env file from multiple locations");
-  
+    
   // Add debugging output to verify if environment variables are loaded
-  console.log("[EMAIL] Environment variables after loading .env:");
-  console.log("[EMAIL] SMTP_USERNAME:", Deno.env.get("SMTP_USERNAME") || "Not set");
-  console.log("[EMAIL] SMTP_PASSWORD exists:", !!Deno.env.get("SMTP_PASSWORD"));
-} catch (error: unknown) {
+      } catch (error: unknown) {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error("[EMAIL] Error loading .env file:", errorMessage);
 }
 
 // Email configuration using environment variables with fallbacks for development
@@ -55,7 +50,6 @@ const getFormattedFromAddress = () => {
   const username = EMAIL_CONFIG.username;
   // Ensure username is a valid email address
   if (!username || !username.includes('@')) {
-    console.error('[SMTP] Invalid SMTP_USERNAME format. Must be a valid email address.');
     // Return a placeholder that's properly formatted but will fail auth
     return 'noreply@example.com';
   }
@@ -79,22 +73,14 @@ const getFormattedFromAddress = () => {
   if (!EMAIL_CONFIG.username?.includes('@')) problems.push("SMTP_USERNAME is not a valid email address (must include @)");
   
   if (problems.length > 0) {
-    console.error("⚠️ [SMTP] EMAIL CONFIGURATION PROBLEMS DETECTED:");
     problems.forEach(problem => console.error(`  - ${problem}`));
-    console.error("Email functionality will not work until these issues are fixed.");
   }
 })();
 
 // Log current email configuration (with password masked)
-console.log("[EMAIL CONFIG] Host:", EMAIL_CONFIG.hostname);
-console.log("[EMAIL CONFIG] Port:", EMAIL_CONFIG.port);
-console.log("[EMAIL CONFIG] Username:", EMAIL_CONFIG.username ? EMAIL_CONFIG.username : "Not set");
-console.log("[EMAIL CONFIG] Password set:", EMAIL_CONFIG.password ? "Yes" : "No");
-console.log("[EMAIL CONFIG] TLS enabled:", EMAIL_CONFIG.useTLS);
 
 // Log a warning if credentials are missing
 if (!EMAIL_CONFIG.username || !EMAIL_CONFIG.password) {
-  console.warn("WARNING: Email credentials not configured. Set SMTP_USERNAME and SMTP_PASSWORD environment variables.");
 }
 
 // Initialize SMTP client
@@ -110,8 +96,7 @@ function initializeClient() {
   // Don't attempt to initialize if we've determined service is unavailable recently
   const currentTime = Date.now();
   if (!emailServiceAvailable && (currentTime - lastEmailAttemptTime) < emailRetryInterval) {
-    console.log("[SMTP] Skipping connection attempt - service marked unavailable recently");
-    return null;
+        return null;
   }
   
   lastEmailAttemptTime = currentTime;
@@ -119,13 +104,11 @@ function initializeClient() {
   if (!smtpClient) {
     try {
       if (!EMAIL_CONFIG.username || !EMAIL_CONFIG.password) {
-        console.error("[SMTP] Email credentials not configured");
         emailServiceAvailable = false;
         return null;
       }
       
-      console.log("[SMTP] Initializing SMTP client...");
-      
+            
       smtpClient = new SMTPClient({
         connection: {
           hostname: EMAIL_CONFIG.hostname,
@@ -139,11 +122,9 @@ function initializeClient() {
         // Add debug option with correct type
         debug: { log: true },
       });
-      console.log("[SMTP] SMTP client initialized successfully");
-      emailServiceAvailable = true;
+            emailServiceAvailable = true;
       return smtpClient;
     } catch (error) {
-      console.error("[SMTP] Error initializing SMTP client:", error);
       emailServiceAvailable = false;
       return null;
     }
@@ -189,10 +170,8 @@ async function logEmailActivity(action: string, details: Record<string, any>): P
         }
       });
       
-    console.log(`[SMTP] Activity logged to ${logFile}`);
-  } catch (error) {
+      } catch (error) {
     // Don't fail the main operation if logging fails
-    console.error("[SMTP] Error logging activity:", error);
   }
 }
 
@@ -231,7 +210,6 @@ async function getFileType(filePath: string): Promise<string> {
     
     return "application/octet-stream"; // Default binary type
   } catch (error) {
-    console.error(`[SMTP] Error detecting file type: ${error}`);
     // If we can't detect the type but the file has a .pdf extension, assume it's a PDF
     if (filePath.toLowerCase().endsWith(".pdf")) {
       return "application/pdf";
@@ -245,24 +223,20 @@ async function encodeFileForEmail(filePath: string): Promise<{
   content: string;
   size: number;
 }> {
-  console.log(`[SMTP] 📤 Reading file for email encoding: ${filePath}`);
-  
+    
   // Check file stats before reading
   const fileStats = await Deno.stat(filePath);
   if (fileStats.size === 0) {
-    console.error(`[SMTP] ❌ File exists but is empty (0 bytes): ${filePath}`);
     throw new Error("File exists but is empty (0 bytes)");
   }
   
-  console.log(`[SMTP] File stats before encoding: Size=${fileStats.size} bytes, isFile=${fileStats.isFile}, Modified=${fileStats.mtime}`);
-  
+    
   // Read file as binary
   const fileBytes = await Deno.readFile(filePath);
   
   // Use the standard Deno base64 encoder instead of custom implementation
   const base64Content = encodeBase64(fileBytes);
-  console.log(`[SMTP] File encoded successfully: Original size=${fileStats.size} bytes, Encoded size=${base64Content.length} chars`);
-  
+    
   return {
     content: base64Content,
     size: fileStats.size
@@ -275,8 +249,6 @@ function encode(data: Uint8Array): string {
     return encodeBase64(data);
   } catch (e) {
     // Fallback method if the standard library function fails
-    console.error("Error using standard base64 encoding, falling back to manual encoding:", e);
-    
     // Convert binary data to a format that btoa can handle
     const binary = Array.from(new Uint8Array(data))
       .map(byte => String.fromCharCode(byte))
@@ -288,25 +260,13 @@ function encode(data: Uint8Array): string {
 
 // Add direct logging to verify message structure before sending
 async function logMessageStructure(message: any, prefix = "[DEBUG]") {
-  console.log(`${prefix} Message structure before sending:`);
-  console.log(`${prefix} From: ${message.from}`);
-  console.log(`${prefix} To: ${message.to}`);
-  console.log(`${prefix} Subject: ${message.subject}`);
-  console.log(`${prefix} Has HTML: ${!!message.html}`);
-  
+            
   if (message.attachments && message.attachments.length > 0) {
-    console.log(`${prefix} Attachments: ${message.attachments.length}`);
-    for (let i = 0; i < message.attachments.length; i++) {
+        for (let i = 0; i < message.attachments.length; i++) {
       const att = message.attachments[i];
-      console.log(`${prefix} - Attachment ${i+1}:`);
-      console.log(`${prefix}   Filename: ${att.filename}`);
-      console.log(`${prefix}   Content type: ${att.contentType}`);
-      console.log(`${prefix}   Encoding: ${att.encoding}`);
-      console.log(`${prefix}   Content length: ${typeof att.content === 'string' ? att.content.length : (att.content instanceof Uint8Array ? att.content.length : 'unknown')} bytes/chars`);
-    }
+                                  }
   } else {
-    console.log(`${prefix} No attachments found in message!`);
-  }
+      }
 }
 
 /**
@@ -356,11 +316,9 @@ export async function sendEmailWithAttachment(
   fileName?: string
 ): Promise<any> {
   try {
-    console.log(`[SMTP] Initializing email client for sending to: ${to}`);
-    
+        
     // Check if email configuration is valid before attempting to initialize
     if (!EMAIL_CONFIG.username || !EMAIL_CONFIG.password) {
-      console.error("[SMTP] Cannot send email: SMTP credentials not configured");
       await logEmailActivity("EMAIL_CONFIG_ERROR", {
         recipient: to,
         subject: subject,
@@ -374,7 +332,6 @@ export async function sendEmailWithAttachment(
     }
     
     if (!EMAIL_CONFIG.username.includes('@')) {
-      console.error("[SMTP] Cannot send email: SMTP username is not a valid email address");
       await logEmailActivity("EMAIL_CONFIG_ERROR", {
         recipient: to,
         subject: subject,
@@ -391,7 +348,6 @@ export async function sendEmailWithAttachment(
     try {
     initializeClient();
     } catch (initError) {
-      console.error("[SMTP] Failed to initialize SMTP client:", initError);
       await logEmailActivity("EMAIL_INIT_ERROR", {
         recipient: to,
         subject: subject,
@@ -405,7 +361,6 @@ export async function sendEmailWithAttachment(
     }
     
     if (!smtpClient) {
-      console.error("[SMTP] Failed to initialize SMTP client");
       return {
         success: false,
         error: "Failed to initialize SMTP client",
@@ -440,9 +395,7 @@ export async function sendEmailWithAttachment(
     // Add attachment if provided
     if (filePath) {
       try {
-        console.log(`[SMTP] 📎 Attempting to attach file from path: ${filePath}`);
-        console.log(`[SMTP DEBUG] Current working directory: ${Deno.cwd()}`);
-        
+                        
         // Enhanced file existence check
         let fileExists = false;
         let foundFileSize = 0;
@@ -454,10 +407,8 @@ export async function sendEmailWithAttachment(
           fileExists = true;
           foundFileSize = fileInfo.size;
           attachmentInfo.size = fileInfo.size;
-          console.log(`[SMTP] ✅ Verified document exists: ${filePath} (${fileInfo.size} bytes)`);
-        } catch (directPathError) {
-          console.log(`[SMTP] ⚠️ Document not found at direct path: ${filePath}`);
-          fileError = directPathError instanceof Error ? directPathError.message : String(directPathError);
+                  } catch (directPathError) {
+                    fileError = directPathError instanceof Error ? directPathError.message : String(directPathError);
           attachmentInfo.error = fileError;
           
           // Try to find the file using the FileCheckService
@@ -466,8 +417,7 @@ export async function sendEmailWithAttachment(
             const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || '';
             
             if (fileName) {
-              console.log(`[SMTP] Searching for document "${fileName}" in storage directories...`);
-              
+                            
               // Import dynamically to avoid circular dependency
               const { FileCheckService } = await import('./fileCheckService.ts');
               const results = await FileCheckService.findInStorage(fileName);
@@ -476,10 +426,8 @@ export async function sendEmailWithAttachment(
               const found = results.filter(r => r.exists);
               
               if (found.length > 0) {
-                console.log(`[SMTP] ✅ Found document in ${found.length} location(s):`);
-                found.forEach((result, i) => {
-                  console.log(`  ${i+1}. ${result.path} (${result.size} bytes)`);
-                });
+                                found.forEach((result, i) => {
+                                  });
                 
                 // Use the first found file
                 finalPath = found[0].path;
@@ -488,7 +436,6 @@ export async function sendEmailWithAttachment(
                 attachmentInfo.path = finalPath;
                 attachmentInfo.size = foundFileSize;
               } else {
-                console.error(`[SMTP] ❌ Document not found in any storage location`);
                 await logEmailActivity("DOCUMENT_NOT_FOUND", {
                   recipient: to,
                   document: subject,
@@ -498,16 +445,11 @@ export async function sendEmailWithAttachment(
               }
             }
           } catch (searchError) {
-            console.error(`[SMTP] Error searching for document:`, searchError);
             attachmentInfo.error = searchError instanceof Error ? searchError.message : String(searchError);
           }
         }
         
         if (!fileExists) {
-          console.error(`[SMTP] ❌ File does not exist at any tried path. Cannot attach file to email.`);
-          console.log(`[SMTP] ⚠️ Will continue sending email without attachment`);
-          console.log(`[FILE NOT SENT] ⚠️⚠️⚠️ FILE ATTACHMENT FAILED - FILE NOT FOUND: ${filePath}`);
-          
           await logEmailActivity("FILE_ATTACHMENT_FAILED", {
             file_path: filePath,
             error: "File does not exist at any tried path",
@@ -525,13 +467,10 @@ export async function sendEmailWithAttachment(
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           ];
           
-          console.log(`[SMTP] File type detected: ${fileType}`);
-
+          
           if (!allowedTypes.includes(fileType) && 
               !fileType.includes('pdf') && 
               !finalPath.toLowerCase().endsWith('.pdf')) {
-            console.error(`[SMTP] ❌ Invalid file type: ${fileType}. Only PDF documents are allowed.`);
-            
             await logEmailActivity("INVALID_FILE_TYPE", {
               file_path: finalPath,
               file_type: fileType,
@@ -542,8 +481,7 @@ export async function sendEmailWithAttachment(
             attachmentInfo.error = `Invalid file type: ${fileType}. Only PDF documents are allowed.`;
             
             // Continue sending email without attachment
-            console.log(`[SMTP] ⚠️ Will continue sending email without attachment due to invalid file type`);
-            
+                        
             return {
               success: true, // Email will still be sent
               attachment_success: false,
@@ -556,8 +494,7 @@ export async function sendEmailWithAttachment(
           
           // File exists and is valid, read and attach it
           try {
-            console.log(`[SMTP] 📤 Reading file directly for attachment: ${finalPath}`);
-            
+                        
             // Check if file exists and its size
             const fileInfo = await Deno.stat(finalPath);
             
@@ -565,16 +502,13 @@ export async function sendEmailWithAttachment(
               throw new Error(`File exists but is empty (0 bytes): ${finalPath}`);
             }
             
-            console.log(`[SMTP] File exists, size: ${fileInfo.size} bytes`);
-            
+                        
             // Read the file directly as binary data
             const fileContent = await Deno.readFile(finalPath);
-            console.log(`[SMTP] File read successfully, content length: ${fileContent.length} bytes`);
-            
+                        
             // Convert to base64
             const base64Content = uint8ArrayToBase64(fileContent);
-            console.log(`[SMTP] File encoded to base64, length: ${base64Content.length} chars`);
-            
+                        
             // Add attachment directly (simpler approach)
             message.attachments = [{
               filename: fileName || finalPath.split('/').pop() || finalPath.split('\\').pop() || 'attachment.pdf',
@@ -583,26 +517,19 @@ export async function sendEmailWithAttachment(
               encoding: 'base64'
             }] as any; // Use type assertion to bypass the type checking
             
-            console.log(`[SMTP] Attachment added to message with content length: ${base64Content.length}`);
-            
+                        
             // Log message structure to verify attachment was added properly
             await logMessageStructure(message, "[SMTP]");
             
             attachmentInfo.attached = true;
             attachmentInfo.size = fileInfo.size;
             
-            console.log(`[SMTP] ✅ Attachment added to email (${fileInfo.size} bytes)`);
-            console.log(`[SMTP] ✅✅✅ FILE SUCCESSFULLY READ AND ATTACHED: ${fileName || finalPath.split('/').pop() || finalPath.split('\\').pop() || 'attachment'} (${fileInfo.size} bytes)`);
-          } catch (error) {
-            console.error(`[SMTP] ❌ Error reading/attaching file: ${error instanceof Error ? error.message : String(error)}`);
+                                  } catch (error) {
           }
         }
       } catch (fileError) {
-        console.error(`[SMTP] ❌ Error processing attachment ${filePath}:`, fileError);
         // Continue sending email without attachment
-        console.log(`[SMTP] ⚠️ Will continue sending email without attachment`);
-        console.log(`[FILE NOT SENT] ⚠️⚠️⚠️ GENERAL ATTACHMENT ERROR: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
-        
+                        
         attachmentInfo.error = fileError instanceof Error ? fileError.message : String(fileError);
         
         await logEmailActivity("FILE_ATTACHMENT_FAILED", {
@@ -616,8 +543,6 @@ export async function sendEmailWithAttachment(
     
     // Verify message has attachments if they were expected
     if (filePath && (!message.attachments || message.attachments.length === 0)) {
-      console.error(`[SMTP] ❌ CRITICAL ERROR: Attachment was expected but not found in message before sending!`);
-      
       // Try to add attachment one more time directly
       try {
         const fileContent = await Deno.readFile(filePath);
@@ -634,35 +559,28 @@ export async function sendEmailWithAttachment(
           }
         }] as any;
         
-        console.log(`[SMTP] Re-added attachment as last resort (${fileContent.length} bytes)`);
-        
+                
         // Log the final message structure
         await logMessageStructure(message, "[SMTP FINAL]");
       } catch (lastError) {
-        console.error(`[SMTP] Failed last attempt to add attachment:`, lastError);
       }
     }
     
     // Send the email with better error handling
     try {
-    console.log(`[SMTP] Sending email to ${to} with subject "${subject}"${filePath && message.attachments ? ' including attachment' : ' WITHOUT attachment'}`);
-    
+        
     // Initialize the SMTP client before attempting to send
     const client = initializeClient();
     if (!client) {
-      console.error("[SMTP] Failed to initialize SMTP client");
       throw new Error("Failed to initialize SMTP client. Check your email settings.");
     }
     
     await client.send(message);
-    console.log(`[SMTP] ✅ Email successfully sent to ${to} with subject "${subject}"`);
-    
+        
     // Log clear confirmation about attachment status
     if (filePath && message.attachments) {
-      console.log(`[FILE SENT SUCCESSFULLY] ✅✅✅ THE FILE WAS SUCCESSFULLY SENT TO ${to}`);
-    } else if (filePath && !message.attachments) {
-      console.log(`[FILE NOT SENT] ⚠️⚠️⚠️ EMAIL WAS SENT BUT FILE WAS NOT ATTACHED TO ${to}`);
-    }
+          } else if (filePath && !message.attachments) {
+          }
     
       // Return detailed status
       return {
@@ -692,10 +610,6 @@ export async function sendEmailWithAttachment(
       } else {
         friendlyError = `Email error: ${errorMessage}`;
       }
-      
-      console.error("[SMTP] Error sending email:", sendError);
-      console.error("[SMTP] Friendly error message:", friendlyError);
-      
     await logEmailActivity("EMAIL_SEND_ERROR", {
         recipient: to,
         subject: subject,
@@ -714,7 +628,6 @@ export async function sendEmailWithAttachment(
       };
     }
   } catch (error) {
-    console.error("[SMTP] Unexpected error in email service:", error);
     await logEmailActivity("EMAIL_UNEXPECTED_ERROR", {
       recipient: to,
       subject: subject,
@@ -764,10 +677,7 @@ export async function sendApprovedRequestEmail(
   attachment_success: boolean;
   error?: string;
 }> {
-  console.log(`[SMTP] Preparing approval email for document: "${documentTitle}"`);
-  console.log(`[SMTP] Document path: ${documentFilePath}`);
-  console.log(`[SMTP] Child document paths: ${childDocumentPaths?.length || 0}`);
-  
+        
   // Log the beginning of this activity
   await logEmailActivity("DOCUMENT_APPROVAL_START", {
     recipient: email,
@@ -778,8 +688,7 @@ export async function sendApprovedRequestEmail(
 
   try {
     // CRITICAL FIX: Add direct PDF handling right at the start
-    console.log("[SMTP APPROVAL] Attempting direct PDF read for attachments");
-    let mainPdfContent: Uint8Array | null = null;
+        let mainPdfContent: Uint8Array | null = null;
     let childPdfContents: Array<{path: string, content: Uint8Array}> = [];
     let fileSize = 0;
     let fileExists = false;
@@ -809,39 +718,30 @@ export async function sendApprovedRequestEmail(
         `./Public/documents/dissertation/${documentFilePath}`
     ];
     
-      console.log(`[SMTP ATTACHMENT DEBUG] Searching for document: ${documentFilePath}`);
-      console.log(`[SMTP ATTACHMENT DEBUG] Current working directory: ${Deno.cwd()}`);
-    
+                
       // Try to list files in storage directory to help debug
       try {
-        console.log(`[SMTP ATTACHMENT DEBUG] Listing available files in storage:`);
-        const storageFiles = [];
+                const storageFiles = [];
         for await (const entry of Deno.readDir('./storage')) {
           storageFiles.push(entry.name);
         }
-        console.log(`[SMTP ATTACHMENT DEBUG] Files in storage: ${storageFiles.join(', ')}`);
-      } catch (err) {
-        console.log(`[SMTP ATTACHMENT DEBUG] Error listing storage directory: ${err.message}`);
-      }
+              } catch (err) {
+              }
       
       for (const path of pathsToTry) {
         try {
-          console.log(`[SMTP APPROVAL] Attempting to read file from: ${path}`);
-          mainPdfContent = await Deno.readFile(path);
+                    mainPdfContent = await Deno.readFile(path);
           fileExists = true;
           fileSize = mainPdfContent.length;
-          console.log(`[SMTP APPROVAL] Successfully read file: ${path} (${fileSize} bytes)`);
-            break;
+                      break;
         } catch (error) {
-          console.log(`[SMTP APPROVAL] Failed to read from ${path}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+                  }
       }
     }
     
     // Try reading child documents
     if (childDocumentPaths && childDocumentPaths.length > 0) {
-      console.log(`[SMTP APPROVAL] Attempting to read ${childDocumentPaths.length} child documents`);
-      
+            
       for (const childPath of childDocumentPaths) {
         // Try multiple paths for each child document
         const childPathsToTry = [
@@ -856,28 +756,23 @@ export async function sendApprovedRequestEmail(
         
         for (const path of childPathsToTry) {
           try {
-            console.log(`[SMTP APPROVAL] Attempting to read child file from: ${path}`);
-            const childContent = await Deno.readFile(path);
+                        const childContent = await Deno.readFile(path);
             childPdfContents.push({path: childPath, content: childContent});
             fileExists = true;
             fileSize += childContent.length;
-            console.log(`[SMTP APPROVAL] Successfully read child file: ${path} (${childContent.length} bytes)`);
-            successfulAttachments++;
+                        successfulAttachments++;
             break; // Break out of the paths loop for this child document
           } catch (error) {
-            console.log(`[SMTP APPROVAL] Failed to read child from ${path}: ${error instanceof Error ? error.message : String(error)}`);
-          }
+                      }
         }
       }
       
-      console.log(`[SMTP APPROVAL] Successfully read ${successfulAttachments} of ${childDocumentPaths.length} child documents`);
-    }
+          }
     
     // If we couldn't read from the file system directly, fallback to loading from database
     if (!fileExists && documentFilePath) {
       try {
-        console.log("[SMTP APPROVAL] Falling back to database lookup for file content");
-        const { client } = await import("../db/denopost_conn.ts");
+                const { client } = await import("../db/denopost_conn.ts");
         const query = `
           SELECT file_path, document_content 
           FROM documents 
@@ -888,19 +783,16 @@ export async function sendApprovedRequestEmail(
         const possibleId = parseInt(documentFilePath.replace(/[^0-9]/g, ''));
         const queryParams = [documentFilePath, isNaN(possibleId) ? null : possibleId];
         
-        console.log(`[SMTP APPROVAL] Querying database with params:`, queryParams);
-        const result = await client.queryObject(query, queryParams);
+                const result = await client.queryObject(query, queryParams);
         
         if (result.rows.length > 0) {
           const row = result.rows[0] as Record<string, any>;
           if (row.document_content) {
-            console.log("[SMTP APPROVAL] Found document content in database");
-            // If document_content is stored as base64, decode it
+                        // If document_content is stored as base64, decode it
             if (typeof row.document_content === 'string') {
               try {
                 mainPdfContent = decodeBase64(row.document_content);
               } catch (e) {
-                console.error("[SMTP APPROVAL] Error decoding base64 content:", e);
               }
             } else if (row.document_content instanceof Uint8Array) {
               mainPdfContent = row.document_content;
@@ -909,12 +801,10 @@ export async function sendApprovedRequestEmail(
             if (mainPdfContent) {
               fileExists = true;
               fileSize = mainPdfContent.length;
-              console.log(`[SMTP APPROVAL] Successfully retrieved ${fileSize} bytes from database`);
-            }
+                          }
           }
         }
       } catch (error) {
-        console.error("[SMTP APPROVAL] Error retrieving document from database:", error);
       }
     }
 
@@ -946,11 +836,8 @@ sPeAS - Library Document Management System
     // Get the approved email template
     let emailTemplate: string;
     try {
-      console.log("[SMTP APPROVAL] Reading approval email template");
-      emailTemplate = await Deno.readTextFile("./Public/pages/approvedEmailTemplate.html");
-      console.log("[SMTP APPROVAL] Successfully read template file");
-    } catch (error) {
-      console.error("[SMTP APPROVAL] Error reading email template:", error);
+            emailTemplate = await Deno.readTextFile("./Public/pages/approvedEmailTemplate.html");
+          } catch (error) {
       // Use a fallback template if the file can't be read
       emailTemplate = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -998,7 +885,6 @@ sPeAS - Library Document Management System
       try {
         html = html.split(placeholder).join(value);
       } catch (error) {
-        console.error(`[SMTP APPROVAL] Error replacing placeholder ${placeholder}:`, error);
         html = html.replace(placeholder, "Content unavailable");
       }
     }
@@ -1015,8 +901,7 @@ sPeAS - Library Document Management System
 
     // Only try to add attachments if we have found files
     if (mainPdfContent && mainPdfContent.length > 0) {
-      console.log(`[SMTP ATTACHMENT] Adding main document attachment (${fileSize} bytes)`);
-      try {
+            try {
         // Create a filename for the attachment - use the document title or ID
         const safeTitle = documentTitle.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
         const attachmentFilename = `${safeTitle}_${Date.now()}.pdf`;
@@ -1029,18 +914,14 @@ sPeAS - Library Document Management System
           contentType: 'application/pdf'
         });
         
-        console.log(`[SMTP ATTACHMENT] Successfully added main document as "${attachmentFilename}"`);
-      } catch (error) {
-        console.error(`[SMTP ATTACHMENT] Error adding main document attachment:`, error);
+              } catch (error) {
       }
     } else {
-      console.warn(`[SMTP ATTACHMENT] No content found for main document attachment!`);
     }
     
     // Add child documents if any were found
     if (childPdfContents && childPdfContents.length > 0) {
-      console.log(`[SMTP ATTACHMENT] Adding ${childPdfContents.length} child document attachments`);
-      
+            
       childPdfContents.forEach((childDoc, index) => {
         try {
           // Create a filename based on the path or index
@@ -1058,41 +939,30 @@ sPeAS - Library Document Management System
             contentType: 'application/pdf'
           });
           
-          console.log(`[SMTP ATTACHMENT] Successfully added child document #${index+1} as "${attachmentFilename}"`);
-        } catch (error) {
-          console.error(`[SMTP ATTACHMENT] Error adding child document #${index+1}:`, error);
+                  } catch (error) {
         }
       });
     } 
     
     // Log the final message structure for debugging
-    console.log(`[SMTP ATTACHMENT] Final email message has ${message.attachments.length} attachments`);
-    if (message.attachments.length === 0) {
-      console.warn(`[SMTP ATTACHMENT] WARNING: No attachments were added to the email!`);
-      console.warn(`[SMTP ATTACHMENT] Document path tried: ${documentFilePath}`);
-      console.warn(`[SMTP ATTACHMENT] Child documents expected: ${childDocumentPaths?.length || 0}`);
+        if (message.attachments.length === 0) {
       }
       
     // Send the email with better error handling
     try {
-    console.log(`[SMTP] Sending email to ${email} with subject "${subject}"`);
-    
+        
     // Initialize the SMTP client before attempting to send
     const client = initializeClient();
     if (!client) {
-      console.error("[SMTP] Failed to initialize SMTP client");
       throw new Error("Failed to initialize SMTP client. Check your email settings.");
     }
     
     await client.send(message);
-    console.log(`[SMTP] ✅ Email successfully sent to ${email} with subject "${subject}"`);
-      
+          
     // Log clear confirmation about attachment status
     if (fileExists) {
-      console.log(`[FILE SENT SUCCESSFULLY] ✅✅✅ THE FILE WAS SUCCESSFULLY SENT TO ${email}`);
-    } else {
-      console.log(`[FILE NOT SENT] ⚠️⚠️⚠️ EMAIL WAS SENT BUT FILE WAS NOT ATTACHED TO ${email}`);
-    }
+          } else {
+          }
     
       // Return detailed status
       return {
@@ -1121,10 +991,6 @@ sPeAS - Library Document Management System
       } else {
         friendlyError = `Email error: ${errorMessage}`;
       }
-      
-      console.error("[SMTP] Error sending email:", sendError);
-      console.error("[SMTP] Friendly error message:", friendlyError);
-      
     await logEmailActivity("EMAIL_SEND_ERROR", {
         recipient: email,
         subject: subject,
@@ -1143,7 +1009,6 @@ sPeAS - Library Document Management System
       };
     }
   } catch (error) {
-    console.error("[SMTP] Unexpected error in email service:", error);
     await logEmailActivity("EMAIL_UNEXPECTED_ERROR", {
       recipient: email,
       subject: subject,
@@ -1177,8 +1042,7 @@ export async function sendRejectedRequestEmail(
   reason: string,
   requestId?: string
 ): Promise<boolean | { success: boolean; message: string; error?: string }> {
-  console.log(`[EMAIL SERVICE] Preparing rejection email for ${email}`);
-  
+    
   // Log the beginning of this activity
   await logEmailActivity("DOCUMENT_REQUEST_REJECTION", {
     recipient: email,
@@ -1195,8 +1059,7 @@ export async function sendRejectedRequestEmail(
   try {
     // Log current working directory for debugging paths
     const cwd = Deno.cwd();
-    console.log(`[EMAIL SERVICE] Current working directory: ${cwd}`);
-    
+        
     // Try multiple possible locations for the rejection template
     const possibleTemplatePaths = [
       "./Public/pages/rejectionEmailTemplate.html",
@@ -1210,31 +1073,24 @@ export async function sendRejectedRequestEmail(
     
     for (const templatePath of possibleTemplatePaths) {
       try {
-        console.log(`[EMAIL SERVICE] Trying to load template from: ${templatePath}`);
-        emailTemplate = await Deno.readTextFile(templatePath);
-        console.log(`[EMAIL SERVICE] ✅ Successfully loaded rejection email template from ${templatePath}`);
-        templateFound = true;
+                emailTemplate = await Deno.readTextFile(templatePath);
+                templateFound = true;
         break;
       } catch (e) {
-        console.log(`[EMAIL SERVICE] Template not found at ${templatePath}`);
-      }
+              }
     }
     
     if (!templateFound) {
       // Fall back to the general template if rejection template is not found in any location
-      console.log(`[EMAIL SERVICE] Rejection template not found in any location, trying general template`);
-      try {
+            try {
         emailTemplate = await Deno.readTextFile("./Public/pages/EmailTemplate.html");
-        console.log(`[EMAIL SERVICE] Successfully loaded generic email template`);
-      } catch (generalError) {
+              } catch (generalError) {
         throw new Error(`Could not find any email templates: ${generalError.message}`);
       }
     }
   } catch (error) {
-    console.error("[EMAIL SERVICE] Error reading email templates:", error);
     // Use a fallback template if no template files can be read
-    console.log("[EMAIL SERVICE] Using fallback rejection email template");
-    emailTemplate = `
+        emailTemplate = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -1287,8 +1143,7 @@ export async function sendRejectedRequestEmail(
     
     if (emailTemplate.includes("[User's Full Name Placeholder]")) {
       // This is the template format, replace placeholders
-      console.log(`[EMAIL SERVICE] Replacing placeholders in email template`);
-      
+            
       // Lookup request ID display value
       const displayRequestId = requestId || 'Not Available';
       
@@ -1309,11 +1164,9 @@ export async function sendRejectedRequestEmail(
         html = html.split(placeholder).join(value);
       }
       
-      console.log(`[EMAIL SERVICE] Placeholders replaced for rejection email`);
-    } else {
+          } else {
       // Use the fallback template directly
-      console.log(`[EMAIL SERVICE] Using custom rejection email template`);
-      
+            
       html = `
 <!DOCTYPE html>
 <html>
@@ -1367,8 +1220,7 @@ Best regards,
 Paulinian Electronic Archiving System
 `;
 
-    console.log(`[EMAIL SERVICE] Sending rejection email to ${email}`);
-    
+        
     try {
       // Send the email
       const result = await sendEmailWithAttachment(
@@ -1380,14 +1232,12 @@ Paulinian Electronic Archiving System
       
       // Log the result
       if (result === true || (typeof result === 'object' && result.success)) {
-        console.log(`[EMAIL SERVICE] ✅ Rejection email successfully sent to ${email}`);
-        await logEmailActivity("DOCUMENT_REQUEST_REJECTION_SUCCESS", {
+                await logEmailActivity("DOCUMENT_REQUEST_REJECTION_SUCCESS", {
           recipient: email,
           subject: subject
         });
         return typeof result === 'object' ? result : true;
       } else {
-        console.error(`[EMAIL SERVICE] ❌ Failed to send rejection email to ${email}:`, result);
         await logEmailActivity("DOCUMENT_REQUEST_REJECTION_FAILED", {
           recipient: email,
           error: typeof result === 'object' ? result.message || 'Unknown error' : 'Unknown error'
@@ -1395,7 +1245,6 @@ Paulinian Electronic Archiving System
         return typeof result === 'object' ? result : false;
       }
     } catch (sendError) {
-      console.error(`[EMAIL SERVICE] Error sending rejection email:`, sendError);
       await logEmailActivity("DOCUMENT_REQUEST_REJECTION_ERROR", {
         recipient: email,
         error: sendError instanceof Error ? sendError.message : String(sendError)
@@ -1407,7 +1256,6 @@ Paulinian Electronic Archiving System
       };
     }
   } catch (error) {
-    console.error(`[EMAIL SERVICE] Error preparing rejection email:`, error);
     await logEmailActivity("DOCUMENT_REQUEST_REJECTION_ERROR", {
       recipient: email,
       error: error instanceof Error ? error.message : String(error)
@@ -1446,8 +1294,7 @@ export async function sendRequestConfirmationEmail(
   },
   requestId: string
 ): Promise<boolean> {
-  console.log(`[SMTP] Preparing document request confirmation email for ${email}`);
-  
+    
   // Log the beginning of this activity
   await logEmailActivity("DOCUMENT_REQUEST_CONFIRMATION", {
     recipient: email,
@@ -1463,7 +1310,6 @@ export async function sendRequestConfirmationEmail(
   try {
     emailTemplate = await Deno.readTextFile("./Public/pages/EmailTemplate.html");
   } catch (error) {
-    console.error("[SMTP] Error reading email template:", error);
     // Use a fallback template if the file can't be read
     emailTemplate = `
     <!DOCTYPE html>
@@ -1550,7 +1396,6 @@ export async function sendRequestConfirmationEmail(
       // Use split and join instead of regex for safer replacement
       emailHtml = emailHtml.split(placeholder).join(value);
     } catch (error) {
-      console.error(`[SMTP] Error replacing placeholder ${placeholder}:`, error);
       // If replacement fails, try a direct approach with a simpler placeholder
       emailHtml = emailHtml.replace(placeholder, "Content unavailable");
     }
@@ -1597,8 +1442,7 @@ Paulinian Electronic Archiving System
     
     // Log the result with clear status information
     if (result && result.success === true) {
-      console.log(`[SMTP] ✅ Document request confirmation email successfully sent to ${email}`);
-      
+            
       // Log success
       await logEmailActivity("REQUEST_CONFIRMATION_SENT_SUCCESS", {
         recipient: email,
@@ -1609,8 +1453,6 @@ Paulinian Electronic Archiving System
       return true;
     } else {
       const errorMessage = result && result.error ? result.error : "Unknown error";
-      console.error(`[SMTP] ❌ Failed to send document request confirmation email to ${email}: ${errorMessage}`);
-      
       // Log failure
       await logEmailActivity("REQUEST_CONFIRMATION_SENT_FAILURE", {
         recipient: email,
@@ -1621,8 +1463,6 @@ Paulinian Electronic Archiving System
       return false;
     }
   } catch (error) {
-    console.error(`[SMTP] Error in sendRequestConfirmationEmail:`, error);
-    
     // Log error
     await logEmailActivity("REQUEST_CONFIRMATION_SENT_ERROR", {
       recipient: email,

@@ -79,8 +79,6 @@ export async function addToLibrary(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error adding document to library:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to add document to library",
@@ -143,8 +141,6 @@ export async function checkLibraryStatus(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error checking library status:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to check library status",
@@ -197,8 +193,6 @@ export async function getUserLibrary(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error retrieving user library:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to retrieve user library",
@@ -283,8 +277,6 @@ export async function removeFromLibrary(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error removing document from library:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to remove document from library",

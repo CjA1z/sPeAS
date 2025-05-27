@@ -85,7 +85,6 @@ function normalizeDocumentType(documentType: string): string {
   }
   
   // If not valid, map to a suitable default based on context
-  console.warn(`Invalid document_type "${documentType}" normalized to default "CONFLUENCE"`);
   return 'CONFLUENCE';
 }
 
@@ -97,8 +96,7 @@ export async function fetchDocuments(
   options: DocumentOptions = {}
 ): Promise<DocumentsResponse> {
   try {
-    console.log(`[DB] Fetching documents with options: ${JSON.stringify(options)}`);
-    
+        
     const {
       page = 1,
       limit = 10,
@@ -218,17 +216,14 @@ export async function fetchDocuments(
     if (docTypes === 'compiled') {
       includeRegularDocs = false;
       includeCompiledDocs = true;
-      console.log('[DB] Filtering to show only compiled documents');
-    } else if (docTypes === 'single') {
+          } else if (docTypes === 'single') {
       includeRegularDocs = true;
       includeCompiledDocs = false;
-      console.log('[DB] Filtering to show only single documents');
-    } else {
+          } else {
       // Default is 'all' - show both types
       includeRegularDocs = true;
       includeCompiledDocs = true;
-      console.log('[DB] Showing all document types (single and compiled)');
-    }
+          }
     
     // Build the query dynamically based on document types to include
     let combinedDocsQuery = 'WITH combined_docs AS (';
@@ -340,24 +335,20 @@ export async function fetchDocuments(
     // Add pagination parameters
     params.push(limit, (page - 1) * limit);
     
-    console.log(`[DB] Executing query with ${params.length} parameters`);
-    
+        
     // Execute the query
     const result = await client.queryObject(fullQuery, params);
     
-    console.log(`[DB] Query returned ${result.rowCount} rows`);
-    
+        
     // Check and log how many compiled and single documents were returned
     if (result.rows && result.rows.length > 0) {
       const compiledCount = result.rows.filter((row: any) => row.is_compiled === true).length;
       const singleCount = result.rows.filter((row: any) => row.is_compiled !== true).length;
-      console.log(`[DB] Document type breakdown: ${compiledCount} compiled, ${singleCount} single documents`);
-    }
+          }
     
     // Check the first few results for deleted_at values
     if (result.rows && result.rows.length > 0) {
-      console.log(`[DB] First 3 results from database:`);
-      result.rows.slice(0, 3).forEach((row: any, index) => {
+            result.rows.slice(0, 3).forEach((row: any, index) => {
         console.log(`[DB] Row ${index}:`, {
           id: row.id, 
           title: row.title?.substring(0, 30) + '...',
@@ -370,8 +361,7 @@ export async function fetchDocuments(
     
     // If no results in the combined query, check if we have compiled documents in the database
     if (result.rowCount === undefined || result.rowCount === 0 || result.rowCount < 5) {
-      console.log(`[DB] Few or no results returned (${result.rowCount ?? 0}), checking for compiled documents separately...`);
-      
+            
       // Direct query to check if we have compiled documents in the database
       const compiledCheckQuery = `
         SELECT cd.id, cd.category, cd.volume, cd.start_year, cd.end_year, d.deleted_at 
@@ -436,25 +426,21 @@ export async function fetchDocuments(
       
       // Log if this document has deleted_at set
       if (row.deleted_at) {
-        console.warn(`[DB] WARNING: Document ${doc.id} has deleted_at=${row.deleted_at} but is still included in results!`);
       }
       
       // Log document type information to help debug the UI display
-      console.log(`[DB] Document ${doc.id} type info: is_parent=${row.is_parent}, is_compiled=${doc.is_compiled}, doc_source=${row.doc_source}`);
-      
+            
       // Add a doc_type property for frontend compatibility
       (doc as any).doc_type = row.document_type || '';
       
       // Skip child documents with no children if we're filtering by category
       if (doc.is_compiled && doc.child_count === 0 && category && category !== 'All') {
-        console.log(`[DB] Skipping empty compiled document ${doc.id} (${doc.title}) when filtering by category`);
-        continue;
+                continue;
       }
       
       // Fetch authors for this document - for ALL document types
       try {
-        console.log(`[DB] Fetching authors for document ${doc.id} (${doc.title})`);
-        const authorsQuery = `
+                const authorsQuery = `
           SELECT a.id, a.full_name
           FROM authors a
           JOIN document_authors da ON a.id = da.author_id
@@ -470,7 +456,6 @@ export async function fetchDocuments(
         console.log(`[DB] Found ${doc.authors.length} authors for document ${doc.id}:`, 
           doc.authors.map((author: any) => author.full_name || 'unnamed').join(', '));
       } catch (error) {
-        console.error(`[DB] Error fetching authors for document ${doc.id}:`, error);
         doc.authors = [];
       }
       
@@ -489,7 +474,6 @@ export async function fetchDocuments(
           name: topic.name || '',
         }));
       } catch (error) {
-        console.error(`[DB] Error fetching topics for document ${doc.id}:`, error);
         doc.topics = [];
       }
       
@@ -499,7 +483,6 @@ export async function fetchDocuments(
     // Add one final check for deleted documents
     const deletedCount = documents.filter(doc => (doc as any).deleted_at).length;
     if (deletedCount > 0) {
-      console.warn(`[DB] WARNING: Found ${deletedCount} documents with deleted_at set in final document array!`);
     }
     
     return {
@@ -509,7 +492,6 @@ export async function fetchDocuments(
       currentPage: page,
     };
   } catch (error) {
-    console.error('[DB] Error fetching documents:', error);
     return {
       documents: [],
       totalCount: 0,
@@ -527,8 +509,7 @@ export async function fetchDocuments(
  */
 export async function fetchChildDocuments(compiledDocId: number | string): Promise<ChildDocumentsResponse> {
   try {
-    console.log(`Fetching child documents for compiled document ID: ${compiledDocId}`);
-    
+        
     // First, get the category of the compiled document to ensure type-specific fetching
     const categoryQuery = `
       SELECT category 
@@ -539,19 +520,16 @@ export async function fetchChildDocuments(compiledDocId: number | string): Promi
     const categoryResult = await client.queryObject(categoryQuery, [compiledDocId]);
     
     if (!categoryResult.rowCount || categoryResult.rowCount === 0) {
-      console.warn(`Compiled document with ID ${compiledDocId} not found in compiled_documents table`);
       return { documents: [] };
     }
     
     const category = (categoryResult.rows[0] as any).category;
-    console.log(`Compiled document category: ${category}`);
-    
+        
     // Build a type-specific query based on the category
     let childQuery = '';
     
     if (category === 'SYNERGY' || category === 'Synergy') {
-      console.log(`Using Synergy-specific query for document ID: ${compiledDocId}`);
-      childQuery = `
+            childQuery = `
         SELECT 
           d.id, 
           d.title,
@@ -573,8 +551,7 @@ export async function fetchChildDocuments(compiledDocId: number | string): Promi
           d.publication_date DESC, d.id ASC
       `;
     } else if (category === 'CONFLUENCE' || category === 'Confluence') {
-      console.log(`Using Confluence-specific query for document ID: ${compiledDocId}`);
-      childQuery = `
+            childQuery = `
         SELECT 
           d.id, 
           d.title,
@@ -597,8 +574,7 @@ export async function fetchChildDocuments(compiledDocId: number | string): Promi
       `;
     } else {
       // Generic query as fallback
-      console.log(`Using generic query for document ID: ${compiledDocId}`);
-      childQuery = `
+            childQuery = `
         SELECT 
           d.id, 
           d.title,
@@ -620,15 +596,12 @@ export async function fetchChildDocuments(compiledDocId: number | string): Promi
       `;
     }
     
-    console.log(`Executing category-specific query for ${category} documents`);
-    const childResult = await client.queryObject(childQuery, [compiledDocId]);
-    console.log(`Query returned ${childResult.rowCount} rows`);
-    
+        const childResult = await client.queryObject(childQuery, [compiledDocId]);
+        
     // Process documents to include authors and topics
     const documents = await processChildDocuments(childResult.rows as any[]);
     return { documents };
   } catch (error) {
-    console.error(`Error fetching child documents for compiled document ID ${compiledDocId}:`, error);
     return { documents: [] };
   }
 }
@@ -677,7 +650,6 @@ async function processChildDocuments(rows: any[]): Promise<Document[]> {
         full_name: author.full_name || ''
       }));
     } catch (error) {
-      console.error(`Error fetching authors for document ${doc.id}:`, error);
       doc.authors = [];
     }
     
@@ -696,7 +668,6 @@ async function processChildDocuments(rows: any[]): Promise<Document[]> {
         name: topic.name || ''
       }));
     } catch (error) {
-      console.error(`Error fetching topics for document ${doc.id}:`, error);
       doc.topics = [];
     }
     
@@ -726,8 +697,7 @@ export async function createCompiledDocument(
   documentIds: number[] = []
 ): Promise<number> {
   try {
-    console.log(`Creating compiled document: ${JSON.stringify(compiledDoc)}`);
-    
+        
     // Start a transaction
     await client.queryArray("BEGIN");
     
@@ -772,12 +742,10 @@ export async function createCompiledDocument(
       const row = compiledResult.rows[0] as Record<string, unknown>;
       const compiledDocId = typeof row.id === 'bigint' ? Number(row.id) : Number(row.id);
       
-      console.log(`Successfully inserted into compiled_documents table with ID ${compiledDocId}`);
-      
+            
       // Associate document IDs with the compiled document if provided
       if (documentIds.length > 0) {
-        console.log(`Setting compiled_parent_id for ${documentIds.length} documents to compilation ${compiledDocId}`);
-        let successCount = 0;
+                let successCount = 0;
         let failCount = 0;
         
         for (const docId of documentIds) {
@@ -796,20 +764,12 @@ export async function createCompiledDocument(
             
             successCount++;
           } catch (error) {
-            console.error(`Failed to link document ${docId} to compilation ${compiledDocId}:`, error);
             failCount++;
           }
         }
         
-        console.log("-------------------------------------------");
-        console.log("📊 DATABASE: DOCUMENT LINKING SUMMARY");
-        console.log("-------------------------------------------");
-        console.log(`✅ Successfully linked: ${successCount} documents`);
-        console.log(`❌ Failed to link: ${failCount} documents`);
-        console.log("-------------------------------------------");
-      } else {
-        console.log("No documents to link - skipping parent ID updates");
-      }
+                                                      } else {
+              }
       
       // Commit the transaction
       await client.queryArray("COMMIT");
@@ -821,7 +781,6 @@ export async function createCompiledDocument(
       throw error;
     }
   } catch (error) {
-    console.error("Error creating compiled document:", error);
     throw error;
   }
 }
@@ -833,8 +792,7 @@ export async function createCompiledDocument(
  */
 export async function addDocumentToCompilation(compiledDocId: number, documentId: number): Promise<void> {
   try {
-    console.log(`Adding document ${documentId} to compilation ${compiledDocId}`);
-    
+        
     // Validate IDs
     if (!compiledDocId || !documentId) {
       throw new Error(`Invalid IDs: compiledDocId=${compiledDocId}, documentId=${documentId}`);
@@ -850,8 +808,7 @@ export async function addDocumentToCompilation(compiledDocId: number, documentId
     
     // Skip insertion if relationship already exists
     if (checkResult.rows.length > 0) {
-      console.log(`Document ${documentId} is already part of compilation ${compiledDocId}`);
-      return;
+            return;
     }
     
     // Insert the relationship if it doesn't exist
@@ -865,12 +822,9 @@ export async function addDocumentToCompilation(compiledDocId: number, documentId
     
     // Check if the insertion was successful
     if (result.rows.length > 0) {
-      console.log(`Document ${documentId} successfully added to compilation ${compiledDocId}`);
-    } else {
-      console.warn(`Failed to add document ${documentId} to compilation ${compiledDocId}`);
+          } else {
     }
   } catch (error) {
-    console.error(`Error adding document ${documentId} to compilation ${compiledDocId}:`, error);
     throw error;
   }
 }
@@ -889,7 +843,6 @@ export async function removeDocumentFromCompilation(compiledDocId: number, docum
     
     await client.queryObject(deleteQuery, [compiledDocId, documentId]);
   } catch (error) {
-    console.error(`Error removing document ${documentId} from compilation ${compiledDocId}:`, error);
     throw error;
   }
 }
@@ -926,16 +879,14 @@ export async function getCompiledDocument(compiledDocId: number): Promise<Compil
     const result = await client.queryObject(query, [compiledDocId]);
     
     if (result.rows.length === 0) {
-      console.log(`No compiled document found with ID ${compiledDocId}`);
-      return null;
+            return null;
     }
     
     // Convert the row to CompiledDocument type
     const row = result.rows[0] as Record<string, unknown>;
     
     // Log all fields for debugging
-    console.log(`Compiled document data for ID ${compiledDocId}:`, row);
-    
+        
     // Create a complete CompiledDocument object including all fields
     const compiledDoc: CompiledDocument = {
       id: typeof row.id === 'bigint' ? Number(row.id) : row.id as number,
@@ -955,21 +906,16 @@ export async function getCompiledDocument(compiledDocId: number): Promise<Compil
     
     // Log specifically the foreword field to verify it's being retrieved
     if (compiledDoc.foreword) {
-      console.log(`Retrieved foreword for document ${compiledDocId}: ${compiledDoc.foreword}`);
-    } else {
-      console.log(`No foreword found for compiled document ${compiledDocId}`);
-    }
+          } else {
+          }
     
     // Log the abstract_foreword field as well
     if (compiledDoc.abstract_foreword) {
-      console.log(`Retrieved abstract_foreword for document ${compiledDocId}: ${compiledDoc.abstract_foreword.substring(0, 100)}...`);
-    } else {
-      console.log(`No abstract_foreword found for compiled document ${compiledDocId}`);
-    }
+          } else {
+          }
     
     return compiledDoc;
   } catch (error) {
-    console.error(`Error fetching compiled document with ID ${compiledDocId}:`, error);
     return null;
   }
 }
@@ -1053,8 +999,7 @@ export async function softDeleteCompiledDocument(compiledDocId: number): Promise
     const childDocsResult = await client.queryObject(childDocsQuery, [compiledDocId]);
     const childDocs = childDocsResult.rows.map((row: any) => row.document_id);
     
-    console.log(`Found ${childDocs.length} child documents for compiled document ${compiledDocId}`);
-    
+        
     // 3. Mark all child documents as archived and ensure they reference their parent
     if (childDocs.length > 0) {
       const updateChildrenQuery = `
@@ -1066,8 +1011,7 @@ export async function softDeleteCompiledDocument(compiledDocId: number): Promise
       `;
       
       await client.queryObject(updateChildrenQuery, [currentTime, compiledDocId, childDocs]);
-      console.log(`Archived ${childDocs.length} child documents and set their parent ID to ${compiledDocId}`);
-    }
+          }
     
     // 4. Update the compiled document record in compiled_documents table
     const updateCompiledQuery = `
@@ -1077,8 +1021,7 @@ export async function softDeleteCompiledDocument(compiledDocId: number): Promise
     `;
     
     await client.queryObject(updateCompiledQuery, [currentTime, compiledDocId]);
-    console.log(`Updated deleted_at in compiled_documents table for ID ${compiledDocId}`);
-    
+        
     // 5. Check if there's a corresponding entry in the documents table
     // If there is, update it too
     const checkDocumentQuery = `
@@ -1098,8 +1041,7 @@ export async function softDeleteCompiledDocument(compiledDocId: number): Promise
       `;
       
       await client.queryObject(updateDocumentQuery, [currentTime, compiledDocId]);
-      console.log(`Updated deleted_at in documents table for ID ${compiledDocId}`);
-    } else {
+          } else {
       // No entry in documents table, we need to create one to ensure proper archive display
       const insertDocumentQuery = `
         INSERT INTO documents (
@@ -1118,24 +1060,19 @@ export async function softDeleteCompiledDocument(compiledDocId: number): Promise
       `;
       
       await client.queryObject(insertDocumentQuery, [compiledDocId, currentTime]);
-      console.log(`Created or updated document entry for compiled document ${compiledDocId}`);
-    }
+          }
     
     // Commit the transaction
     await client.queryObject("COMMIT");
     
-    console.log(`Successfully archived compiled document ${compiledDocId} and ${childDocs.length} child documents`);
-    
+        
     return compiledDocId;
   } catch (error) {
     // Roll back transaction on error
     try {
       await client.queryObject("ROLLBACK");
     } catch (rollbackError) {
-      console.error(`Error rolling back transaction for compiledDocId ${compiledDocId}:`, rollbackError);
     }
-    
-    console.error(`Error soft deleting compiled document ${compiledDocId}:`, error);
     throw error;
   }
 }
@@ -1163,8 +1100,7 @@ export async function updateCompiledDocument(
     research_agenda?: any[];
   }
 ): Promise<CompiledDocument | null> {
-  console.log(`Updating compiled document ${compiledDocId} with data:`, compiledDoc);
-  
+    
   try {
     // Start a transaction
     await client.queryArray('BEGIN');
@@ -1284,7 +1220,6 @@ export async function updateCompiledDocument(
   } catch (error) {
     // Roll back on error
     await client.queryArray('ROLLBACK');
-    console.error('Error updating compiled document:', error);
     throw error;
   }
 }

@@ -38,7 +38,6 @@ export class UserDocumentHistoryModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error(`Error recording document ${action}:`, error);
       return false;
     }
   }
@@ -196,7 +195,6 @@ export class UserDocumentHistoryModel {
         totalCount
       };
     } catch (error) {
-      console.error("Error retrieving user document history:", error);
       throw new Error(`Failed to retrieve user document history: ${error.message}`);
     }
   }
@@ -219,7 +217,6 @@ export class UserDocumentHistoryModel {
       
       return result.rows.map(row => row.document_type);
     } catch (error) {
-      console.error("Error retrieving history categories:", error);
       return [];
     }
   }
@@ -244,7 +241,6 @@ export class UserDocumentHistoryModel {
       
       return result.rows.map(row => row.name);
     } catch (error) {
-      console.error("Error retrieving history keywords:", error);
       return [];
     }
   }

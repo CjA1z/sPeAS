@@ -173,7 +173,6 @@
             fetch('/api/user/profile')
                 .then(response => {
                     if (!response.ok) {
-                        console.warn('Could not load user profile');
                         return null;
                     }
                     return response.json();
@@ -185,7 +184,6 @@
                     }
                 })
                 .catch(error => {
-                    console.warn('Error loading profile:', error);
                 });
         });
 
@@ -263,8 +261,7 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Profile picture uploaded successfully:', data);
-                uploadedFileData = data; // Store the uploaded file data
+                                uploadedFileData = data; // Store the uploaded file data
                 
                 // Get the current user info to update
                 return fetch('/api/user/profile');
@@ -304,7 +301,6 @@
                 if (response) {
                     // Only process response if we got one from the previous step
                     if (!response.ok) {
-                        console.warn('Profile metadata update failed:', response.status);
                     }
                 }
                 
@@ -323,8 +319,7 @@
                             profileImages.forEach(img => {
                                 img.src = profilePicPreview.src;
                             });
-                            console.log(`Updated ${profileImages.length} profile images in the UI`);
-                        }
+                                                    }
                         
                         // Also try to update the user info in local/session storage if used by navbar
                         try {
@@ -343,10 +338,8 @@
                                 localStorage.setItem('userInfo', JSON.stringify(userObj));
                             }
                         } catch (storageErr) {
-                            console.warn('Could not update profile in storage:', storageErr);
                         }
                     } catch (e) {
-                        console.warn('Could not update navbar profile image:', e);
                     }
                 }
                 
@@ -358,7 +351,6 @@
                 selectedFile = null;
             })
             .catch(error => {
-                console.error('Error uploading profile picture:', error);
                 showMessage('Failed to upload profile picture: ' + error.message, 'error');
                 
                 // Reset button state
@@ -396,7 +388,6 @@
                         if (!response.ok) {
                             // If navbar fails to load, log error but don't necessarily break the page.
                             // The placeholder div might have some basic styling.
-                            console.error('Navbar fetch failed:', response.status, response.statusText);
                             return Promise.reject(`Navbar fetch failed: ${response.status}`);
                         }
                         return response.text();
@@ -407,7 +398,6 @@
                     })
                     .catch(error => console.error('Error processing navbar:', error));
             } else {
-                console.error("Navbar container 'navbar-header' not found in the DOM.");
             }
 
             // Load Sidebar
@@ -415,7 +405,6 @@
                 fetch('/admin/Components/side_bar.html')
                     .then(response => {
                         if (!response.ok) {
-                             console.error('Sidebar fetch failed:', response.status, response.statusText);
                             return Promise.reject(`Sidebar fetch failed: ${response.status}`);
                         }
                         return response.text();
@@ -433,7 +422,6 @@
                     })
                     .catch(error => console.error('Error processing sidebar:', error));
             } else {
-                console.error("Sidebar container 'sidebar-container' not found in the DOM.");
             }
         });
     </script>

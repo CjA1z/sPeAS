@@ -57,7 +57,6 @@ export class ResearchAgendaModel {
           );
           
           if (newItemResult.rows.length === 0) {
-            console.error(`Failed to create research agenda item: ${item}`);
             continue;
           }
           
@@ -73,7 +72,6 @@ export class ResearchAgendaModel {
       
       return true;
     } catch (error) {
-      console.error("Error adding research agenda items:", error);
       return false;
     }
   }
@@ -98,12 +96,10 @@ export class ResearchAgendaModel {
           "INSERT INTO document_research_agenda (document_id, research_agenda_id) VALUES ($1, $2)",
           [documentId, agendaItemId]
         );
-        console.log(`Linked research agenda ${agendaItemId} to document ${documentId}`);
-      }
+              }
       
       return true;
     } catch (error) {
-      console.error("Error linking research agenda items to document:", error);
       return false;
     }
   }
@@ -150,7 +146,6 @@ export class ResearchAgendaModel {
           );
           
           if (newItem.rows.length === 0) {
-            console.error(`Failed to create research agenda item: ${name}`);
             continue;
           }
           
@@ -164,12 +159,10 @@ export class ResearchAgendaModel {
         );
         
         linkedIds.push(agendaItemId);
-        console.log(`Linked research agenda "${name}" (ID: ${agendaItemId}) to document ${documentId}`);
-      }
+              }
       
       return { success: true, linkedIds };
     } catch (error) {
-      console.error("Error linking research agenda items to document by name:", error);
       return { success: false, linkedIds: [] };
     }
   }
@@ -193,7 +186,6 @@ export class ResearchAgendaModel {
       
       return result.rows as ResearchAgendaItem[];
     } catch (error) {
-      console.error("Error fetching research agenda items:", error);
       return [];
     }
   }
@@ -213,7 +205,6 @@ export class ResearchAgendaModel {
       
       return true;
     } catch (error) {
-      console.error("Error deleting research agenda items:", error);
       return false;
     }
   }
@@ -232,8 +223,7 @@ export class ResearchAgendaModel {
       );
 
       if (existingItem.rows.length > 0) {
-        console.log(`Research agenda item already exists: ${name}`);
-        return existingItem.rows[0] as ResearchAgendaItem;
+                return existingItem.rows[0] as ResearchAgendaItem;
       }
 
       // Create new agenda item
@@ -246,10 +236,8 @@ export class ResearchAgendaModel {
         throw new Error("Failed to create research agenda item");
       }
 
-      console.log(`Created new research agenda item: ${name}`);
-      return result.rows[0] as ResearchAgendaItem;
+            return result.rows[0] as ResearchAgendaItem;
     } catch (error) {
-      console.error("Error creating research agenda item:", error);
       return null;
     }
   }
@@ -302,10 +290,8 @@ export class ResearchAgendaModel {
           });
         } else {
           created.push(result.rows[0] as ResearchAgendaItem);
-          console.log(`Created new research agenda item: ${item.name}`);
-        }
+                  }
       } catch (error) {
-        console.error(`Error creating research agenda item ${item.name}:`, error);
         errors.push({ 
           name: item.name, 
           error: error instanceof Error ? error.message : "Unknown error" 
@@ -334,7 +320,6 @@ export class ResearchAgendaModel {
 
       return result.rows as ResearchAgendaItem[];
     } catch (error) {
-      console.error("Error searching research agenda items:", error);
       return [];
     }
   }

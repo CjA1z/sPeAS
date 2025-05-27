@@ -21,20 +21,15 @@ function debounce(func, wait) {
 // Test function to check if the author API is working
 async function testAuthorApi() {
     try {
-        console.log("Testing author API...");
-        const response = await fetch("/api/authors/test");
-        console.log("Test API status:", response.status);
-        
+                const response = await fetch("/api/authors/test");
+                
         if (response.ok) {
             const data = await response.json();
-            console.log("Test API response:", data);
-            return true;
+                        return true;
         } else {
-            console.error("Test API failed with status:", response.status);
             return false;
         }
     } catch (error) {
-        console.error("Error testing author API:", error);
         return false;
     }
 }
@@ -45,8 +40,7 @@ function initAuthorSearch(inputElement, options = {}) {
     
     // Run the API test when initializing
     testAuthorApi().then(isApiWorking => {
-        console.log("Author API working:", isApiWorking);
-    });
+            });
     
     const {
         minChars = 2,
@@ -181,13 +175,11 @@ function initAuthorSearch(inputElement, options = {}) {
         suggestionsContainer.style.display = 'block';
         
         try {
-            console.log("Searching for authors with query:", query);
-            
+                        
             // Updated to handle potential errors and ensure the UI reflects the current state
             const response = await fetch(`/authors/search?q=${encodeURIComponent(query)}`);
             
-            console.log("Author search response status:", response.status);
-            
+                        
             // Check if search is still relevant (user hasn't started a new search)
             if (!searchActive) return;
             
@@ -197,18 +189,15 @@ function initAuthorSearch(inputElement, options = {}) {
             
             // Parse JSON response from database
             const responseText = await response.text();
-            console.log("Raw response:", responseText);
-            
+                        
             let authors = [];
             try {
                 authors = JSON.parse(responseText);
             } catch (parseError) {
-                console.error("Error parsing JSON response:", parseError);
                 throw new Error("Invalid response format from server");
             }
             
-            console.log("Authors found:", authors.length);
-            
+                        
             // Clear previous suggestions
             suggestionsContainer.innerHTML = '';
             
@@ -286,8 +275,6 @@ function initAuthorSearch(inputElement, options = {}) {
             });
             
         } catch (error) {
-            console.error('Error searching authors:', error);
-            
             // Check if search is still relevant before updating UI
             if (!searchActive) return;
             
@@ -477,8 +464,7 @@ function initAuthorSearch(inputElement, options = {}) {
             }
             
             const data = await response.json();
-            console.log('Author created:', data);
-            
+                        
             // Select the newly created author
             if (data.author) {
                 selectAuthor(data.author);
@@ -491,8 +477,6 @@ function initAuthorSearch(inputElement, options = {}) {
                 suggestionsContainer.appendChild(errorItem);
             }
         } catch (error) {
-            console.error('Error creating author:', error);
-            
             // Show error message
             suggestionsContainer.innerHTML = '';
             const errorItem = document.createElement('div');
@@ -518,8 +502,7 @@ window.authorSearch = {
 
 // Initialize all author search inputs when the document is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing author search inputs...');
-    
+        
     // Initialize for single document form
     const singleAuthorInput = document.getElementById('single-author');
     if (singleAuthorInput) {
@@ -531,5 +514,4 @@ document.addEventListener('DOMContentLoaded', function() {
         initAuthorSearch(input);
     });
     
-    console.log('Author search initialization complete.');
-}); 
+    }); 

@@ -22,12 +22,10 @@
                         const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
                         
                         if (hoursSinceLogin > 24) {
-                            console.log('Clearing stale session user data');
-                            sessionStorage.removeItem('userInfo');
+                                                        sessionStorage.removeItem('userInfo');
                         }
                     }
                 } catch (e) {
-                    console.error('Error parsing session user data, clearing it');
                     sessionStorage.removeItem('userInfo');
                 }
             }
@@ -45,17 +43,14 @@
                         const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
                         
                         if (hoursSinceLogin > 24) {
-                            console.log('Clearing stale local user data');
-                            localStorage.removeItem('userInfo');
+                                                        localStorage.removeItem('userInfo');
                         }
                     }
                 } catch (e) {
-                    console.error('Error parsing local user data, clearing it');
                     localStorage.removeItem('userInfo');
                 }
             }
         } catch (e) {
-            console.error('Error cleaning up user data:', e);
         }
     })();
     </script>
@@ -870,8 +865,7 @@
             const yearElement = document.getElementById('footerCurrentYear');
             if (yearElement) { yearElement.textContent = new Date().getFullYear(); }
 
-            console.log("Page-specific scripts initialized.");
-        });
+                    });
 
         // Add smooth scrolling with offset for fixed header
         document.addEventListener('DOMContentLoaded', function() {
@@ -959,8 +953,7 @@
         // Global failsafe logout function
         window.handleLogout = function(event) {
             if (event) event.preventDefault();
-            console.log('FAILSAFE LOGOUT: Global index.html logout function called');
-            
+                        
             // Clear all user data
             sessionStorage.removeItem('userInfo');
             localStorage.removeItem('userInfo');
@@ -981,18 +974,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Debug logging
-            console.log('DEBUG: Starting navbar initialization');
-            console.log('DEBUG: localStorage userInfo =', localStorage.getItem('userInfo'));
-            console.log('DEBUG: sessionStorage userInfo =', sessionStorage.getItem('userInfo'));
-            console.log('DEBUG: Checking NavbarModule constants:');
-            if (window.NavbarModule) {
-                console.log('DEBUG: NavbarModule found');
-                // Force clean state for testing
+                                                            if (window.NavbarModule) {
+                                // Force clean state for testing
                 // localStorage.removeItem('userInfo');
                 // sessionStorage.removeItem('userInfo');
-                // console.log('DEBUG: Storage cleared for testing');
-            } else {
-                console.error('DEBUG: NavbarModule not found - script might not be loading correctly');
+                //             } else {
             }
             
             // Initialize the navbar
@@ -1002,26 +988,22 @@
                 // Add event listener to force navbar refresh when userInfo changes
                 window.addEventListener('storage', function(event) {
                     if (event.key === 'userInfo') {
-                        console.log('User info changed, refreshing navbar...');
-                        window.NavbarModule.init();
+                                                window.NavbarModule.init();
                     }
                 });
                 
                 // Force refresh on page load if coming from login
                 if (document.referrer.includes('log-in.html')) {
-                    console.log('Coming from login page, refreshing navbar...');
-                    setTimeout(() => window.NavbarModule.init(), 100);
+                                        setTimeout(() => window.NavbarModule.init(), 100);
                 }
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
             
             // Record page visit for the home page
             if (typeof recordPageVisit !== 'function') {
                 // Define a placeholder if the function doesn't exist
                 window.recordPageVisit = function() {
-                    console.log('Page visit recording is not implemented yet');
-                };
+                                    };
             }
             recordPageVisit();
         });

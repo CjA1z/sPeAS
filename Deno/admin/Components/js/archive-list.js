@@ -5,8 +5,7 @@
 
 // Initialize when document is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Archive list page initialized');
-    
+        
     // Load initial data
     loadArchivedDocuments();
     
@@ -42,8 +41,7 @@ async function loadArchivedDocuments(page = 1, category = 'All', searchQuery = '
             url += `&search=${encodeURIComponent(searchQuery.trim())}`;
         }
         
-        console.log('Fetching archived documents:', url);
-        
+                
         // Fetch archived documents from the API
         const response = await fetch(url);
         
@@ -52,8 +50,7 @@ async function loadArchivedDocuments(page = 1, category = 'All', searchQuery = '
         }
         
         const data = await response.json();
-        console.log('Received archived documents:', data);
-        
+                
         // Handle empty results
         if (!data.documents || data.documents.length === 0) {
             showNoDocumentsMessage();
@@ -69,7 +66,6 @@ async function loadArchivedDocuments(page = 1, category = 'All', searchQuery = '
         updateCategoryCounts(data.category_counts || {});
         
     } catch (error) {
-        console.error('Error loading archived documents:', error);
         showErrorMessage(error.message);
     } finally {
         updateLoadingState(false);
@@ -141,7 +137,6 @@ function setupEventListeners() {
 function renderArchivedDocuments(documents, currentPage, totalPages) {
     const container = document.getElementById('documents-container');
     if (!container) {
-        console.error('Documents container not found');
         return;
     }
     
@@ -242,8 +237,7 @@ function createDocumentCard(doc) {
  */
 async function restoreDocument(docId) {
     try {
-        console.log(`Restoring document: ${docId}`);
-        
+                
         // Get document details for better user experience
         const card = document.querySelector(`.document-card[data-document-id="${docId}"]`);
         let docTitle = "Document";
@@ -283,8 +277,7 @@ async function restoreDocument(docId) {
         }
         
         const result = await response.json();
-        console.log('Restore result:', result);
-        
+                
         // Show success message
         showSuccessModal('Document restored successfully');
         
@@ -306,7 +299,6 @@ async function restoreDocument(docId) {
         }
         
     } catch (error) {
-        console.error('Error restoring document:', error);
         showErrorMessage('Failed to restore document: ' + error.message);
     } finally {
         updateLoadingState(false);
@@ -379,7 +371,6 @@ function updateCategoryCounts(counts = null) {
                 updateCategoryCounts(data.counts);
             })
             .catch(error => {
-                console.error('Error fetching category counts:', error);
             });
         return;
     }
@@ -582,7 +573,6 @@ function formatDate(dateString) {
             day: 'numeric'
         });
     } catch (error) {
-        console.error('Error formatting date:', error);
         return dateString;
     }
 }

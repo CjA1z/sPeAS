@@ -12,8 +12,7 @@ import { extractPdfMetadata } from "../services/pdfService.ts";
  */
 export async function handleFileUpload(ctx: Context): Promise<void> {
   try {
-    console.log("[UPLOAD_DEBUG] Starting upload request processing");
-    
+        
     // Check if content type is multipart/form-data
     const contentType = ctx.request.headers.get("content-type");
     if (!contentType || !contentType.includes("multipart/form-data")) {
@@ -82,13 +81,7 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       return;
     }
     
-    console.log("[UPLOAD_DEBUG] Request details:");
-    console.log("- File name:", file.name || file.filename);
-    console.log("- File size:", file.size, "bytes");
-    console.log("- Is replacement:", isReplacement);
-    console.log("- Original name:", originalName);
-    console.log("- Original path:", originalPath);
-    
+                            
     // Normalize path separators to forward slashes and remove leading/trailing slashes
     if (originalPath) {
       originalPath = originalPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -103,28 +96,24 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
                             (data.fields.document_type && data.fields.document_type.toString().toLowerCase().includes('foreword')) || 
                             data.fields.is_foreword === 'true';
     
-    console.log(`[UPLOAD_DEBUG] File appears to be foreword? ${isForewordUpload ? 'YES' : 'NO'}`);
-    
+        
     // Extract storage path from original path if available
     if (originalPath && originalPath.includes('/')) {
       const lastSlashIndex = originalPath.lastIndexOf('/');
         storagePath = originalPath.substring(0, lastSlashIndex);
-        console.log("[UPLOAD_DEBUG] Using storage path from original:", storagePath);
-    }
+            }
     
     // Default storage path if one is not provided
     if (!storagePath) {
       storagePath = "storage/hello";
-       console.log("[UPLOAD_DEBUG] Using default storage path:", storagePath);
-    }
+           }
     
     // Clean up the path for safety
     storagePath = storagePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     
     // Handle foreword files specially - ensure they go to a forewords subfolder
     if (isForewordUpload) {
-       console.log("[UPLOAD_DEBUG] Detected foreword file upload");
-       
+              
        // Extract document type from path or from form data
        const pathParts = storagePath.split('/');
        let docType = 'hello'; // Default
@@ -160,31 +149,25 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
            storagePath = `storage/${docType}/forewords`;
        }
        
-       console.log("[UPLOAD_DEBUG] Final foreword directory path:", storagePath);
-    }
+           }
     
     // Ensure storage path is at workspace level
     if (storagePath.includes("Deno/storage")) {
       storagePath = storagePath.replace("Deno/storage", "storage");
-      console.log("[UPLOAD_DEBUG] Fixed storage path to be at workspace level:", storagePath);
-    }
+          }
     
-    console.log("[UPLOAD_DEBUG] Final storage path:", storagePath);
-    
+        
     // Get the workspace root directory (parent of Deno directory)
     const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
     
-    console.log("[UPLOAD_DEBUG] Workspace root:", workspaceRoot);
-    
+        
     // Ensure foreword directories exist if this is a foreword upload
     if (isForewordUpload) {
         // Ensure the directory exists
         try {
             const fullPath = join(workspaceRoot, storagePath);
             await Deno.mkdir(fullPath, { recursive: true });
-            console.log("[UPLOAD_DEBUG] Created or verified foreword directory:", fullPath);
-        } catch (dirError) {
-            console.warn("[UPLOAD_DEBUG] Directory creation warning:", dirError instanceof Error ? dirError.message : String(dirError));
+                    } catch (dirError) {
             // Continue with upload attempt
         }
     }
@@ -201,20 +184,16 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       category
     };
     
-    console.log("[UPLOAD_DEBUG] Saving file with options:", saveOptions);
-    
+        
     // Save file
     const fileResult = await saveFile(file, storagePath, saveOptions);
-    console.log("[UPLOAD_DEBUG] File saved successfully:", fileResult);
-    
+        
     // Verify file was saved
     const fullFilePath = join(workspaceRoot, fileResult.path).replace(/\\/g, '/');
     try {
       const stat = await Deno.stat(fullFilePath);
-      console.log("[UPLOAD_DEBUG] File verified at", fullFilePath, "size:", stat.size, "bytes");
-    } catch (statError: unknown) {
+          } catch (statError: unknown) {
       const errorMessage = statError instanceof Error ? statError.message : String(statError);
-      console.error("[UPLOAD_DEBUG] Could not verify saved file:", errorMessage);
     }
     
     // Extract metadata if it's a PDF file
@@ -222,13 +201,10 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
     const isPdf = (file.name || file.filename || "").toLowerCase().endsWith('.pdf');
     
     if (isPdf) {
-      console.log("[UPLOAD_DEBUG] Extracting PDF metadata");
-      try {
+            try {
         metadata = await extractPdfMetadata(fullFilePath);
-        console.log("[UPLOAD_DEBUG] PDF metadata extracted:", metadata);
-      } catch (metadataError: unknown) {
+              } catch (metadataError: unknown) {
         const errorMessage = metadataError instanceof Error ? metadataError.message : String(metadataError);
-        console.error("[UPLOAD_DEBUG] Error extracting PDF metadata:", errorMessage);
       }
     }
     
@@ -263,14 +239,11 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       }
     }
     
-    console.log("[UPLOAD_DEBUG] - Sending response:", response);
-    
+        
     ctx.response.status = 200;
     ctx.response.body = response;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[UPLOAD_DEBUG] Upload error:", errorMessage);
-    
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to upload file",
@@ -316,8 +289,7 @@ export async function handleProfilePictureUpload(
     // Create a consistent relative path
     const relativePath = `storage/authors/profile-pictures/${filename}`;
     
-    console.log(`Profile picture uploaded: ${filename}, stored at: ${relativePath}`);
-    
+        
     ctx.response.status = 200;
     ctx.response.body = {
       message: "Profile picture uploaded successfully",
@@ -329,8 +301,6 @@ export async function handleProfilePictureUpload(
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[UPLOAD_DEBUG] Profile picture upload error:", errorMessage);
-    
     ctx.response.status = 500;
     ctx.response.body = {
       error: "Failed to upload profile picture",

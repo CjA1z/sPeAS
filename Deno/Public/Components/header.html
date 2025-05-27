@@ -1245,7 +1245,6 @@
                     const data = await response.json();
                     return data.categories || [];
                 } catch (error) {
-                    console.error('Error fetching categories:', error);
                     return [];
                 }
             }
@@ -1262,7 +1261,6 @@
                     
                     return data.authors || [];
                 } catch (error) {
-                    console.error('Error fetching authors:', error);
                     return [];
                 }
             }
@@ -1275,7 +1273,6 @@
                     const data = await response.json();
                     return data.items || [];
                 } catch (error) {
-                    console.error('Error fetching research agenda items:', error);
                     return [];
                 }
             }
@@ -1298,15 +1295,13 @@
                     url.searchParams.append('page', params.page || 1);
                     url.searchParams.append('limit', params.limit || 10);
                     
-                    console.log('Fetching documents with URL:', url.toString());
-                    
+                                        
                     const response = await fetch(url);
                     if (!response.ok) throw new Error(`Failed to fetch documents: ${response.status}`);
                     
                     const data = await response.json();
                     return data.documents || [];
                 } catch (error) {
-                    console.error('Error fetching documents:', error);
                     return [];
                 } finally {
                     if (loadingSpinner) loadingSpinner.classList.remove('visible');
@@ -1339,7 +1334,6 @@
                         authors: authors.length
                     });
                 } catch (error) {
-                    console.error('Error initializing filters:', error);
                 }
             }
                 // ------------------------------------------------------------
@@ -1462,7 +1456,6 @@
                             populateSelectWithOptions(yearFilter, years);
                         }
                     } catch (error) {
-                        console.error('Error during search:', error);
                         if (searchResultsDiv) {
                             searchResultsDiv.innerHTML = `<p class="error-message">An error occurred during search. Please try again.</p>`;
                         }
@@ -1881,7 +1874,6 @@
                                 childrenContainer.dataset.loaded = 'true';
                                 
                             } catch (error) {
-                                console.error('Error loading child documents:', error);
                                 childrenContainer.innerHTML = `
                                     <div class="text-red-500 py-2 px-3 text-sm">
                                         Failed to load child documents. 
@@ -1991,8 +1983,7 @@
                               JSON.parse(localStorage.getItem('user')) || 
                               JSON.parse(sessionStorage.getItem('user'));
                 } catch (e) {
-                    console.log('No user info found or invalid format');
-                }
+                                    }
                 
                 if (userInfo && (userInfo.isLoggedIn || userInfo.token || userInfo.id)) {
                     // User is logged in

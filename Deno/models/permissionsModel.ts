@@ -29,7 +29,6 @@ export class PermissionsModel {
       );
       return result.rows;
     } catch (error) {
-      console.error("Error fetching document permissions:", error);
       return [];
     }
   }
@@ -49,7 +48,6 @@ export class PermissionsModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching user permission:", error);
       return null;
     }
   }
@@ -69,7 +67,6 @@ export class PermissionsModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching role permission:", error);
       return null;
     }
   }
@@ -117,7 +114,6 @@ export class PermissionsModel {
       
       return false;
     } catch (error) {
-      console.error("Error checking permission:", error);
       return false;
     }
   }
@@ -158,7 +154,6 @@ export class PermissionsModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error granting user permission:", error);
       return null;
     }
   }
@@ -199,7 +194,6 @@ export class PermissionsModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error granting role permission:", error);
       return null;
     }
   }
@@ -241,7 +235,6 @@ export class PermissionsModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error updating permission:", error);
       return null;
     }
   }
@@ -260,7 +253,6 @@ export class PermissionsModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error revoking permission:", error);
       return false;
     }
   }
@@ -309,7 +301,6 @@ export class PermissionsModel {
       // Remove duplicates and return
       return [...new Set(documentIds)];
     } catch (error) {
-      console.error("Error fetching accessible documents:", error);
       return [];
     }
   }

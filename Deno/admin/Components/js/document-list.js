@@ -1,17 +1,19 @@
 // Global variables for document list functionality
-let globalDisplayedDocIds = new Set();
-let expandedDocIds = []; // Tracks which compiled documents are expanded
+let globalDisplayedDocIds = window.globalDisplayedDocIds || new Set();
+let expandedDocIds = window.expandedDocIds || []; // Tracks which compiled documents are expanded
+
+// Export to window for cross-module access
+window.globalDisplayedDocIds = globalDisplayedDocIds;
+window.expandedDocIds = expandedDocIds;
 
 /**
  * Initialize the confirmation modal for document deletion
  */
 function initializeConfirmationModal() {
-    console.log('Initializing confirmation modal for document deletion');
-    
+        
     // Ensure the modal exists in the DOM
     const modal = document.getElementById('delete-confirmation-modal');
     if (!modal) {
-        console.error('Delete confirmation modal not found in DOM. Make sure the HTML is properly loaded.');
         return;
     }
     
@@ -35,8 +37,7 @@ function initializeConfirmationModal() {
     
     // Default close handlers that can be used by any close button
     const closeModal = () => {
-        console.log('Closing confirmation modal');
-        modal.classList.remove('show');
+                modal.classList.remove('show');
     };
     
     // Add click outside to close
@@ -51,8 +52,7 @@ function initializeConfirmationModal() {
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
     
-    console.log('Confirmation modal initialized successfully');
-}
+    }
 
 /**
  * Fetch authors for a document
@@ -60,19 +60,15 @@ function initializeConfirmationModal() {
  */
 async function fetchAuthorsForDocument(documentId) {
     try {
-        console.log(`DEBUG: Fetching authors directly for document ${documentId}`);
-        const response = await fetch(`/api/document-authors/${documentId}`);
+                const response = await fetch(`/api/document-authors/${documentId}`);
         
         if (!response.ok) {
-            console.error(`Error fetching authors: ${response.status} ${response.statusText}`);
             return [];
         }
         
         const data = await response.json();
-        console.log(`Authors from API for document ${documentId}:`, data.authors);
-        return data.authors;
+                return data.authors;
     } catch (error) {
-        console.error('Error fetching authors:', error);
         return [];
     }
 }
@@ -81,8 +77,7 @@ async function fetchAuthorsForDocument(documentId) {
  * Initialize the document list and set up event listeners
  */
 function initializeDocumentList() {
-    console.log('INIT DEBUG: Initializing document list');
-    
+        
     // Add styles for volume-issue span
     const styleEl = document.createElement('style');
     styleEl.textContent = `
@@ -124,15 +119,11 @@ function initializeDocumentList() {
     
     // Initialize filters and pagination via document-filters.js
     if (typeof window.documentFilters === 'object' && window.documentFilters !== null) {
-        console.log('INIT DEBUG: window.documentFilters already initialized, reusing');
-    } else {
-        console.log('INIT DEBUG: window.documentFilters not found, initializing now');
-        // Check if the function exists in the global scope
+            } else {
+                // Check if the function exists in the global scope
         if (typeof initializeFiltersAndPagination === 'function') {
             initializeFiltersAndPagination();
         } else {
-            console.error('INIT DEBUG: initializeFiltersAndPagination function not found. Make sure document-filters.js is loaded before document-list.js');
-            
             // Create a basic documentFilters object to prevent errors
             window.documentFilters = {
                 setCurrentPage: () => console.log('Stub setCurrentPage called'),
@@ -144,8 +135,7 @@ function initializeDocumentList() {
         }
     }
     
-    console.log('INIT DEBUG: Document filters status:', window.documentFilters ? 'Available' : 'Not available');
-    
+        
     // Make functions globally available
     window.documentList = {
         loadDocuments,
@@ -162,17 +152,14 @@ function initializeDocumentList() {
         showDeleteConfirmation: !!window.showDeleteConfirmation
     });
     
-    console.log('INIT DEBUG: Exported document list functions to window.documentList');
-    
+        
     // Initial document load
-    console.log('INIT DEBUG: Triggering initial document load');
-    loadDocuments(1, true);
+        loadDocuments(1, true);
 }
 
 // Run initialization when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('INIT DEBUG: DOM content loaded, initializing document list');
-    initializeDocumentList();
+        initializeDocumentList();
 });
 
 /**
@@ -191,8 +178,7 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
             ? window.documentFilters.getCurrentSearchQuery() 
             : '';
             
-        console.log(`Fetching documents: page=${page}, category=${category}, sort=${sortOrder}, limit=${limit}, search=${searchQuery}`);
-        
+                
         // Construct the API URL with query parameters
         let url = `/api/documents?page=${page}&size=${limit}&sort=${sortOrder}`;
         if (category && category !== 'All') {
@@ -214,9 +200,7 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
             document.getElementById('documents-container').innerHTML = '<div class="loading-documents"><i class="fas fa-spinner fa-spin"></i> Loading documents...</div>';
         }
         
-        console.log('FETCH DEBUG: Making API request to URL:', url);
-        console.log('FETCH DEBUG: Current document filters:', window.documentFilters);
-        
+                        
         // Fetch documents from the API
         const response = await fetch(url, {
             headers: {
@@ -225,38 +209,26 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
             }
         });
         
-        console.log('FETCH DEBUG: Response status:', response.status);
-        console.log('FETCH DEBUG: Response headers:', Object.fromEntries([...response.headers]));
-        
+                        
         if (!response.ok) {
-            console.error('FETCH DEBUG: Response error:', response.status, response.statusText);
             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('FETCH DEBUG: Documents data received:', data);
-        
-        if (data.documents && data.documents.length > 0) {
-            console.log('FETCH DEBUG: First document:', data.documents[0]);
-            // Check if is_compiled properties are set correctly
-            data.documents.forEach((doc, index) => {
-                console.log(`FETCH DEBUG: Document ${index} (ID: ${doc.id}): is_compiled = ${doc.is_compiled}, doc_type = ${doc.doc_type}, title = "${doc.title}"`);
-                console.log(`FETCH DEBUG: Document ${index} deleted_at:`, doc.deleted_at);
                 
+        if (data.documents && data.documents.length > 0) {
+                        // Check if is_compiled properties are set correctly
+            data.documents.forEach((doc, index) => {
+                                                
                 // Enhanced debugging to check all properties
-                console.log(`FETCH DEBUG: Full properties of document ${doc.id}:`, Object.keys(doc));
-                console.log(`FETCH DEBUG: Document ${doc.id} deleted_at type:`, typeof doc.deleted_at);
-                if (doc.deleted_at) {
-                    console.warn(`URGENT: Document ${doc.id} has deleted_at set but is still included in results!`);
+                                                if (doc.deleted_at) {
                 }
             });
             
             // Log all possible category-related fields
             const firstDoc = data.documents[0];
-            console.log('FETCH DEBUG: All properties of first document:', Object.keys(firstDoc));
-                            } else {
-            console.log('FETCH DEBUG: No documents returned');
-        }
+                                        } else {
+                    }
         
         // Filter out any documents that might have deleted_at set
         // This is an extra safeguard to ensure deleted documents don't appear in the main view
@@ -264,13 +236,11 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
             // First log any documents that should be filtered out
             const deletedDocs = data.documents.filter(doc => doc.deleted_at);
             if (deletedDocs.length > 0) {
-                console.warn('FETCH DEBUG: Found deleted documents that should be filtered out:', deletedDocs);
             }
             
             // Add client-side filtering as a backup for server filter
             const filteredDocs = data.documents.filter(doc => {
                 if (doc.deleted_at) {
-                    console.warn(`CLIENT: Filtering out document ${doc.id} (${doc.title}) because it has deleted_at set`);
                     return false;
                 }
                 return true;
@@ -278,7 +248,6 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
             
             // Check if we filtered anything
             if (filteredDocs.length !== data.documents.length) {
-                console.warn(`CLIENT: Filtered out ${data.documents.length - filteredDocs.length} deleted documents on client side!`);
                 // Replace the documents with filtered version
                 data.documents = filteredDocs;
             }
@@ -286,7 +255,6 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
         
         return data;
     } catch (error) {
-        console.error('Error fetching documents:', error);
         document.getElementById('documents-container').innerHTML = `
             <div class="error-message">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -304,9 +272,7 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
  * @param {boolean} resetTracking - Whether to reset tracking variables
  */
 async function loadDocuments(page = 1, resetTracking = true) {
-    console.log(`Loading documents for page ${page}, resetTracking=${resetTracking}`);
-    console.log('LOAD DEBUG: Current window.documentFilters:', window.documentFilters);
-    
+            
     // Validate page number
     if (page < 1) page = 1;
     
@@ -314,7 +280,6 @@ async function loadDocuments(page = 1, resetTracking = true) {
     if (window.documentFilters) {
         window.documentFilters.setCurrentPage(page);
                     } else {
-        console.error('LOAD DEBUG: window.documentFilters is not initialized!');
     }
     
     // Reset tracking if requested
@@ -327,9 +292,7 @@ async function loadDocuments(page = 1, resetTracking = true) {
         const category = window.documentFilters ? window.documentFilters.getCurrentCategoryFilter() : null;
         const sortOrder = window.documentFilters ? window.documentFilters.getCurrentSortOrder() : 'latest';
         
-        console.log('LOAD DEBUG: Using category filter:', category);
-        console.log('LOAD DEBUG: Using sort order:', sortOrder);
-        
+                        
         // Fetch documents from the API
         const data = await fetchDocumentsFromDB(
             page,
@@ -340,12 +303,10 @@ async function loadDocuments(page = 1, resetTracking = true) {
         );
         
         if (!data || !data.documents) {
-            console.error('LOAD DEBUG: No document data returned from server');
             throw new Error('No document data returned from server');
         }
         
-        console.log('LOAD DEBUG: Successfully fetched documents:', data.documents.length);
-        
+                
         const { documents, totalPages, totalDocuments } = data;
         
         // Render documents
@@ -388,7 +349,6 @@ async function loadDocuments(page = 1, resetTracking = true) {
         }
         
     } catch (error) {
-        console.error('Error in loadDocuments:', error);
         document.getElementById('documents-container').innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -404,13 +364,11 @@ async function loadDocuments(page = 1, resetTracking = true) {
  * @param {boolean} forceReload - Whether to force a complete reload from server
  */
 function refreshDocumentList(forceReload = false) {
-    console.log('Refreshing document list - forceReload:', forceReload);
-    
+        
     if (forceReload) {
         // Add a cache-busting parameter to force a complete reload
         window.forceRefreshTimestamp = Date.now();
-        console.log('Setting force refresh timestamp:', window.forceRefreshTimestamp);
-        
+                
         // Also clear any cached document data if using document cache
         if (window.documentCache && typeof window.documentCache.clearAll === 'function') {
             window.documentCache.clearAll();
@@ -433,8 +391,7 @@ function refreshDocumentList(forceReload = false) {
     }
     
     // Notify console for debugging
-    console.log(`REFRESH: Loading documents for page ${currentPage}, resetTracking=true, forceReload=${forceReload}`);
-    
+        
     // Trigger the document loading with reset
     loadDocuments(currentPage, true);
 }
@@ -446,8 +403,7 @@ function refreshDocumentList(forceReload = false) {
  * @param {Array} expandedDocIds - Array of document IDs that should be expanded
  */
 function renderDocuments(containerId, documents, expandedDocIds = []) {
-    console.log(`Rendering ${documents?.length || 0} documents to container ${typeof containerId === 'string' ? containerId : 'element'}`);
-    
+        
     // Get container element
     let container;
     if (typeof containerId === 'string') {
@@ -457,7 +413,6 @@ function renderDocuments(containerId, documents, expandedDocIds = []) {
     }
     
     if (!container) {
-        console.error(`Container not found: ${containerId}`);
         return;
     }
 
@@ -466,8 +421,7 @@ function renderDocuments(containerId, documents, expandedDocIds = []) {
     
     // Check if document card components are available
     if (typeof window.documentCardComponents === 'undefined') {
-        console.log("Document card components not found, attempting to load dynamically");
-        
+                
         // Try to determine the correct path based on current location
         const scriptPaths = [
             'js/document-card-components.js',           // Direct js folder
@@ -479,28 +433,22 @@ function renderDocuments(containerId, documents, expandedDocIds = []) {
         
         function tryNextPath(index) {
             if (index >= scriptPaths.length) {
-                console.error("Failed to load document card components after trying all paths");
                 renderBasicDocuments(container, documents);
                 return;
             }
             
             const script = document.createElement('script');
             script.src = scriptPaths[index];
-            console.log(`Attempting to load from: ${scriptPaths[index]}`);
-            
+                        
             script.onload = function() {
-                console.log(`Successfully loaded document components from ${scriptPaths[index]}`);
-                if (typeof window.documentCardComponents !== 'undefined') {
-                    console.log("Document card components now available, rendering documents");
-                    // We'll call the render function again, but by this point the script is loaded
+                                if (typeof window.documentCardComponents !== 'undefined') {
+                                        // We'll call the render function again, but by this point the script is loaded
                     actuallyRenderDocuments(container, documents, expandedDocIds);
                 } else {
-                    console.error("Script loaded but documentCardComponents still not defined");
                     tryNextPath(index + 1);
                 }
             };
             script.onerror = function() {
-                console.error(`Failed to load document components from ${scriptPaths[index]}`);
                 tryNextPath(index + 1);
             };
             document.head.appendChild(script);
@@ -554,8 +502,7 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
                 try {
                     // Skip if already displayed
             if (!doc.id || renderedDocIds.has(doc.id)) {
-                console.log(`Skipping duplicate document: ${doc.id}`);
-                            return;
+                                            return;
                         }
                         
             renderedDocIds.add(doc.id);
@@ -573,8 +520,7 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
             
             // Check if this is a compiled document
             if (doc.is_compiled === true) {
-                console.log(`Creating compiled document card for document ${doc.id} with ${doc.child_count || 0} children`);
-                
+                                
                 if (typeof window.documentCardComponents !== 'undefined' && 
                     typeof window.documentCardComponents.createCompiledDocumentCard === 'function') {
                     card = window.documentCardComponents.createCompiledDocumentCard(doc, expandedDocIds);
@@ -594,8 +540,7 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
             }
         } else {
                 // Regular document
-                console.log(`Creating regular document card for document ${doc.id}`);
-                
+                                
                 if (typeof window.documentCardComponents !== 'undefined' && 
                     typeof window.documentCardComponents.createDocumentCard === 'function') {
                     card = window.documentCardComponents.createDocumentCard(doc);
@@ -608,11 +553,8 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
                     if (card) {
                         fragment.appendChild(card);
             } else {
-                console.error(`Failed to create card for document ${doc.id}`);
             }
         } catch (error) {
-            console.error(`Error rendering document ${doc.id}:`, error);
-            
             // Create a basic fallback card
             const fallbackCard = document.createElement('div');
             fallbackCard.className = 'document-card error-card';
@@ -636,8 +578,7 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
         window.documentFilters.setVisibleEntriesCount(renderedDocIds.size);
     }
     
-    console.log(`Rendered ${renderedDocIds.size} unique documents`);
-}
+    }
 
 /**
  * Render documents using a basic card layout when document components are not available
@@ -645,8 +586,7 @@ function actuallyRenderDocuments(container, documents, expandedDocIds = []) {
  * @param {Array} documents - Array of document objects to render
  */
 function renderBasicDocuments(container, documents) {
-    console.log('Rendering basic document cards as fallback');
-    
+        
     // Clear container
     container.innerHTML = '';
     
@@ -710,8 +650,7 @@ function renderBasicDocumentCard(doc) {
     // Format authors - handle different possible formats
     let authors = 'Unknown Author';
     if (doc.authors) {
-        console.log(`Formatting authors for doc ${doc.id}:`, doc.authors);
-        
+                
         if (Array.isArray(doc.authors)) {
             if (doc.authors.length > 0) {
                 // Format depends on the structure of author objects
@@ -800,8 +739,7 @@ function renderBasicDocumentCard(doc) {
         category = 'Departmental';
     }
     
-    console.log(`Rendering document ${doc.id} with type: ${documentType}, displayed as category: ${category}`);
-    
+        
     // Create the document card structure
     card.innerHTML = `
         <div class="document-icon">
@@ -914,16 +852,13 @@ function renderBasicDocumentCard(doc) {
 function toggleCompiledDocument(documentId, card, forceOpen = false) {
     // Ensure we have a valid document ID
     if (!documentId) {
-        console.error("Cannot toggle document with undefined ID");
         return;
     }
 
-    console.log(`Toggling compiled document ${documentId}, forceOpen: ${forceOpen}`);
-    
+        
     // Get the card's wrapper (parent)
     const wrapper = card.closest('.compiled-document-wrapper');
     if (!wrapper) {
-        console.error(`No wrapper found for document ${documentId}`);
             return;
         }
         
@@ -959,8 +894,7 @@ function toggleCompiledDocument(documentId, card, forceOpen = false) {
         // Update tracking array
         if (!expandedDocIds.includes(documentId)) {
             expandedDocIds.push(documentId);
-            console.log(`Added document ${documentId} to expanded list`);
-        }
+                    }
         } else {
         // Toggle visibility unless forceOpen is true
         const isVisible = childrenContainer.style.display === 'block';
@@ -978,8 +912,7 @@ function toggleCompiledDocument(documentId, card, forceOpen = false) {
             const index = expandedDocIds.indexOf(documentId);
             if (index !== -1) {
                 expandedDocIds.splice(index, 1);
-                console.log(`Removed document ${documentId} from expanded list`);
-            }
+                            }
         } else if (!isVisible || forceOpen) {
             childrenContainer.style.display = 'block';
             
@@ -992,8 +925,7 @@ function toggleCompiledDocument(documentId, card, forceOpen = false) {
             // Update tracking array
             if (!expandedDocIds.includes(documentId)) {
                 expandedDocIds.push(documentId);
-                console.log(`Added document ${documentId} to expanded list`);
-            }
+                            }
         }
     }
 }
@@ -1008,16 +940,14 @@ async function fetchChildDocuments(parentId, childrenContainer) {
     // Show loading indicator
     childrenContainer.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
     
-    console.log(`Fetching child documents for parent ID: ${parentId}`);
-    const response = await fetch(`/api/documents/${parentId}/children`);
+        const response = await fetch(`/api/documents/${parentId}/children`);
         
         if (!response.ok) {
       throw new Error(`Failed to fetch child documents: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
-    console.log(`Received ${data.documents.length} child documents for parent ID: ${parentId}`, data);
-        
+            
     // Clear loading indicator
         childrenContainer.innerHTML = '';
         
@@ -1032,13 +962,11 @@ async function fetchChildDocuments(parentId, childrenContainer) {
     // Render each child document
     data.documents.forEach(doc => {
       try {
-        console.log(`Rendering child document: ${doc.id} - ${doc.title}`);
-        const childCard = createChildDocumentCard(doc);
+                const childCard = createChildDocumentCard(doc);
         if (childCard) {
           fragment.appendChild(childCard);
         }
                     } catch (error) {
-        console.error(`Error rendering child document ${doc.id}:`, error);
       }
     });
     
@@ -1046,7 +974,6 @@ async function fetchChildDocuments(parentId, childrenContainer) {
     childrenContainer.appendChild(fragment);
     
         } catch (error) {
-    console.error('Error fetching child documents:', error);
     childrenContainer.innerHTML = `<div class="alert alert-danger">Error loading child documents: ${error.message}</div>`;
     }
 }
@@ -1064,8 +991,7 @@ function createChildDocumentCard(child) {
     // Format authors - handle different possible formats
     let authors = 'Unknown Author';
     if (child.authors) {
-        console.log(`Formatting authors for child doc ${child.id}:`, child.authors);
-        
+                
         if (Array.isArray(child.authors)) {
             if (child.authors.length > 0) {
                 // Format depends on the structure of author objects
@@ -1164,14 +1090,12 @@ function createChildDocumentCard(child) {
                         pdfPath = window.location.origin + pdfPath;
                     }
                     
-                    console.log(`Opening document with path: ${pdfPath}`);
-                    window.open(pdfPath, '_blank');
+                                        window.open(pdfPath, '_blank');
         } else {
                     alert('PDF path not found for this document');
                 }
             })
             .catch(error => {
-                console.error('Error opening PDF:', error);
                 alert(`Error opening document: ${error.message}`);
             });
     });
@@ -1185,8 +1109,7 @@ function createChildDocumentCard(child) {
  * @param {boolean} isExpanded - Whether the document should be expanded
  */
 function toggleDocumentExpansion(documentId, isExpanded) {
-    console.log(`Toggling document expansion: ${documentId}, expanded: ${isExpanded}`);
-    
+        
     // Update expanded state in tracking array
     const index = expandedDocIds.indexOf(documentId);
     
@@ -1206,8 +1129,7 @@ function toggleDocumentExpansion(documentId, isExpanded) {
 async function searchChildDocuments(query) {
     if (!query || query.trim() === '') return;
     
-    console.log(`Searching child documents for: "${query}"`);
-    
+        
     // Get all compiled documents (parent documents with children)
     const compiledDocElements = document.querySelectorAll('.document-card[data-is-compiled="true"]');
     
@@ -1216,8 +1138,7 @@ async function searchChildDocuments(query) {
         if (!documentId) continue;
         
         try {
-            console.log(`Fetching child documents for parent ${documentId} to search through them`);
-            
+                        
             // Fetch child documents
             const response = await fetch(`/api/documents/${documentId}/children`);
             
@@ -1231,18 +1152,14 @@ async function searchChildDocuments(query) {
                 try {
                     data = JSON.parse(responseText);
                 } catch (parseError) {
-                    console.error(`Error parsing JSON for document ${documentId}:`, parseError);
-                    console.log('Raw response:', responseText);
-                    continue; // Skip this document and move to the next one
+                                        continue; // Skip this document and move to the next one
                 }
         } catch (error) {
-                console.error(`Error reading response for document ${documentId}:`, error);
                 continue;
             }
             
             // Validate the data structure
             if (!data || !Array.isArray(data.documents)) {
-                console.error(`Invalid data structure for document ${documentId}:`, data);
                 continue;
             }
             
@@ -1254,7 +1171,6 @@ async function searchChildDocuments(query) {
                 for (const child of data.documents) {
                     // Skip invalid document objects
                     if (!child || typeof child !== 'object') {
-                        console.warn('Invalid child document:', child);
                         continue;
                     }
                     
@@ -1291,8 +1207,7 @@ async function searchChildDocuments(query) {
             
             // If any child document matched the search, expand the parent
             if (hasMatch) {
-                console.log(`Found matches in children of document ${documentId}, expanding it`);
-                
+                                
                 // Force expand the parent document
                 const cardElement = compiledDocElement.closest('.document-card');
                 if (cardElement) {
@@ -1323,7 +1238,6 @@ async function searchChildDocuments(query) {
                 }
             }
         } catch (error) {
-            console.error(`Error searching child documents for parent ${documentId}:`, error);
         }
     }
 }
@@ -1340,8 +1254,7 @@ function addDeleteButton(card, documentId) {
     
     // Don't add delete button for child documents
     if (isChildDoc) {
-        console.log(`Not adding delete button to child document ${documentId}`);
-        return;
+                return;
     }
     
     // Create button element
@@ -1378,8 +1291,7 @@ function addDeleteButton(card, documentId) {
  * @param {boolean} isCompiled - Whether it's a compiled document
  */
 function showDeleteConfirmation(documentId, isCompiled) {
-    console.log(`Showing delete confirmation for document ${documentId}, isCompiled: ${isCompiled}`);
-    
+        
     // Get document title
     const docCard = document.querySelector(`.document-card[data-document-id="${documentId}"]`);
     let docTitle = "Document";
@@ -1398,7 +1310,6 @@ function showDeleteConfirmation(documentId, isCompiled) {
     // Get modal elements
     const modal = document.getElementById('delete-confirmation-modal');
     if (!modal) {
-        console.error('Delete confirmation modal not found in the DOM');
         // Fallback to built-in confirm
         if (confirm(`Are you sure you want to archive "${docTitle}"?`)) {
             deleteDocument(documentId);
@@ -1414,7 +1325,6 @@ function showDeleteConfirmation(documentId, isCompiled) {
     
     // Ensure all elements exist
     if (!confirmTitle || !confirmMessage || !confirmBtn || !cancelBtn || !closeBtn) {
-        console.error('One or more confirmation modal elements not found');
         // Fallback to built-in confirm
         if (confirm(`Are you sure you want to archive "${docTitle}"?`)) {
             deleteDocument(documentId);
@@ -1431,8 +1341,7 @@ function showDeleteConfirmation(documentId, isCompiled) {
         // Show the modal immediately with display:flex to ensure visibility
         modal.style.display = 'flex';
         modal.classList.add('show');
-        console.log('Showing delete confirmation modal - compiled document');
-        
+                
         // Focus the cancel button for better UX
         setTimeout(() => {
             if (cancelBtn) cancelBtn.focus();
@@ -1452,13 +1361,11 @@ function showDeleteConfirmation(documentId, isCompiled) {
         
         const tryNextEndpoint = () => {
             if (endpointIndex >= endpoints.length) {
-                console.warn('All API endpoints failed when fetching document details');
                 return; // Modal already showing with default message
             }
             
             const endpoint = endpoints[endpointIndex];
-            console.log(`Trying endpoint (${endpointIndex + 1}/${endpoints.length}): ${endpoint}`);
-            
+                        
             fetch(endpoint)
                 .then(response => {
                     if (!response.ok) {
@@ -1472,7 +1379,6 @@ function showDeleteConfirmation(documentId, isCompiled) {
                     confirmMessage.textContent = `Are you sure you want to archive "${docTitle}" and all its ${childCount} child document${childCount !== 1 ? 's' : ''}? They will be moved to the archive.`;
                 })
                 .catch(error => {
-                    console.warn(`Endpoint ${endpoint} failed: ${error.message}`);
                     endpointIndex++;
                     tryNextEndpoint();
                 });
@@ -1488,8 +1394,7 @@ function showDeleteConfirmation(documentId, isCompiled) {
         // Show the modal with display:flex to ensure visibility
         modal.style.display = 'flex';
         modal.classList.add('show');
-        console.log('Showing delete confirmation modal - regular document');
-        
+                
         // Focus the cancel button for better UX
         setTimeout(() => {
             if (cancelBtn) cancelBtn.focus();
@@ -1501,8 +1406,7 @@ function showDeleteConfirmation(documentId, isCompiled) {
         // Hide the modal
         modal.classList.remove('show');
         modal.style.display = 'none';
-        console.log('Archive confirmed for document:', documentId);
-        
+                
         // Process the archive action
         if (isCompiled) {
             // For compiled documents
@@ -1532,8 +1436,7 @@ function showDeleteConfirmation(documentId, isCompiled) {
         // Hide the modal
         modal.classList.remove('show');
         modal.style.display = 'none';
-        console.log('Archive cancelled for document:', documentId);
-        
+                
         // Clean up event listeners
         confirmBtn.removeEventListener('click', confirmHandler);
         cancelBtn.removeEventListener('click', cancelHandler);
@@ -1569,8 +1472,7 @@ function showDeleteConfirmation(documentId, isCompiled) {
  * @param {number} documentId - Document ID to delete
  */
 function deleteDocument(documentId) {
-    console.log('Deleting document:', documentId);
-    
+        
     // Show a toast notification to indicate the operation is in progress
     showToast('Archiving document...', 'info');
     
@@ -1613,8 +1515,7 @@ function deleteDocument(documentId) {
             .then(() => {
                 // Force refresh the document list after deletion
                 setTimeout(() => {
-                    console.log('Forcing document list refresh after deletion');
-                    refreshDocumentList(true);
+                                        refreshDocumentList(true);
                     
                     // Show a better success message with document title
                     const successMsg = `${isCompiled ? 'Compilation' : 'Document'} "${docTitle}" has been archived successfully`;
@@ -1622,7 +1523,6 @@ function deleteDocument(documentId) {
                 }, 500);
             })
             .catch(error => {
-                console.error('Error in archive operation:', error);
                 showToast('Error occurred while archiving document: ' + (error.message || 'Unknown error'), 'error');
                 
                 // Reset the delete button
@@ -1633,8 +1533,6 @@ function deleteDocument(documentId) {
                     });
                 } else {
         // Fallback direct API call if archive functionality is not available
-        console.warn('Archive functionality not available, making direct API call');
-        
         fetch(`/api/documents/${documentId}/soft-delete`, {
             method: 'DELETE',
             headers: {
@@ -1650,8 +1548,7 @@ function deleteDocument(documentId) {
             return response.json();
         })
         .then(data => {
-            console.log('Document archived successfully:', data);
-            
+                        
             // Show a better success message with document title
             const successMsg = `${isCompiled ? 'Compilation' : 'Document'} "${docTitle}" has been moved to the archive`;
             showToast(successMsg, 'document-archived');
@@ -1662,7 +1559,6 @@ function deleteDocument(documentId) {
         }, 300);
         })
         .catch(error => {
-            console.error('Error archiving document:', error);
             showToast('Error occurred while archiving document: ' + (error.message || 'Unknown error'), 'error');
             
             // Reset the delete button
@@ -1774,8 +1670,7 @@ function showToast(message, type = 'success') {
  * @param {boolean} isCompiled - Whether this is a compiled document
  */
 function editDocument(documentId, isCompiled = false) {
-    console.log(`Editing document with ID: ${documentId}, isCompiled: ${isCompiled}`);
-    
+        
     if (isCompiled) {
         // For compiled documents, use the compiled document edit modal
         if (typeof showCompiledEditModal === 'function') {

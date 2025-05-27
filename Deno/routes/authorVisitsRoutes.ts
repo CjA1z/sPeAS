@@ -47,7 +47,6 @@ async function recordAuthorVisit(ctx: RouterContext<string>) {
       ctx.response.body = { error: "Failed to record visit. Author may not exist." };
     }
   } catch (error) {
-    console.error("Error in recordAuthorVisit:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -88,7 +87,6 @@ async function getAuthorVisitStats(ctx: RouterContext<string>) {
       visitsByType  // Add the breakdown information expected by the frontend
     };
   } catch (error) {
-    console.error("Error in getAuthorVisitStats:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -116,7 +114,6 @@ async function getTopAuthors(ctx: RouterContext<string>) {
       timeframe: `${days} days`
     };
   } catch (error) {
-    console.error("Error in getTopAuthors:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -128,15 +125,13 @@ async function getTopAuthors(ctx: RouterContext<string>) {
  */
 async function compatGetTopAuthorsForDashboard(ctx: RouterContext<string>) {
   try {
-    console.log("Top authors dashboard endpoint called");
-    
+        
     // Debug log what's in the database
     const { client } = await import("../db/denopost_conn.ts");
     const debugResult = await client.queryObject(
       `SELECT COUNT(*) as count FROM author_visits_counter`
     );
-    console.log(`Database contains ${(debugResult.rows[0] as any)?.count || 0} records in author_visits_counter table`);
-    
+        
     // Default limit for dashboard is 5
     const limit = 5;
     
@@ -145,12 +140,10 @@ async function compatGetTopAuthorsForDashboard(ctx: RouterContext<string>) {
     
     // Get top authors
     const authors = await AuthorVisitsModel.getTopAuthors(limit, days);
-    console.log(`Found ${authors.length} top authors to display`);
-    
+        
     // Debug log each author
     authors.forEach(author => {
-      console.log(`Author ${author.full_name}: visit_count = ${author.visit_count}`);
-    });
+          });
     
     // Format response for dashboard compatibility - CRITICAL: This must be the exact format expected
     const responseData = { 
@@ -163,12 +156,10 @@ async function compatGetTopAuthorsForDashboard(ctx: RouterContext<string>) {
       }))
     };
     
-    console.log(`Returning response with ${responseData.topAuthors.length} authors`);
-    
+        
     ctx.response.status = 200;
     ctx.response.body = responseData;
   } catch (error) {
-    console.error("Error in compatGetTopAuthorsForDashboard:", error);
     ctx.response.status = 500;
     ctx.response.body = { 
       success: false, 
@@ -197,7 +188,6 @@ async function purgeOldVisitData(ctx: RouterContext<string>) {
       message: `Purged ${deletedCount} author visit records older than ${olderThan} days`
     };
   } catch (error) {
-    console.error("Error in purgeOldVisitData:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Internal server error" };
   }
@@ -257,7 +247,6 @@ router.get("/api/debug/author-visits-counter", async (ctx: RouterContext<string>
       row_count: counters.rows.length,
     };
   } catch (error) {
-    console.error("Error in debug endpoint:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: "Error querying database directly", details: String(error) };
   }

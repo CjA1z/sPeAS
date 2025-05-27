@@ -25,7 +25,6 @@ router.post("/document-research-agenda", async (ctx) => {
       ctx.response.body = { error: "Failed to add research agenda items" };
     }
   } catch (error) {
-    console.error("Error adding research agenda items:", error);
     ctx.response.status = 500;
     ctx.response.body = { error: error instanceof Error ? error.message : "Unknown error" };
   }

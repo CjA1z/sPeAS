@@ -1128,8 +1128,7 @@
                     return [];
                 }
                 
-                console.log('Fetching saved documents with token...');
-                const response = await fetch(API_ENDPOINTS.GET_DOCUMENTS, {
+                                const response = await fetch(API_ENDPOINTS.GET_DOCUMENTS, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -1138,7 +1137,6 @@
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error(`Error response ${response.status}: ${errorText}`);
                     throw new Error(`Server error: ${response.status}`);
                 }
                 
@@ -1152,7 +1150,6 @@
                 return (data.documents || []).map(doc => {
                     // Validate document object
                     if (!doc || typeof doc !== 'object') {
-                        console.warn('Invalid document object in API response:', doc);
                         return null;
                     }
                     
@@ -1179,7 +1176,6 @@
                     };
                 }).filter(doc => doc !== null); // Remove any invalid documents
             } catch (error) {
-                console.error('Error fetching documents:', error);
                 showToast('Failed to load your documents', CSS_CLASS_ERROR);
                 return []; // Return empty array to allow the UI to continue working
             } finally {
@@ -1214,7 +1210,6 @@
                 const data = await response.json().catch(() => ({ success: false }));
                 return data.success;
             } catch (error) {
-                console.error("Error deleting document:", error);
                 showToast('Failed to delete document. Please try again later.', CSS_CLASS_ERROR);
                 return false;
             }
@@ -1739,7 +1734,6 @@
                 if (keywordOptionExists) {
                     filterByKeywordsSelect.value = keyword;
                 } else {
-                    console.warn(`Keyword "${keyword}" not found in filter dropdown.`);
                     filterByKeywordsSelect.value = 'all'; 
                 }
                 currentPage = 1;
@@ -1788,7 +1782,6 @@
                 if (keywordOptionExists) {
                     filterByKeywordsSelect.value = keyword;
                 } else {
-                    console.warn(`Keyword "${keyword}" from popup not found in filter dropdown.`);
                     filterByKeywordsSelect.value = 'all'; 
                 }
                 currentPage = 1; 
@@ -1819,8 +1812,7 @@
             const tokenFromUrl = urlParams.get('token');
             
             if (tokenFromUrl) {
-                console.log('Found token in URL, ensuring it is saved to session storage');
-                try {
+                                try {
                     // Get existing user info or create new object
                     const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
                     
@@ -1835,10 +1827,8 @@
                         
                         // Save back to session storage
                         sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        console.log('Updated session storage with token from URL');
-                        }
+                                                }
                     } catch (e) {
-                    console.error('Error handling token from URL:', e);
                 }
                 
                 // Remove token from URL to prevent sharing/leaking
@@ -1871,7 +1861,6 @@
                 // Navigate to the document viewer page in the current tab
                 window.location.href = `/pages/user-single.html?id=${doc.id}`;
             } catch (error) {
-                console.error('Error opening document:', error);
                 showToast('Error opening document. Please try again.', 'error');
             }
         }
@@ -1884,7 +1873,6 @@
                 const token = userInfo?.token;
                 
                 if (!token) {
-                    console.warn('Cannot record view: No authentication token found');
                     return;
                 }
                 
@@ -1898,9 +1886,7 @@
                     body: JSON.stringify({ documentId: docId })
                 });
                 
-                console.log('Document view recorded:', docId);
-            } catch (error) {
-                console.error('Error recording document view:', error);
+                            } catch (error) {
                 // Non-critical error, doesn't need user notification
             }
         }
@@ -1943,7 +1929,6 @@
                 }, 100);
                 
             } catch (error) {
-                console.error('Error downloading document:', error);
                 showToast('Error downloading document. Please try again.', 'error');
             }
         }
@@ -1956,7 +1941,6 @@
                 const token = userInfo?.token;
                 
                 if (!token) {
-                    console.warn('Cannot record download: No authentication token found');
                     return;
                 }
                 
@@ -1981,11 +1965,9 @@
                     });
                     
                     if (response.ok) {
-                        console.log('Document download recorded:', docId);
-                        return;
+                                                return;
                     }
                 } catch (endpointError) {
-                    console.warn('Analytics endpoint not available, trying fallback:', endpointError);
                 }
                 
                 // Fallback - try to use the document views endpoint
@@ -2003,18 +1985,14 @@
                     });
                     
                     if (fallbackResponse.ok) {
-                        console.log('Document download recorded via fallback endpoint:', docId);
-                        return;
+                                                return;
                     }
                 } catch (fallbackError) {
-                    console.warn('Fallback endpoint failed:', fallbackError);
                 }
                 
                 // Last resort - log to console for development purposes
-                console.log('Download would be recorded for document:', docId, downloadData);
-                
+                                
             } catch (error) {
-                console.error('Error recording document download:', error);
                 // Non-critical error, doesn't need user notification
             }
         }
@@ -2026,7 +2004,6 @@
             const token = userInfo?.token;
             
             if (!token) {
-                console.warn('No authentication token found');
                 // Redirect to login page if in production
                 if (location.hostname !== 'localhost' && !location.hostname.includes('127.0.0.1')) {
                     window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -2055,22 +2032,19 @@
                         userInfo.libraryCount = documentItemsData.length;
                         // Save back to session storage
                         sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        console.log('Updated user info with library count:', documentItemsData.length);
-                        
+                                                
                         // Refresh the navbar if needed to show updated count
                         if (window.NavbarModule && typeof window.NavbarModule.updateProfileInfo === 'function') {
                             window.NavbarModule.updateProfileInfo(userInfo);
                         }
                     } catch (e) {
-                        console.error('Error updating library count in user info:', e);
                     }
                 }
                 
                 // If no documents or error occurred, use mock data for development/testing
                 if (documentItemsData.length === 0) {
                     if (location.hostname === 'localhost' || location.hostname.includes('127.0.0.1')) {
-                        console.log('Using mock data for development');
-                        documentItemsData = [...mockDocuments];
+                                                documentItemsData = [...mockDocuments];
                         showToast('Using sample documents for development', 'error');
                     } else {
                         // In production with no documents
@@ -2078,12 +2052,10 @@
                     }
                 }
             } catch (error) {
-                console.error('Error initializing page:', error);
                 // Use mock data in development if API fails
                 if (location.hostname === 'localhost' || location.hostname.includes('127.0.0.1')) {
                     documentItemsData = [...mockDocuments];
-                    console.log('Using mock data after API error');
-                    showToast('Using sample documents due to an API error', 'error');
+                                        showToast('Using sample documents due to an API error', 'error');
                 } else {
                     // In production with API error
                     documentItemsData = [];
@@ -2109,7 +2081,6 @@
             if (window.NavbarModule) {
                 window.NavbarModule.init();
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
         });
     </script>

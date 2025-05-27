@@ -873,13 +873,10 @@
             if (window.NavbarModule) {
                 // Check if navbar is already initialized
                 if (!window.NavbarModule.isInitialized) {
-                    console.log('Initializing NavbarModule');
-                    window.NavbarModule.init();
+                                        window.NavbarModule.init();
                 } else {
-                    console.log('NavbarModule already initialized, skipping...');
-                }
+                                    }
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
                 // Provide a basic fallback navigation if the navbar module fails
                 const navbarContainer = document.getElementById('navbarContainer');
                 if (navbarContainer) {
@@ -998,8 +995,7 @@
 
             // Function to handle author profile display/navigation
             function navigateToAuthorProfile(authorName, callback) {
-                console.log(`Author profile requested for: ${authorName}`);
-                
+                                
                 // Instead of navigating to a page that doesn't exist, show author info in the current page
                 showAuthorInfo(authorName);
             }
@@ -1204,12 +1200,9 @@
                         if (mainDocResponse.ok) {
                             mainDocumentData = await mainDocResponse.json();
                             foundInCompiledDocuments = true;
-                            console.log('Successfully fetched document from compiled-documents API:', mainDocumentData);
-                        } else {
-                            console.warn(`Error response from compiled-documents API: ${mainDocResponse.status} ${mainDocResponse.statusText}`);
+                                                    } else {
                         }
                     } catch (compiledError) {
-                        console.warn('Error fetching from compiled-documents API:', compiledError);
                     }
                     
                     // If not found in compiled documents, try regular documents endpoint
@@ -1218,12 +1211,10 @@
                             const fallbackResponse = await fetch(`/api/documents/${docId}`);
                             if (fallbackResponse.ok) {
                                 mainDocumentData = await fallbackResponse.json();
-                                console.log('Using regular documents API as fallback');
-                            } else {
+                                                            } else {
                                 throw new Error(`Failed to fetch document: ${fallbackResponse.status} ${fallbackResponse.statusText}`);
                             }
                         } catch (docError) {
-                            console.error('Error fetching document from regular API:', docError);
                             throw new Error(`Failed to fetch document: ${docError.message}`);
                         }
                     }
@@ -1250,12 +1241,10 @@
                         // Try compiled-documents children endpoint first if we found the main doc there
                         if (foundInCompiledDocuments) {
                             try {
-                                console.log(`Fetching child documents from /api/compiled-documents/${docId}/children`);
-                                const childrenResponse = await fetch(`/api/compiled-documents/${docId}/children`);
+                                                                const childrenResponse = await fetch(`/api/compiled-documents/${docId}/children`);
                                 if (childrenResponse.ok) {
                                     const childrenData = await childrenResponse.json();
-                                    console.log('Child documents API response:', childrenData);
-                                    
+                                                                        
                                     if (Array.isArray(childrenData)) {
                                         childDocuments = childrenData;
                                         foundChildren = true;
@@ -1268,39 +1257,32 @@
                                     }
                                 }
                             } catch (childError) {
-                                console.error('Error fetching child documents from compiled-documents API:', childError);
                             }
                         }
                         
                         // If no children found yet, try regular documents endpoint
                         if (!foundChildren) {
                             try {
-                                console.log(`Fetching child documents from /api/documents/${docId}/children`);
-                                const fallbackChildrenResponse = await fetch(`/api/documents/${docId}/children`);
+                                                                const fallbackChildrenResponse = await fetch(`/api/documents/${docId}/children`);
                                 if (fallbackChildrenResponse.ok) {
                                     const fallbackData = await fallbackChildrenResponse.json();
-                                    console.log('Fallback child documents API response:', fallbackData);
-                                    
+                                                                        
                                     if (Array.isArray(fallbackData)) {
                                         childDocuments = fallbackData;
                                     } else if (fallbackData.documents && Array.isArray(fallbackData.documents)) {
                                         childDocuments = fallbackData.documents;
                         } else {
-                                        console.error('Could not parse child documents from response');
                                     }
                                 } else {
-                                    console.error('Could not fetch child documents');
                                 }
                             } catch (childError) {
-                                console.error('Error fetching child documents from regular API:', childError);
                             }
                         }
                     }
 
                     // Store the child documents in the main data object for later use
                     mainDocumentData.contained_documents = childDocuments;
-                    console.log(`Found ${childDocuments.length} child documents:`, childDocuments);
-
+                    
                     // Fetch detailed author information for each child document
                     if (childDocuments && childDocuments.length > 0) {
                         const enhancedChildDocuments = [];
@@ -1312,8 +1294,7 @@
                                     const authorResponse = await fetch(`/api/document-authors/${childDoc.id}`);
                                     if (authorResponse.ok) {
                                         const authorData = await authorResponse.json();
-                                        console.log(`Fetched author data for document ${childDoc.id}:`, authorData);
-                                        
+                                                                                
                                         // Add the authors data to our child document
                                         if (authorData.authors && Array.isArray(authorData.authors)) {
                                             childDoc.enhancedAuthors = authorData.authors;
@@ -1324,11 +1305,9 @@
                                                 .filter(name => name)
                                                 .join(', ');
                                             
-                                            console.log(`Enhanced document ${childDoc.id} with authors:`, childDoc.formattedAuthor);
-                                        }
+                                                                                    }
                                     }
                                 } catch (authorError) {
-                                    console.error(`Error fetching author data for document ${childDoc.id}:`, authorError);
                                 }
                             }
                             enhancedChildDocuments.push(childDoc);
@@ -1345,14 +1324,11 @@
                     if(forewordTextElement) {
                         // For compiled documents, prioritize abstract_foreword
                         if (data.abstract_foreword) {
-                            console.log('Displaying abstract_foreword in forewordTextElement');
-                            forewordTextElement.textContent = data.abstract_foreword;
+                                                        forewordTextElement.textContent = data.abstract_foreword;
                         } else if (data.abstract) {
-                            console.log('Displaying abstract in forewordTextElement');
-                            forewordTextElement.textContent = data.abstract;
+                                                        forewordTextElement.textContent = data.abstract;
                         } else if (data.foreword) {
-                            console.log('Displaying foreword in forewordTextElement');
-                            forewordTextElement.textContent = data.foreword;
+                                                        forewordTextElement.textContent = data.foreword;
                         } else {
                             forewordTextElement.textContent = 'Abstract not available.';
                         }
@@ -1360,32 +1336,24 @@
                     if(infoTitle) infoTitle.textContent = data.title || '';
                     
                     // Enhanced document information fetching for specific fields
-                    console.log('Publication year from API:', data.publication_year);
-                    console.log('Volume from API:', data.volume);
-                    console.log('Pages from API:', data.pages);
-                    console.log('Date uploaded from API:', data.date_uploaded);
-                    console.log('Keywords from API:', data.keywords);
-                    
+                                                                                                                        
                     // Publication Year - try multiple potential field names with safer extraction
                     if (infoYearElem) {
                         const publicationYear = extractFieldSafely(data, ['publication_year', 'year', 'pub_year', 'publicationYear']);
                         infoYearElem.textContent = publicationYear || 'N/A';
-                        console.log('Setting publication year to:', publicationYear || 'N/A');
-                    }
+                                            }
                     
                     // Volume - enhanced to check multiple possible field names with safer extraction
                     if (infoVolume) {
                         const volumeValue = extractFieldSafely(data, ['volume', 'edition_volume', 'vol']);
                         infoVolume.textContent = volumeValue || 'N/A';
-                        console.log('Setting volume to:', volumeValue || 'N/A');
-                    }
+                                            }
                     
                     // Number of Pages - enhanced to check multiple possible field names with safer extraction
                     if (infoPages) {
                         const pagesValue = extractFieldSafely(data, ['pages', 'page_count', 'num_pages', 'pageCount']);
                         infoPages.textContent = pagesValue || 'N/A';
-                        console.log('Setting page count to:', pagesValue || 'N/A');
-                    }
+                                            }
                     
                     if (infoCategory) {
                         const categoryValue = extractFieldSafely(data, ['category', 'doc_category', 'documentCategory']);
@@ -1408,13 +1376,11 @@
                                     day: 'numeric' 
                                 });
                             } catch (formatError) {
-                                console.error('Error formatting date:', formatError);
                             }
                         }
                         
                         infoDateUploaded.textContent = dateValue;
-                        console.log('Setting date uploaded to:', dateValue);
-                    }
+                                            }
                     
                     // Keywords - enhanced with better error handling
                     if (infoKeywordsContainer) {
@@ -1426,7 +1392,6 @@
                                 displayKeywords(keywords, infoKeywordsContainer);
                             })
                             .catch(error => {
-                                console.error('Error fetching keywords:', error);
                                 // Fallback to keywords already in document data
                                 const extractedKeywords = extractKeywordsFromDocData(data);
                                 displayKeywords(extractedKeywords, infoKeywordsContainer);
@@ -1553,7 +1518,6 @@
                     // Hide loading message
                     hideGeneralMessage();
                 } catch (error) {
-                    console.error('Error fetching document data:', error);
                     if(forewordTextElement) forewordTextElement.textContent = 'Failed to load document data.';
                     showGeneralMessage('Error: Could not load document details.', true);
                 }
@@ -1757,8 +1721,7 @@
                         formData.reason_details = `Request for access based on: ${selectedReasons.join(', ')}`;
                     }
                     
-                    console.log("Submitting access request:", formData);
-                    
+                                        
                     // Show a loading indicator
                     const submitButton = event.submitter;
                     const originalButtonText = submitButton.innerHTML;
@@ -1788,8 +1751,7 @@
                         }
                     })
                     .then(data => {
-                        console.log("Request submitted successfully:", data);
-
+                        
                     // Store pending status for the main document if the request was for the main document
                     // OR if the request was for any document originating from the floating button workflow.
                     // For simplicity, we'll tie the floating button's pending state to the main document's ID.
@@ -1817,7 +1779,6 @@
                     if(receiptSection) receiptSection.classList.remove('modal-section-hidden');
                     })
                     .catch(error => {
-                        console.error("Error submitting request:", error);
                         submitButton.disabled = false;
                         submitButton.innerHTML = originalButtonText;
                         showGeneralMessage(`Error: ${error.message || 'Failed to submit request. Please try again.'}`, true);
@@ -1858,8 +1819,7 @@
                     const queryId = urlParams.get('id');
                     
                     if (queryId) {
-                        console.log(`Found document ID in query parameter: ${queryId}`);
-                        return queryId;
+                                                return queryId;
                     }
                     
                     // Method 2: Try to extract ID from URL path segments
@@ -1870,8 +1830,7 @@
                     const numericId = parseInt(lastSegment);
                     
                     if (!isNaN(numericId)) {
-                        console.log(`Found document ID in path: ${numericId}`);
-                        return numericId.toString();
+                                                return numericId.toString();
                     }
                     
                     // Method 3: Check if second-to-last segment is "document" or "doc" and last is numeric
@@ -1881,15 +1840,11 @@
                         
                         if ((potentialTypeSegment === 'document' || potentialTypeSegment === 'doc') && 
                             !isNaN(parseInt(potentialIdSegment))) {
-                            console.log(`Found document ID in path structure: ${potentialIdSegment}`);
-                            return potentialIdSegment;
+                                                        return potentialIdSegment;
                         }
                     }
-                    
-                    console.warn("No document ID found in URL");
                     return null;
                 } catch (e) {
-                    console.error("Error extracting document ID from URL:", e);
                     return null;
                 }
             }
@@ -1897,10 +1852,8 @@
             // Initialize the page with the document ID from the URL
             const docIdFromUrl = getDocumentIdFromUrl();
             if (docIdFromUrl) {
-                console.log(`Loading document ID: ${docIdFromUrl}`);
-                loadDocumentData(docIdFromUrl);
+                                loadDocumentData(docIdFromUrl);
             } else {
-                console.warn("No document ID provided in URL, using default ID 183 for testing");
                 loadDocumentData(183); // Default ID for testing
             }
 
@@ -1916,24 +1869,20 @@
             // --- Dedicated function to fetch document keywords ---
             async function fetchDocumentKeywords(docId) {
                 try {
-                    console.log(`Fetching keywords specifically for document ID ${docId}`);
-                    
+                                        
                     // Try to fetch from compiled-documents first since that seems to be working
                     try {
                         const compiledDocResponse = await fetch(`/api/compiled-documents/${docId}`);
                         if (compiledDocResponse.ok) {
                             const compiledData = await compiledDocResponse.json();
-                            console.log('Fetched compiled document data:', compiledData);
-                            
+                                                        
                             // Check if keywords exist in the compiled document
                             if (compiledData.keywords && Array.isArray(compiledData.keywords)) {
-                                console.log('Found keywords in compiled-documents API:', compiledData.keywords);
-                                return compiledData.keywords;
+                                                                return compiledData.keywords;
                             }
                         }
                     } catch (compiledError) {
-                        console.log('No keywords found in compiled-documents API:', compiledError);
-                    }
+                                            }
                     
                     // If we get here, try the dedicated keywords endpoint
                     try {
@@ -1941,8 +1890,7 @@
                         
                         if (keywordsResponse.ok) {
                             const keywordsData = await keywordsResponse.json();
-                            console.log('Keywords API response:', keywordsData);
-                            
+                                                        
                             if (keywordsData.keywords && Array.isArray(keywordsData.keywords)) {
                                 return keywordsData.keywords;
                             } else if (Array.isArray(keywordsData)) {
@@ -1951,10 +1899,8 @@
                                 return keywordsData.keywords.split(',').map(k => k.trim()).filter(k => k);
                             }
                         } else {
-                            console.warn(`Keywords API returned ${keywordsResponse.status}: Using fallback approach`);
                         }
                     } catch (keywordsError) {
-                        console.warn('Error fetching from keywords API:', keywordsError);
                     }
                     
                     // If both of the above fail, try the documents API
@@ -1963,19 +1909,15 @@
                         
                         if (docResponse.ok) {
                             const docData = await docResponse.json();
-                            console.log('Documents API response:', docData);
-                            return extractKeywordsFromDocData(docData);
+                                                        return extractKeywordsFromDocData(docData);
                         } else {
-                            console.warn(`Documents API returned ${docResponse.status}`);
                         }
                     } catch (docError) {
-                        console.warn('Error fetching from documents API:', docError);
                     }
                     
                     // If all APIs fail, check if we already have the keywords in mainDocumentData
                     if (mainDocumentData && (mainDocumentData.doc_id === docId || mainDocumentData.id === docId)) {
-                        console.log('Using keywords from already loaded document data');
-                        return extractKeywordsFromDocData(mainDocumentData);
+                                                return extractKeywordsFromDocData(mainDocumentData);
                     }
                     
                     // For child documents, check if we can find it in the child documents array
@@ -1985,16 +1927,13 @@
                         );
                         
                         if (childDoc) {
-                            console.log('Found keywords in child document data');
-                            return extractKeywordsFromDocData(childDoc);
+                                                        return extractKeywordsFromDocData(childDoc);
                         }
                     }
                     
                     // If all else fails, return empty array
-                    console.warn('No keywords found through any method');
                     return [];
                 } catch (error) {
-                    console.error('Error in fetchDocumentKeywords:', error);
                     return [];
                 }
             }
@@ -2011,8 +1950,7 @@
                     keywordsList = docData.keywords.split(',').map(k => k.trim()).filter(k => k);
                 }
                 
-                console.log('Extracted keywords from doc data:', keywordsList);
-                return keywordsList;
+                                return keywordsList;
             }
             
             // Function to display keywords in a container
@@ -2022,8 +1960,7 @@
                 container.innerHTML = ''; // Clear container
                 
                 if (keywords && keywords.length > 0) {
-                    console.log(`Displaying ${keywords.length} keywords:`, keywords);
-                    
+                                        
                     keywords.forEach((keyword, index) => {
                         if (!keyword) return; // Skip empty keywords
                         
@@ -2134,7 +2071,6 @@
                                 return dateObj;
                             }
                         } catch (e) {
-                            console.warn(`Failed to parse date from field ${field}:`, e);
                         }
                     }
                 }
@@ -2152,11 +2088,9 @@
                 // Get document ID from URL
                 const documentId = getDocumentIdFromUrl();
                 if (documentId) {
-                    console.log('Tracking guest visit for compiled document:', documentId);
-                    initCompiledDocumentTracking(documentId);
+                                        initCompiledDocumentTracking(documentId);
                 }
             } else {
-                console.error('DocumentTracker not found! Make sure document-visit-tracker.js is loaded correctly.');
             }
         });
     </script>

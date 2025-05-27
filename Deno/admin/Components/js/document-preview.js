@@ -16,8 +16,7 @@ window.documentPreview = {
  * @param {string|number} documentId - The ID of the document to preview
  */
 async function showPreviewModal(documentId) {
-    console.log(`Showing preview modal for document ID: ${documentId}`);
-    
+        
     try {
         // Fetch document details from API
         const response = await fetch(`/api/documents/${documentId}`);
@@ -26,8 +25,7 @@ async function showPreviewModal(documentId) {
         }
         
         const docData = await response.json();
-        console.log('Document data for preview:', docData);
-        
+                
         // Fetch authors separately to ensure we get them
         let authors = [];
         try {
@@ -35,10 +33,8 @@ async function showPreviewModal(documentId) {
             if (authorsResponse.ok) {
                 const authorsData = await authorsResponse.json();
                 authors = authorsData.authors || [];
-                console.log('Authors data for preview:', authors);
-            }
+                            }
         } catch (authorError) {
-            console.error('Error fetching authors:', authorError);
             // Continue with empty authors array
         }
         
@@ -139,8 +135,7 @@ async function showPreviewModal(documentId) {
                         pdfPath = window.location.origin + pdfPath;
                     }
                     
-                    console.log(`Opening document with path: ${pdfPath}`);
-                    window.open(pdfPath, '_blank');
+                                        window.open(pdfPath, '_blank');
                 } else {
                     // Fetch document details if file_path is not available
                     fetch(`/api/documents/${documentId}`)
@@ -166,14 +161,12 @@ async function showPreviewModal(documentId) {
                                     pdfPath = window.location.origin + pdfPath;
                                 }
                                 
-                                console.log(`Opening document with path: ${pdfPath}`);
-                                window.open(pdfPath, '_blank');
+                                                                window.open(pdfPath, '_blank');
                             } else {
                                 alert('PDF path not found for this document');
                             }
                         })
                         .catch(error => {
-                            console.error('Error opening PDF:', error);
                             alert(`Error opening document: ${error.message}`);
                         });
                 }
@@ -184,7 +177,6 @@ async function showPreviewModal(documentId) {
         previewModal.style.display = 'flex';
         
     } catch (error) {
-        console.error('Error showing preview modal:', error);
         alert(`Error loading document preview: ${error.message}`);
     }
 }
@@ -204,8 +196,7 @@ function closePreviewModal() {
  * @param {string|number} documentId - The ID of the document to view
  */
 function openPdfViewer(documentId) {
-    console.log(`Opening PDF viewer for document ID: ${documentId}`);
-    
+        
     try {
         // First try to fetch the document to verify it exists and get its file path
         fetch(`/api/documents/${documentId}`)
@@ -235,8 +226,7 @@ function openPdfViewer(documentId) {
                         pdfPath = window.location.origin + pdfPath;
                     }
                     
-                    console.log(`Opening document directly with path: ${pdfPath}`);
-                    window.open(pdfPath, '_blank');
+                                        window.open(pdfPath, '_blank');
                     return;
                 }
                 
@@ -244,8 +234,7 @@ function openPdfViewer(documentId) {
                 const pdfViewer = document.getElementById('pdf-viewer');
                 if (pdfViewer) {
                     const pdfUrl = `/api/documents/${documentId}/pdf`;
-                    console.log(`Setting PDF viewer source to: ${pdfUrl}`);
-                    pdfViewer.src = pdfUrl;
+                                        pdfViewer.src = pdfUrl;
                     
                     // Set modal title
                     const modalTitle = document.getElementById('pdf-modal-title');
@@ -259,24 +248,19 @@ function openPdfViewer(documentId) {
                         pdfModal.style.display = 'flex';
                         pdfModal.classList.add('active');
                     } else {
-                        console.error('PDF modal not found');
                         // Fallback: open in new tab
                         window.open(pdfUrl, '_blank');
                     }
                 } else {
-                    console.error('PDF viewer iframe not found, opening in new tab');
                     window.open(`/api/documents/${documentId}/pdf`, '_blank');
                 }
             })
             .catch(error => {
-                console.error('Error in PDF viewer:', error);
                 // Fallback: Try to open the document directly
                 const fallbackUrl = `/api/documents/${documentId}/pdf`;
-                console.log(`Trying fallback URL: ${fallbackUrl}`);
-                window.open(fallbackUrl, '_blank');
+                                window.open(fallbackUrl, '_blank');
             });
     } catch (error) {
-        console.error('Error opening PDF viewer:', error);
         alert(`Error opening document: ${error.message}. Please try the Read Document button instead.`);
     }
 }
@@ -306,8 +290,7 @@ window.closePdfModal = closePdfModal;
 
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing document preview functionality');
-    
+        
     // Close preview modal when clicking the close button
     const previewCloseButton = document.querySelector('.preview-close');
     if (previewCloseButton) {

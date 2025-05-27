@@ -33,7 +33,6 @@ export async function getDepartments(ctx: Context) {
     ctx.response.status = 200;
     ctx.response.type = "json";
   } catch (error: unknown) {
-    console.error("Error fetching departments:", error);
     ctx.response.body = { error: error instanceof Error ? error.message : "Unknown error" };
     ctx.response.status = 500;
     ctx.response.type = "json";

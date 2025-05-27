@@ -11,8 +11,7 @@ async function checkDocumentAccess(documentId) {
     try {
         // If user is a guest, show request form immediately
         if (isGuestUser()) {
-            console.log('Guest user detected, showing request form');
-            showRequestForm(documentId);
+                        showRequestForm(documentId);
             return false;
         }
 
@@ -24,16 +23,13 @@ async function checkDocumentAccess(documentId) {
             return true;
         } else {
             // Show request form for non-guest users without access
-            console.log('User does not have access, showing request form');
-            showRequestForm(documentId);
+                        showRequestForm(documentId);
             return false;
         }
     } catch (error) {
-        console.error('Error checking document access:', error);
         // Show request form on error for guest users
         if (isGuestUser()) {
-            console.log('Error occurred for guest user, showing request form');
-            showRequestForm(documentId);
+                        showRequestForm(documentId);
         }
         return false;
     }
@@ -47,14 +43,12 @@ function ensureStylesLoaded() {
         link.rel = 'stylesheet';
         link.href = '/css/document-request.css';
         document.head.appendChild(link);
-        console.log('Document request styles loaded');
-    }
+            }
 }
 
 // Function to show the request form
 function showRequestForm(documentId) {
-    console.log('Showing request form for document:', documentId);
-    
+        
     // Ensure styles are loaded
     ensureStylesLoaded();
     
@@ -163,8 +157,7 @@ function initializeRequestForm(modalElement) {
             reason_details: form.querySelector('#reasonDetails').value
         };
         
-        console.log('Submitting form data:', formData);
-        
+                
         try {
             // Send request to server
             const response = await fetch('/api/document-requests', {
@@ -198,7 +191,6 @@ function initializeRequestForm(modalElement) {
                 throw new Error(error.message || 'Failed to submit request');
             }
         } catch (error) {
-            console.error('Error submitting request:', error);
             alert('Error submitting request. Please try again.');
         }
     });

@@ -5,10 +5,8 @@ import { client } from "../data/denopost_conn.ts";
  */
 async function ensureConnected() {
     if (!client.connected) {
-        console.log("Connecting to PostgreSQL...");
-        await client.connect();
-        console.log("Database connected.");
-    }
+                await client.connect();
+            }
 }
 
 /**
@@ -21,8 +19,7 @@ export async function findUser(ID: string, Password: string) {
     try {
         await ensureConnected();
 
-        console.log(`Checking user in database: ID=${ID}`);
-        const result = await client.queryObject<{
+                const result = await client.queryObject<{
             school_id: string;
             role: string;
         }>(
@@ -34,19 +31,16 @@ export async function findUser(ID: string, Password: string) {
         );
 
         if (result.rows.length === 0) {
-            console.warn("No user found for ID:", ID);
             return null;
         }
 
         const user = result.rows[0];
-        console.log(`User found: ${user.school_id}, Role: ${user.role}`);
-
+        
         return {
             school_id: user.school_id,
             role: user.role,
         };
     } catch (error) {
-        console.error("Database error in findUser:", error);
         throw error;
     }
 }

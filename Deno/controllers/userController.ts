@@ -51,7 +51,6 @@ export const getCurrentUser = async (ctx: Context) => {
     ctx.response.type = "application/json";
     ctx.response.body = user;
   } catch (error) {
-    console.error("Error fetching user profile:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -97,7 +96,6 @@ export const getUserById = async (ctx: Context) => {
     ctx.response.type = "application/json";
     ctx.response.body = user;
   } catch (error) {
-    console.error("Error fetching user by ID:", error);
     ctx.response.status = 500;
     ctx.response.type = "application/json";
     ctx.response.body = { 
@@ -154,7 +152,6 @@ export const handleGetUserProfile = async (req: Request): Promise<Response> => {
       const libraryCount = await UserLibraryModel.getLibraryCount(userId);
       userData.library_count = libraryCount;
     } catch (error) {
-      console.warn(`Unable to get library count for user ${userId}:`, error);
       // Continue without library count if there's an error
     }
     
@@ -163,8 +160,6 @@ export const handleGetUserProfile = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("Error handling user profile request:", error);
-    
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : "Unknown error" 
     }), {

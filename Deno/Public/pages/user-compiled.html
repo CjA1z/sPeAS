@@ -274,7 +274,6 @@
             if (window.NavbarModule) {
                 window.NavbarModule.init();
             } else {
-                console.error('NavbarModule not found! Make sure navbar-loader.js is loaded correctly.');
             }
             
             // Get user information from storage
@@ -290,7 +289,6 @@
                             const userInfo = JSON.parse(sessionUserInfo);
                             return userInfo;
                         } catch (parseError) {
-                            console.error('Error parsing sessionStorage user info:', parseError);
                             return null;
                         }
                     } else if (localUserInfo) {
@@ -298,14 +296,12 @@
                             const userInfo = JSON.parse(localUserInfo);
                             return userInfo;
                         } catch (parseError) {
-                            console.error('Error parsing localStorage user info:', parseError);
                             return null;
                         }
                     }
                     
                     return null;
                 } catch (error) {
-                    console.error('Error retrieving user info:', error);
                     return null;
                 }
             }
@@ -344,11 +340,9 @@
             
             const documentId = getDocumentIdFromUrl();
             if (documentId) {
-                console.log(`Loading compiled document with ID: ${documentId}`);
-                // Fetch the compiled document data
+                                // Fetch the compiled document data
                 fetchCompiledDocumentData(documentId);
             } else {
-                console.warn('No document ID provided in URL');
                 document.getElementById('compiledContent').innerHTML = `
                     <div class="loading" style="color: orange;">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -363,8 +357,7 @@
                     const response = await fetch(`/api/compiled-documents/${docId}`);
                     if (response.ok) {
                         const data = await response.json();
-                        console.log('DEBUG - Compiled document data from API:', data);
-                        
+                                                
                         // Log any attachment-like fields
                         const attachmentFields = [];
                         for (const [key, value] of Object.entries(data)) {
@@ -375,12 +368,10 @@
                                 attachmentFields.push({key, value});
                             }
                         }
-                        console.log('DEBUG - Fields that might contain attachment info:', attachmentFields);
-                        
+                                                
                         return data;
                     }
                 } catch (e) {
-                    console.error('Debug fetch error:', e);
                 }
                 return null;
             }
@@ -406,7 +397,6 @@
                             foundInCompiledDocuments = true;
                         }
                     } catch (compiledError) {
-                        console.warn('Error fetching from compiled-documents API:', compiledError);
                     }
                     
                     // If not found in compiled documents, try regular documents endpoint
@@ -415,15 +405,13 @@
                             const fallbackResponse = await fetch(`/api/documents/${docId}`);
                             if (fallbackResponse.ok) {
                                 mainDocData = await fallbackResponse.json();
-                                console.log('Using regular documents API as fallback');
-                                
+                                                                
                                 // Check if this regular document has compiled document properties
                                 const isCompiled = mainDocData.is_compiled === true || 
                                                  mainDocData.document_type?.toLowerCase() === 'compiled' ||
                                                  mainDocData.child_count > 0;
                                                  
                                 if (!isCompiled) {
-                                    console.warn('This document is not a compiled document');
                                     // Redirect to single document page
                                     window.location.href = `/pages/user-single.html?id=${docId}`;
                                     return;
@@ -441,23 +429,18 @@
                     }
                     
                     // Check for foreword file path in the compiled document data
-                    console.log('Checking for foreword in compiled document data:', mainDocData);
-                    
+                                        
                     // Look for foreword_file_path in various possible field names
                     if (mainDocData.foreword_file_path) {
-                        console.log('Found foreword_file_path:', mainDocData.foreword_file_path);
-                    } else if (mainDocData.foreword_path) {
+                                            } else if (mainDocData.foreword_path) {
                         mainDocData.foreword_file_path = mainDocData.foreword_path;
-                        console.log('Found foreword_path:', mainDocData.foreword_path);
-                    } else if (mainDocData.foreword_attachment) {
+                                            } else if (mainDocData.foreword_attachment) {
                         mainDocData.foreword_file_path = mainDocData.foreword_attachment;
-                        console.log('Found foreword_attachment:', mainDocData.foreword_attachment);
-                    } else if (mainDocData.attachment && typeof mainDocData.attachment === 'string' && 
+                                            } else if (mainDocData.attachment && typeof mainDocData.attachment === 'string' && 
                               (mainDocData.attachment.toLowerCase().includes('foreword') || 
                                mainDocData.attachment.toLowerCase().includes('preface'))) {
                         mainDocData.foreword_file_path = mainDocData.attachment;
-                        console.log('Using attachment as foreword:', mainDocData.attachment);
-                    }
+                                            }
                     
                     // If we still don't have a foreword file path, check related fields
                     if (!mainDocData.foreword_file_path) {
@@ -474,8 +457,7 @@
                                 
                                 if (forewordItem) {
                                     mainDocData.foreword_file_path = forewordItem.file_path || forewordItem.path || forewordItem.url;
-                                    console.log('Found foreword in related files:', mainDocData.foreword_file_path);
-                                    break;
+                                                                        break;
                                 }
                             }
                         }
@@ -514,7 +496,6 @@
                                     }
                                 }
                             } catch (childError) {
-                                console.error('Error fetching child documents from compiled-documents API:', childError);
                             }
                         }
                         
@@ -529,13 +510,10 @@
                                     } else if (fallbackData.documents && Array.isArray(fallbackData.documents)) {
                                         childDocuments = fallbackData.documents;
                                     } else {
-                                        console.error('Could not parse child documents from response');
                                     }
                                 } else {
-                                    console.error('Could not fetch child documents');
                                 }
                             } catch (childError) {
-                                console.error('Error fetching child documents:', childError);
                             }
                         }
                     }
@@ -562,28 +540,24 @@
                                     const childResponse = await fetch(`/api/documents/${child.id}`);
                                     if (childResponse.ok) {
                                         const detailedChild = await childResponse.json();
-                                        console.log(`Fetched detailed data for child document ${child.id}:`, detailedChild);
-                                        
+                                                                                
                                         // If we have document_authors relation in the response, use that
                                         if (detailedChild.document_authors && Array.isArray(detailedChild.document_authors) && 
                                             detailedChild.document_authors.length > 0) {
-                                            console.log(`Document has document_authors relation: ${detailedChild.document_authors.length} authors`);
-                                        }
+                                                                                    }
                                         
                                         // Try to fetch author data specifically for this document
                                         try {
                                             const authorResponse = await fetch(`/api/document-authors/${child.id}`);
                                             if (authorResponse.ok) {
                                                 const authorData = await authorResponse.json();
-                                                console.log(`Fetched author data for document ${child.id}:`, authorData);
-                                                
+                                                                                                
                                                 // Add the authors data to our child document
                                                 if (authorData.authors && Array.isArray(authorData.authors)) {
                                                     detailedChild.enhancedAuthors = authorData.authors;
                                                 }
                                             }
                                         } catch (authorError) {
-                                            console.error(`Error fetching author data for document ${child.id}:`, authorError);
                                         }
                                         
                                         enhancedChildDocuments.push({
@@ -591,11 +565,9 @@
                                             ...detailedChild  // Override with detailed properties
                                         });
                                     } else {
-                                        console.error(`Failed to fetch detailed data for child document ${child.id}`);
                                         enhancedChildDocuments.push(child);
                                     }
                                 } catch (error) {
-                                    console.error(`Error fetching detailed data for child document ${child.id}:`, error);
                                     enhancedChildDocuments.push(child);
                                 }
                             } else {
@@ -613,7 +585,6 @@
                     // Hide loading indicators
                     showLoading(false);
                 } catch (error) {
-                    console.error('Error loading compiled document:', error);
                     document.getElementById('compiledContent').innerHTML = `
                         <div class="loading" style="color: red;">
                             <i class="fas fa-times-circle"></i>
@@ -784,21 +755,17 @@
                             authorDisplay = child.enhancedAuthors.map(author => {
                                 return extractText(author.full_name || author.name || `ID: ${author.id}`);
                             }).join(', ');
-                            console.log(`Using enhancedAuthors array: ${authorDisplay}`);
-                        } else if (child.document_authors && Array.isArray(child.document_authors) && child.document_authors.length > 0) {
+                                                    } else if (child.document_authors && Array.isArray(child.document_authors) && child.document_authors.length > 0) {
                             // Use document_authors relation
                             authorDisplay = child.document_authors.map(docAuthor => {
                                 const author = docAuthor.author || docAuthor;
                                 return extractText(author.full_name || author.name || `ID: ${author.id || docAuthor.author_id}`);
                             }).join(', ');
-                            console.log(`Using document_authors relation: ${authorDisplay}`);
-                        } else if (child.author_name) {
+                                                    } else if (child.author_name) {
                             authorDisplay = extractText(child.author_name);
-                            console.log(`Using author_name: ${authorDisplay}`);
-                        } else if (child.author) {
+                                                    } else if (child.author) {
                             authorDisplay = extractText(child.author);
-                            console.log(`Using author: ${authorDisplay}`);
-                        } else if (child.authors && Array.isArray(child.authors) && child.authors.length > 0) {
+                                                    } else if (child.authors && Array.isArray(child.authors) && child.authors.length > 0) {
                             // Enhanced author extraction from array
                             authorDisplay = child.authors.map(author => {
                                 if (typeof author === 'object') {
@@ -809,35 +776,27 @@
                                     return extractText(author);
                                 }
                             }).join(', ');
-                            console.log(`Using authors array: ${authorDisplay}`);
-                        } else if (typeof child.authors === 'string') {
+                                                    } else if (typeof child.authors === 'string') {
                             authorDisplay = extractText(child.authors);
-                            console.log(`Using authors string: ${authorDisplay}`);
-                        } else if (child.author_id) {
+                                                    } else if (child.author_id) {
                             // If we have only an author ID, show it as a fallback
                             authorDisplay = `ID: ${child.author_id}`;
-                            console.log(`Using author_id as fallback: ${authorDisplay}`);
-                        } else {
-                            console.log(`No author information found for document ${child.id || index}`);
-                        }
+                                                    } else {
+                                                    }
                         
                         // Get abstract specifically from documents table's abstract column
                         // Log the available properties to help debug
-                        console.log('Child document properties:', Object.keys(child));
-                        
+                                                
                         // Prioritize abstract from documents table
                         let abstract = '';
                         if (child.abstract) {
                             // This is from the documents table's abstract column
                             abstract = child.abstract;
-                            console.log('Using child.abstract for document', child.id);
-                        } else if (child.description) {
+                                                    } else if (child.description) {
                             abstract = child.description;
-                            console.log('Falling back to child.description for document', child.id);
-                        } else {
+                                                    } else {
                             abstract = 'No abstract available.';
-                            console.log('No abstract or description found for document', child.id);
-                        }
+                                                    }
                         
                         // Clean up the title
                         const childTitle = extractTitle(child.title) || `Document ${index + 1}`;
@@ -993,14 +952,11 @@
                     })
                     .then(response => {
                         if (!response.ok) {
-                            console.warn('Failed to track document visit:', response.status);
                         }
                     })
                     .catch(error => {
-                        console.warn('Error tracking document visit:', error);
                     });
                 } catch (err) {
-                    console.error('Error in document visit tracking:', err);
                 }
             }
             
@@ -1030,14 +986,12 @@
                     this.disabled = true;
                     
                     // Try multiple methods to find the document file paths
-                    console.log("Searching for document file paths via multiple methods");
-                    
+                                        
                     // First check if the document has any file paths - use the main GET endpoint
                     fetch(`/api/compiled-documents/${documentId}`)
                         .then(response => response.ok ? response.json() : Promise.reject('Cannot fetch document data'))
                         .then(data => {
-                            console.log('Complete compiled document data:', data);
-                            let filePaths = [];
+                                                        let filePaths = [];
                             
                             // Try a more comprehensive set of potential field names
                             const possibleFields = [
@@ -1052,11 +1006,9 @@
                             ];
                             
                             // First explicitly check for foreword fields
-                            console.log('Explicitly checking for foreword fields first');
-                            forewordFields.forEach(field => {
+                                                        forewordFields.forEach(field => {
                                 if (data[field] && typeof data[field] === 'string' && data[field].trim() !== '') {
-                                    console.log(`Found foreword file in field ${field}:`, data[field]);
-                                    filePaths.push({
+                                                                        filePaths.push({
                                         path: data[field],
                                         source: `foreword_${field}`,
                                         isForeword: true
@@ -1128,8 +1080,7 @@
                             
                             // If no file paths found yet, try to get them from database directly with a custom endpoint
                             if (filePaths.length === 0) {
-                                console.log('No file paths found in the document data. Trying alternative approaches...');
-                                
+                                                                
                                 // Try to get the file paths from the child document(s) first
                                 const childDocPromises = [];
                                 
@@ -1138,14 +1089,12 @@
                                     fetch(`/api/compiled-documents/${documentId}/foreword`)
                                     .then(response => {
                                         if (response.ok) {
-                                            console.log('Found foreword via specific endpoint');
-                                            // This could be either JSON with path info or direct file
+                                                                                        // This could be either JSON with path info or direct file
                                             const contentType = response.headers.get('content-type');
                                             if (contentType && (contentType.includes('pdf') || contentType.includes('application/'))) {
                                                 // For PDF content type, open directly in new window
                                                 const url = `/api/compiled-documents/${documentId}/foreword`;
-                                                console.log('Opening foreword PDF directly:', url);
-                                                window.open(url, '_blank');
+                                                                                                window.open(url, '_blank');
                                                 filePaths.push({
                                                     path: url,
                                                     source: 'foreword_direct_endpoint',
@@ -1169,8 +1118,7 @@
                                         return filePaths;
                                     })
                                     .catch(err => {
-                                        console.log('Could not find foreword via specific endpoint:', err);
-                                        return filePaths;
+                                                                                return filePaths;
                                     })
                                 );
                                 
@@ -1179,8 +1127,7 @@
                                     fetch(`/api/documents/${documentId}`)
                                     .then(response => response.ok ? response.json() : Promise.reject('Main document not found'))
                                     .then(documentData => {
-                                        console.log('Fetched main document data:', documentData);
-                                        // Look for file path in the main document
+                                                                                // Look for file path in the main document
                                         possibleFields.forEach(field => {
                                             if (documentData[field] && typeof documentData[field] === 'string' && documentData[field].trim() !== '') {
                                                 filePaths.push({
@@ -1192,8 +1139,7 @@
                                         return filePaths;
                                     })
                                     .catch(err => {
-                                        console.log('Could not find file in main document:', err);
-                                        return filePaths;
+                                                                                return filePaths;
                                     })
                                 );
                                 
@@ -1215,14 +1161,12 @@
                                 
                                 // Try to get file paths from all child documents
                                 if (childIds.length > 0) {
-                                    console.log(`Checking ${childIds.length} child documents for file paths`);
-                                    childIds.forEach(childId => {
+                                                                        childIds.forEach(childId => {
                                         childDocPromises.push(
                                             fetch(`/api/documents/${childId}`)
                                             .then(response => response.ok ? response.json() : Promise.reject(`Child document ${childId} not found`))
                                             .then(childData => {
-                                                console.log(`Found child document ${childId}:`, childData);
-                                                // Look for file paths
+                                                                                                // Look for file paths
                                                 possibleFields.forEach(field => {
                                                     if (childData[field] && typeof childData[field] === 'string' && childData[field].trim() !== '') {
                                                         filePaths.push({
@@ -1235,8 +1179,7 @@
                                                 return filePaths;
                                             })
                                             .catch(err => {
-                                                console.log(`Error fetching child document ${childId}:`, err);
-                                                return filePaths;
+                                                                                                return filePaths;
                                             })
                                         );
                                     });
@@ -1259,17 +1202,14 @@
                             
                             // If we found file paths, let user choose or use the first one
                             if (filePaths && filePaths.length > 0) {
-                                console.log(`Found ${filePaths.length} potential files:`, filePaths);
-                                
+                                                                
                                 // If we have foreword files, prioritize them
                                 const forewordFiles = filePaths.filter(file => file.isForeword);
                                 if (forewordFiles.length > 0) {
-                                    console.log(`Found ${forewordFiles.length} foreword files, prioritizing those`);
-                                    // Use the first foreword file if only one exists
+                                                                        // Use the first foreword file if only one exists
                                     if (forewordFiles.length === 1) {
                                         const file = forewordFiles[0];
-                                        console.log(`Opening foreword file from '${file.source}': ${file.path}`);
-                                        // Handle direct URLs (like API endpoints) differently
+                                                                                // Handle direct URLs (like API endpoints) differently
                                         if (file.isDirectUrl) {
                                             window.open(file.path, '_blank');
                                         } else if (file.isBlob) {
@@ -1292,8 +1232,7 @@
                                         if (choice && !isNaN(choice)) {
                                             const index = parseInt(choice) - 1;
                                             if (forewordFiles[index]) {
-                                                console.log(`Opening chosen foreword file: ${forewordFiles[index].path}`);
-                                                const file = forewordFiles[index];
+                                                                                                const file = forewordFiles[index];
                                                 if (file.isDirectUrl) {
                                                     window.open(file.path, '_blank');
                                                 } else if (file.isBlob) {
@@ -1311,8 +1250,7 @@
                                 if (filePaths.length === 1) {
                                     // Just one file, open it directly
                                     const file = filePaths[0];
-                                    console.log(`Opening file from '${file.source}': ${file.path}`);
-                                    if (file.isDirectUrl) {
+                                                                        if (file.isDirectUrl) {
                                         window.open(file.path, '_blank');
                                     } else if (file.isBlob) {
                                         window.open(file.path, '_blank');
@@ -1334,8 +1272,7 @@
                                     if (choice && !isNaN(choice)) {
                                         const index = parseInt(choice) - 1;
                                         if (filePaths[index]) {
-                                            console.log(`Opening chosen file: ${filePaths[index].path}`);
-                                            const file = filePaths[index];
+                                                                                        const file = filePaths[index];
                                             if (file.isDirectUrl) {
                                                 window.open(file.path, '_blank');
                                             } else if (file.isBlob) {
@@ -1348,8 +1285,6 @@
                                     }
                                 }
                             } else {
-                                console.error('No file paths found after exhaustive search');
-                                
                                 // Check if the UI indicates a foreword is available
                                 const forewordBadge = document.querySelector('.foreword-badge');
                                 if (forewordBadge) {
@@ -1390,8 +1325,7 @@
                                         if (urlChoice && !isNaN(urlChoice)) {
                                             const urlIndex = parseInt(urlChoice) - 1;
                                             if (possibleUrls[urlIndex]) {
-                                                console.log(`Trying direct foreword URL: ${possibleUrls[urlIndex]}`);
-                                                window.open(possibleUrls[urlIndex], '_blank');
+                                                                                                window.open(possibleUrls[urlIndex], '_blank');
                                                 return;
                                             }
                                         }
@@ -1419,7 +1353,6 @@
                             }
                         })
                         .catch(err => {
-                            console.error('Error retrieving document:', err);
                             // Reset button state
                             this.innerHTML = `<i class="fas fa-book-open"></i> Read Full Document`;
                             this.disabled = false;
@@ -1437,10 +1370,8 @@
                                 documentId: documentId,
                                 viewType: 'foreword'
                             })
-                        }).catch(e => console.log('Analytics error:', e));
-                    } catch (e) {
-                        console.log('Could not track foreword view');
-                    }
+                        }).catch(e =>                     } catch (e) {
+                                            }
                 }
             });
 
@@ -1470,8 +1401,7 @@
                             }
                         })
                         .catch(err => {
-                            console.log('Error accessing foreword directly:', err);
-                            
+                                                        
                             // Try with format=json parameter as fallback
                             fetch(`${forewordUrl}?format=json`)
                                 .then(response => response.ok ? response.json() : Promise.reject('Cannot fetch foreword data'))
@@ -1489,7 +1419,6 @@
                                     this.disabled = false;
                                 })
                                 .catch(err => {
-                                    console.error('Error fetching foreword json:', err);
                                     alert('Could not access foreword document. Please try again later.');
                                     
                                     // Reset button

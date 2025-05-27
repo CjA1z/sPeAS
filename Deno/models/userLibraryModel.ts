@@ -37,7 +37,6 @@ export class UserLibraryModel {
 
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error adding document to library:", error);
       throw new Error(`Failed to add document to library: ${error.message}`);
     }
   }
@@ -59,7 +58,6 @@ export class UserLibraryModel {
 
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error removing document from library:", error);
       throw new Error(`Failed to remove document from library: ${error.message}`);
     }
   }
@@ -80,7 +78,6 @@ export class UserLibraryModel {
 
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error checking if document is in library:", error);
       throw new Error(`Failed to check if document is in library: ${error.message}`);
     }
   }
@@ -126,7 +123,6 @@ export class UserLibraryModel {
       // Return rows with arrays for authors and keywords
       return result.rows;
     } catch (error) {
-      console.error("Error retrieving user library:", error);
       throw new Error(`Failed to retrieve user library: ${error.message}`);
     }
   }
@@ -146,7 +142,6 @@ export class UserLibraryModel {
 
       return parseInt(result.rows[0].count, 10);
     } catch (error) {
-      console.error("Error counting library documents:", error);
       throw new Error(`Failed to count library documents: ${error.message}`);
     }
   }

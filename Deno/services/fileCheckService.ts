@@ -88,7 +88,6 @@ async function logFileCheck(idOrFilename: string, results: FileCheckResult[]) {
     if (error instanceof Deno.errors.NotFound) {
       await Deno.writeTextFile(logFile, JSON.stringify(logEntry) + '\n');
     } else {
-      console.error(`[FILE CHECK] Error logging check:`, error);
     }
     }
   }
@@ -129,7 +128,6 @@ export const FileCheckService = {
     additionalLocations: string[] = []
   ): Promise<FileCheckResult[]> {
     if (!idOrFilename) {
-      console.error(`[FILE CHECK] Empty ID or filename provided`);
       return [];
     }
     
@@ -258,20 +256,15 @@ export const FileCheckService = {
 
 // Export a test function that can be called directly for debugging
 export async function testFileLocations(fileNames: string[]): Promise<void> {
-  console.log(`[FILE CHECK] Testing ${fileNames.length} file locations`);
-  
+    
   for (const fileName of fileNames) {
-    console.log(`\n[FILE CHECK] Checking file: ${fileName}`);
-    const results = await FileCheckService.findInStorage(fileName);
+        const results = await FileCheckService.findInStorage(fileName);
     
     const found = results.filter(r => r.exists);
     if (found.length > 0) {
-      console.log(`[FILE CHECK] ✅ File found in ${found.length} locations:`);
-      found.forEach((result, i) => {
-        console.log(`  ${i+1}. ${result.path} (${result.size} bytes)`);
-      });
+            found.forEach((result, i) => {
+              });
     } else {
-      console.log(`[FILE CHECK] ❌ File not found in any location`);
-    }
+          }
   }
 } 

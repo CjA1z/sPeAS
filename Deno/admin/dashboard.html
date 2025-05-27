@@ -14,8 +14,7 @@
       
       // If no session token found, redirect immediately to index page
       if (!sessionToken) {
-        console.log('No session token found, redirecting to index page');
-        window.location.href = '/index.html?redirected=true&t=' + Date.now();
+                window.location.href = '/index.html?redirected=true&t=' + Date.now();
       }
     })();
   </script>

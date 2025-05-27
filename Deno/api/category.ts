@@ -104,7 +104,6 @@ export async function countByCategory(req: Request): Promise<Response> {
             headers: { "Content-Type": "application/json" }
         });
     } catch (error: unknown) {
-        console.error("Error counting documents by category:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         
         return new Response(JSON.stringify({ 

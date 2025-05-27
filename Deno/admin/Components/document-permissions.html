@@ -1089,8 +1089,7 @@
                 // Fetch requests from API using current token (which might be refreshed)
                 const currentToken = getAuthToken(); // Get token again in case it was refreshed
                 
-                console.log('Fetching document requests...');
-                const response = await fetch('/api/document-requests', {
+                                const response = await fetch('/api/document-requests', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1099,19 +1098,15 @@
                     credentials: 'include'
                 });
                 
-                console.log('Response status:', response.status);
-                
+                                
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('Error response:', errorText);
                     throw new Error(`Failed to fetch requests: ${response.status} ${errorText}`);
                 }
                 
                 const data = await response.json();
-                console.log('Received data:', data);
-                
+                                
                 if (!Array.isArray(data)) {
-                    console.error('Expected array but got:', typeof data);
                     throw new Error('Invalid response format');
                 }
                 
@@ -1132,7 +1127,6 @@
                 try {
                     visibleColumns = new Set(JSON.parse(storedVisible));
                 } catch (e) {
-                    console.error("Error parsing visible columns:", e);
                     // Default to all toggleable columns if parsing fails
                     visibleColumns = new Set(Object.keys(columnDefinitions).filter(key => columnDefinitions[key].toggleable));
                 }
@@ -1144,7 +1138,6 @@
             renderColumnVisibilityControl(); // Populate checklist
             applyFiltersAndSort(); // Initial filter/sort and render
             } catch (error) {
-                console.error('Error loading requests:', error);
                 showConfirmationMessage('Error loading requests. Please try again.', 'error');
                 // Show error in the UI with a login button
                 requestsContentContainer.innerHTML = `
@@ -1761,8 +1754,7 @@
         function openDetailsModal(requestId) {
             // Convert the requestId to match the database format (might be a number or string)
             const databaseId = typeof requestId === 'string' && !isNaN(parseInt(requestId)) ? parseInt(requestId) : requestId;
-            console.log("[DEBUG] openDetailsModal: Looking for request with ID:", databaseId);
-            
+                        
             // Find the request and be more flexible with the ID comparison
             const request = requests.find(req => {
                 // Check for both number and string equality
@@ -1771,13 +1763,11 @@
             });
             
             if (!request) { 
-                console.error("[DEBUG] Request not found:", requestId, "Available IDs:", requests.map(r => r.id)); 
                 alert("Details not found."); 
                 return; 
             }
             
-            console.log("[DEBUG] Found request:", request);
-            
+                        
             // Map database field names (snake_case) to frontend variables (camelCase) if needed
             detailRequestId.textContent = request.id || 'N/A'; 
             detailFullName.textContent = request.full_name || request.fullName || 'N/A'; 
@@ -1817,13 +1807,11 @@
                     noDocMessage.style.display = 'block';
                 }
                 
-                console.log("[DEBUG] Document URL is missing or invalid:", docUrl);
-            } else {
+                            } else {
                 // Fix document URL if it's relative (doesn't start with http or /)
                 if (!docUrl.startsWith('http') && !docUrl.startsWith('/')) {
                     docUrl = '/' + docUrl;
-                    console.log("[DEBUG] Converted relative URL to absolute:", docUrl);
-                }
+                                    }
                 
                 // Show the link and hide any error message
                 detailDocumentLink.style.display = 'inline-block';
@@ -1918,8 +1906,7 @@
 
             requestDetailsModal.classList.add('visible');
             
-            console.log("[DEBUG] Modal opened with document URL:", docUrl);
-        }
+                    }
 
         /** Closes the details modal. */
         function closeDetailsModal() { /* ... (same as before) ... */
@@ -2021,21 +2008,16 @@
                     // Get the request with all updated information
                     const request = requests[requestIndex];
                     
-                    console.log("[DEBUG] About to send rejection email for request:", request.id);
-                    try {
+                                        try {
                         const emailResult = await sendRejectionEmail(request, reason);
-                        console.log("[DEBUG] Rejection email sending result:", emailResult);
-                        
+                                                
                         // Check if the emailResult indicates a network failure rather than API response
                         if (emailResult && emailResult.message && 
                             (emailResult.message.includes("Failed to fetch") || 
                              emailResult.message.includes("NetworkError"))) {
-                            console.error("[DEBUG] Network error when sending email:", emailResult.message);
-                            
                             // Try a second attempt with a different approach
                             try {
-                                console.log("[DEBUG] Trying alternative rejection email method...");
-                                const backupEmailResult = await fetch('/api/email/send-rejection', {
+                                                                const backupEmailResult = await fetch('/api/email/send-rejection', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
@@ -2050,17 +2032,14 @@
                                 });
                                 
                                 if (backupEmailResult.ok) {
-                                    console.log("[DEBUG] Backup email method succeeded!");
-                                    const backupData = await backupEmailResult.json();
+                                                                        const backupData = await backupEmailResult.json();
                                     emailResult.success = backupData.success || true;
                                     emailResult.message = backupData.message || "Email sent via backup method";
                                 }
                             } catch (backupError) {
-                                console.error("[DEBUG] Backup email method also failed:", backupError);
                             }
                         }
                     } catch (emailError) {
-                        console.error("[DEBUG] Rejection email sending error:", emailError);
                         // Continue with process even if email fails
                     }
                     
@@ -2099,13 +2078,11 @@
                     rejectionModal.style.opacity = '1';
                     rejectionModal.style.display = 'flex';
                     
-                    console.log("[MODAL DEBUG] Made rejection modal visible");
-                    
+                                        
                     // Set a delayed check to verify modal is visible
                     setTimeout(() => {
                         const isVisible = window.getComputedStyle(rejectionModal).visibility === 'visible';
-                        console.log(`[MODAL DEBUG] Modal visibility check after 100ms: ${isVisible ? 'VISIBLE' : 'HIDDEN'}`);
-                        
+                                                
                         if (!isVisible) {
                             // Force visibility with important declaration
                             rejectionModal.setAttribute('style', 
@@ -2114,8 +2091,7 @@
                                 'display: flex !important; ' +
                                 'z-index: 2000 !important;'
                             );
-                            console.log("[MODAL DEBUG] Applied forced visibility to modal");
-                        }
+                                                    }
                     }, 100);
                     
                     // Also show a simple notification
@@ -2126,7 +2102,6 @@
                 closeDetailsModal();
                 applyFiltersAndSort();
             } catch (error) {
-                console.error('Error rejecting request:', error);
                 showConfirmationMessage('Failed to reject request. Please try again.', 'error');
                 
                 // If it's an authentication error, show login button
@@ -2150,11 +2125,7 @@
         async function sendRejectionEmail(request, reason) {
             try {
                 // Log debug info for email troubleshooting
-                console.log(`[EMAIL DEBUG] ========== REJECTION EMAIL DEBUG ==========`);
-                console.log(`[EMAIL DEBUG] Starting email process for request ID: ${request.id}`);
-                console.log(`[EMAIL DEBUG] Request object:`, request);
-                console.log(`[EMAIL DEBUG] Rejection reason:`, reason);
-                
+                                                                                
                 // Get request details using our helper function
                 const fullName = getRequestData(request, 'full_name', 'User');
                 const email = getRequestData(request, 'email', '');
@@ -2166,7 +2137,6 @@
                   - Reason length: ${reason ? reason.length : 0} characters`);
                 
                 if (!email) {
-                    console.error('[EMAIL DEBUG] ERROR: Cannot send rejection email - recipient email not found');
                     return { success: false, message: 'Missing recipient email' };
                 }
                 
@@ -2180,8 +2150,7 @@
                 // Try each endpoint until one works
                 for (const endpoint of endpoints) {
                     try {
-                        console.log(`[EMAIL DEBUG] Attempting to send email via endpoint: ${endpoint}`);
-                        
+                                                
                         // Prepare request body
                         const requestBody = {
                             email,
@@ -2194,11 +2163,9 @@
                             timestamp: new Date().toISOString()
                         };
                         
-                        console.log(`[EMAIL DEBUG] Request payload:`, requestBody);
-                
+                                        
                 // Make API call to send the rejection email
-                        console.log(`[EMAIL DEBUG] ⚠️ MAKING FETCH CALL TO ${endpoint} with payload:`, requestBody);
-                        
+                                                
                         const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
@@ -2209,12 +2176,9 @@
                             cache: 'no-cache'
                         });
                         
-                        console.log(`[EMAIL DEBUG] API response status code: ${response.status}`);
-                
+                                        
                 if (!response.ok) {
                     const errorText = await response.text();
-                            console.error(`[EMAIL DEBUG] API error response: ${errorText}`);
-                            
                             // Try to parse the error response if it's JSON
                             let errorDetail = errorText;
                             try {
@@ -2238,16 +2202,13 @@
                         // Parse the response
                         try {
                             const responseData = await response.json();
-                            console.log(`[EMAIL DEBUG] API response data:`, responseData);
-                            
+                                                        
                             if (responseData.success) {
-                                console.log(`[EMAIL DEBUG] ✅ Email successfully sent to ${email} via ${endpoint}`);
-                                return {
+                                                                return {
                                     ...responseData,
                                     endpoint
                                 };
                             } else {
-                                console.error(`[EMAIL DEBUG] API returned success=false:`, responseData);
                                 lastError = {
                                     ...responseData,
                                     endpoint,
@@ -2258,12 +2219,9 @@
                                 continue;
                             }
                         } catch (parseError) {
-                            console.error(`[EMAIL DEBUG] Error parsing API response:`, parseError);
-                            
                             // If response was OK but couldn't parse as JSON, consider it a success
                             if (response.ok) {
-                                console.log(`[EMAIL DEBUG] ✅ Non-JSON success response from ${endpoint}`);
-                                return { 
+                                                                return { 
                                     success: true, 
                                     message: 'Email sent (non-JSON response)',
                                     endpoint 
@@ -2281,7 +2239,6 @@
                             }
                         }
                     } catch (endpointError) {
-                        console.error(`[EMAIL DEBUG] Error with endpoint ${endpoint}:`, endpointError);
                         lastError = { 
                             success: false, 
                             message: `Endpoint error: ${endpointError.message}`,
@@ -2294,11 +2251,9 @@
                 }
                 
                 // If we get here, all endpoints failed
-                console.error(`[EMAIL DEBUG] ❌ All email endpoints failed. Last error:`, lastError);
                 return lastError || { success: false, message: 'All email endpoints failed' };
                 
             } catch (error) {
-                console.error('[EMAIL DEBUG] Uncaught error sending rejection email:', error);
                 return { 
                     success: false, 
                     message: error.message || 'Unknown error sending rejection email'
@@ -2309,15 +2264,13 @@
         /** MODIFIED: Handles Approve/Reject action, opens rejection modal if needed. */
         async function handleAction(requestId, action) {
             try {
-                console.log(`[DEBUG] handleAction: requestId=${requestId}, action=${action}`);
-                
+                                
                 // Convert requestId to appropriate format if needed
                 const databaseId = typeof requestId === 'string' && !isNaN(parseInt(requestId)) 
                     ? parseInt(requestId, 10) 
                     : requestId;
                 
-                console.log(`[DEBUG] Using database ID: ${databaseId}`);
-                
+                                
                 // Get user info from sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
                 if (!userInfo.token) {
@@ -2334,8 +2287,7 @@
                 openRejectionModal(requestId);
             } else if (action === 'approved') {
                     // Process approval through API
-                    console.log(`[DEBUG] Sending approval PATCH request to /api/document-requests/${databaseId}/status`);
-                    
+                                        
                     const response = await fetch(`/api/document-requests/${databaseId}/status`, {
                         method: 'PATCH',
                         headers: {
@@ -2350,11 +2302,9 @@
                         })
                     });
 
-                    console.log(`[DEBUG] Response status: ${response.status}`);
-
+                    
                     if (!response.ok) {
                         const errorText = await response.text();
-                        console.error(`[DEBUG] Error response: ${errorText}`);
                         throw new Error(`Failed to approve request: ${response.status} ${errorText}`);
                     }
 
@@ -2363,8 +2313,7 @@
                         String(req.id) === String(requestId) || req.id == requestId
                     );
                     
-                    console.log(`[DEBUG] Updating request at index: ${requestIndex}`);
-                    
+                                        
                     if (requestIndex !== -1) {
                     requests[requestIndex].status = 'approved';
                         requests[requestIndex].rejectionReason = null;
@@ -2373,13 +2322,11 @@
                         // Get the request with all updated information
                         const request = requests[requestIndex];
                         
-                        console.log("[DEBUG] Request approved - proceeding to send email");
-                        
+                                                
                         // Try to send the email
                         try {
                         const emailResult = await sendApprovalEmail(request);
-                            console.log("[DEBUG] Email sending result:", emailResult);
-                            
+                                                        
                             // Update the confirmation based on email result
                             if (emailResult && emailResult.success) {
                                 // First show a simple confirmation message
@@ -2424,8 +2371,6 @@
                                 }, 200);
                             }
                         } catch (emailError) {
-                            console.error("[DEBUG] Error in email sending:", emailError);
-                            
                             // First show a simple confirmation message
                             showConfirmationMessage(`Request ${requestId} approved but email failed`, 'error');
                             
@@ -2445,7 +2390,6 @@
                     applyFiltersAndSort();
                 }
             } catch (error) {
-                console.error('Error handling request action:', error);
                 showConfirmationMessage(`Failed to ${action} request: ${error.message}`, 'error');
                 
                 // If it's an authentication error, show login button
@@ -2465,8 +2409,7 @@
         async function sendApprovalEmail(request) {
             try {
                 // Log the request object to help diagnose fields
-                console.log(`[DOCUMENT REQUEST] Starting email process for approval of request:`, request);
-                
+                                
                 // Get request details
                 const fullName = getRequestData(request, 'full_name', 'User');
                 const email = getRequestData(request, 'email', '');
@@ -2478,8 +2421,7 @@
                 for (const field of potentialIdFields) {
                     if (request[field] && !isNaN(parseInt(request[field]))) {
                         documentId = request[field];
-                        console.log(`[DOCUMENT REQUEST] Found document ID in field '${field}': ${documentId}`);
-                        break;
+                                                break;
                     }
                 }
                 
@@ -2487,32 +2429,26 @@
                 if (!documentId) {
                     if (request.id && !isNaN(parseInt(request.id))) {
                         documentId = request.id;
-                        console.log(`[DOCUMENT REQUEST] Using request.id as document ID (fallback): ${documentId}`);
-                    } else if (request.documentUrl) {
+                                            } else if (request.documentUrl) {
                         const urlParts = request.documentUrl.split('/');
                         const lastPart = urlParts[urlParts.length - 1];
                         if (!isNaN(parseInt(lastPart))) {
                             documentId = lastPart;
-                            console.log(`[DOCUMENT REQUEST] Extracted document ID from URL: ${documentId}`);
-                        }
+                                                    }
                     }
                 }
                 
-                console.log(`[DOCUMENT REQUEST] Final document ID for email attachment: ${documentId}`);
-                
+                                
                 if (!email) {
-                    console.error('[DOCUMENT REQUEST] Cannot send approval email: recipient email not found');
                     return { success: false, message: 'Missing recipient email' };
                 }
                         
                 if (!documentId) {
-                    console.error('[DOCUMENT REQUEST] Missing document ID for email attachment');
                     return { success: false, message: 'Missing document ID', fileExists: false };
                 }
                 
                 // Call email API
-                console.log(`[DOCUMENT REQUEST] Calling email API to send document ID ${documentId} to ${email}`);
-                
+                                
                 // Create request body with debugging flag
                 const requestBody = {
                     email,
@@ -2527,16 +2463,13 @@
                 
                 // Check for child documents (for entire collection requests)
                 if (request.child_documents && Array.isArray(request.child_documents) && request.child_documents.length > 0) {
-                    console.log(`[DOCUMENT REQUEST] Request includes ${request.child_documents.length} child documents`);
-                    requestBody.childDocumentIds = request.child_documents;
+                                        requestBody.childDocumentIds = request.child_documents;
                     requestBody.isEntireCollection = true;
                 } else if (request.is_entire_collection || request.isEntireCollection) {
-                    console.log(`[DOCUMENT REQUEST] Request is for entire collection, but no child documents found. Will attempt to fetch them.`);
-                    requestBody.isEntireCollection = true;
+                                        requestBody.isEntireCollection = true;
                 }
                 
-                console.log(`[DOCUMENT REQUEST] Email API request body:`, requestBody);
-                
+                                
                 // Call the API
                 const response = await fetch('/api/email/send-approval', {
                     method: 'POST',
@@ -2546,11 +2479,9 @@
                     body: JSON.stringify(requestBody)
                 });
                 
-                console.log(`[DOCUMENT REQUEST] Email API response status:`, response.status);
-                
+                                
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error(`[DOCUMENT REQUEST] Email API error: ${errorText}`);
                     return { 
                         success: false, 
                         message: `API error: ${response.status} ${errorText.substring(0, 100)}`,
@@ -2560,12 +2491,10 @@
                 
                 // Parse the response
                 const responseData = await response.json();
-                console.log(`[DOCUMENT REQUEST] Email API response:`, responseData);
-                
+                                
                 // Check if this is a background job response
                 if (responseData.backgroundProcessing) {
-                    console.log(`[DOCUMENT REQUEST] Email is being processed in the background (Job ID: ${responseData.jobId})`);
-                    
+                                        
                     // Add job ID to response for potential future status checks
                     return {
                         success: true,
@@ -2590,8 +2519,7 @@
                     }
                     
                     // Log what we're returning
-                    console.log(`[DOCUMENT REQUEST] Returning response with fileExists=${responseData.fileExists}:`, responseData);
-                    
+                                        
                     return responseData;
                 } else {
                     // Construct our own response from whatever the API returned
@@ -2607,12 +2535,10 @@
                     };
                     
                     // Log what we're returning
-                    console.log(`[DOCUMENT REQUEST] Constructed response with fileExists=${result.fileExists}:`, result);
-                    
+                                        
                     return result;
                 }
             } catch (error) {
-                console.error('[DOCUMENT REQUEST] Error sending approval email:', error);
                 return { 
                     success: false, 
                     message: error.message || 'Unknown error sending email',
@@ -2627,8 +2553,7 @@
          * which use the email API endpoints.
          */
         function sendNotificationEmail(request, type) {
-            console.log(`This function is deprecated. Use sendApprovalEmail or sendRejectionEmail instead.`);
-        }
+                    }
 
 
         /** MODIFIED: Shows a confirmation message with different styles. */
@@ -2799,15 +2724,13 @@
                 const action = targetElement.value;
                 const requestId = targetElement.dataset.requestId;
                 
-                console.log(`[DEBUG] Dropdown changed: action=${action}, requestId=${requestId}`);
-                
+                                
                 // Find the request - FIXED: Use loose equality for ID comparison
                 const requestIndex = requests.findIndex(req => 
                     String(req.id) === String(requestId) || req.id == requestId
                 );
                 
-                console.log(`[DEBUG] Found request at index: ${requestIndex}`);
-                
+                                
                 if (action && requestId && requestIndex !== -1) {
                     // Get the full request object to have complete data
                     const request = requests[requestIndex];
@@ -2815,7 +2738,6 @@
                     // For both approval and rejection, directly call handleAction without opening the details modal
                     handleAction(requestId, action);
                 } else {
-                    console.error(`[ERROR] Invalid selection: action=${action}, requestId=${requestId}, found=${requestIndex !== -1}`);
                 }
                 
                 // Reset dropdown back to 'Pending' after selection (for better UX)
@@ -2865,8 +2787,7 @@
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('[Init] Document permissions page loading');
-            
+                        
             // Check for authentication errors
             const authOk = handlePageErrors();
             
@@ -2931,8 +2852,6 @@
             if (authOk) {
              loadingMessage.style.display = 'none';
                 loadData().catch(error => {
-                    console.error('[Init] Error loading request data:', error);
-                    
                     // Show a message but don't redirect to login immediately
                     requestsContentContainer.innerHTML = `
                         <div class="text-center text-orange-600 py-4">
@@ -2955,8 +2874,7 @@
         
         // Function to initialize all document links with authentication tokens
         function initDocumentLinks() {
-            console.log('[Document Links] Initializing document link authentication');
-            
+                        
             // Process any existing links first
             updateAllDocumentLinks();
             
@@ -2990,8 +2908,7 @@
             
             // Start observing the document with the configured parameters
             observer.observe(document.body, { childList: true, subtree: true });
-            console.log('[Document Links] Observer set up for document links');
-            
+                        
             // Set a periodic check for links that need updating
             setInterval(updateAllDocumentLinks, 30000); // Check every 30 seconds
             
@@ -3006,8 +2923,7 @@
         
         // Helper function to update all document links
         function updateAllDocumentLinks() {
-            console.log('[Document Links] Updating all document links');
-            
+                        
             // Reduce verbosity with a counter
             let updatedCount = 0;
             let skippedCount = 0;
@@ -3041,8 +2957,7 @@
             });
             
             if (updatedCount > 0 || skippedCount > 0) {
-                console.log(`[Document Links] Updated ${updatedCount} links, skipped ${skippedCount}`);
-            }
+                            }
         }
 
         /** 
@@ -3119,13 +3034,10 @@
             // Check for authentication token using our helper function
             const token = getAuthToken();
             if (!token) {
-                console.warn('[Auth] No authentication token found. Showing login prompt.');
-                
                 // Try to refresh token before showing login prompt
                 refreshAuthToken().then(newToken => {
                     if (newToken) {
-                        console.log('[Auth] Authentication refreshed successfully on page load');
-                        // Reload the page to use the new token
+                                                // Reload the page to use the new token
                         window.location.reload();
                     } else {
                         showLoginPrompt();
@@ -3137,8 +3049,6 @@
             
             // Set up global error handler for fetch requests
             window.addEventListener('unhandledrejection', function(event) {
-                console.error('[Error] Unhandled promise rejection:', event.reason);
-                
                 // Check if it's an auth error
                 if (event.reason && typeof event.reason === 'object') {
                     const errorText = event.reason.message || String(event.reason);
@@ -3148,13 +3058,10 @@
                         errorText.includes('unauthorized') ||
                         errorText.includes('permission')
                     ) {
-                        console.warn('[Auth] Authentication issue detected:', errorText);
-                        
                         // Try to refresh token first
                         refreshAuthToken().then(newToken => {
                             if (newToken) {
-                                console.log('[Auth] Successfully refreshed token after error');
-                                // Reload the page to use the new token
+                                                                // Reload the page to use the new token
                                 window.location.reload();
                             } else {
                                 showLoginPrompt();
@@ -3221,7 +3128,6 @@
         /** Helps get data from a request object, checking both snake_case (DB) and camelCase (frontend) naming */
         function getRequestData(request, key, fallback = 'N/A') {
             if (!request) {
-                console.error("[DEBUG] getRequestData called with null/undefined request");
                 return fallback;
             }
             
@@ -3276,13 +3182,11 @@
         function showDetailedConfirmation(options) {
             const confirmationEl = document.getElementById('detailedConfirmation');
             if (!confirmationEl) {
-                console.error('[CRITICAL] detailedConfirmation element not found in DOM');
                 alert(`${options.message}: ${options.details}`); // Fallback to alert
                 return;
             }
             
-            console.log('[DEBUG] Showing detailed confirmation popup');
-            
+                        
             // Create content
             confirmationEl.innerHTML = `
                 <div class="content-container" id="detailedConfirmationContent">
@@ -3337,8 +3241,7 @@
                 
                 // Triple check visibility
                 if (window.getComputedStyle(confirmationEl).display !== 'block') {
-                    console.log('[DEBUG] Forcing visibility with !important style');
-                    confirmationEl.setAttribute('style', 
+                                        confirmationEl.setAttribute('style', 
                         'display: block !important; ' +
                         'z-index: 3000 !important; ' +
                         'opacity: 1 !important; ' +
@@ -3459,7 +3362,6 @@
                 closeDetailsModal();
                 applyFiltersAndSort();
             } catch (error) {
-                console.error('Error rejecting request:', error);
                 showConfirmationMessage('Failed to reject request. Please try again.', 'error');
                 
                 // If it's an authentication error, show login button
@@ -3478,12 +3380,10 @@
         /** Updates the document link to include authentication token */
         function updateDocumentLink(linkElement, documentUrl) {
             if (!linkElement) {
-                console.error('[Document Link] Missing link element');
                 return;
             }
             
             if (!documentUrl || documentUrl === '#' || documentUrl === '/#') {
-                console.error('[Document Link] Invalid URL:', documentUrl);
                 // For invalid URLs, make the link show an error on click
                 linkElement.onclick = function(e) {
                     e.preventDefault();
@@ -3495,8 +3395,7 @@
             }
             
             try {
-                console.log('[Document Link] Updating document link with auth token for URL:', documentUrl);
-                
+                                
                 // Store the original URL without modification to preserve it
                 const originalUrl = documentUrl;
                 
@@ -3504,13 +3403,11 @@
                 if (!documentUrl.startsWith('http') && !documentUrl.startsWith('/')) {
                     // Convert relative paths to absolute paths
                     documentUrl = '/' + documentUrl;
-                    console.log('[Document Link] Converting to absolute path:', documentUrl);
-                }
+                                    }
                 
                 // Make sure javascript: links aren't processed
                 if (documentUrl.startsWith('javascript:')) {
-                    console.log('[Document Link] Skipping javascript: link');
-                    return;
+                                        return;
                 }
                 
                 // Set a click handler that will refresh the auth at the time of click
@@ -3521,7 +3418,6 @@
                     
                     // Final check for valid URL
                     if (!originalUrl || originalUrl === '#' || originalUrl === '/#') {
-                        console.error('[Document Link] Invalid URL detected at click time:', originalUrl);
                         alert('Document is not available');
                     return false;
                 }
@@ -3530,11 +3426,9 @@
                     let urlToUse = originalUrl;
                     if (!urlToUse.startsWith('http') && !urlToUse.startsWith('/')) {
                         urlToUse = '/' + urlToUse;
-                        console.log('[Document Link] Fixed relative URL at click time:', urlToUse);
-                    }
+                                            }
                     
-                    console.log('[Document Link] Navigating to document URL:', urlToUse);
-                    
+                                        
                     // Get the most up-to-date token at click time
                     const token = getAuthToken();
                     
@@ -3544,19 +3438,15 @@
                     const separator = hasParams ? '&' : '?';
                     
                     if (token) {
-                        console.log('[Document Link] Using token authentication');
-                        finalUrl = `${urlToUse}${separator}auth_token=${token}&ts=${Date.now()}`;
+                                                finalUrl = `${urlToUse}${separator}auth_token=${token}&ts=${Date.now()}`;
                     } else {
-                        console.log('[Document Link] Using cookie authentication');
-                        finalUrl = `${urlToUse}${separator}use_cookie_auth=true&ts=${Date.now()}`;
+                                                finalUrl = `${urlToUse}${separator}use_cookie_auth=true&ts=${Date.now()}`;
                     }
                     
                     // Force opening in a new tab for document viewing
-                    console.log('[Document Link] Opening document in new tab:', finalUrl);
-                    try {
+                                        try {
                         window.open(finalUrl, '_blank');
                     } catch (err) {
-                        console.error('[Document Link] Error opening window:', err);
                         // Fallback - try directly setting location
                         alert('Document viewer will open in a new tab');
                         setTimeout(() => {
@@ -3591,8 +3481,6 @@
                 linkElement.href = hrefWithAuth;
                 
             } catch (error) {
-                console.error('[Document Link] Error updating document link with auth token:', error);
-                
                 // Fallback to basic href without authentication
                 linkElement.href = documentUrl;
             }
@@ -3635,7 +3523,6 @@
                 // If we reach here, no token was found
                 return null;
             } catch (error) {
-                console.error('[Auth] Error getting auth token:', error);
                 return null;
             }
         }
@@ -3646,8 +3533,7 @@
          */
         async function refreshAuthToken() {
             try {
-                console.log('[Auth] Attempting to refresh authentication token');
-                
+                                
                 // Try a different endpoint - users endpoint is more likely to exist than profile
                 const response = await fetch('/api/auth/status', {
                     method: 'GET',
@@ -3665,14 +3551,12 @@
                         sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
                         localStorage.setItem('userInfo', JSON.stringify(userInfo));
                         
-                        console.log('[Auth] Successfully refreshed auth token');
-                        return userData.token;
+                                                return userData.token;
                     }
                 }
                 
                 // If the first endpoint fails, try a fallback endpoint
-                console.log('[Auth] First refresh endpoint failed, trying fallback');
-                const fallbackResponse = await fetch('/api/users/current', {
+                                const fallbackResponse = await fetch('/api/users/current', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3688,24 +3572,20 @@
                         sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
                         localStorage.setItem('userInfo', JSON.stringify(userInfo));
                         
-                        console.log('[Auth] Successfully refreshed auth token from fallback endpoint');
-                        return fallbackData.token;
+                                                return fallbackData.token;
                     }
                 }
                 
                 // If we get here, could not get a new token
-                console.error('[Auth] Failed to refresh auth token from any endpoint');
                 return null;
             } catch (error) {
-                console.error('[Auth] Error refreshing auth token:', error);
                 return null;
             }
         }
         
         // Function to initialize all document links with authentication tokens
         function initDocumentLinks() {
-            console.log('[Document Links] Initializing document link authentication');
-            
+                        
             // Process any existing links first
             updateAllDocumentLinks();
             
@@ -3739,8 +3619,7 @@
             
             // Start observing the document with the configured parameters
             observer.observe(document.body, { childList: true, subtree: true });
-            console.log('[Document Links] Observer set up for document links');
-            
+                        
             // Set a periodic check for links that need updating
             setInterval(updateAllDocumentLinks, 30000); // Check every 30 seconds
             
@@ -3755,8 +3634,7 @@
         
         // Helper function to update all document links
         function updateAllDocumentLinks() {
-            console.log('[Document Links] Updating all document links');
-            
+                        
             // Process all view-doc-button links and data-needs-auth links
             document.querySelectorAll('a.view-doc-button, a[data-needs-auth="true"]').forEach(link => {
                 // Get the original URL, falling back to href if needed
@@ -3774,13 +3652,11 @@
                 // Skip links that already have auth tokens
                 if (cleanHref.includes('auth_token=') || cleanHref.includes('use_cookie_auth=')) {
                     if (cleanHref.includes(cleanOriginal)) {
-                        console.log('[Document Links] Link already has auth, skipping:', cleanOriginal);
-                        return;
+                                                return;
                     }
                 }
                 
-                console.log('[Document Links] Updating link:', originalUrl);
-                updateDocumentLink(link, originalUrl);
+                                updateDocumentLink(link, originalUrl);
                 link.setAttribute('data-auth-processed', 'true');
             });
         }

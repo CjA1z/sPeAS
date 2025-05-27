@@ -95,9 +95,7 @@ export async function updateUserPassword(request: Request): Promise<Response> {
     // Log the password change event (optional but recommended for security)
     try {
       // Just log to console for now, could be expanded to use a proper logging system
-      console.log(`Password updated for user ${userId} at ${new Date().toISOString()}`);
-    } catch (logError) {
-      console.error("Failed to log password change:", logError);
+          } catch (logError) {
       // Continue with the password change even if logging fails
     }
 
@@ -110,8 +108,6 @@ export async function updateUserPassword(request: Request): Promise<Response> {
     );
     
   } catch (error) {
-    console.error("Error updating password:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Server error",

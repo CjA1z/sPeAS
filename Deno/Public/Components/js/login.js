@@ -1,22 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("DOM fully loaded!");
-
+    
     setTimeout(() => {
         const loginForm = document.getElementById("login-form");
         if (!loginForm) {
-            console.error("Login form not found! Check `id=\"login-form\"` in log-in.html.");
             return;
         }
 
-        console.log("Login form found!");
-
+        
         let isSubmitting = false; 
 
         loginForm.addEventListener("submit", async (event) => {
             event.preventDefault();
 
             if (isSubmitting) {
-                console.warn("Login already in progress...");
                 return;
             }
             isSubmitting = true; 
@@ -25,18 +21,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const Password = document.getElementById("wf-log-in-password")?.value.trim();
 
             if (!ID || !Password) {
-                console.error("Missing ID or Password!");
                 alert("Please fill in both fields.");
                 isSubmitting = false;
                 return;
             }
 
             const loginData = { ID, Password };
-            console.log("Preparing to send login data:", loginData);
-
+            
             try {
-                console.log("Sending login request...");
-                const response = await fetch("/login", { 
+                                const response = await fetch("/login", { 
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",
@@ -46,25 +39,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     credentials: "include" // Important for cookies
                 });
 
-                console.log("Waiting for server response...");
-                console.log("Response status:", response.status);
-                console.log("Response headers:", Object.fromEntries([...response.headers]));
-
+                                                
                 let data;
                 const responseText = await response.text();
-                console.log("Raw response:", responseText);
-                
+                                
                 try {
                     data = JSON.parse(responseText);
                 } catch (parseError) {
-                    console.error("Failed to parse JSON:", parseError);
                     alert("Server returned an invalid response format. Please try again.");
                     isSubmitting = false;
                     return;
                 }
 
-                console.log("Server Response:", data);
-
+                
                 if (response.ok) {
                     // Store the session token and user info
                     if (data.token) {
@@ -87,8 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         
                         // Store in sessionStorage instead of localStorage so it's cleared when browser closes
                         sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        console.log("User info stored:", userInfo);
-                        
+                                                
                         // Also update localStorage to trigger storage event for other tabs
                         localStorage.setItem('userInfo', JSON.stringify(userInfo));
                         
@@ -114,13 +100,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         redirectUrl = '/index.html';
                     }
                     
-                    console.log(`Redirecting ${userRole} to ${redirectUrl}...`);
-                    window.location.href = redirectUrl;
+                                        window.location.href = redirectUrl;
                 } else {
                     alert(data.message || "Login failed. Please check your credentials.");
                 }
             } catch (error) {
-                console.error("Login request error:", error);
                 alert("Internal Server Error. Please try again later.");
             } finally {
                 isSubmitting = false; 
@@ -135,14 +119,12 @@ function updateHeaderUI(userInfo) {
     
     // Try to refresh using navbar module if available
     if (window.NavbarModule && typeof window.NavbarModule.refresh === 'function') {
-        console.log('Refreshing navbar using NavbarModule...');
-        window.NavbarModule.refresh();
+                window.NavbarModule.refresh();
         return;
     }
     
     // Fallback to old method if NavbarModule not available
-    console.log('NavbarModule not available, using legacy update method');
-    
+        
     // Try to get the header elements
     const loginContainer = document.getElementById('loginContainer');
     const userDropdownContainer = document.getElementById('userDropdownContainer');
@@ -201,6 +183,5 @@ window.logout = async function() {
             window.location.reload();
         }
     } catch (error) {
-        console.error('Logout error:', error);
     }
 };

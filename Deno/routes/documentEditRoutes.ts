@@ -13,8 +13,6 @@ const getDocumentEditHandler = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = 200;
     ctx.response.body = result;
   } catch (error: unknown) {
-    console.error(`Error in GET /document-edit/${ctx.params.id}:`, error);
-    
     ctx.response.status = error instanceof Error && error.message.includes("not found") ? 404 : 500;
     ctx.response.body = { 
       error: error instanceof Error ? error.message : "An unknown error occurred",
@@ -41,8 +39,6 @@ const saveDocumentEditHandler = async (ctx: RouterContext<any, any, any>) => {
       ...result
     };
   } catch (error: unknown) {
-    console.error(`Error in PUT /document-edit/${ctx.params.id}:`, error);
-    
     ctx.response.status = error instanceof Error && 
       (error.message.includes("required") || error.message.includes("invalid")) ? 400 : 500;
     

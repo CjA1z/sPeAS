@@ -41,7 +41,6 @@ export class SystemLogsModel {
       }
       throw new Error("Failed to create log entry");
     } catch (error) {
-      console.error("Error creating system log:", error);
       throw error;
     }
   }
@@ -122,7 +121,6 @@ export class SystemLogsModel {
         total
       };
     } catch (error) {
-      console.error("Error fetching system logs:", error);
       throw error;
     }
   }
@@ -146,7 +144,6 @@ export class SystemLogsModel {
       
       return summary;
     } catch (error) {
-      console.error("Error getting log summary:", error);
       return {};
     }
   }
@@ -166,7 +163,6 @@ export class SystemLogsModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error getting recent downloads:", error);
       return [];
     }
   }
@@ -186,7 +182,6 @@ export class SystemLogsModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error getting recent logins:", error);
       return [];
     }
   }
@@ -206,7 +201,6 @@ export class SystemLogsModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error getting recent document actions:", error);
       return [];
     }
   }
@@ -237,7 +231,6 @@ export class SystemLogsModel {
       `);
       return true;
     } catch (error) {
-      console.error("Error creating system_logs table:", error);
       return false;
     }
   }

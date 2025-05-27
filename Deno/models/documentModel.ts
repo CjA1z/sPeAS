@@ -78,7 +78,6 @@ export class DocumentModel {
       const result = await client.queryObject<Document>(query);
       return result.rows;
     } catch (error) {
-      console.error("Error fetching documents:", error);
       return [];
     }
   }
@@ -97,7 +96,6 @@ export class DocumentModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching document:", error);
       return null;
     }
   }
@@ -131,7 +129,6 @@ export class DocumentModel {
         authors: authorsResult.rows
       };
     } catch (error) {
-      console.error("Error fetching document with authors:", error);
       return null;
     }
   }
@@ -167,7 +164,6 @@ export class DocumentModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error searching documents:", error);
       return [];
     }
   }
@@ -208,7 +204,6 @@ export class DocumentModel {
       
       return result.rows;
     } catch (error) {
-      console.error(`Error fetching contained documents for ID ${compiledDocId}:`, error);
       return [];
     }
   }
@@ -250,7 +245,6 @@ export class DocumentModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error creating document:", error);
       throw error;
     }
   }
@@ -317,7 +311,6 @@ export class DocumentModel {
       
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      console.error("Error updating document:", error);
       throw error;
     }
   }
@@ -336,7 +329,6 @@ export class DocumentModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error soft deleting document:", error);
       return false;
     }
   }
@@ -359,7 +351,6 @@ export class DocumentModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error deleting document:", error);
       return false;
     }
   }
@@ -437,7 +428,6 @@ export class DocumentModel {
       const result = await client.queryObject<Document>(query, params);
       return result.rows;
     } catch (error) {
-      console.error("Error fetching filtered documents:", error);
       return [];
     }
   }
@@ -458,7 +448,6 @@ export class DocumentModel {
       
       return true;
     } catch (error) {
-      console.error("Error adding author to document:", error);
       return false;
     }
   }
@@ -477,7 +466,6 @@ export class DocumentModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error fetching document files:", error);
       return [];
     }
   }
@@ -504,7 +492,6 @@ export class DocumentModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error adding file to document:", error);
       return null;
     }
   }
@@ -521,39 +508,31 @@ export class DocumentModel {
       
       // Check if ID is valid
       if (isNaN(documentId)) {
-        console.error(`[DocumentModel] Invalid document ID: ${id}`);
         return null;
       }
       
-      console.log(`[DocumentModel] Getting file path for document ID: ${documentId}`);
-      
+            
       const result = await client.queryObject<{ file_path: string }>(
         "SELECT file_path FROM documents WHERE id = $1 AND deleted_at IS NULL",
         [documentId]
       );
       
       if (result.rows.length === 0) {
-        console.error(`[DocumentModel] Document not found for ID: ${documentId}`);
         return null;
       }
       
       let filePath = result.rows[0].file_path;
-      console.log(`[DocumentModel] Raw file path from DB: ${filePath}`);
-      
+            
       if (!filePath) {
-        console.error(`[DocumentModel] Document has no file path in the database: ${documentId}`);
         return null;
       }
       
       // IMPROVED PATH RESOLUTION: First check if the path is already absolute and exists
       if (filePath.match(/^[A-Z]:\//i)) {
-        console.log(`[DocumentModel] Path is already absolute: ${filePath}`);
-        try {
+                try {
           const fileInfo = await Deno.stat(filePath);
-          console.log(`[DocumentModel] Absolute file exists: ${filePath} (${fileInfo.size} bytes)`);
-          return filePath;
+                    return filePath;
         } catch (err) {
-          console.warn(`[DocumentModel] Absolute file not found: ${filePath}`);
           // Continue with other path resolution methods
         }
       }
@@ -587,20 +566,16 @@ export class DocumentModel {
       // Filter out null entries
       const validPaths = pathsToTry.filter(p => p !== null) as string[];
       
-      console.log(`[DocumentModel] Trying these paths in order:`);
-      validPaths.forEach((path, i) => {
-        console.log(`  ${i+1}. ${path}`);
-      });
+            validPaths.forEach((path, i) => {
+              });
       
       // Try each path until one exists
       for (const path of validPaths) {
         try {
           const fileInfo = await Deno.stat(path);
-          console.log(`[DocumentModel] ✅ Found file at: ${path} (${fileInfo.size} bytes)`);
-          return path;
+                    return path;
         } catch (err) {
-          console.log(`[DocumentModel] File not found at: ${path}`);
-        }
+                  }
       }
       
       // ENHANCED: Search in category subfolders (recursive search)
@@ -612,23 +587,20 @@ export class DocumentModel {
         'storage/synergy'
       ];
       
-      console.log(`[DocumentModel] Searching in category subfolders...`);
-      
+            
       // Extract filename from the path
       const fileName = filePath.split(/[/\\]/).pop() || '';
       
       // Check each storage directory and its subdirectories
       for (const rootDir of rootStorageDirs) {
         const fullRootDir = join(workspaceRoot, rootDir);
-        console.log(`[DocumentModel] Searching in ${fullRootDir}`);
-        
+                
         try {
           // First check directly in the root directory
           const directPath = join(fullRootDir, fileName);
           try {
             const directStat = await Deno.stat(directPath);
-            console.log(`[DocumentModel] ✅ Found file directly in ${rootDir}: ${directPath} (${directStat.size} bytes)`);
-            return directPath;
+                        return directPath;
           } catch {
             // File not found directly, continue to subdirectories
           }
@@ -638,8 +610,7 @@ export class DocumentModel {
             const fileExtPath = join(fullRootDir, `${fileName}.file`);
             try {
               const fileExtStat = await Deno.stat(fileExtPath);
-              console.log(`[DocumentModel] ✅ Found file with .file extension: ${fileExtPath} (${fileExtStat.size} bytes)`);
-              return fileExtPath;
+                            return fileExtPath;
             } catch {
               // File not found with .file extension, continue to subdirectories
             }
@@ -649,14 +620,12 @@ export class DocumentModel {
           for await (const entry of Deno.readDir(fullRootDir)) {
             if (entry.isDirectory) {
               const subDir = join(fullRootDir, entry.name);
-              console.log(`[DocumentModel] Checking subdirectory: ${subDir}`);
-              
+                            
               // Check for file in this subdirectory
               const subDirFilePath = join(subDir, fileName);
               try {
                 const subDirStat = await Deno.stat(subDirFilePath);
-                console.log(`[DocumentModel] ✅ Found file in subdirectory: ${subDirFilePath} (${subDirStat.size} bytes)`);
-                return subDirFilePath;
+                                return subDirFilePath;
               } catch {
                 // Not found in this subdirectory, try with .file extension
               }
@@ -666,8 +635,7 @@ export class DocumentModel {
                 const subDirFileExtPath = join(subDir, `${fileName}.file`);
                 try {
                   const subDirFileExtStat = await Deno.stat(subDirFileExtPath);
-                  console.log(`[DocumentModel] ✅ Found file with .file extension in subdirectory: ${subDirFileExtPath} (${subDirFileExtStat.size} bytes)`);
-                  return subDirFileExtPath;
+                                    return subDirFileExtPath;
                 } catch {
                   // Not found with .file extension in this subdirectory
                 }
@@ -675,7 +643,6 @@ export class DocumentModel {
             }
           }
         } catch (searchErr) {
-          console.error(`[DocumentModel] Error searching directory ${fullRootDir}:`, searchErr);
           // Continue to next root directory
         }
       }
@@ -685,26 +652,20 @@ export class DocumentModel {
         const fileNamePart = (filePath.split(/[/\\]/).pop() || '').split('_')[0];
         
         if (fileNamePart && fileNamePart.length > 3) {
-          console.log(`[DocumentModel] Looking for files starting with: ${fileNamePart}`);
-          
+                    
           for await (const entry of Deno.readDir(join(workspaceRoot, 'storage', 'thesis'))) {
             if (entry.isFile && entry.name.startsWith(fileNamePart)) {
               const matchPath = join(workspaceRoot, 'storage', 'thesis', entry.name);
-              console.log(`[DocumentModel] ✅ Found similar filename: ${matchPath}`);
-              return matchPath;
+                            return matchPath;
             }
           }
         }
       } catch (fuzzyError) {
-        console.error(`[DocumentModel] Error during fuzzy filename search:`, fuzzyError);
       }
       
       // If all attempts fail, return the most likely path for logging
-      console.warn(`[DocumentModel] ❌ All path resolutions failed. Using best guess: ${validPaths[0]}`);
       return validPaths[0];
     } catch (error) {
-      console.error(`[DocumentModel] Error fetching document path for ID ${id}:`, error instanceof Error ? error.message : String(error));
-      console.error(`[DocumentModel] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
       return null;
     }
   }
@@ -718,58 +679,46 @@ export class DocumentModel {
     try {
       // Convert string ID to number if necessary
       const docId = typeof id === 'string' ? parseInt(id) : id;
-      console.log(`[DocumentModel.getDocumentById] Looking up document with ID: ${docId}`);
-      
+            
       // First get basic document info
       const document = await this.getById(docId);
       
       if (!document) {
-        console.warn(`[DocumentModel.getDocumentById] Document with ID ${docId} not found`);
         return null;
       }
       
-      console.log(`[DocumentModel.getDocumentById] Retrieved base document:`, document);
-      
+            
       // Get category info if available
       let category = null;
       if (document.category_id) {
-        console.log(`[DocumentModel.getDocumentById] Looking up category for ID: ${document.category_id}`);
-        
+                
         try {
           const categoryResult = await client.queryObject(
             "SELECT name FROM categories WHERE id = $1",
             [document.category_id]
           );
-          console.log(`[DocumentModel.getDocumentById] Category query result:`, categoryResult.rows);
-          
+                    
           if (categoryResult.rows.length > 0) {
             category = categoryResult.rows[0].name;
-            console.log(`[DocumentModel.getDocumentById] Found category: ${category}`);
-          } else {
-            console.log(`[DocumentModel.getDocumentById] No category found for ID: ${document.category_id}`);
-          }
+                      } else {
+                      }
         } catch (categoryError) {
-          console.error(`[DocumentModel.getDocumentById] Error querying category: ${categoryError}`);
           // Check if it's a table not found error
           if (categoryError instanceof Error && categoryError.message.includes("relation") && categoryError.message.includes("does not exist")) {
-            console.error(`[DocumentModel.getDocumentById] Categories table may not exist in the database`);
           }
         }
       } else {
-        console.log(`[DocumentModel.getDocumentById] Document has no category_id`);
-        
+                
         // Try to use category field if it exists directly on document
         if (document.category) {
           category = document.category;
-          console.log(`[DocumentModel.getDocumentById] Using direct category field: ${category}`);
-        }
+                  }
       }
       
       // Get author info
       let author = null;
       try {
-        console.log(`[DocumentModel.getDocumentById] Looking up authors for document ID: ${docId}`);
-        
+                
         const authorsResult = await client.queryObject(
           `SELECT a.full_name 
            FROM authors a
@@ -779,39 +728,31 @@ export class DocumentModel {
           [docId]
         );
         
-        console.log(`[DocumentModel.getDocumentById] Authors query result:`, authorsResult.rows);
-        
+                
         if (authorsResult.rows.length > 0) {
           author = authorsResult.rows.map(a => a.full_name).join(', ');
-          console.log(`[DocumentModel.getDocumentById] Found authors: ${author}`);
-        } else {
-          console.log(`[DocumentModel.getDocumentById] No authors found for document ID: ${docId}`);
-          
+                  } else {
+                    
           // Check if the document has an author field directly
           if (document.author) {
             author = document.author;
-            console.log(`[DocumentModel.getDocumentById] Using direct author field: ${author}`);
-          }
+                      }
         }
       } catch (authorError) {
-        console.error(`[DocumentModel.getDocumentById] Error fetching authors: ${authorError}`);
         // Check if it's a table not found error
         if (authorError instanceof Error && authorError.message.includes("relation") && authorError.message.includes("does not exist")) {
-          console.error(`[DocumentModel.getDocumentById] Authors table may not exist in the database`);
         }
         
         // Try to use author field if it exists directly on document
         if (document.author) {
           author = document.author;
-          console.log(`[DocumentModel.getDocumentById] Using direct author field as fallback: ${author}`);
-        }
+                  }
       }
       
       // Get keywords
       let keywords = null;
       try {
-        console.log(`[DocumentModel.getDocumentById] Looking up keywords for document ID: ${docId}`);
-        
+                
         const keywordsResult = await client.queryObject(
           `SELECT k.name
            FROM keywords k
@@ -820,32 +761,25 @@ export class DocumentModel {
           [docId]
         );
         
-        console.log(`[DocumentModel.getDocumentById] Keywords query result:`, keywordsResult.rows);
-        
+                
         if (keywordsResult.rows.length > 0) {
           keywords = keywordsResult.rows.map(k => k.name).join(', ');
-          console.log(`[DocumentModel.getDocumentById] Found keywords: ${keywords}`);
-        } else {
-          console.log(`[DocumentModel.getDocumentById] No keywords found for document ID: ${docId}`);
-          
+                  } else {
+                    
           // Check if the document has keywords field directly
           if (document.keywords) {
             keywords = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
-            console.log(`[DocumentModel.getDocumentById] Using direct keywords field: ${keywords}`);
-          }
+                      }
         }
       } catch (keywordError) {
-        console.error(`[DocumentModel.getDocumentById] Error fetching keywords: ${keywordError}`);
         // Check if it's a table not found error
         if (keywordError instanceof Error && keywordError.message.includes("relation") && keywordError.message.includes("does not exist")) {
-          console.error(`[DocumentModel.getDocumentById] Keywords table may not exist in the database`);
         }
         
         // Try to use keywords field if it exists directly on document
         if (document.keywords) {
           keywords = Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords;
-          console.log(`[DocumentModel.getDocumentById] Using direct keywords field as fallback: ${keywords}`);
-        }
+                  }
       }
       
       // Create enriched document with metadata
@@ -866,7 +800,6 @@ export class DocumentModel {
       
       return enrichedDocument;
     } catch (error) {
-      console.error(`[DocumentModel.getDocumentById] Error fetching document with metadata: ${error}`);
       return null;
     }
   }
@@ -882,12 +815,10 @@ export class DocumentModel {
       const docId = typeof compiledDocId === 'string' ? parseInt(compiledDocId) : compiledDocId;
       
       if (isNaN(docId)) {
-        console.error(`[DocumentModel] Invalid compiled document ID: ${compiledDocId}`);
         return [];
       }
       
-      console.log(`[DocumentModel] Getting child document paths for compiled document ID: ${docId}`);
-      
+            
       // First check if this is actually a compiled document
       const checkResult = await client.queryObject<{ id: number }>(
         "SELECT id FROM compiled_documents WHERE id = $1",
@@ -895,7 +826,6 @@ export class DocumentModel {
       );
       
       if (checkResult.rows.length === 0) {
-        console.warn(`[DocumentModel] ID ${docId} is not a compiled document`);
         // Check if it might be a document that is part of a compiled document
         const parentResult = await client.queryObject<{ compiled_document_id: number }>(
           "SELECT compiled_document_id FROM compiled_document_items WHERE document_id = $1 LIMIT 1",
@@ -904,8 +834,7 @@ export class DocumentModel {
         
         if (parentResult.rows.length > 0 && parentResult.rows[0].compiled_document_id) {
           const parentId = parentResult.rows[0].compiled_document_id;
-          console.log(`[DocumentModel] Document ${docId} is part of compiled document ${parentId}, using that instead`);
-          return this.getCompiledDocumentChildPaths(parentId);
+                    return this.getCompiledDocumentChildPaths(parentId);
         }
         
         return [];
@@ -922,8 +851,7 @@ export class DocumentModel {
         [docId]
       );
       
-      console.log(`[DocumentModel] Found ${result.rows.length} child documents for compiled document ${docId}`);
-      
+            
       // Get the file paths for all child documents
       const filePaths: string[] = [];
       
@@ -933,25 +861,20 @@ export class DocumentModel {
             const resolvedPath = await this.getDocumentPath(row.document_id);
             if (resolvedPath) {
               filePaths.push(resolvedPath);
-              console.log(`[DocumentModel] Added child document path: ${resolvedPath}`);
-            } else {
-              console.warn(`[DocumentModel] Could not resolve path for child document ID: ${row.document_id}`);
+                          } else {
               // Still add the raw file path as a fallback
               filePaths.push(row.file_path);
             }
           } catch (error) {
-            console.error(`[DocumentModel] Error resolving path for document ${row.document_id}:`, error);
             // Add raw path as fallback
             filePaths.push(row.file_path);
           }
         } else {
-          console.warn(`[DocumentModel] Child document ${row.document_id} has no file path`);
         }
       }
       
       return filePaths;
     } catch (error) {
-      console.error(`[DocumentModel] Error fetching child document paths:`, error);
       return [];
     }
   }

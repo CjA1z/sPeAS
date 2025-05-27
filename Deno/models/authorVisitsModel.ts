@@ -57,12 +57,10 @@ export class AuthorVisitsModel {
       );
       
       if (authorExists.rows.length === 0) {
-        console.error(`Author with ID ${authorId} not found`);
         return 0;
       }
       
-      console.log(`Recording ${visitorType} visit for author ${authorId} in counter table`);
-      
+            
       try {
         // Check if our table has a visitor_type column
         const columnsResult = await client.queryObject(
@@ -73,8 +71,7 @@ export class AuthorVisitsModel {
         
         if (columnsResult.rows.length > 0) {
           // Table has visitor_type column, use it in the query
-          console.log(`Using visitor_type column for author_visits_counter`);
-          
+                    
           const result = await client.queryObject(
             `INSERT INTO author_visits_counter (author_id, date, visitor_type, visit_count)
              VALUES ($1, CURRENT_DATE, $2, 1)
@@ -85,14 +82,11 @@ export class AuthorVisitsModel {
           );
           
           const newCount = parseInt((result.rows[0] as any)?.visit_count?.toString() || "0");
-          console.log(`New counter for author ${authorId} (${visitorType}): ${newCount}`);
-          return newCount;
+                    return newCount;
         } else {
           // Table does not have visitor_type column, use original query
-          console.log(`No visitor_type column found - using legacy counter schema`);
-        }
+                  }
       } catch (schemaError) {
-        console.error("Error checking schema:", schemaError);
         // Continue with original query
       }
       
@@ -103,12 +97,10 @@ export class AuthorVisitsModel {
         [authorId]
       );
       
-      console.log(`Check for existing counter: found ${checkExisting.rows.length} rows`);
-      
+            
       if (checkExisting.rows.length > 0) {
         const currentCount = parseInt((checkExisting.rows[0] as any)?.visit_count?.toString() || "0");
-        console.log(`Existing count for author ${authorId} today: ${currentCount}`);
-      }
+              }
       
       // Insert or update the counter
       const result = await client.queryObject(
@@ -121,8 +113,7 @@ export class AuthorVisitsModel {
       );
       
       const newCount = parseInt((result.rows[0] as any)?.visit_count?.toString() || "0");
-      console.log(`New counter for author ${authorId}: ${newCount}`);
-      
+            
       // Also record in legacy table to maintain visitor type information
       await client.queryObject(
         `INSERT INTO author_visits (
@@ -130,15 +121,12 @@ export class AuthorVisitsModel {
         ) VALUES ($1, $2, NOW())`,
         [authorId, visitorType]
       );
-      console.log(`Recorded ${visitorType} visit in legacy table for proper type tracking`);
-      
+            
       return newCount;
     } catch (error) {
-      console.error("Error recording author visit counter:", error);
       // Try a more basic approach if the conflict handling fails
       try {
-        console.log("Trying alternate approach for incrementing counter");
-        const updateResult = await client.queryObject(
+                const updateResult = await client.queryObject(
           `UPDATE author_visits_counter 
            SET visit_count = visit_count + 1
            WHERE author_id = $1 AND date = CURRENT_DATE
@@ -148,8 +136,7 @@ export class AuthorVisitsModel {
         
         if (updateResult.rows.length > 0) {
           const count = parseInt((updateResult.rows[0] as any)?.visit_count?.toString() || "0");
-          console.log(`Updated count using alternate method: ${count}`);
-          
+                    
           // Also record in legacy table
           await client.queryObject(
             `INSERT INTO author_visits (
@@ -160,8 +147,7 @@ export class AuthorVisitsModel {
           
           return count;
         } else {
-          console.log(`No existing record found, creating new one`);
-          const insertResult = await client.queryObject(
+                    const insertResult = await client.queryObject(
             `INSERT INTO author_visits_counter (author_id, date, visit_count)
              VALUES ($1, CURRENT_DATE, 1)
              RETURNING visit_count`,
@@ -169,8 +155,7 @@ export class AuthorVisitsModel {
           );
           
           const count = parseInt((insertResult.rows[0] as any)?.visit_count?.toString() || "0");
-          console.log(`Inserted new record with count: ${count}`);
-          
+                    
           // Also record in legacy table
           await client.queryObject(
             `INSERT INTO author_visits (
@@ -182,7 +167,6 @@ export class AuthorVisitsModel {
           return count;
         }
       } catch (insertError) {
-        console.error("Error in alternate approach:", insertError);
       return 0;
       }
     }
@@ -214,7 +198,6 @@ export class AuthorVisitsModel {
       );
       
       if (authorExists.rows.length === 0) {
-        console.error(`Author with ID ${authorId} not found`);
         return null;
       }
       
@@ -233,7 +216,6 @@ export class AuthorVisitsModel {
       
       return result.rows[0] as AuthorVisit || null;
     } catch (error) {
-      console.error("Error recording author visit:", error);
       return null;
     }
   }
@@ -278,7 +260,6 @@ export class AuthorVisitsModel {
       
       return { total, daily };
     } catch (error) {
-      console.error(`Error getting visit counters for author ${authorId}:`, error);
       return { total: 0, daily: [] };
     }
   }
@@ -314,7 +295,6 @@ export class AuthorVisitsModel {
       
       return parseInt((result.rows[0] as CountResult)?.count.toString() || "0");
     } catch (error) {
-      console.error("Error getting total author visits:", error);
       return 0;
     }
   }
@@ -327,8 +307,7 @@ export class AuthorVisitsModel {
    */
   static async getVisitsByType(authorId: string): Promise<{guest: number, user: number}> {
     try {
-      console.log(`Getting visit breakdown for author ${authorId}`);
-      
+            
       // Check if our table has a visitor_type column
       try {
         const columnsResult = await client.queryObject(
@@ -339,8 +318,7 @@ export class AuthorVisitsModel {
         
         if (columnsResult.rows.length > 0) {
           // Table has visitor_type column, query it directly
-          console.log(`Using visitor_type column for visit breakdown`);
-          
+                    
           const visitorTypeResult = await client.queryObject(
             `SELECT visitor_type, SUM(visit_count) as count
              FROM author_visits_counter
@@ -361,12 +339,10 @@ export class AuthorVisitsModel {
               }
             });
             
-            console.log(`Direct breakdown from counter table: ${guestCount} guests, ${userCount} users`);
-            return { guest: guestCount, user: userCount };
+                        return { guest: guestCount, user: userCount };
           }
         }
       } catch (schemaError) {
-        console.error("Error checking schema:", schemaError);
       }
       
       // For counter-based system without visitor_type column, we need to estimate
@@ -422,8 +398,7 @@ export class AuthorVisitsModel {
         const guestCount = Math.round(totalCount * guestRatio);
         const userCount = totalCount - guestCount; // Ensure total adds up
         
-        console.log(`Estimated visits breakdown for ${authorId}: ${guestCount} guests, ${userCount} users from total ${totalCount}`);
-        return { guest: guestCount, user: userCount };
+                return { guest: guestCount, user: userCount };
       }
       
       // If no counter data, use legacy table directly
@@ -446,10 +421,8 @@ export class AuthorVisitsModel {
         }
       });
       
-      console.log(`Legacy table breakdown: ${guestCount} guests, ${userCount} users`);
-      return { guest: guestCount, user: userCount };
+            return { guest: guestCount, user: userCount };
     } catch (error) {
-      console.error("Error getting author visit breakdown:", error);
       return { guest: 0, user: 0 };
     }
   }
@@ -468,30 +441,23 @@ export class AuthorVisitsModel {
     visit_count: number
   }>> {
     try {
-      console.log(`getTopAuthors called with limit=${limit}, days=${days}`);
-      
+            
       // First debug the counter table to see what's actually there
-      console.log(`DEBUG: Checking all author_visits_counter data with no filters...`);
-      const debugQuery = await client.queryObject(
+            const debugQuery = await client.queryObject(
         `SELECT * FROM author_visits_counter ORDER BY visit_count DESC LIMIT 20`
       );
-      console.log(`DEBUG: Found ${debugQuery.rows.length} total rows in author_visits_counter (sample):`);
-      debugQuery.rows.forEach((row: any, i) => {
-        console.log(`DEBUG: Row ${i + 1}: author_id=${row.author_id}, date=${row.date}, count=${row.visit_count}`);
-      });
+            debugQuery.rows.forEach((row: any, i) => {
+              });
 
       // Try to get authors matching the counter rows to ensure the join will work
       const authorIds = debugQuery.rows.map((row: any) => row.author_id);
       if (authorIds.length > 0) {
-        console.log("Checking if these authors exist in the authors table...");
-        const authorsQuery = await client.queryObject(
+                const authorsQuery = await client.queryObject(
           `SELECT id, full_name FROM authors WHERE id IN (${authorIds.map(() => "?").join(",")})`,
           ...authorIds
         );
-        console.log(`Found ${authorsQuery.rows.length} matching authors`);
-        authorsQuery.rows.forEach((row: any) => {
-          console.log(`Author ${row.full_name} (ID: ${row.id}) exists in the database`);
-        });
+                authorsQuery.rows.forEach((row: any) => {
+                  });
       }
 
       // IMPORTANT: Simpler query to avoid join issues - first get top author IDs
@@ -503,10 +469,8 @@ export class AuthorVisitsModel {
         LIMIT $1
       `;
       
-      console.log("Executing simplified query to get top author IDs...");
-      const topAuthorIds = await client.queryObject(topAuthorIdsQuery, [limit]);
-      console.log(`Found ${topAuthorIds.rows.length} author IDs with visit counts`);
-      
+            const topAuthorIds = await client.queryObject(topAuthorIdsQuery, [limit]);
+            
       if (topAuthorIds.rows.length > 0) {
         // Then get author details for these IDs
         const authorsList = [];
@@ -515,8 +479,7 @@ export class AuthorVisitsModel {
           const authorId = (row as any).author_id;
           const visitCount = parseInt((row as any).total_visits?.toString() || "0");
           
-          console.log(`Looking up details for author ID ${authorId} with ${visitCount} visits`);
-          
+                    
           // Get author details
           const authorQuery = await client.queryObject(
             `SELECT id, full_name, profile_picture FROM authors WHERE id = $1`,
@@ -531,15 +494,12 @@ export class AuthorVisitsModel {
               profile_picture: author.profile_picture,
               visit_count: visitCount
             });
-            console.log(`Added author ${author.full_name} with ${visitCount} visits`);
-          } else {
-            console.log(`Author with ID ${authorId} not found in authors table`);
-          }
+                      } else {
+                      }
         }
         
         if (authorsList.length > 0) {
-          console.log(`Returning ${authorsList.length} authors with visit counts`);
-          return authorsList;
+                    return authorsList;
         }
       }
       
@@ -557,10 +517,8 @@ export class AuthorVisitsModel {
         LIMIT $1
       `;
       
-      console.log("Falling back to legacy table query...");
-      const result = await client.queryObject(legacyQuery, [limit]);
-      console.log(`Found ${result.rows.length} authors from legacy table`);
-      
+            const result = await client.queryObject(legacyQuery, [limit]);
+            
       const authors = (result.rows as TopAuthorResult[]).map(row => ({
         author_id: row.author_id,
         full_name: row.full_name,
@@ -570,8 +528,7 @@ export class AuthorVisitsModel {
       
       // If no results from either query, fetch all authors with zero counts
       if (authors.length === 0) {
-        console.log("No visit data found, fetching all authors with zero counts");
-        const allAuthorsQuery = `
+                const allAuthorsQuery = `
           SELECT 
             id as author_id, 
             full_name, 
@@ -593,7 +550,6 @@ export class AuthorVisitsModel {
       
       return authors;
     } catch (error) {
-      console.error("Error getting top authors:", error);
       return [];
     }
   }
@@ -651,7 +607,6 @@ export class AuthorVisitsModel {
         user: userCount
       };
     } catch (error) {
-      console.error("Error getting total visit stats:", error);
       return { total: 0, guest: 0, user: 0 };
     }
   }
@@ -672,7 +627,6 @@ export class AuthorVisitsModel {
       
       return parseInt((result.rows[0] as any)?.deleted?.toString() || "0");
     } catch (error) {
-      console.error("Error purging old author visit data:", error);
       return 0;
     }
   }

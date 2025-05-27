@@ -29,7 +29,6 @@ export class AuthorModel {
       );
       return result.rows;
     } catch (error) {
-      console.error("Error fetching authors:", error);
       return [];
     }
   }
@@ -48,7 +47,6 @@ export class AuthorModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching author:", error);
       return null;
     }
   }
@@ -67,7 +65,6 @@ export class AuthorModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error fetching author by SPUD ID:", error);
       return null;
     }
   }
@@ -99,7 +96,6 @@ export class AuthorModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error creating author:", error);
       return null;
     }
   }
@@ -144,7 +140,6 @@ export class AuthorModel {
       
       return result.rows[0] || null;
     } catch (error) {
-      console.error("Error updating author:", error);
       return null;
     }
   }
@@ -165,7 +160,6 @@ export class AuthorModel {
       
       return result.rows.length > 0;
     } catch (error) {
-      console.error(`Error updating author ID from ${oldId} to ${newId}:`, error);
       throw error;
     }
   }
@@ -184,7 +178,6 @@ export class AuthorModel {
       
       return result.rowCount > 0;
     } catch (error) {
-      console.error("Error deleting author:", error);
       return false;
     }
   }
@@ -206,7 +199,6 @@ export class AuthorModel {
       
       return result.rows.map(row => row[0]);
     } catch (error) {
-      console.error("Error fetching author's documents:", error);
       return [];
     }
   }
@@ -229,7 +221,6 @@ export class AuthorModel {
       
       return result.rows;
     } catch (error) {
-      console.error("Error searching authors:", error);
       return [];
     }
   }
@@ -255,7 +246,6 @@ export class AuthorModel {
       
       return result.rows as Author[];
     } catch (error) {
-      console.error("Error searching authors:", error);
       return [];
     }
   }

@@ -47,7 +47,6 @@ export async function getDocumentForEdit(documentId: string): Promise<any> {
       topics
     };
   } catch (error: unknown) {
-    console.error("Error fetching document for edit:", error);
     throw error;
   }
 }
@@ -139,7 +138,6 @@ export async function saveDocument(documentData: any): Promise<any> {
       throw error;
     }
   } catch (error: unknown) {
-    console.error("Error saving document:", error);
     throw error;
   }
 } 

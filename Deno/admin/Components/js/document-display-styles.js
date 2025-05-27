@@ -93,8 +93,7 @@
         
         // Add the style element to the document head
         document.head.appendChild(style);
-        console.log('Document display styles added');
-    }
+            }
     
     // Apply document display styles
     addDocumentStyles();

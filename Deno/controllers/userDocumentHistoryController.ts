@@ -58,8 +58,6 @@ export async function recordDocumentView(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error recording document view:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to record document view",
@@ -127,8 +125,6 @@ export async function recordDocumentDownload(request: Request): Promise<Response
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error recording document download:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to record document download",
@@ -206,8 +202,6 @@ export async function getUserHistory(request: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error retrieving user document history:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: "Failed to retrieve user document history",

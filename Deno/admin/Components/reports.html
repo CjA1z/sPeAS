@@ -183,8 +183,7 @@
                             archived: data.archived_documents || 0
                         };
                         
-                        console.log("Document statistics from new API:", documentStats);
-                        
+                                                
                         // Update the UI
                         updateCounts();
                         renderStatusChart();
@@ -193,10 +192,8 @@
                         return true;
                     } else {
                         // If API returns an error, log it and fall back
-                        console.warn("New statistics API returned error, trying original endpoint...");
                     }
                 } catch (newApiError) {
-                    console.warn("Error with new statistics API, trying original endpoint:", newApiError);
                 }
                 
                 // Try the original statistics API
@@ -213,8 +210,7 @@
                             archived: data.archived_documents || 0
                         };
                         
-                        console.log("Document statistics from original API:", documentStats);
-                        
+                                                
                         // Update the UI
                         updateCounts();
                         renderStatusChart();
@@ -223,15 +219,11 @@
                         return true;
                     } else {
                         // If API returns an error, log it and fall back to custom method
-                        console.warn("Original statistics API returned error, falling back to custom method");
                         throw new Error("API returned non-OK status");
                     }
                 } catch (apiError) {
-                    console.warn("Error with all statistics APIs, using fallback method:", apiError);
-                    
                     // Fall back to our custom statistics calculation
-                    console.log("Building custom document statistics...");
-                    
+                                        
                     // Get active document count
                     let activeCount = 0;
                     let archivedCount = 0;
@@ -242,15 +234,12 @@
                         if (activeResponse.ok) {
                             const activeData = await activeResponse.json();
                             activeCount = activeData.totalDocuments || 0;
-                            console.log("Active documents count:", activeCount);
-                        } else {
-                            console.warn("Could not get active document count");
+                                                    } else {
                         }
                         
                         // Note: We know the archived endpoint doesn't exist, so we'll skip it
                         // and just report 0 archived documents to avoid the 400 error
-                        console.log("Archived endpoint not available, using 0 for archived count");
-                        
+                                                
                         // Calculate total uploaded documents
                         const uploadedCount = activeCount + archivedCount;
                         
@@ -261,8 +250,7 @@
                             archived: archivedCount
                         };
                         
-                        console.log("Custom document statistics built:", documentStats);
-                        
+                                                
                         // Update the UI
                         updateCounts();
                         renderStatusChart();
@@ -270,12 +258,10 @@
                         showMessage("Statistics loaded using fallback method", "info");
                         return true;
                     } catch (error) {
-                        console.error("Error building custom statistics:", error);
                         throw new Error("Failed to build custom statistics");
                     }
                 }
             } catch (error) {
-                console.error("Error fetching document statistics:", error);
                 showMessage("Error connecting to database. Please try again later.", "error");
                 
                 // Reset counts to zero on error
@@ -463,7 +449,6 @@
                 
                 showMessage("PDF report downloaded successfully!", "success");
             } catch (error) {
-                console.error("Error generating PDF:", error);
                 showMessage("PDF generation not available. This is a placeholder feature.", "error");
                 
                 // Fallback message
@@ -518,12 +503,9 @@
                 
                 showMessage("CSV report downloaded successfully!", "success");
             } catch (error) {
-                console.error("Error generating CSV:", error);
-                
                 // Fallback to client-side CSV generation 
                 try {
-                    console.log("Falling back to client-side CSV generation");
-                    // Get selected time range
+                                        // Get selected time range
                     const timeRange = document.getElementById('timeRange').value;
                     
                     // Create CSV content from document stats
@@ -571,13 +553,11 @@
                 // (Note: This doesn't support time filtering but we'll try it anyway)
                 try {
                     const simplifiedEndpoint = `/api/stats/summary`;
-                    console.log(`Trying simplified endpoint (note: doesn't support time filtering): ${simplifiedEndpoint}`);
-                    
+                                        
                     const simpleResponse = await fetch(simplifiedEndpoint);
                     if (simpleResponse.ok) {
                         // If it works, show a notification that we're using all-time stats
-                        console.log(`Using simplified endpoint data (all-time statistics)`);
-                        
+                                                
                         const data = await simpleResponse.json();
                         
                         // Update our statistics object
@@ -595,14 +575,12 @@
                         return true;
                     }
                 } catch (simpleError) {
-                    console.warn(`Error with simplified endpoint:`, simpleError);
                 }
                 
                 // Now try the original API with time range parameter
                 try {
                     const endpoint = `/api/documents/statistics?timeRange=${timeRange}`;
-                    console.log(`Fetching from original endpoint: ${endpoint}`);
-                    
+                                        
                     const response = await fetch(endpoint);
                     if (response.ok) {
                         const data = await response.json();
@@ -614,8 +592,7 @@
                             archived: data.archived_documents || 0
                         };
                         
-                        console.log(`${timeRange} statistics from API:`, documentStats);
-                        
+                                                
                         // Update the UI
             updateCounts();
             renderStatusChart();
@@ -626,8 +603,6 @@
                         throw new Error(`Statistics API error for ${timeRange} range: ${response.status}`);
                     }
                 } catch (apiError) {
-                    console.warn(`Error fetching ${timeRange} statistics from API:`, apiError);
-                    
                     // Fall back to using the all-time stats
                     showMessage(`Time filtering for ${timeRange} is not available. Showing all-time statistics.`, "info");
                     
@@ -635,7 +610,6 @@
                     return await fetchDocumentStats();
                 }
             } catch (error) {
-                console.error(`Error fetching ${timeRange} statistics:`, error);
                 showMessage(`Error loading ${timeRange} statistics. Please try again later.`, "error");
                 
                 // Show zeros for failed requests

@@ -98,7 +98,6 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 authorText = document.author || "Unknown Author";
             }
         } catch (error) {
-            console.error(`Error fetching authors for document ID ${numericId}:`, error);
             // Fallback to document.author field
             authorText = document.author || "Unknown Author";
         }
@@ -116,8 +115,7 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
             );
             
             if (keywordsResult.rows.length > 0) {
-                console.log(`Found ${keywordsResult.rows.length} research agenda entries for guest doc ${numericId}`);
-                
+                                
                 // Simply use research agenda names as keywords
                 for (const row of keywordsResult.rows as Array<{
                     id?: number;
@@ -133,7 +131,6 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 keywords = [...new Set(keywords)];
             }
         } catch (error) {
-            console.error(`Error fetching keywords for document ID ${numericId}:`, error);
         }
         
         // Handle publication year - extract from publication_date if available
@@ -224,7 +221,6 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                                 childAuthorText = doc.author || "Unknown Author";
                             }
                         } catch (error) {
-                            console.error(`Error fetching authors for contained document ID ${doc.id}:`, error);
                             // Fallback to document.author field
                             childAuthorText = doc.author || "Unknown Author";
                         }
@@ -242,7 +238,6 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                     result.document.contained_documents = processedDocuments;
                 }
             } catch (error) {
-                console.error(`Error fetching contained documents for ID ${id}:`, error);
                 // Continue without contained documents
             }
         }
@@ -250,7 +245,6 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
         ctx.response.status = 200;
         ctx.response.body = result;
     } catch (error) {
-        console.error(`Error in getGuestDocumentById for ID ${ctx.params.id}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             success: false, 
@@ -300,7 +294,6 @@ const getDocumentAuthorsById = async (ctx: RouterContext<any, any, any>) => {
             authors: authors
         };
     } catch (error) {
-        console.error(`Error in getDocumentAuthorsById for ID ${ctx.params.id}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             success: false, 
@@ -370,7 +363,6 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 authorText = document.author || "Unknown Author";
             }
         } catch (error) {
-            console.error(`Error fetching authors for document ID ${numericId}:`, error);
             // Fallback to document.author field
             authorText = document.author || "Unknown Author";
         }
@@ -396,8 +388,7 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
             );
             
             if (keywordsResult.rows.length > 0) {
-                console.log(`Found ${keywordsResult.rows.length} research agenda entries for public doc ${numericId}`);
-                
+                                
                 // Simply use research agenda names as keywords
                 for (const row of keywordsResult.rows as Array<{
                     id?: number;
@@ -413,7 +404,6 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 keywords = [...new Set(keywords)];
             }
         } catch (error) {
-            console.error(`Error fetching keywords for public document ID ${numericId}:`, error);
         }
 
         // Return the document with limited fields
@@ -437,7 +427,6 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
             }
         };
     } catch (error) {
-        console.error(`Error in getPublicDocumentById for ID ${ctx.params.id}:`, error);
         ctx.response.status = 500;
         ctx.response.body = { 
             success: false, 
@@ -541,7 +530,6 @@ const updateDocument = async (ctx: RouterContext<any, any, any>) => {
             ctx.response.body = await response.json();
         } catch (e) {
             const error = e as Error;
-            console.error("Error processing multipart/form-data:", error);
             ctx.response.status = 400;
             ctx.response.body = { error: "Error processing form data: " + error.message };
         }
@@ -566,7 +554,6 @@ const updateDocument = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.body = await response.json();
         } catch (e) {
             const error = e as Error;
-            console.error("Error processing request body:", error);
             ctx.response.status = 400;
             ctx.response.body = { error: "Invalid request format: " + error.message };
         }
@@ -622,10 +609,7 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         
         // Verify user authentication (check the token)
         const token = ctx.request.url.searchParams.get("token");
-        console.log(`🔍 Download endpoint hit:  ${ctx.request.url}`);
-        console.log(`🔍 Download requested for document ID: ${id}`);
-        console.log(`🔍 Token present: ${!!token}`);
-        
+                                
         if (!token) {
             ctx.response.status = 401;
             ctx.response.body = { error: "Authentication token required" };
@@ -641,10 +625,8 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         }
         
         // Get the document's file path
-        console.log(`🔍 Fetching file path for document ID: ${id}`);
-        const filePath = await DocumentModel.getDocumentPath(id);
-        console.log(`🔍 File path result: ${filePath}`);
-        
+                const filePath = await DocumentModel.getDocumentPath(id);
+                
         if (!filePath) {
             ctx.response.status = 404;
             ctx.response.body = { error: "Document not found" };
@@ -652,8 +634,7 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         }
         
         // Check if file exists
-        console.log(`🔍 Checking if file exists at: ${filePath}`);
-        try {
+                try {
             const fileInfo = await Deno.stat(filePath);
             if (!fileInfo.isFile) {
                 throw new Error("Not a file");
@@ -668,15 +649,13 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
             );
             
             if (success) {
-                console.log(`✅ Download recorded for user ${sessionData.id}, document ${id}`);
-                
+                                
                 // Get document title if possible for better logging
                 let documentTitle = "Unknown";
                 try {
                     const docInfo = await DocumentModel.getDocumentById(parseInt(id));
                     documentTitle = docInfo?.title || `Document ${id}`;
                 } catch (docError) {
-                    console.warn(`⚠️ Could not retrieve document title for logging: ${docError.message}`);
                 }
                 
                 // Log the download to system logs
@@ -698,12 +677,9 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
                         related_id: id
                     });
                 } catch (logError) {
-                    console.error("Failed to log document download:", logError);
                     // Non-critical error, continue with download
                 }
             } else {
-                console.warn(`⚠️ Failed to record download for user ${sessionData.id}, document ${id}`);
-                
                 // Log the failed download
                 try {
                     await SystemLogsModel.createLog({
@@ -721,12 +697,10 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
                         related_id: id
                     });
                 } catch (logError) {
-                    console.error("Failed to log failed document download:", logError);
                 }
             }
             
         } catch (error) {
-            console.error(`❌ Error checking file at path ${filePath}:`, error);
             ctx.response.status = 404;
             ctx.response.body = { error: "File not found on server" };
             return;
@@ -760,7 +734,6 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         ctx.response.body = fileContent;
         
     } catch (error) {
-        console.error("Error downloading document:", error);
         ctx.response.status = 500;
         ctx.response.body = { 
             error: "Failed to download document",
@@ -783,8 +756,7 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
         }
         
         // Get the file path from document ID
-        console.log(`[DOCUMENT API] Verifying file for document ID: ${documentId}`);
-        const filePath = await DocumentModel.getDocumentPath(documentId);
+                const filePath = await DocumentModel.getDocumentPath(documentId);
         
         if (!filePath) {
             ctx.response.status = 404;
@@ -796,8 +768,7 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
         
-        console.log(`[DOCUMENT API] File path from database: ${filePath}`);
-        
+                
         // Check if file exists at the path
         let fileExists = false;
         let fileSize = 0;
@@ -807,14 +778,10 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
             const fileInfo = await Deno.stat(filePath);
             fileExists = true;
             fileSize = fileInfo.size;
-            console.log(`[DOCUMENT API] File exists at path: ${filePath} (${fileSize} bytes)`);
-        } catch (error) {
+                    } catch (error) {
             fileError = error instanceof Error ? error.message : String(error);
-            console.error(`[DOCUMENT API] File does not exist at path: ${filePath}`, error);
-            
             // Try more alternative paths with better detailed logging
-            console.log(`[DOCUMENT API] Current working directory: ${Deno.cwd()}`);
-            
+                        
             // Get more information about the document from the database
             try {
                 const docDetailsResult = await client.queryObject(
@@ -824,10 +791,8 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                 
                 if (docDetailsResult.rows.length > 0) {
                     const docDetails = docDetailsResult.rows[0] as { title: string, document_type: string };
-                    console.log(`[DOCUMENT API] Document details: Title=${docDetails.title}, Type=${docDetails.document_type}`);
-                }
+                                    }
             } catch (dbError) {
-                console.error(`[DOCUMENT API] Error fetching document details: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
             }
             
             // Try alternative paths
@@ -852,10 +817,8 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                 ...(fileName.includes('_') ? [`${workspaceRoot}/storage/thesis/${fileName.split('_')[0]}_*.file`] : [])
             ];
             
-            console.log(`[DOCUMENT API] Trying these alternative paths:`);
-            for (const [i, path] of alternativePaths.entries()) {
-                console.log(`  [${i+1}] ${path}`);
-            }
+                        for (const [i, path] of alternativePaths.entries()) {
+                            }
             
             // Special case for wildcard patterns
             const wildcardPaths = alternativePaths.filter(p => p.includes('*'));
@@ -863,20 +826,17 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                 try {
                     const dirPath = wildcardPath.substring(0, wildcardPath.lastIndexOf('/'));
                     const pattern = wildcardPath.substring(wildcardPath.lastIndexOf('/') + 1);
-                    console.log(`[DOCUMENT API] Checking for pattern ${pattern} in directory ${dirPath}`);
-                    
+                                        
                     try {
                         for await (const entry of Deno.readDir(dirPath)) {
                             if (entry.isFile && new RegExp(pattern.replace('*', '.*')).test(entry.name)) {
                                 const matchedPath = `${dirPath}/${entry.name}`;
-                                console.log(`[DOCUMENT API] Found matching file with pattern: ${matchedPath}`);
-                                
+                                                                
                                 try {
                                     const matchedFileInfo = await Deno.stat(matchedPath);
                                     fileExists = true;
                                     fileSize = matchedFileInfo.size;
-                                    console.log(`[DOCUMENT API] Pattern match exists: ${matchedPath} (${fileSize} bytes)`);
-                                    
+                                                                        
                                     // Return the correct path for the attachment
                                     ctx.response.body = {
                                         success: true,
@@ -888,16 +848,13 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                                     };
                                     return;
                                 } catch (err) {
-                                    console.log(`[DOCUMENT API] Error checking pattern match: ${err instanceof Error ? err.message : String(err)}`);
-                                }
+                                                                    }
                             }
                         }
                     } catch (readDirErr) {
-                        console.log(`[DOCUMENT API] Error reading directory for pattern: ${readDirErr instanceof Error ? readDirErr.message : String(readDirErr)}`);
-                    }
+                                            }
                 } catch (patternErr) {
-                    console.log(`[DOCUMENT API] Error with wildcard pattern: ${patternErr instanceof Error ? patternErr.message : String(patternErr)}`);
-                }
+                                    }
             }
             
             // Try exact paths
@@ -906,8 +863,7 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                     const altFileInfo = await Deno.stat(altPath);
                     fileExists = true;
                     fileSize = altFileInfo.size;
-                    console.log(`[DOCUMENT API] Alternative path exists: ${altPath} (${fileSize} bytes)`);
-                    
+                                        
                     // Return the correct path for the attachment
                     ctx.response.body = {
                         success: true,
@@ -919,46 +875,37 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
                     };
                     return;
                 } catch (altError) {
-                    console.log(`[DOCUMENT API] Alternative path failed: ${altPath}`);
-                }
+                                    }
             }
             
             // Check existence of storage directories
             try {
                 const storageRootInfo = await Deno.stat(`${workspaceRoot}/storage`);
-                console.log(`[DOCUMENT API] Storage root exists: ${storageRootInfo.isDirectory ? 'Yes (directory)' : 'No (not a directory)'}`);
-                
+                                
                 const storageTypes = ['thesis', 'dissertation', 'confluence', 'synergy'];
                 for (const type of storageTypes) {
                     try {
                         const typeInfo = await Deno.stat(`${workspaceRoot}/storage/${type}`);
-                        console.log(`[DOCUMENT API] Storage/${type} exists: ${typeInfo.isDirectory ? 'Yes (directory)' : 'No (not a directory)'}`);
-                        
+                                                
                         // List files in this directory
-                        console.log(`[DOCUMENT API] Files in storage/${type}:`);
-                        try {
+                                                try {
                             let fileCount = 0;
                             for await (const entry of Deno.readDir(`${workspaceRoot}/storage/${type}`)) {
                                 if (entry.isFile) {
                                     fileCount++;
                                     if (fileCount <= 10) { // Limit to first 10 files to avoid overflow
-                                        console.log(`  - ${entry.name}`);
-                                    }
+                                                                            }
                                 }
                             }
                             if (fileCount > 10) {
-                                console.log(`  ... and ${fileCount - 10} more files`);
-                            }
+                                                            }
                         } catch (readDirErr) {
-                            console.log(`  Error reading directory: ${readDirErr instanceof Error ? readDirErr.message : String(readDirErr)}`);
-                        }
+                                                    }
                     } catch (typeErr) {
-                        console.log(`[DOCUMENT API] Storage/${type} does not exist: ${typeErr instanceof Error ? typeErr.message : String(typeErr)}`);
-                    }
+                                            }
                 }
             } catch (rootErr) {
-                console.log(`[DOCUMENT API] Storage root does not exist: ${rootErr instanceof Error ? rootErr.message : String(rootErr)}`);
-            }
+                            }
         }
         
         if (fileExists) {
@@ -981,7 +928,6 @@ const verifyDocumentFile = async (ctx: RouterContext<any, any, any>) => {
             };
         }
     } catch (error) {
-        console.error(`[DOCUMENT API] Error verifying document file:`, error);
         ctx.response.status = 500;
         ctx.response.body = {
             success: false,

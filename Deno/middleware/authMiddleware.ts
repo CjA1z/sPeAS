@@ -31,13 +31,11 @@ export async function isAuthenticated(ctx: Context, next: Next) {
                 userRole = result.rows[0].role_name;
             }
         } catch (e) {
-            console.error("Error fetching user role:", e as any);
         }
 
         ctx.state.user = { id: userId, role: userRole };
         await next();
     } catch (error) {
-        console.error("Authentication error:", error);
         ctx.response.status = 401;
         ctx.response.body = { error: "Unauthorized" };
     }
@@ -53,7 +51,6 @@ export async function isAdmin(ctx: Context, next: Next) {
         }
         await next();
     } catch (error) {
-        console.error("Admin authorization error:", error);
         ctx.response.status = 403;
         ctx.response.body = { error: "Forbidden" };
     }
