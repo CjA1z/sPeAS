@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Research Agenda</title>
+    <link rel="icon" href="/components/images/peas-ico.png" type="image/png">
     <!-- Clear any stale user data on page load -->
     <script>
     (function() {
@@ -94,7 +95,6 @@
         html {
             height: 100%;
             margin: 0;
-            cursor: url('/components/images/peas-ico.png'), auto; /* Custom cursor for the whole page */
             scroll-behavior: smooth; /* Add smooth scrolling */
         }
 
@@ -112,7 +112,7 @@
         /* Wrapper for main page content (below navbar, above footer) */
         #page-content-container {
             flex-grow: 1; 
-            padding-top: 4rem; /* Add padding to offset sticky navbar height (h-16 = 4rem) */
+            padding-top: 1rem;
         }
 
         /* Canvas for confetti - ensuring it's on top */
@@ -531,6 +531,48 @@
             background-size: 200% 200%; 
             animation: subtleBgMove 25s ease infinite; 
         }
+        .hero-section .hero-layout {
+            align-items: start;
+        }
+        .hero-carousel-column {
+            width: 100%;
+        }
+        .hero-text-column {
+            width: 100%;
+            max-width: 44rem;
+        }
+        .hero-logo {
+            height: 4.25rem;
+        }
+        .hero-title {
+            max-width: 42rem;
+            line-height: 1.08;
+        }
+        .hero-copy {
+            max-width: 42rem;
+            line-height: 1.65;
+        }
+        .hero-copy p {
+            margin: 0;
+        }
+        @media (min-width: 1024px) {
+            .hero-section .hero-layout {
+                grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+            }
+            .hero-text-column {
+                margin-left: auto;
+            }
+        }
+        @media (max-width: 1023px) {
+            .hero-logo {
+                height: 4rem;
+            }
+            .hero-title,
+            .hero-copy {
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
         #heroCarousel { 
             background: rgba(255, 255, 255, 0.15); 
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -622,14 +664,14 @@
         <!-- The navbar will be dynamically loaded here by navbar-loader.js -->
     </div>
 
-    <div id="page-content-container" class="px-4 py-6 sm:px-6 lg:px-8"> <div class="hero-section relative overflow-hidden bg-gradient-to-br from-yellow-50 via-lime-50 to-green-100 rounded-xl shadow-lg py-12 md:py-16 mb-12 md:mb-16">
+    <div id="page-content-container" class="px-4 py-6 sm:px-6 lg:px-8"> <div class="hero-section relative overflow-hidden bg-gradient-to-br from-yellow-50 via-lime-50 to-green-100 rounded-xl shadow-lg py-8 md:py-10 mb-12 md:mb-16">
             <div class="absolute inset-0 z-0 flex justify-center items-center pointer-events-none p-4 md:p-8">
                 <img src="/components/images/peas.png" alt="Background Logo Watermark" class="opacity-[0.035] w-auto h-full max-h-[60vh] md:max-h-[70vh] object-contain">
             </div>
             <div class="container mx-auto relative z-10 px-4 sm:px-6 lg:px-8">
-                <div class="grid lg:grid-cols-2 gap-10 md:gap-16 items-center">
+                <div class="hero-layout grid lg:grid-cols-2 gap-10 md:gap-12">
                     <div class="hero-carousel-column">
-                        <div id="heroCarousel" class="relative w-full max-w-xl mx-auto shadow-2xl rounded-lg overflow-hidden border border-white/20 aspect-[4/3]">
+                        <div id="heroCarousel" class="relative w-full max-w-lg mx-auto shadow-xl rounded-lg overflow-hidden border border-white/20 aspect-[4/3]">
                             <div class="carousel-inner relative w-full h-full">
                                 <div class="carousel-item absolute inset-0 opacity-0 scale-95 p-1 rounded-[2rem] overflow-hidden">
                                     <img src="/components/images/1.jpg" class="block w-full h-full object-cover" alt="Research Initiative Photo 1" onerror="this.onerror=null;this.src='https://placehold.co/800x600/e2e8f0/94a3b8?text=Image+1+Not+Found';">
@@ -655,11 +697,11 @@
                     <div class="hero-text-column text-center lg:text-left"> 
                         <img src="/components/images/peas.png" 
                              alt="PeAS Logo" 
-                             class="h-20 w-auto mb-4 mx-auto lg:mx-0" 
+                             class="hero-logo w-auto mb-4 mx-auto lg:mx-0"
                              onerror="this.onerror=null;this.src='https://placehold.co/150x80/006A4E/FFFFFF?text=PeAS+Logo';">
                         
-                        <h1 class="text-3xl lg:text-4xl font-bold text-green-800 mb-5 sm:mb-6">Welcome to the Office of Research &amp; Publications</h1>
-                        <div class="space-y-4 text-base md:text-lg leading-relaxed text-gray-700">
+                        <h1 class="hero-title text-3xl lg:text-4xl font-bold text-green-800 mb-5 sm:mb-6">Welcome to the Office of Research &amp; Publications</h1>
+                        <div class="hero-copy space-y-3 text-base md:text-[1.05rem] text-gray-700">
                             <p>The Office of Research &amp; Publications of St. Paul University Dumaguete is proud to share the institution's research activities, initiatives and publications in this website.</p>
                             <p>Our innovations and scientific discoveries are expanding human knowledge and extending help to improve the institution and the public community.</p>
                             <p>The office provides standards aligned with its newly crafted research agenda and in parallel with the priorities mandated by several agencies towards sustainability and development goals of our country.</p>

@@ -637,6 +637,381 @@
         .show-all-results-btn:focus { outline: none; box-shadow: 0 0 0 3px var(--theme-gold-light-bg); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @media (min-width: 768px) { #searchInputOverlay { font-size: 1.125rem; line-height: 1.75rem; } .search-overlay-close-btn svg { width: 1.5rem; height: 1.5rem; } }
+
+        /* --- Search Overlay Polish --- */
+        #search-overlay {
+            background-color: rgba(15, 23, 42, 0.48) !important;
+            backdrop-filter: blur(4px) !important;
+            -webkit-backdrop-filter: blur(4px) !important;
+            padding: clamp(0.75rem, 2vw, 1.25rem) !important;
+            align-items: flex-start !important;
+        }
+        #search-overlay::before,
+        #search-overlay::after {
+            display: none !important;
+        }
+        .search-overlay-content {
+            max-width: 46rem !important;
+            margin-top: clamp(1rem, 5vh, 3.5rem) !important;
+            margin-bottom: 1rem !important;
+            max-height: min(86vh, 760px) !important;
+            border-radius: 8px !important;
+            background: #ffffff !important;
+            border: 1px solid #dbe4df !important;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2), 0 4px 18px rgba(15, 23, 42, 0.08) !important;
+            overflow: hidden !important;
+        }
+        .search-input-wrapper-overlay {
+            min-height: 4rem !important;
+            padding: 0.75rem 1rem !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            gap: 0.75rem !important;
+        }
+        .search-icon-overlay {
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+            margin-right: 0 !important;
+            color: #006A4E !important;
+        }
+        #searchInputOverlay {
+            min-width: 0 !important;
+            padding-right: 5rem !important;
+            font-size: 1rem !important;
+            line-height: 1.5rem !important;
+            color: #0f172a !important;
+        }
+        #searchInputOverlay::placeholder {
+            color: #7a8794 !important;
+        }
+        #clearSearchInputButton {
+            right: 0.75rem !important;
+            width: 2rem !important;
+            height: 2rem !important;
+            padding: 0 !important;
+            border-radius: 6px !important;
+            border: 1px solid transparent !important;
+            color: #64748b !important;
+            background: transparent !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        #clearSearchInputButton:hover,
+        #clearSearchInputButton:focus-visible {
+            color: #00523D !important;
+            background: #eef6f3 !important;
+            border-color: #b7d5ca !important;
+            outline: none !important;
+        }
+        #clearSearchInputButton svg {
+            width: 1rem;
+            height: 1rem;
+        }
+        #loadingSpinnerOverlay {
+            right: 3.25rem !important;
+        }
+        .search-overlay-close-btn {
+            top: clamp(0.75rem, 2vw, 1.25rem) !important;
+            right: clamp(0.75rem, 2vw, 1.25rem) !important;
+            width: 2.5rem !important;
+            height: 2.5rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 999px !important;
+            background: rgba(15, 23, 42, 0.28) !important;
+            color: #ffffff !important;
+        }
+        .search-overlay-close-btn:hover,
+        .search-overlay-close-btn:focus-visible {
+            background: rgba(15, 23, 42, 0.46) !important;
+            outline: none !important;
+        }
+        .top-keywords-section {
+            padding: 0.75rem 1rem !important;
+            background: #f8faf9 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .top-keywords-label {
+            margin-bottom: 0.5rem !important;
+            color: #00523D !important;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+        }
+        .keywords-conveyor-container {
+            height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+        }
+        .keywords-conveyor-belt {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            list-style: none !important;
+            transform: none !important;
+            transition: none !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+            cursor: default !important;
+        }
+        .keyword-conveyor-item {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0.35rem 0.7rem !important;
+            border-radius: 999px !important;
+            background: #eef6f3 !important;
+            border: 1px solid #b7d5ca !important;
+            color: #00523D !important;
+            font-size: 0.8125rem !important;
+            line-height: 1.2 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            box-shadow: none !important;
+            transform: none !important;
+            filter: none !important;
+            opacity: 1 !important;
+        }
+        .keyword-conveyor-item:hover,
+        .keyword-conveyor-item:focus-visible {
+            background: #fff8df !important;
+            border-color: #FDB813 !important;
+            color: #0f3d2e !important;
+            outline: none !important;
+        }
+        .conveyor-scroll-btn {
+            display: none !important;
+        }
+        .keywords-conveyor-container:hover .keywords-conveyor-belt.is-hover-active:not(.suppress-item-effects) .keyword-conveyor-item,
+        .keywords-conveyor-container:hover .keywords-conveyor-belt.is-hover-active:not(.suppress-item-effects) .keyword-conveyor-item.is-focused,
+        .keywords-conveyor-container:hover .keywords-conveyor-belt.is-hover-active:not(.suppress-item-effects) .keyword-conveyor-item.is-neighbor-blur-1,
+        .keywords-conveyor-container:hover .keywords-conveyor-belt.is-hover-active:not(.suppress-item-effects) .keyword-conveyor-item.is-neighbor-blur-2,
+        .keywords-conveyor-container:hover .keywords-conveyor-belt.is-hover-active:not(.suppress-item-effects) .keyword-conveyor-item.is-distant-blur {
+            transform: none !important;
+            filter: none !important;
+            opacity: 1 !important;
+            box-shadow: none !important;
+        }
+        .category-buttons-container-overlay {
+            padding: 0.75rem 1rem !important;
+            gap: 0.5rem !important;
+            justify-content: flex-start !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .category-filter-button {
+            min-width: 0 !important;
+            min-height: 0 !important;
+            flex: 0 1 auto !important;
+            padding: 0.45rem 0.65rem !important;
+            border-radius: 8px !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            gap: 0.45rem !important;
+            background: #ffffff !important;
+            color: #334155 !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+        .category-filter-button:hover {
+            transform: none !important;
+            border-color: #8fbfb0 !important;
+            background: #f8faf9 !important;
+            box-shadow: none !important;
+        }
+        .category-filter-button.active {
+            transform: none !important;
+            background: #006A4E !important;
+            color: #ffffff !important;
+            border: 1px solid #006A4E !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+            animation: none !important;
+        }
+        .category-button-content {
+            flex-direction: row !important;
+            gap: 0.45rem !important;
+            min-width: 0 !important;
+        }
+        .category-icon {
+            width: 1.15rem !important;
+            height: 1.15rem !important;
+            margin-bottom: 0 !important;
+        }
+        .category-name {
+            font-size: 0.8125rem !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+        }
+        .category-count {
+            margin-top: 0 !important;
+            padding: 0.08rem 0.38rem !important;
+            border-radius: 999px !important;
+            font-size: 0.6875rem !important;
+            background: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .category-filter-button.active .category-count {
+            background: rgba(255, 255, 255, 0.22) !important;
+            color: #ffffff !important;
+        }
+        .filters-container-overlay {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 0.65rem !important;
+            padding: 0.75rem 1rem !important;
+            background: #f8faf9 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .filter-item-overlay label {
+            margin-bottom: 0.25rem !important;
+            color: #475569 !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+        }
+        .filter-item-overlay select {
+            height: 2.35rem !important;
+            border-radius: 6px !important;
+            border-color: #b7d5ca !important;
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            font-size: 0.875rem !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        .filter-item-overlay select:focus {
+            border-color: #006A4E !important;
+            box-shadow: 0 0 0 3px rgba(0, 106, 78, 0.12) !important;
+        }
+        #search-results-overlay {
+            padding: 0.5rem !important;
+            background: #ffffff !important;
+        }
+        .search-results-category-section {
+            margin-bottom: 0.75rem !important;
+        }
+        .search-results-category-header {
+            flex-direction: row !important;
+            justify-content: flex-start !important;
+            gap: 0.5rem !important;
+            margin: 0 0 0.35rem !important;
+            padding: 0.45rem 0.5rem !important;
+            border: 0 !important;
+            border-radius: 6px !important;
+            background: #f8faf9 !important;
+            color: #334155 !important;
+            font-size: 0.8125rem !important;
+            font-weight: 700 !important;
+            text-align: left !important;
+        }
+        .search-results-category-header .header-icon {
+            width: 1rem !important;
+            height: 1rem !important;
+            margin: 0 !important;
+            color: #006A4E !important;
+        }
+        .search-result-item {
+            margin-bottom: 0.35rem !important;
+            padding: 0.65rem 0.75rem !important;
+            border-radius: 8px !important;
+            border: 1px solid #e2e8f0 !important;
+            background: #ffffff !important;
+        }
+        .search-result-item:hover,
+        .search-result-item:focus-visible {
+            background: #fffdf5 !important;
+            border-color: #f3ce67 !important;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+            outline: none !important;
+        }
+        .search-result-title {
+            margin-bottom: 0.35rem !important;
+            color: #0f3d2e !important;
+            font-size: 0.9375rem !important;
+            line-height: 1.35 !important;
+        }
+        .search-result-meta-primary {
+            align-items: flex-start !important;
+            gap: 0.75rem !important;
+            margin-bottom: 0.45rem !important;
+            padding-bottom: 0 !important;
+            border-bottom: 0 !important;
+        }
+        .search-result-author,
+        .search-result-date,
+        .search-result-year {
+            color: #64748b !important;
+            font-size: 0.75rem !important;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+        .search-result-category-keywords {
+            gap: 0.35rem !important;
+            margin-bottom: 0 !important;
+        }
+        .search-result-category-tag,
+        .keyword-pill {
+            border-radius: 999px !important;
+            padding: 0.12rem 0.45rem !important;
+            font-size: 0.6875rem !important;
+            line-height: 1.35 !important;
+            box-shadow: none !important;
+        }
+        .search-no-results {
+            margin: 0 !important;
+            padding: 2.25rem 1rem !important;
+            color: #64748b !important;
+            font-size: 0.9375rem !important;
+        }
+        .show-all-results-button-container {
+            padding: 0.75rem 1rem !important;
+            background: #ffffff !important;
+            border-top: 1px solid #e2e8f0 !important;
+        }
+        .show-all-results-btn {
+            width: 100% !important;
+            border-radius: 6px !important;
+            background: #006A4E !important;
+            border-color: #006A4E !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
+        }
+        .show-all-results-btn:hover,
+        .show-all-results-btn:focus-visible {
+            background: #00523D !important;
+            transform: none !important;
+            outline: none !important;
+        }
+        @media (max-width: 720px) {
+            .search-overlay-content {
+                max-height: calc(100vh - 1.5rem) !important;
+                margin-top: 0 !important;
+            }
+            .search-input-wrapper-overlay {
+                padding: 0.7rem 0.8rem !important;
+            }
+            #searchInputOverlay {
+                padding-right: 4.5rem !important;
+            }
+            .category-buttons-container-overlay,
+            .top-keywords-section,
+            .filters-container-overlay {
+                padding-left: 0.8rem !important;
+                padding-right: 0.8rem !important;
+            }
+            .filters-container-overlay {
+                grid-template-columns: 1fr !important;
+            }
+            .category-filter-button {
+                flex: 1 1 calc(50% - 0.5rem) !important;
+            }
+            .category-name {
+                white-space: normal !important;
+            }
+            .search-result-meta-primary {
+                flex-direction: column !important;
+                gap: 0.2rem !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -661,7 +1036,7 @@
                             <svg class="search-bar-icon h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
                             </svg>
-                            <span class="search-bar-placeholder-text">Search (Ctrl+K)</span>
+                            <span class="search-bar-placeholder-text">Search archive</span>
                         </button>
                         <div id="user-auth-container" class="relative inline-block text-left">
                             <!-- Profile badge will be inserted here by navbar-loader.js -->
@@ -683,7 +1058,7 @@
                 <a href="#" class="nav-link-mobile text-gray-700 block px-3 py-2 rounded-md text-base font-medium">About</a>
                 <a href="#" class="nav-link-mobile text-gray-700 block px-3 py-2 rounded-md text-base font-medium">Contact</a>
                  <button id="search-open-button-mobile" type="button" class="nav-link-mobile w-full mt-2 text-left text-gray-700 block px-3 py-2 rounded-md text-base font-medium flex items-center justify-between">
-                    Search <span class="kbd-shortcut">Ctrl+K</span>
+                    Search
                 </button>
             </div>
             <div id="mobile-user-auth-container" class="pt-4 pb-3 border-t border-gray-200">
@@ -702,8 +1077,12 @@
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="search-icon-overlay">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
-                <input type="text" id="searchInputOverlay" placeholder="Search articles, documents..." autocomplete="off" class=""/>
-                <button id="clearSearchInputButton" type="button" aria-label="Clear search input" onclick="document.getElementById('searchInputOverlay').value=''; this.classList.remove('visible'); if(typeof performSearchOverlay === 'function') performSearchOverlay(); document.getElementById('searchInputOverlay').focus(); return false;">Clear</button>
+                <input type="text" id="searchInputOverlay" placeholder="Search the archive..." autocomplete="off" class=""/>
+                <button id="clearSearchInputButton" type="button" aria-label="Clear search">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
                  <div id="loadingSpinnerOverlay" aria-label="Loading search results">
                     <svg viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </div>
@@ -740,7 +1119,7 @@
                 </div>
             </div>
             <div id="search-results-overlay">
-                 <p id="searchPlaceholderOverlay" class="search-no-results">Start typing, apply filters, or press <span class="kbd-shortcut">Ctrl+K</span> or <span class="kbd-shortcut">/</span> to search.</p>
+                 <p id="searchPlaceholderOverlay" class="search-no-results">No search yet.</p>
             </div>
             <div id="showAllResultsContainer" class="show-all-results-button-container">
                 <button id="showAllResultsBtn" type="button" class="show-all-results-btn" onclick="window.location.href = '/pages/searchResultsPage.html?q=' + encodeURIComponent(document.getElementById('searchInputOverlay').value)">Show All Results</button>
@@ -1523,7 +1902,7 @@
         if (mobileMenu && !mobileMenu.classList.contains(HIDDEN_CLASS)) {
             toggleMobileMenu(true);
         }
-        const currentPlaceholderText = `Start typing, apply filters, or press <span class="${KBD_SHORTCUT_CLASS}">Ctrl+K</span> or <span class="${KBD_SHORTCUT_CLASS}">/</span> to search.`;
+        const currentPlaceholderText = 'No search yet.';
         if (searchInputOverlay.value === '' && (getActiveCategories().length > 0 || authorFilterOverlay.value || keywordsFilterOverlay.value || yearFilterOverlay.value)) {
             performSearchOverlay();
         } else if (searchInputOverlay.value === '' && searchResultsOverlay) {
@@ -1551,7 +1930,7 @@
         if (clearSearchInputButton) {
             clearSearchInputButton.classList.remove(VISIBLE_CLASS);
         }
-        searchResultsOverlay.innerHTML = `<p id="searchPlaceholderOverlay" class="search-no-results">Start typing, apply filters, or press <span class="${KBD_SHORTCUT_CLASS}">Ctrl+K</span> or <span class="${KBD_SHORTCUT_CLASS}">/</span> to search.</p>`;
+        searchResultsOverlay.innerHTML = '<p id="searchPlaceholderOverlay" class="search-no-results">No search yet.</p>';
         showAllResultsContainer.classList.add(HIDDEN_CLASS);
     }
     function highlightText(text, query) {
@@ -1811,7 +2190,7 @@
         const isAllCategoryActive = categoryButtonsContainerOverlay?.querySelector(`.${CATEGORY_FILTER_BUTTON_CLASS}[${DATA_CATEGORY_ATTR}=""].${ACTIVE_CLASS}`) !== null;
         const hasFilters = hasSpecificCategoryFilter || !!selectedAuthor || !!selectedKeywordsFilter || !!selectedYear || (!isAllCategoryActive && selectedCategories.length === 0); // Consider it filtered if "All" is not active and no specific are active (edge case, means nothing selected)
 
-        const currentPlaceholderText = `Start typing, apply filters, or press <span class="${KBD_SHORTCUT_CLASS}">Ctrl+K</span> or <span class="${KBD_SHORTCUT_CLASS}">/</span> to search.`;
+        const currentPlaceholderText = 'No search yet.';
         let placeholderEl = document.getElementById('searchPlaceholderOverlay');
 
         if (!hasQuery && !hasFilters && isAllCategoryActive) { // Show placeholder only if no query, no specific filters, AND "All" is active
@@ -1824,7 +2203,7 @@
 
         if(placeholderEl) placeholderEl.classList.add(HIDDEN_CLASS);
         loadingSpinnerOverlay.classList.add(VISIBLE_CLASS);
-        searchResultsOverlay.innerHTML = '';
+        searchResultsOverlay.innerHTML = '<p class="search-no-results">Searching...</p>';
         showAllResultsContainer.classList.add(HIDDEN_CLASS);
         
         try {
@@ -2489,71 +2868,56 @@
         
         // Clear existing content
         keywordsConveyorBelt.innerHTML = '';
-        firstSetItemCount = keywordsToDisplay.length;
         
         // If no keywords, add some placeholders
         if (keywordsToDisplay.length === 0) {
                         keywordsToDisplay = ["Thesis", "Research", "Academic", "Journal", "Paper", "University", "Education", "Literature", "Theory", "Analysis"];
         }
+        firstSetItemCount = keywordsToDisplay.length;
+
+        const selectKeywordTerm = (term) => {
+            if (searchInputOverlay && term) {
+                searchInputOverlay.value = term;
+                if (clearSearchInputButton) {
+                    clearSearchInputButton.classList.add(VISIBLE_CLASS);
+                }
+                performSearchOverlay();
+                searchInputOverlay.focus();
+            }
+        };
         
         const createKeywordItem = (term) => {
             const li = document.createElement('li');
             li.className = 'keyword-conveyor-item';
             li.dataset.query = term;
             li.textContent = term;
+            li.setAttribute('role', 'button');
+            li.tabIndex = 0;
             
             // Add click handler directly to each keyword
-            li.addEventListener('click', function(event) {
-                if (dragMovedDistance < CLICK_THRESHOLD_PX) {
-                    const query = this.dataset.query;
-                    if (searchInputOverlay && query) {
-                        searchInputOverlay.value = query;
-                        if (clearSearchInputButton) {
-                            clearSearchInputButton.classList.add(VISIBLE_CLASS);
-                        }
-                        performSearchOverlay();
-                        searchInputOverlay.focus();
-                    }
+            li.addEventListener('click', function() {
+                selectKeywordTerm(this.dataset.query);
+            });
+            li.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectKeywordTerm(this.dataset.query);
                 }
             });
             
             return li;
         };
         
-        // Add first set of keywords
+        // Add keyword chips once; wrapping CSS keeps long terms visible.
         keywordsToDisplay.forEach(term => { 
             keywordsConveyorBelt.appendChild(createKeywordItem(term)); 
         });
-        
-        // Duplicate keywords for infinite scrolling effect
-        if (keywordsToDisplay.length > 0) { 
-            keywordsToDisplay.forEach(term => {
-                keywordsConveyorBelt.appendChild(createKeywordItem(term));
-            });
-        }
-        
-        // Calculate dimensions for scrolling
-        if (keywordsConveyorBelt.firstElementChild) {
-            const firstItem = keywordsConveyorBelt.firstElementChild;
-            const style = window.getComputedStyle(firstItem);
-            const marginRight = parseFloat(style.marginRight) || 0;
-            itemWidthWithMargin = firstItem.offsetWidth + marginRight;
-            firstSetWidth = firstSetItemCount * itemWidthWithMargin;
-        } else {
-            itemWidthWithMargin = 0;
-            firstSetWidth = 0;
-        }
-        
-        // Reset position
+
         currentTranslateX = 0;
-        keywordsConveyorBelt.style.transform = `translateX(${currentTranslateX}px)`;
-        keywordsConveyorBelt.style.transition = `transform ${scrollTransitionDuration / 1000}s ease-in-out`;
-        
-        // Reinitialize conveyor scroll buttons
-        if (conveyorScrollLeftBtn && conveyorScrollRightBtn) {
-            conveyorScrollLeftBtn.addEventListener('click', () => triggerConveyorArrowScroll('left'));
-            conveyorScrollRightBtn.addEventListener('click', () => triggerConveyorArrowScroll('right'));
-        }
+        itemWidthWithMargin = 0;
+        firstSetWidth = 0;
+        keywordsConveyorBelt.style.transform = 'none';
+        keywordsConveyorBelt.style.transition = 'none';
         
             }
 
