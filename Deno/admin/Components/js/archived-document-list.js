@@ -32,6 +32,37 @@ let currentSearchQuery = '';
 let visibleEntriesCount = 0;
 let totalDocuments = 0;
 
+function getArchivedDocumentSkeleton(label = 'Loading archived documents') {
+    return `
+        <div class="loading-documents" aria-live="polite" aria-label="${label}">
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line"></div>
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 /**
  * Initialize the archived document list and set up event listeners
  */
@@ -115,7 +146,7 @@ async function fetchArchivedDocumentsFromDB(page = 1, category = null, sortOrder
         
         // Show loading indicator in the container if requested
         if (showLoading) {
-            document.getElementById('documents-container').innerHTML = '<div class="loading-documents"><i class="fas fa-spinner fa-spin"></i> Loading archived documents...</div>';
+            document.getElementById('documents-container').innerHTML = getArchivedDocumentSkeleton();
         }
         
                 
@@ -1277,6 +1308,11 @@ function debounce(func, wait) {
  * @param {string} type - Type of notification (success, error, warning, info, document-archived, document-restored)
  */
 function showToast(message, type = 'success') {
+    if (window.peasToast) {
+        window.peasToast.show(message, type);
+        return;
+    }
+
     // Check if toast container exists
     let toastContainer = document.getElementById('toast-container');
     

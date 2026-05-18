@@ -320,22 +320,37 @@ function renderDocumentsToTable(documents, tableBody) {
         if (doc.parent_id || doc.compiled_document_id || doc.parent_document_id) {
                         return false;
         }
-        
+
         // Filter out if the document has a relationship property indicating it's a child
         if (doc.is_child === true || doc.child_order !== undefined || doc.order_index !== undefined) {
                         return false;
         }
-        
+
         return true;
     });
-    
-        
+
+    if (filteredDocuments.length === 0) {
+        displayNoDataMessage();
+        return;
+    }
+
     // Add each document to the table
-    filteredDocuments.forEach((doc) => {
-                
+    filteredDocuments.forEach((doc, idx) => {
+        const rank = idx + 1;
+
         // Create a row
         const row = document.createElement('tr');
         row.className = 'most-visited-row';
+        row.style.animationDelay = `${idx * 40}ms`;
+
+        // Rank cell
+        const rankCell = document.createElement('td');
+        rankCell.className = 'most-visited-rank-cell';
+        const rankBadge = document.createElement('span');
+        rankBadge.className = `most-visited-rank rank-${rank}`;
+        rankBadge.textContent = rank;
+        rankCell.appendChild(rankBadge);
+        row.appendChild(rankCell);
         
         // Determine if this is a compiled document - check multiple indicators
         const isCompiled = 
@@ -958,14 +973,15 @@ async function updateModalContent(modalContent, basicDocData, detailedData) {
 function displayErrorMessage() {
     const tableBody = document.getElementById('most-visited-works-tbody');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = `
-        <tr>
-            <td colspan="3" class="error-message">
-                <p>Could not load document data.</p>
-                <p class="error-detail">Please try again later.</p>
-            </td>
-        </tr>
+        <tr><td colspan="4" style="padding:0;background:transparent;">
+            <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M3.5 18.5l8.5 -15l8.5 15h-17z"/></svg>
+                <p class="empty-title">Couldn&rsquo;t load document data</p>
+                <p class="empty-sub">Please try again later.</p>
+            </div>
+        </td></tr>
     `;
 }
 
@@ -973,14 +989,15 @@ function displayErrorMessage() {
 function displayNoDataMessage() {
     const tableBody = document.getElementById('most-visited-works-tbody');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = `
-        <tr>
-            <td colspan="3" class="no-data-message">
-                <p>No documents available.</p>
-                <p class="no-data-detail">Add documents to see them listed here.</p>
-            </td>
-        </tr>
+        <tr><td colspan="4" style="padding:0;background:transparent;">
+            <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/></svg>
+                <p class="empty-title">No visits yet</p>
+                <p class="empty-sub">Documents will appear here once they&rsquo;ve been viewed.</p>
+            </div>
+        </td></tr>
     `;
 }
 
@@ -1050,6 +1067,12 @@ document.addEventListener('DOMContentLoaded', () => {
             position: absolute;
             display: none;
             z-index: 1000;
+        }
+        .most-visited-row {
+            animation: fadeUp 0.4s cubic-bezier(.16,1,.3,1) both;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .most-visited-row { animation: none; }
         }
         
         /* Compiled Document Modal Styles */

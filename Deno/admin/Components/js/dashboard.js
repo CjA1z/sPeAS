@@ -1,600 +1,582 @@
-// Function to update the works summary section with dynamic counts
+// ============================================================
+// Dashboard — data loading + welcome banner + animated counters
+// ============================================================
+
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Animate a number from current to target over ~900ms
+function animateCount(el, target) {
+    if (!el) return;
+    const safeTarget = Number.isFinite(Number(target)) ? Number(target) : 0;
+    if (REDUCED_MOTION) {
+        el.textContent = safeTarget.toLocaleString();
+        el.dataset.counter = String(safeTarget);
+        return;
+    }
+    const start = Number(el.dataset.counter || 0);
+    const duration = 900;
+    const startTime = performance.now();
+    const easeOutExpo = (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
+
+    function tick(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const eased = easeOutExpo(progress);
+        const value = Math.round(start + (safeTarget - start) * eased);
+        el.textContent = value.toLocaleString();
+        if (progress < 1) requestAnimationFrame(tick);
+        else el.dataset.counter = String(safeTarget);
+    }
+    requestAnimationFrame(tick);
+}
+
+// Deterministic palette index 0..5 from a string
+function hashPalette(str) {
+    let h = 0;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h) % 6;
+}
+
+function getInitials(fullName) {
+    if (!fullName) return '?';
+    const parts = String(fullName).trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase() || '?';
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// ============================================================
+// Welcome Banner — time-aware greeting + username + date
+// ============================================================
+function updateWelcomeBanner() {
+    const greetingPrefix = document.getElementById('welcome-greeting-prefix');
+    const usernameEl = document.getElementById('welcome-username');
+    const dateEl = document.getElementById('welcome-date');
+
+    const hour = new Date().getHours();
+    let greeting = 'Welcome back';
+    if (hour < 5) greeting = 'Good evening';
+    else if (hour < 12) greeting = 'Good morning';
+    else if (hour < 18) greeting = 'Good afternoon';
+    else greeting = 'Good evening';
+
+    if (greetingPrefix) greetingPrefix.textContent = greeting;
+
+    if (dateEl) {
+        const opts = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+        dateEl.textContent = new Date().toLocaleDateString(undefined, opts);
+    }
+
+    if (usernameEl) {
+        let name = 'there';
+        try {
+            const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+            if (raw) {
+                const u = JSON.parse(raw);
+                name = u.username || u.first_name || 'there';
+            }
+        } catch (_) { /* ignore */ }
+        usernameEl.textContent = name;
+
+        // Try to enrich with profile full name (mirrors sidebar logic)
+        try {
+            const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+            if (raw) {
+                const u = JSON.parse(raw);
+                if (u && u.id) {
+                    fetch(`/api/user/profile?userId=${encodeURIComponent(u.id)}`, { credentials: 'include' })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(profile => {
+                            if (!profile) return;
+                            const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
+                            if (fullName) usernameEl.textContent = fullName;
+                        })
+                        .catch(() => {});
+                }
+            }
+        } catch (_) { /* ignore */ }
+    }
+}
+
+// ============================================================
+// Works summary — counts by category
+// ============================================================
 async function updateWorksSummary() {
     try {
-                
-        // Initialize counts
-        const categoryCounts = {
-            'thesis': 0,
-            'dissertation': 0, 
-            'confluence': 0,
-            'synergy': 0
-        };
-        
-        // Track which document IDs we've already counted to prevent double-counting
+        const categoryCounts = { thesis: 0, dissertation: 0, confluence: 0, synergy: 0 };
         const countedDocumentIds = new Set();
-        
-        // Get regular documents
-                let regularDocuments = [];
+
+        let regularDocuments = [];
         try {
             const regularResponse = await fetch('/api/documents?limit=1000');
             if (regularResponse.ok) {
                 const regularData = await regularResponse.json();
                 regularDocuments = regularData.documents || [];
-                            }
-        } catch (regularError) {
-        }
-        
-        // Count regular documents by category
+            }
+        } catch (_) { /* ignore */ }
+
         regularDocuments.forEach(doc => {
-            // Skip if no ID
             if (!doc.id) return;
-            
-            // Skip if it's marked as compiled
-            if (doc.is_compiled === true || doc.is_parent === true) {
-                                return;
-            }
-            
-            // Skip if already counted
-            if (countedDocumentIds.has(doc.id)) {
-                                return;
-            }
-            
+            if (doc.is_compiled === true || doc.is_parent === true) return;
+            if (countedDocumentIds.has(doc.id)) return;
             const docType = (doc.document_type || '').toLowerCase();
             if (categoryCounts.hasOwnProperty(docType)) {
                 categoryCounts[docType]++;
                 countedDocumentIds.add(doc.id);
-                            }
+            }
         });
-        
-        // Get compiled documents - skip the failing endpoint
-                let compiledDocuments = [];
+
+        let compiledDocuments = [];
         try {
-            // Skip the failing endpoint and go directly to the working one
-                const filteredResponse = await fetch('/api/documents?is_compiled=true&limit=1000');
-                if (filteredResponse.ok) {
-                    const filteredData = await filteredResponse.json();
-                    compiledDocuments = filteredData.documents || [];
-                                }
-        } catch (compiledError) {
-        }
-        
-        // Process compiled documents
+            const filteredResponse = await fetch('/api/documents?is_compiled=true&limit=1000');
+            if (filteredResponse.ok) {
+                const filteredData = await filteredResponse.json();
+                compiledDocuments = filteredData.documents || [];
+            }
+        } catch (_) { /* ignore */ }
+
         compiledDocuments.forEach(doc => {
-            // Skip if no ID
             if (!doc.id) return;
-            
-            // Skip if already counted
-            if (countedDocumentIds.has(doc.id)) {
-                                return;
-            }
-            
-            // First check document_type, then check category which might be used in compiled docs
+            if (countedDocumentIds.has(doc.id)) return;
             let docType = (doc.document_type || '').toLowerCase();
-            if (!docType && doc.category) {
-                docType = doc.category.toLowerCase();
-            }
-            
+            if (!docType && doc.category) docType = doc.category.toLowerCase();
             if (categoryCounts.hasOwnProperty(docType)) {
                 categoryCounts[docType]++;
                 countedDocumentIds.add(doc.id);
-                            } else if (docType === 'confluence' || docType.includes('confluence')) {
+            } else if (docType.includes('confluence')) {
                 categoryCounts.confluence++;
                 countedDocumentIds.add(doc.id);
-                            } else if (docType === 'synergy' || docType.includes('synergy')) {
+            } else if (docType.includes('synergy')) {
                 categoryCounts.synergy++;
                 countedDocumentIds.add(doc.id);
-                            } else {
             }
         });
-        
-        // STEP 3: As a last resort, try the categories endpoint for total counts
-        // We'll only use this if we couldn't get any documents from the other methods
+
         if (countedDocumentIds.size === 0) {
-                        try {
+            try {
                 const categoriesResponse = await fetch('/api/categories');
                 if (categoriesResponse.ok) {
                     const categories = await categoriesResponse.json();
-                                        
-                    // Process each category
                     categories.forEach(category => {
                         const count = Number(category.count) || 0;
                         const name = (category.name || '').toLowerCase();
-                        
-                        if (categoryCounts.hasOwnProperty(name)) {
-                            categoryCounts[name] = count;
-                                                    }
+                        if (categoryCounts.hasOwnProperty(name)) categoryCounts[name] = count;
                     });
                 }
-            } catch (categoriesError) {
-            }
+            } catch (_) { /* ignore */ }
         }
-        
-                updateCategoryUI(categoryCounts);
-        
+
+        updateCategoryUI(categoryCounts);
     } catch (error) {
-        // Display error in the UI
-        document.querySelectorAll('.work-count .count').forEach(el => {
-            el.textContent = 'Error';
-        });
-        const totalCountElement = document.querySelector('.total-count');
-        if (totalCountElement) {
-            totalCountElement.textContent = 'Error';
-        }
+        document.querySelectorAll('.tile-count').forEach(el => { el.textContent = '—'; });
+        const totalCountElement = document.querySelector('.total-works-card .total-count');
+        if (totalCountElement) totalCountElement.textContent = '—';
     }
 }
 
-// Helper function to update the UI with category counts
+// Update the works-by-category tiles, stacked bar, total works KPI, and banner quickstat
 function updateCategoryUI(categoryCounts) {
-    // Update individual category counts
-    document.querySelectorAll('.work-count').forEach(workCountEl => {
-        // Find which category this element represents
-        Object.keys(categoryCounts).forEach(category => {
-            if (workCountEl.querySelector(`.work-type.${category}-text`)) {
-                const countEl = workCountEl.querySelector('.count');
-                if (countEl) {
-                    countEl.textContent = categoryCounts[category];
-                }
-            }
-        });
-    });
-    
-    // Calculate total works
     const totalWorks = Object.values(categoryCounts).reduce((sum, count) => sum + count, 0);
-    
-    // Update total works count
-    const totalCountElement = document.querySelector('.total-count');
-    if (totalCountElement) {
-        totalCountElement.textContent = totalWorks;
-    } else {
+
+    // Per-category tile updates
+    document.querySelectorAll('.category-tile').forEach(tile => {
+        const category = tile.dataset.category;
+        if (!category) return;
+        const count = categoryCounts[category] || 0;
+        const countEl = tile.querySelector('.tile-count');
+        const barFill = tile.querySelector('.tile-bar-fill');
+        const percentEl = tile.querySelector('.tile-percent');
+
+        if (countEl) animateCount(countEl, count);
+        const percent = totalWorks ? Math.round((count / totalWorks) * 100) : 0;
+        if (barFill) barFill.style.width = `${percent}%`;
+        if (percentEl) percentEl.textContent = `${percent}% of total`;
+    });
+
+    // Stacked bar segments on Total Works KPI
+    const stackBar = document.querySelector('.works-stack-bar');
+    if (stackBar) {
+        const segs = ['confluence', 'dissertation', 'thesis', 'synergy'];
+        segs.forEach(seg => {
+            const segEl = stackBar.querySelector(`.seg-${seg}`);
+            if (!segEl) return;
+            const percent = totalWorks ? (categoryCounts[seg] / totalWorks) * 100 : 0;
+            segEl.style.width = `${percent}%`;
+        });
     }
+
+    // Total works KPI
+    const totalCountElement = document.querySelector('.total-works-card .total-count');
+    if (totalCountElement) animateCount(totalCountElement, totalWorks);
+
+    // Banner quickstat
+    const quickWorks = document.getElementById('quickstat-works');
+    if (quickWorks) animateCount(quickWorks, totalWorks);
 }
 
-// Function to update the top authors section with dynamic data
+// ============================================================
+// Top Authors — list + KPI + initials fallback
+// ============================================================
 async function updateTopAuthors() {
     try {
-        // DEBUG: First check our debug endpoint to see what's actually in the database
-        try {
-            const debugResponse = await fetch('/api/debug/author-visits-counter');
-            if (debugResponse.ok) {
-                const debugData = await debugResponse.json();
-            } else {
-            }
-        } catch (debugError) {
-        }
-        
-        // Use the compatibility endpoint specifically for the dashboard with breakdown data
         const response = await fetch('/api/author-visits/stats?include_breakdown=true&nocache=' + Date.now());
-        
+
         if (!response.ok) {
-            // Try to fetch all authors instead
             const allAuthorsResponse = await fetch('/api/authors/all');
-            
             if (!allAuthorsResponse.ok) {
-                // If both APIs fail, use mock data
-                const mockData = {
-                    topAuthors: [
-                        { full_name: "Jane Smith", visit_count: 521, profile_picture: "/storage/profile-pictures/default.jpg" },
-                        { full_name: "John Doe", visit_count: 470, profile_picture: "/storage/profile-pictures/default.jpg" },
-                        { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/storage/profile-pictures/default.jpg" },
-                        { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/storage/profile-pictures/default.jpg" },
-                        { full_name: "Robert Chen", visit_count: 399, profile_picture: "/storage/profile-pictures/default.jpg" }
-                    ]
-                };
-                updateTopAuthorsUI(mockData);
+                renderAuthorsEmptyState('No author data available yet.');
                 return;
             }
-            
-            // Convert all authors data to top authors format
             const allAuthorsData = await allAuthorsResponse.json();
-            
-            // Transform authors data to match the expected format
-            // Set view count to 0 for all authors since we don't have real counts
             const transformedData = {
-                topAuthors: allAuthorsData.authors.slice(0, 5).map(author => ({
+                topAuthors: (allAuthorsData.authors || []).slice(0, 5).map(author => ({
                     full_name: author.full_name,
-                    visit_count: 0, // No visit count data available
-                    profile_picture: author.profilePicUrl || "/storage/profile-pictures/default.jpg"
+                    visit_count: 0,
+                    profile_picture: author.profilePicUrl || null,
+                    author_id: author.id
                 }))
             };
-            
-            updateTopAuthorsUI(transformedData);
+            updateTopAuthorsUI(transformedData, allAuthorsData.authors || []);
             return;
         }
-        
+
         const data = await response.json();
-                
-        // CRITICAL FIX: Check if we got valid data and debug the structure
-        if (data.topAuthors) {
-            console.log('TopAuthors data structure:', data.topAuthors.map(a => {
-                return {
-                    name: a.full_name,
-                    count: a.visit_count,
-                    countType: typeof a.visit_count
-                };
-            }));
-        } else {
-                                }
-        
-        // Enhanced data handling to check multiple response formats
+
         let usableData = { topAuthors: [] };
-        
-        // Check if we have data in different formats
         if (data.topAuthors && data.topAuthors.length > 0) {
-            // Direct format with topAuthors array - ensure visit_count is a number
             usableData = {
                 topAuthors: data.topAuthors.map(author => ({
                     ...author,
                     visit_count: Number(author.visit_count || 0),
-                    author_id: author.author_id || author.id // Make sure we have author_id
+                    author_id: author.author_id || author.id
                 }))
             };
-                    } else if (data.authors && data.authors.length > 0) {
-            // Alternative format with authors array
+        } else if (data.authors && data.authors.length > 0) {
             usableData = {
                 topAuthors: data.authors.map(author => ({
                     full_name: author.full_name || author.name || 'Unknown Author',
                     visit_count: Number(author.visit_count || author.visits || 0),
-                    profile_picture: author.profilePicUrl || author.profile_picture || author.avatar || "/storage/profile-pictures/default.jpg",
+                    profile_picture: author.profilePicUrl || author.profile_picture || author.avatar || null,
                     author_id: author.author_id || author.id
                 }))
             };
-                    } else {
-            // Fallback to getting all authors
-                        const allAuthorsResponse = await fetch('/api/authors/all');
-            
+        } else {
+            const allAuthorsResponse = await fetch('/api/authors/all');
             if (allAuthorsResponse.ok) {
                 const allAuthorsData = await allAuthorsResponse.json();
                 usableData = {
-                    topAuthors: allAuthorsData.authors.slice(0, 5).map(author => ({
+                    topAuthors: (allAuthorsData.authors || []).slice(0, 5).map(author => ({
                         full_name: author.full_name || author.name || 'Unknown Author',
                         visit_count: 0,
-                        profile_picture: author.profilePicUrl || author.profile_picture || "/storage/profile-pictures/default.jpg",
+                        profile_picture: author.profilePicUrl || author.profile_picture || null,
                         author_id: author.id
                     }))
                 };
             }
         }
-        
-        // Final check to ensure we have visit counts as numbers
-        usableData.topAuthors = usableData.topAuthors.map(author => {
-            const visitCount = Number(author.visit_count || 0);
-                        return {
-                ...author,
-                visit_count: visitCount
-            };
-        });
-        
-        updateTopAuthorsUI(usableData);
+
+        usableData.topAuthors = usableData.topAuthors.map(author => ({
+            ...author,
+            visit_count: Number(author.visit_count || 0)
+        }));
+
+        // Pull total count for the KPI from the full author list (separate fetch)
+        let totalAuthors = usableData.topAuthors.length;
+        try {
+            const allResp = await fetch('/api/authors/all');
+            if (allResp.ok) {
+                const allData = await allResp.json();
+                if (Array.isArray(allData.authors)) totalAuthors = allData.authors.length;
+            }
+        } catch (_) { /* ignore */ }
+
+        updateTopAuthorsUI(usableData, null, totalAuthors);
     } catch (error) {
-                // Use mock data if all else fails
-        const mockData = {
-            topAuthors: [
-                { full_name: "Jane Smith", visit_count: 521, profile_picture: "/storage/profile-pictures/default.jpg" },
-                { full_name: "John Doe", visit_count: 470, profile_picture: "/storage/profile-pictures/default.jpg" },
-                { full_name: "Alex Johnson", visit_count: 455, profile_picture: "/storage/profile-pictures/default.jpg" },
-                { full_name: "Maria Garcia", visit_count: 400, profile_picture: "/storage/profile-pictures/default.jpg" },
-                { full_name: "Robert Chen", visit_count: 399, profile_picture: "/storage/profile-pictures/default.jpg" }
-            ]
-        };
-        updateTopAuthorsUI(mockData);
+        renderAuthorsEmptyState('Could not load top authors.');
     }
 }
 
-function updateTopAuthorsUI(data) {
-    // Get the authors list container
+function renderAuthorsEmptyState(message) {
     const authorsListContainer = document.querySelector('.authors-list');
-    if (!authorsListContainer) {
-        return;
-    }
-    
-    // Clear existing content
-    authorsListContainer.innerHTML = '';
-    
-    // Sort authors by visit count in descending order
-    const sortedAuthors = [...data.topAuthors].sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
-    
-    // Add each author to the list
-    sortedAuthors.forEach(author => {
-        const authorElement = document.createElement('div');
-        authorElement.className = 'author';
-        
-        // Improve profile picture URL handling to fix 404 errors
-        let imageUrl = '/admin/Components/img/default_user.png'; // Default image that should always exist
-        
-        if (author.profile_picture) {
-            // Check if profile_picture is already a full URL or a relative path
-            if (author.profile_picture.startsWith('http') || author.profile_picture.startsWith('/')) {
-                imageUrl = author.profile_picture;
-            } else {
-                // If it's just a filename, prepend the path
-                imageUrl = `/storage/authors/profile-pictures/${author.profile_picture}`;
-            }
-            
-            // Log the image URL for debugging
-                    }
-        
-        // Format the visit count with the proper label - use 'let' instead of 'const' to allow updates
-        let visitCount = author.visit_count || 0;
-        let visitText = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
-        
-        // Create DOM elements instead of using innerHTML for better control
+    if (!authorsListContainer) return;
+    authorsListContainer.innerHTML = `
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7m-4 0a4 4 0 1 1 8 0a4 4 0 1 1 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <p class="empty-title">No author data yet</p>
+            <p class="empty-sub">${message}</p>
+        </div>
+    `;
+}
+
+function buildAvatarElement(author) {
+    const picture = author.profile_picture;
+    const looksValid = picture && typeof picture === 'string' && picture.trim() !== '' && !picture.includes('default.jpg');
+    if (looksValid) {
         const imageDiv = document.createElement('div');
         imageDiv.className = 'author-image';
-        imageDiv.style.backgroundImage = `url('${imageUrl}')`;
-        
+        const url = picture.startsWith('http') || picture.startsWith('/')
+            ? picture
+            : `/storage/authors/profile-pictures/${picture}`;
+        imageDiv.style.backgroundImage = `url('${url}')`;
+        return imageDiv;
+    }
+    const initialsDiv = document.createElement('div');
+    initialsDiv.className = `author-avatar-initials palette-${hashPalette(author.author_id || author.full_name)}`;
+    initialsDiv.textContent = getInitials(author.full_name);
+    initialsDiv.setAttribute('aria-hidden', 'true');
+    return initialsDiv;
+}
+
+function updateAuthorAvatarStack(topAuthors, totalAuthors) {
+    const stack = document.getElementById('author-avatar-stack');
+    if (!stack) return;
+    stack.innerHTML = '';
+    const sample = (topAuthors || []).slice(0, 3);
+    sample.forEach(author => {
+        const a = document.createElement('div');
+        a.className = 'stack-avatar';
+        const picture = author.profile_picture;
+        const looksValid = picture && typeof picture === 'string' && picture.trim() !== '' && !picture.includes('default.jpg');
+        if (looksValid) {
+            const url = picture.startsWith('http') || picture.startsWith('/')
+                ? picture
+                : `/storage/authors/profile-pictures/${picture}`;
+            a.style.backgroundImage = `url('${url}')`;
+            a.style.backgroundColor = 'transparent';
+        } else {
+            a.classList.add(`palette-${hashPalette(author.author_id || author.full_name)}`);
+            a.textContent = getInitials(author.full_name);
+            // Avatar-stack uses solid brand-soft bg by default; override via inline gradient using palette
+            const palettes = [
+                'linear-gradient(135deg, #006A4E, #00855f)',
+                'linear-gradient(135deg, #2563eb, #4f7df5)',
+                'linear-gradient(135deg, #d4a017, #efbb29)',
+                'linear-gradient(135deg, #7c3aed, #a86cf5)',
+                'linear-gradient(135deg, #e11d48, #f25b7e)',
+                'linear-gradient(135deg, #0891b2, #22b9d8)'
+            ];
+            const idx = hashPalette(author.author_id || author.full_name);
+            a.style.backgroundImage = palettes[idx];
+            a.style.color = '#ffffff';
+        }
+        stack.appendChild(a);
+    });
+    if (totalAuthors && totalAuthors > sample.length) {
+        const more = document.createElement('span');
+        more.className = 'stack-more';
+        more.textContent = `+${(totalAuthors - sample.length).toLocaleString()} more`;
+        stack.appendChild(more);
+    }
+}
+
+function updateTopAuthorsUI(data, allAuthors, totalAuthorsHint) {
+    const authorsListContainer = document.querySelector('.authors-list');
+    if (!authorsListContainer) return;
+
+    authorsListContainer.innerHTML = '';
+    const sortedAuthors = [...data.topAuthors].sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
+
+    if (sortedAuthors.length === 0) {
+        renderAuthorsEmptyState('Once authors are added they will appear here.');
+    }
+
+    sortedAuthors.forEach((author, idx) => {
+        const authorElement = document.createElement('div');
+        authorElement.className = 'author';
+        authorElement.style.animationDelay = `${idx * 40}ms`;
+
+        let visitCount = author.visit_count || 0;
+        let visitText = visitCount === 1 ? '1 visit' : `${visitCount.toLocaleString()} visits`;
+
+        const avatar = buildAvatarElement(author);
+
         const nameDiv = document.createElement('div');
         nameDiv.className = 'author-name';
         nameDiv.textContent = author.full_name;
-        
+
         const visitsDiv = document.createElement('div');
         visitsDiv.className = 'author-visits';
         visitsDiv.textContent = visitText;
-        
-        // Append all elements to the author card
-        authorElement.appendChild(imageDiv);
+
+        authorElement.appendChild(avatar);
         authorElement.appendChild(nameDiv);
         authorElement.appendChild(visitsDiv);
-        
-        // Create tooltip for showing guest/user breakdown
+
+        // Tooltip (kept from original)
         const tooltip = document.createElement('div');
         tooltip.className = 'author-visits-tooltip';
         tooltip.style.position = 'absolute';
         tooltip.style.display = 'none';
-        tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+        tooltip.style.backgroundColor = 'rgba(15, 23, 42, 0.92)';
         tooltip.style.color = 'white';
         tooltip.style.padding = '0.75rem';
-        tooltip.style.borderRadius = '0.375rem';
-        tooltip.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-        tooltip.style.fontSize = '0.875rem';
+        tooltip.style.borderRadius = '8px';
+        tooltip.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.2)';
+        tooltip.style.fontSize = '0.85rem';
         tooltip.style.zIndex = '1000';
         tooltip.style.width = 'auto';
-        tooltip.style.minWidth = '200px';
-        tooltip.style.pointerEvents = 'none'; // Ensure tooltip doesn't interfere with mouse events
+        tooltip.style.minWidth = '220px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.backdropFilter = 'blur(8px)';
 
-        // Get the breakdown for guest/user visits
-        // Start with default values that will be updated when data is fetched
-        let guestCount = Math.round(visitCount * 0.85); // Default estimate: 85% guest visits
-        let userCount = visitCount - guestCount; // Default estimate: 15% user visits
-        
-        // Fetch actual breakdown data if we have an author ID
+        let guestCount = Math.round(visitCount * 0.85);
+        let userCount = visitCount - guestCount;
+
         if (author.author_id) {
-            // Create loading content
-            tooltip.innerHTML = `
-                <div style="text-align: center; padding: 5px;">
-                    <div style="font-size: 0.9rem;">Loading visit details...</div>
-                </div>
-            `;
-            
-            // Fetch the visit breakdown asynchronously
+            tooltip.innerHTML = `<div style="text-align:center;padding:4px;font-size:0.85rem;">Loading visit details...</div>`;
             fetch(`/api/author-visits/${author.author_id}?days=30&nocache=${Date.now()}`)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
-                                        
-                    // Extract the visitor type breakdown directly
                     if (data && data.visitsByType) {
-                        // Log the specific breakdown structure
-                        console.log(`Breakdown structure for ${author.full_name}:`, {
-                            guest: data.visitsByType.guest,
-                            guest_type: typeof data.visitsByType.guest,
-                            user: data.visitsByType.user,
-                            user_type: typeof data.visitsByType.user,
-                            total: data.total
-                        });
-                        
-                        // Get the correct breakdown - ensure we have numbers
                         guestCount = Number(data.visitsByType.guest || 0);
                         userCount = Number(data.visitsByType.user || 0);
-                        
-                        // Ensure total matches the sum (or use the larger value if there's a discrepancy)
                         const breakdownSum = guestCount + userCount;
                         if (breakdownSum > 0) {
-                            // ALWAYS update visitCount based on actual data from breakdown
                             visitCount = breakdownSum;
-                            visitText = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
-                            visitsDiv.textContent = visitText;
-                                                        
-                            // Also update the author object to reflect correct count
+                            visitsDiv.textContent = visitCount === 1 ? '1 visit' : `${visitCount.toLocaleString()} visits`;
                             author.visit_count = visitCount;
                         } else if (data.total > 0) {
-                            // If we have a total but no breakdown, use the total
                             visitCount = Number(data.total);
-                            visitText = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
-                            visitsDiv.textContent = visitText;
-                                                        
-                            // Also update the author object
+                            visitsDiv.textContent = visitCount === 1 ? '1 visit' : `${visitCount.toLocaleString()} visits`;
                             author.visit_count = visitCount;
-                            
-                            // Then estimate breakdown
                             guestCount = Math.round(data.total * 0.85);
                             userCount = data.total - guestCount;
                         }
                     } else if (data && typeof data.total === 'number' && data.total > 0) {
-                        // If no breakdown but we have a total, estimate the values
                         guestCount = Math.round(data.total * 0.85);
                         userCount = data.total - guestCount;
-                        
-                        // If visitCount is 0 but we have a total, update it
                         if (visitCount === 0) {
                             visitCount = data.total;
-                            visitsDiv.textContent = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
-                                                    }
+                            visitsDiv.textContent = visitCount === 1 ? '1 visit' : `${visitCount.toLocaleString()} visits`;
+                        }
                     }
-                    
-                                        
-                    // Update tooltip content
                     updateTooltipContent();
                 })
-                .catch(error => {
-                    // Use the default estimates
-                    updateTooltipContent();
-                });
+                .catch(() => updateTooltipContent());
         } else {
-            // No author ID, use the defaults
             updateTooltipContent();
         }
-        
+
         function updateTooltipContent() {
-            // Create tooltip content with author name at the top and the breakdown
             tooltip.innerHTML = `
-                <div style="margin-bottom: 0.75rem; font-size: 1rem; font-weight: bold; text-align: center;">${author.full_name}</div>
-                <div style="margin-bottom: 0.5rem"><strong>Visit Breakdown:</strong></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem">
-                    <span>Guest Visits:</span>
-                    <strong>${guestCount}</strong>
+                <div style="margin-bottom:0.6rem;font-size:0.95rem;font-weight:600;text-align:center;">${author.full_name}</div>
+                <div style="margin-bottom:0.4rem;color:rgba(255,255,255,0.7);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;">Visit Breakdown</div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">
+                    <span>Guest</span><strong>${guestCount.toLocaleString()}</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem">
-                    <span>User Visits:</span>
-                    <strong>${userCount}</strong>
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+                    <span>User</span><strong>${userCount.toLocaleString()}</strong>
                 </div>
-                <div style="border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 0.5rem;">
-                    <div style="display: flex; justify-content: space-between">
-                        <span>Total Visits:</span>
-                        <strong>${visitCount}</strong>
-                    </div>
+                <div style="border-top:1px solid rgba(255,255,255,0.18);padding-top:0.5rem;display:flex;justify-content:space-between;">
+                    <span>Total</span><strong>${visitCount.toLocaleString()}</strong>
                 </div>
             `;
         }
-        
-        // Add tooltip to the page
+
         document.body.appendChild(tooltip);
 
-        // Track if we're hovering over the author element
         let isHovering = false;
         let hideTooltipTimeout = null;
 
-        // Add mouse event listeners to show/hide tooltip
-        authorElement.addEventListener('mouseenter', function(e) {
+        authorElement.addEventListener('mouseenter', function () {
             isHovering = true;
-            
-            // Clear any pending hide timeout
-            if (hideTooltipTimeout) {
-                clearTimeout(hideTooltipTimeout);
-                hideTooltipTimeout = null;
-            }
-            
+            if (hideTooltipTimeout) { clearTimeout(hideTooltipTimeout); hideTooltipTimeout = null; }
             const rect = this.getBoundingClientRect();
-            // Center the tooltip under the author element
-            const tooltipWidth = 220; // Approximate width based on our styling
+            const tooltipWidth = 240;
             const leftPosition = rect.left + (rect.width / 2) - (tooltipWidth / 2) + window.scrollX;
-            
-            tooltip.style.top = `${rect.bottom + window.scrollY + 10}px`; // Increase distance from element
+            tooltip.style.top = `${rect.bottom + window.scrollY + 10}px`;
             tooltip.style.left = `${leftPosition}px`;
             tooltip.style.display = 'block';
-            // Allow the tooltip to be displayed before adding the visible class
-            setTimeout(() => {
-                if (isHovering) { // Only make visible if still hovering
-                    tooltip.classList.add('visible');
-                }
-            }, 10);
+            setTimeout(() => { if (isHovering) tooltip.classList.add('visible'); }, 10);
         });
-        
-        authorElement.addEventListener('mouseleave', function() {
+
+        authorElement.addEventListener('mouseleave', function () {
             isHovering = false;
-            
-            // Add a small delay before hiding to prevent flickering
             hideTooltipTimeout = setTimeout(() => {
-                if (!isHovering) { // Only hide if we're not hovering
+                if (!isHovering) {
                     tooltip.classList.remove('visible');
-                    // Wait for the transition to complete before hiding
-                    setTimeout(() => {
-                        if (!isHovering) {
-                            tooltip.style.display = 'none';
-                        }
-                    }, 200); // Match the transition duration
+                    setTimeout(() => { if (!isHovering) tooltip.style.display = 'none'; }, 200);
                 }
-            }, 100); // Small delay before starting to hide
+            }, 100);
         });
-        
+
         authorsListContainer.appendChild(authorElement);
     });
+
+    // Update KPI card + banner quickstat
+    const totalAuthors = totalAuthorsHint || (allAuthors ? allAuthors.length : sortedAuthors.length);
+    const kpiCount = document.querySelector('.active-authors-card .active-authors-count');
+    if (kpiCount) animateCount(kpiCount, totalAuthors);
+    const bannerAuthors = document.getElementById('quickstat-authors');
+    if (bannerAuthors) animateCount(bannerAuthors, totalAuthors);
+
+    updateAuthorAvatarStack(sortedAuthors, totalAuthors);
 }
 
-// Function to update the total visits section with dynamic data
+// ============================================================
+// Total visits (green hero card + banner quickstat)
+// ============================================================
 async function updateTotalVisits() {
     try {
-                const response = await fetch('/api/page-visits/home-stats');
-        
+        const response = await fetch('/api/page-visits/home-stats');
         if (!response.ok) {
-                        
-            // Try to get author visit stats as a fallback
             const authorResponse = await fetch('/api/author-visits/stats');
-            
-            if (!authorResponse.ok) {
-                // Use mock data if both APIs return 404
-                const mockData = {
-                    stats: {
-                        total: 12321,
-                        guest: 10653,
-                        user: 1668
-                    }
-                };
-                updateTotalVisitsUI(mockData);
-                return;
-            }
-            
-            // Use author visit stats if available
+            if (!authorResponse.ok) { renderTotalVisitsEmptyState(); return; }
             const authorData = await authorResponse.json();
-                        updateTotalVisitsUI(authorData);
+            updateTotalVisitsUI(authorData);
             return;
         }
-        
         const data = await response.json();
-                updateTotalVisitsUI(data);
+        updateTotalVisitsUI(data);
     } catch (error) {
-                // Use mock data on error
-        const mockData = {
-            stats: {
-                total: 12321,
-                guest: 10653,
-                user: 1668
-            }
-        };
-        updateTotalVisitsUI(mockData);
+        renderTotalVisitsEmptyState();
     }
+}
+
+function renderTotalVisitsEmptyState() {
+    const totalVisitsElement = document.querySelector('.total-visits-number');
+    if (totalVisitsElement) totalVisitsElement.textContent = '—';
+    const guestVisitsElement = document.querySelector('.visits-row div:first-child .visit-count');
+    if (guestVisitsElement) guestVisitsElement.textContent = '—';
+    const userVisitsElement = document.querySelector('.visits-row div:last-child .visit-count');
+    if (userVisitsElement) userVisitsElement.textContent = '—';
 }
 
 function updateTotalVisitsUI(data) {
-    // Update total visits count
+    const stats = data && data.stats ? data.stats : {};
+    const total = Number(stats.total || 0);
+    const guest = Number(stats.guest || 0);
+    const user = Number(stats.user || 0);
+
     const totalVisitsElement = document.querySelector('.total-visits-number');
-    if (totalVisitsElement) {
-        totalVisitsElement.textContent = data.stats.total.toLocaleString();
-    }
-    
-    // Update guest visits count
+    if (totalVisitsElement) animateCount(totalVisitsElement, total);
+
     const guestVisitsElement = document.querySelector('.visits-row div:first-child .visit-count');
-    if (guestVisitsElement) {
-        guestVisitsElement.textContent = data.stats.guest.toLocaleString();
-    }
-    
-    // Update user visits count
+    if (guestVisitsElement) animateCount(guestVisitsElement, guest);
+
     const userVisitsElement = document.querySelector('.visits-row div:last-child .visit-count');
-    if (userVisitsElement) {
-        userVisitsElement.textContent = data.stats.user.toLocaleString();
-    }
-    
-    // Update the labels to indicate these are home page visits
+    if (userVisitsElement) animateCount(userVisitsElement, user);
+
     const visitLabels = document.querySelectorAll('.visit-label');
     if (visitLabels.length >= 2) {
-        visitLabels[0].textContent = 'Guest Home Visits';
-        visitLabels[1].textContent = 'User Home Visits'; 
+        visitLabels[0].textContent = 'Guest Visits';
+        visitLabels[1].textContent = 'User Visits';
     }
-    
-    // Update the total visits label
+
     const totalVisitsLabel = document.querySelector('.total-visits > div:nth-child(2)');
-    if (totalVisitsLabel) {
-        totalVisitsLabel.textContent = 'Total Home Page Visits';
-    }
+    if (totalVisitsLabel) totalVisitsLabel.textContent = 'Total Home Page Visits';
+
+    const banner = document.getElementById('quickstat-visits');
+    if (banner) animateCount(banner, total);
 }
 
-// Initialize when the page loads
+// ============================================================
+// Init
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-        
-    // Add CSS for tooltips to the page
+    // Tooltip styles (preserved from original)
     const style = document.createElement('style');
     style.textContent = `
-        .most-visited-visits {
-            position: relative;
-        }
+        .most-visited-visits { position: relative; }
         .visits-tooltip, .author-visits-tooltip {
             position: absolute;
             display: none;
@@ -608,28 +590,17 @@ document.addEventListener('DOMContentLoaded', () => {
             opacity: 1;
             transform: translateY(0);
         }
-        
-        /* Author tooltip specific styles */
         .author {
             position: relative;
-            cursor: pointer;
-            transition: transform 0.15s ease-in-out;
-        }
-        .author:hover {
-            transform: translateY(-2px);
-        }
-        .author-visits-tooltip {
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-            text-align: left;
         }
     `;
     document.head.appendChild(style);
-    
-    // No need for manual refresh anymore since we fixed the data loading
-    
+
+    updateWelcomeBanner();
+
     setTimeout(() => {
         updateWorksSummary();
         updateTopAuthors();
         updateTotalVisits();
-    }, 100); // Small delay to ensure all HTML is loaded
-}); 
+    }, 100);
+});

@@ -242,6 +242,20 @@ async function updateVisitorChart(period = 'daily') {
             return;
         }
         
+        // Brand colors
+        const BRAND_GREEN = '#006A4E';
+        const ACCENT_BLUE = '#2563eb';
+
+        // Gradient fills for the line areas
+        const ctxCanvas = ctx;
+        const chartHeight = ctxCanvas.canvas.height || 260;
+        const userGradient = ctx.createLinearGradient(0, 0, 0, chartHeight);
+        userGradient.addColorStop(0, 'rgba(0, 106, 78, 0.28)');
+        userGradient.addColorStop(1, 'rgba(0, 106, 78, 0.00)');
+        const guestGradient = ctx.createLinearGradient(0, 0, 0, chartHeight);
+        guestGradient.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
+        guestGradient.addColorStop(1, 'rgba(37, 99, 235, 0.00)');
+
         // Create new chart with real data
         visitorChart = new Chart(ctx, {
             type: 'line',
@@ -250,80 +264,109 @@ async function updateVisitorChart(period = 'daily') {
                 datasets: [{
                     label: 'User Visits',
                     data: chartData.userVisits,
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Blue fill
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1,
-                    fill: true
+                    backgroundColor: userGradient,
+                    borderColor: BRAND_GREEN,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: BRAND_GREEN,
+                    pointHoverBorderWidth: 2
                 }, {
                     label: 'Guest Visits',
                     data: chartData.guestVisits,
-                    backgroundColor: 'rgba(100, 220, 100, 0.2)', // Green fill
-                    borderColor: 'rgba(100, 220, 100, 1)',
-                    borderWidth: 1,
-                    fill: true
+                    backgroundColor: guestGradient,
+                    borderColor: ACCENT_BLUE,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: ACCENT_BLUE,
+                    pointHoverBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 devicePixelRatio: window.devicePixelRatio,
+                interaction: { mode: 'index', intersect: false },
+                animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                    ? { duration: 0 }
+                    : { duration: 700, easing: 'easeOutQuart' },
                 scales: {
                     y: {
                         beginAtZero: true,
+                        border: { display: false },
                         ticks: {
-                            color: '#000000'
+                            color: '#94a3b8',
+                            font: { family: 'Inter, sans-serif', size: 11 },
+                            padding: 8
                         },
                         grid: {
-                            color: 'rgb(210, 210, 210)'
+                            color: '#eef0f3',
+                            drawBorder: false,
+                            tickBorderDash: [4, 4],
+                            tickLength: 0
                         }
                     },
                     x: {
+                        border: { display: false },
                         ticks: {
-                            color: '#000000'
+                            color: '#94a3b8',
+                            font: { family: 'Inter, sans-serif', size: 11 },
+                            padding: 8
                         },
-                        grid: {
-                            color: 'rgb(210, 210, 210)'
-                        }
+                        grid: { display: false, drawBorder: false }
                     }
                 },
                 plugins: {
                     tooltip: {
                         mode: 'index',
                         intersect: false,
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        titleFont: { family: 'Inter, sans-serif', weight: '600', size: 12 },
+                        bodyFont: { family: 'Inter, sans-serif', size: 12 },
+                        padding: 12,
+                        cornerRadius: 10,
+                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                        borderWidth: 1,
+                        displayColors: true,
+                        boxPadding: 4,
+                        usePointStyle: true,
                         callbacks: {
                             labelColor: function(context) {
-                                 if (context.datasetIndex === 0) {
-                                    return {
-                                        borderColor: 'rgba(75, 192, 192, 1)',
-                                        backgroundColor: 'rgba(75, 192, 192, 1)'
-                                    };
-                                } else {
-                                     return {
-                                        borderColor: 'rgba(100, 220, 100, 1)',
-                                        backgroundColor: 'rgba(100, 220, 100, 1)'
-                                    };
+                                if (context.datasetIndex === 0) {
+                                    return { borderColor: BRAND_GREEN, backgroundColor: BRAND_GREEN };
                                 }
+                                return { borderColor: ACCENT_BLUE, backgroundColor: ACCENT_BLUE };
                             },
                             label: function(context) {
                                 let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                 if (context.parsed.y !== null) {
-                                    label += context.parsed.y + ' Visits';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += Number(context.parsed.y).toLocaleString() + ' visits';
                                 }
                                 return label;
                             }
-                        },
-                        backgroundColor: '#1e1e1e',
-                        titleColor: '#e0e0e0',
-                        bodyColor: '#e0e0e0',
-                        borderColor: '#4a5568',
-                        borderWidth: 1,
+                        }
                     },
                     legend: {
+                        position: 'bottom',
+                        align: 'end',
                         labels: {
-                            color: '#000000'
+                            color: '#475569',
+                            font: { family: 'Inter, sans-serif', size: 12, weight: '500' },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 14
                         }
                     }
                 }

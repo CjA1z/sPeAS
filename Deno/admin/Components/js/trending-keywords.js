@@ -132,23 +132,9 @@ async function fetchKeywordsFromDocumentsList() {
     }
 }
 
-// Last resort: use hardcoded keywords if all else fails
+// Last resort: render an explicit empty state instead of fabricated keywords
 function useHardcodedKeywords() {
-        
-    const fallbackKeywords = [
-        { keyword: "Research" },
-        { keyword: "Thesis" },
-        { keyword: "Digital Archive" },
-        { keyword: "Academic" },
-        { keyword: "Education" },
-        { keyword: "Preservation" },
-        { keyword: "Documentation" },
-        { keyword: "Analysis" },
-        { keyword: "Archives" },
-        { keyword: "Learning" }
-    ];
-    
-    updateKeywordsDisplay(fallbackKeywords);
+    displayNoDataMessage();
 }
 
 // Helper function to get random items from array
@@ -164,22 +150,23 @@ function updateKeywordsDisplay(keywords) {
     if (!keywordsContainer) {
         return;
     }
-    
+
     // Disable scrolling by removing max-height and setting overflow to visible
     keywordsContainer.style.maxHeight = 'none';
     keywordsContainer.style.overflowY = 'visible';
-    
+
     // Clear existing content
     keywordsContainer.innerHTML = '';
-    
+
     // Ensure we only display a maximum of 10 keywords
     const keywordsToDisplay = keywords.slice(0, 10);
-    
-    // Add each keyword to the keywords list
-    keywordsToDisplay.forEach(keyword => {
+
+    // Add each keyword to the keywords list, with stagger + top-3 highlighted
+    keywordsToDisplay.forEach((keyword, idx) => {
         const keywordElement = document.createElement('div');
-        keywordElement.className = 'keyword';
-        
+        keywordElement.className = 'keyword' + (idx < 3 ? ' kw-top' : '');
+        keywordElement.style.animationDelay = `${idx * 40}ms`;
+
         // Handle different keyword formats (string or object)
         let keywordText = '';
         if (typeof keyword === 'string') {
@@ -191,30 +178,29 @@ function updateKeywordsDisplay(keywords) {
         } else if (keyword && keyword.text) {
             keywordText = keyword.text;
         } else {
-            // Skip invalid keywords
             return;
         }
-        
+
         keywordElement.textContent = keywordText;
-        
+
         // Make keyword clickable to filter documents
         keywordElement.addEventListener('click', () => {
             window.location.href = `/admin/Components/documents_list.html?keyword=${encodeURIComponent(keywordText)}`;
         });
-        
+
         keywordsContainer.appendChild(keywordElement);
     });
 }
 
-// Function to display loading state
+// Function to display loading state — skeleton pills
 function showLoadingState() {
     const keywordsContainer = document.querySelector('.keywords-list');
     if (!keywordsContainer) return;
-    
+
     keywordsContainer.innerHTML = `
-        <div class="loading-message" style="width: 100%; text-align: center; color: #6b7280;">
-            <div class="loading-spinner"></div>
-            <p>Loading trending keywords...</p>
+        <div class="skeleton-keywords">
+            <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+            <div class="skel"></div><div class="skel"></div><div class="skel"></div>
         </div>
     `;
 }
@@ -223,10 +209,12 @@ function showLoadingState() {
 function displayErrorMessage() {
     const keywordsContainer = document.querySelector('.keywords-list');
     if (!keywordsContainer) return;
-    
+
     keywordsContainer.innerHTML = `
-        <div class="error-message" style="width: 100%; text-align: center; color: #6b7280;">
-            <p>Could not load trending keywords.</p>
+        <div class="empty-state" style="width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M3.5 18.5l8.5 -15l8.5 15h-17z"/></svg>
+            <p class="empty-title">Couldn&rsquo;t load trending keywords</p>
+            <p class="empty-sub">Please try again later.</p>
         </div>
     `;
 }
@@ -235,10 +223,12 @@ function displayErrorMessage() {
 function displayNoDataMessage() {
     const keywordsContainer = document.querySelector('.keywords-list');
     if (!keywordsContainer) return;
-    
+
     keywordsContainer.innerHTML = `
-        <div class="no-data-message" style="width: 100%; text-align: center; color: #6b7280;">
-            <p>No keywords available.</p>
+        <div class="empty-state" style="width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></svg>
+            <p class="empty-title">No trending keywords yet</p>
+            <p class="empty-sub">Keywords will surface here as documents get visited.</p>
         </div>
     `;
 }

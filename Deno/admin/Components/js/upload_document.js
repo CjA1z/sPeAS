@@ -750,7 +750,7 @@ async function handleCompiledDocumentSubmit(e) {
                     text: 'The foreword file could not be uploaded. The document will be created without a foreword.',
                     icon: 'warning',
                     confirmButtonText: 'Continue Anyway',
-                    confirmButtonColor: '#10B981',
+                    confirmButtonColor: '#006A4E',
                     showCancelButton: true,
                     cancelButtonText: 'Cancel Submission'
                 }).then((result) => {
@@ -1214,7 +1214,7 @@ function showError(message) {
         text: message,
         icon: 'error',
         confirmButtonText: 'OK',
-        confirmButtonColor: '#10B981'
+        confirmButtonColor: '#006A4E'
     });
 }
 
@@ -1229,7 +1229,7 @@ function showSuccess(message, callback) {
         text: message,
         icon: 'success',
         confirmButtonText: 'OK',
-        confirmButtonColor: '#10B981'
+        confirmButtonColor: '#006A4E'
     }).then(result => {
         if (result.isConfirmed && callback) {
             callback();
@@ -1248,7 +1248,7 @@ function showWarning(message, callback) {
         text: message,
         icon: 'warning',
         confirmButtonText: 'OK',
-        confirmButtonColor: '#10B981'
+        confirmButtonColor: '#006A4E'
     }).then(result => {
         if (result.isConfirmed && callback) {
             callback();
@@ -1440,7 +1440,7 @@ function updateDocumentPreview(file) {
                 icon: 'info',
                 title: 'No Document',
                 text: 'Please upload a document first',
-                confirmButtonColor: '#10B981'
+                confirmButtonColor: '#006A4E'
             });
             return false;
         };
@@ -2254,7 +2254,7 @@ function checkFileInput(sectionId) {
             icon: 'error',
             title: 'Element Not Found',
             text: `File input #file-upload-${sectionId} not found!`,
-            confirmButtonColor: '#10B981'
+            confirmButtonColor: '#006A4E'
         });
         return;
     }
@@ -2265,14 +2265,14 @@ function checkFileInput(sectionId) {
             icon: 'info',
             title: 'File Selected',
             text: `File selected: ${file.name} (${(file.size/1024).toFixed(1)} KB)`,
-            confirmButtonColor: '#10B981'
+            confirmButtonColor: '#006A4E'
         });
     } else {
         Swal.fire({
             icon: 'warning',
             title: 'No File Selected',
             text: 'No file selected yet!',
-            confirmButtonColor: '#10B981'
+            confirmButtonColor: '#006A4E'
         });
         
         // Try to help the user identify the file input

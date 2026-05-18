@@ -6,6 +6,37 @@ let expandedDocIds = window.expandedDocIds || []; // Tracks which compiled docum
 window.globalDisplayedDocIds = globalDisplayedDocIds;
 window.expandedDocIds = expandedDocIds;
 
+function getDocumentListSkeleton(label = 'Loading documents') {
+    return `
+        <div class="loading-documents" aria-live="polite" aria-label="${label}">
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line"></div>
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skel-circle"></div>
+                <div class="skel-body">
+                    <div class="skel-line medium"></div>
+                    <div class="skel-line"></div>
+                    <div class="skel-line short"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 /**
  * Initialize the confirmation modal for document deletion
  */
@@ -197,7 +228,7 @@ async function fetchDocumentsFromDB(page = 1, category = null, sortOrder = 'late
         
         // Show loading indicator in the container if requested
         if (showLoading) {
-            document.getElementById('documents-container').innerHTML = '<div class="loading-documents"><i class="fas fa-spinner fa-spin"></i> Loading documents...</div>';
+            document.getElementById('documents-container').innerHTML = getDocumentListSkeleton();
         }
         
                         
@@ -417,7 +448,7 @@ function renderDocuments(containerId, documents, expandedDocIds = []) {
     }
 
     // Clear container and show loading first
-    container.innerHTML = '<div class="loading-documents"><i class="fas fa-spinner fa-spin"></i> Loading documents...</div>';
+    container.innerHTML = getDocumentListSkeleton();
     
     // Check if document card components are available
     if (typeof window.documentCardComponents === 'undefined') {
@@ -1576,6 +1607,11 @@ function deleteDocument(documentId) {
  * @param {string} type - Type of notification (success, error, warning, info, document-archived, document-restored)
  */
 function showToast(message, type = 'success') {
+    if (window.peasToast) {
+        window.peasToast.show(message, type);
+        return;
+    }
+
     // Check if toast container exists
     let toastContainer = document.getElementById('toast-container');
     

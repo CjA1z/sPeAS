@@ -12,20 +12,71 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(response => response.text())
     .then(data => {
         sidebarContainer.innerHTML = data;
-        
+
         // Find the sidebar element inside the container
         const sideBar = sidebarContainer.querySelector('#side-bar') || sidebarContainer;
-        
+
         // If the sidebar exists, highlight the active link
         if (sideBar) {
             highlightActiveSidebarLink(sideBar);
         }
-        
+
         // Setup logout functionality AFTER sidebar is loaded
         setupLogout();
+
+        // Populate the user profile block from the active session
+        populateSidebarUser();
     })
     .catch(error => console.error('Error loading sidebar:', error));
 });
+
+/**
+ * Populate the sidebar user-profile name/role/avatar from the active session.
+ * Reads userInfo from sessionStorage (then localStorage as fallback),
+ * then enriches with /api/user/profile?userId=... when possible to get the
+ * real full name and profile picture.
+ */
+function populateSidebarUser() {
+    const nameEl = document.getElementById('sidebar-user-name');
+    const roleEl = document.getElementById('sidebar-user-role');
+    const avatarEl = document.getElementById('sidebar-user-avatar');
+    if (!nameEl || !roleEl) return;
+
+    let userInfo = null;
+    try {
+        const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+        if (raw) userInfo = JSON.parse(raw);
+    } catch (_) { /* ignore malformed JSON */ }
+
+    if (!userInfo) {
+        nameEl.textContent = 'Guest';
+        roleEl.textContent = '';
+        return;
+    }
+
+    // Immediate fill from session (username + role) so the UI is never blank
+    nameEl.textContent = userInfo.username || 'User';
+    roleEl.textContent = userInfo.role || '';
+
+    // Enrich with first/last name and avatar from the profile endpoint
+    if (!userInfo.id) return;
+    fetch(`/api/user/profile?userId=${encodeURIComponent(userInfo.id)}`, {
+        credentials: 'include'
+    })
+    .then(r => r.ok ? r.json() : null)
+    .then(profile => {
+        if (!profile) return;
+        const fullName = [profile.first_name, profile.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        if (fullName) nameEl.textContent = fullName;
+        if (avatarEl && profile.profile_picture) {
+            avatarEl.src = profile.profile_picture;
+        }
+    })
+    .catch(() => { /* keep the session-derived values */ });
+}
 
 // Highlight active sidebar link
 function highlightActiveSidebarLink(sideBar) {
@@ -183,7 +234,7 @@ function handleLogout(event) {
   spinner.style.width = '40px';
   spinner.style.height = '40px';
   spinner.style.border = '4px solid #f3f3f3';
-  spinner.style.borderTop = '4px solid #10B981'; // Use primary green color
+  spinner.style.borderTop = '4px solid #006A4E';
   spinner.style.borderRadius = '50%';
   spinner.style.animation = 'spin 1s linear infinite';
   

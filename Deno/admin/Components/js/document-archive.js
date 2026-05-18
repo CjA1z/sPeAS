@@ -2783,6 +2783,11 @@ window.documentArchive = (function() {
      * @param {string} type - Type of toast (success, error, warning, info, document-archived, document-restored)
      */
     function showToast(message, type = 'success') {
+        if (window.peasToast) {
+            window.peasToast.show(message, type);
+            return;
+        }
+
         // Check if toastr is available (common toast library)
         if (typeof toastr !== 'undefined') {
             toastr[type](message);

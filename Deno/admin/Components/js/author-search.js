@@ -96,7 +96,7 @@ function initAuthorSearch(inputElement, options = {}) {
             }
             .spinner {
                 border: 2px solid #f3f3f3;
-                border-top: 2px solid #10B981;
+                border-top: 2px solid var(--brand-green);
                 border-radius: 50%;
                 width: 16px;
                 height: 16px;
@@ -219,7 +219,7 @@ function initAuthorSearch(inputElement, options = {}) {
                 const createBtn = document.createElement('button');
                 createBtn.textContent = 'Create New';
                 createBtn.style.padding = '4px 8px';
-                createBtn.style.backgroundColor = '#10B981';
+                createBtn.style.backgroundColor = '#006A4E';
                 createBtn.style.color = 'white';
                 createBtn.style.border = 'none';
                 createBtn.style.borderRadius = '4px';
@@ -513,5 +513,5 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.author-search-input').forEach(input => {
         initAuthorSearch(input);
     });
-    
-    }); 
+
+    });

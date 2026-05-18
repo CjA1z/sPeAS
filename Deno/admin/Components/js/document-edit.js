@@ -274,6 +274,11 @@
 
 // Function to show a toast notification
 function showToast(message, type = 'info') {
+    if (window.peasToast) {
+        window.peasToast.show(message, type);
+        return;
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
@@ -1977,7 +1982,7 @@ window.documentEdit = {
             // Add background color to the icon container
             const iconContainer = document.getElementById('edit-single-document-preview-icon');
             if (iconContainer) {
-                iconContainer.style.backgroundColor = '#10B981'; // Green color from css
+                iconContainer.style.backgroundColor = '#006A4E';
             }
         }
     },
@@ -3727,4 +3732,4 @@ document.addEventListener('DOMContentLoaded', function() {
                         // The document edit module will use its own implementation
         };
     }
-}); 
+});
