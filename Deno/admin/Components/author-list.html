@@ -100,13 +100,13 @@
             background-color: #f3f4f6; /* Slightly darker on hover */
         }
         .ad-work-title-link {
-            color: #059669; /* Emerald color for links */
+            color: var(--brand-green);
             font-weight: 500;
             text-decoration: none;
         }
         .ad-work-title-link:hover {
             text-decoration: underline;
-            color: #047857; /* Darker emerald on hover */
+            color: var(--brand-green-dark);
         }
 
         /* Modal Styles */
@@ -212,7 +212,7 @@
             transform: translateY(-10px);
         }
         .ad-notification.success {
-            background-color: #10b981;
+            background-color: var(--brand-green);
             color: white;
         }
         .ad-notification.error {
@@ -224,6 +224,9 @@
             transform: translateY(0);
         }
     </style>
+    <link rel="stylesheet" href="css/author-list.css">
+    <script src="/admin/Components/js/toast.js"></script>
+    <script src="/admin/Components/js/avatars.js"></script>
 </head>
 <body >
     
@@ -362,6 +365,14 @@
         // --- Constants ---
         const DEFAULT_PROFILE_PIC = 'https://static.vecteezy.com/system/resources/previews/023/021/708/original/author-sign-theatre-icon-illustration-vector.jpg'; // New default placeholder
         const API_URL = '/api/authors/all'; // API endpoint for authors
+
+        function escapeAttr(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
 
         // --- Populate Author Filter Dropdowns ---
         function populateAuthorFilters() {
@@ -756,16 +767,19 @@
                         initialWorksHtml += '</div>';
                     }
 
-                    // Use author's profile picture URL or the new default placeholder
-                    const profilePic = author.profilePicUrl || DEFAULT_PROFILE_PIC;
-                    const profilePicPlaceholder = DEFAULT_PROFILE_PIC; // Use the constant for the fallback as well
+                    const hasProfilePic = Boolean(author.profilePicUrl);
+                    const profilePic = author.profilePicUrl || '';
+                    const safeAuthorName = escapeAttr(author.full_name || 'Unknown Author');
 
                     // Calculate works count
                     const worksCount = author.works?.length || author.worksCount || 0;
 
                     // Construct the inner HTML of the author card
                     card.innerHTML = `
-                        <div class="p-4 flex-grow"> <div class="flex justify-between items-start mb-4"> <div class="flex items-start flex-grow pr-4"> <img src="${profilePic}" alt="Profile picture of ${author.full_name}" class="w-10 h-10 rounded-full mr-3 flex-shrink-0 object-cover border border-gray-300" onerror="this.src='${profilePicPlaceholder}'; this.onerror=null;">
+                        <div class="p-4 flex-grow"> <div class="flex justify-between items-start mb-4"> <div class="flex items-start flex-grow pr-4"> <div class="ad-avatar-wrap mr-3 flex-shrink-0">
+                                        ${hasProfilePic ? `<img src="${profilePic}" alt="Profile picture of ${safeAuthorName}" class="ad-author-photo" data-author-name="${safeAuthorName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'; if (window.peasAvatars) window.peasAvatars.applyInitialsAvatar(this.nextElementSibling, this.dataset.authorName);">` : ''}
+                                        <div class="ad-author-avatar" data-author-name="${safeAuthorName}" style="${hasProfilePic ? 'display: none;' : ''}"></div>
+                                    </div>
                                     <div class="flex-grow"> <div class="flex items-baseline mb-1">
                                             <h3 class="text-lg font-semibold text-green-700 mr-2">${author.full_name}</h3>
                                             <span class="text-xs text-gray-500">(${author.spud_id || 'No ID'})</span>
@@ -813,6 +827,10 @@
                     `;
 
                     authorListContainer.appendChild(card);
+                    const avatarFallback = card.querySelector('.ad-author-avatar');
+                    if (avatarFallback && avatarFallback.style.display !== 'none' && window.peasAvatars) {
+                        window.peasAvatars.applyInitialsAvatar(avatarFallback, author.full_name);
+                    }
 
                     // Populate work filters if the author has works
                     if (author.works && author.works.length > 0) {
@@ -1259,6 +1277,11 @@
 
         // Show notification function
         function showNotification(message, type = "success") {
+            if (window.peasToast) {
+                window.peasToast.show(message, type);
+                return;
+            }
+
             const notification = document.getElementById("notification");
             notification.textContent = message;
             notification.className = `ad-notification ${type}`;

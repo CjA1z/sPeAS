@@ -8,16 +8,20 @@
   <script>
     // Immediately check if user is logged in
     (function() {
-      const sessionToken = localStorage.getItem('session_token') || 
-                         sessionStorage.getItem('session_token') || 
+      const sessionToken = localStorage.getItem('session_token') ||
+                         sessionStorage.getItem('session_token') ||
                          document.cookie.split(';').find(c => c.trim().startsWith('session_token='));
-      
+
       // If no session token found, redirect immediately to index page
       if (!sessionToken) {
                 window.location.href = '/index.html?redirected=true&t=' + Date.now();
       }
     })();
   </script>
+  <!-- Modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <!-- Load all CSS with correct paths -->
   <link rel="stylesheet" href="/admin/Components/css/dashboard.css">
   <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
@@ -33,161 +37,225 @@
   <script src="/admin/Components/js/dashboard-chart.js"></script>
 </head>
 <body>
-  
-    
-  
+
     <div id="navbar-header"> </div>
-    <div id="sidebar-container"> 
-  
+    <div id="sidebar-container">
+
     </div>
   <!-- Main content container outside of header -->
   <div class="container">
+    <div class="dashboard-grid">
 
-  <div class="row"><!---row Mark-->
-   
-      <div class="column visits-column">
+      <!-- ROW 0: Welcome Banner -->
+      <section class="welcome-banner" id="welcome-banner" aria-label="Welcome">
+        <div class="welcome-text">
+          <h1 class="welcome-greeting" id="welcome-greeting">
+            <span class="accent" id="welcome-greeting-prefix">Welcome back</span><span>, <span id="welcome-username">there</span></span>
+          </h1>
+          <div class="welcome-date" id="welcome-date">&mdash;</div>
+          <div class="welcome-subtitle">Here&rsquo;s what&rsquo;s happening across the repository today.</div>
+        </div>
+        <div class="welcome-quickstats">
+          <div class="quickstat">
+            <span class="quickstat-value" id="quickstat-works">&mdash;</span>
+            <span class="quickstat-label">Total Works</span>
+          </div>
+          <div class="quickstat">
+            <span class="quickstat-value" id="quickstat-visits">&mdash;</span>
+            <span class="quickstat-label">Home Visits</span>
+          </div>
+          <div class="quickstat">
+            <span class="quickstat-value" id="quickstat-authors">&mdash;</span>
+            <span class="quickstat-label">Authors</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 1: 3-card hero row -->
+      <article class="card kpi-card visits-column">
+        <header class="card-header">
+          <h3 class="card-title">Page Visits</h3>
+          <span class="visits-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2.5 -5 6 -7.5 9 -7.5s6.5 2.5 9 7.5c-2.5 5 -6 7.5 -9 7.5s-6.5 -2.5 -9 -7.5z"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+        </header>
         <div class="total-visits">
-            <div class="total-visits-number">12,321</div>
-            <div>Total Visits</div>
+          <div class="total-visits-number" data-counter="0">&mdash;</div>
+          <div>Total Home Page Visits</div>
         </div>
         <div class="visits-row">
-            <div>
-                <div class="visit-count">10,653</div>
-                <div class="visit-label">Guest Visits</div>
-            </div>
-            <div>
-                <div class="visit-count">1,668</div>
-                <div class="visit-label">User Visits</div>
-            </div>
+          <div>
+            <div class="visit-count" data-counter="0">&mdash;</div>
+            <div class="visit-label">Guest Visits</div>
+          </div>
+          <div>
+            <div class="visit-count" data-counter="0">&mdash;</div>
+            <div class="visit-label">User Visits</div>
+          </div>
         </div>
-      
-    </div><!--Mark-->
-    
-    
-    <div class="top-authors-container">
-      <h3>Top Authors</h3>
-      <div class="authors-list">
-          <div class="author">
-            <div class="author-image" style="background-image: url('./Components/img/samp_pfp.jpg');"></div>
-              <div class="author-name">Yalwa Smith</div>
-              <div class="author-visits">521 visits</div>
-          </div>
-          <div class="author">
-              <div class="author-image" style="background-image: url('./Components/img/samp_pfp.jpg');"></div>
-              <div class="author-name">Charilaos James</div>
-              <div class="author-visits">470 visits</div>
-          </div>
-          <div class="author">
-              <div class="author-image" style="background-image: url('./Components/img/samp_pfp.jpg');"></div>
-              <div class="author-name">Gunnarr Stuart</div>
-              <div class="author-visits">455 visits</div>
-          </div>
-          <div class="author">
-              <div class="author-image" style="background-image: url('./Components/img/samp_pfp.jpg');"></div>
-              <div class="author-name">Anna Burkhard</div>
-              <div class="author-visits">400 visits</div>
-          </div>
-          <div class="author">
-              <div class="author-image" style="background-image: url('./Components/img/samp_pfp.jpg');"></div>
-              <div class="author-name">Kay Ashlyn</div>
-              <div class="author-visits">399 visits</div>
-          </div>
-      </div>
-  </div>
-   
-    
-  </div><!--row close Mark-->
+      </article>
 
-  <div class="row"><!--row Open Mark-->
-    <div class="column"><!--Mark-->
-      
-      <table class="most-visited-table">
-        <h3 class="most-visited-heading">Most Visited Works</h3>
-        <!-- Time filter removed, will always show all time data -->
-        <thead>
-          <tr>
-            <th>Cover</th>
-            <th>Details</th>
-            <th>Visits</th>
-          </tr>
-        </thead>
-        <tbody id="most-visited-works-tbody">
-          <tr>
-            <td colspan="3" class="loading-data">
-              <div class="loading-spinner"></div>
-              <p>Loading most visited works...</p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div><!--Mark-->
-
-    <div class="column"><!--Mark-->
-      <div class="works-summary">
-        <div class="works-by-type">
-          <div class="work-count">
-            <div class="work-icon confluence">
-                <img src="/admin/Components/icons/Category-icons/confluence.png" alt="Confluence Icon"> 
-            </div>
-            <span class="work-type confluence-text">Confluence</span>
-            <span class="count">Loading...</span>
-            <span class="label">Works</span>
-        </div>
-        <div class="work-count">
-            <div class="work-icon dissertation">
-                <img src="/admin/Components/icons/Category-icons/dissertation.png" alt="Dissertation Icon">
-            </div>
-            <span class="work-type dissertation-text">Dissertation</span>
-            <span class="count">Loading...</span>
-            <span class="label">Works</span>
-        </div>
-        <div class="work-count">
-            <div class="work-icon thesis">
-                <img src="/admin/Components/icons/Category-icons/thesis.png" alt="Thesis Icon">
-            </div>
-            <span class="work-type thesis-text">Thesis</span>
-            <span class="count">Loading...</span>
-            <span class="label">Works</span>
-        </div>
-        <div class="work-count">
-            <div class="work-icon synergy">
-                <img src="/admin/Components/icons/Category-icons/synergy.png" alt="Synergy Icon">
-            </div>
-            <span class="work-type synergy-text">Synergy</span>
-            <span class="count">Loading...</span>
-            <span class="label">Works</span>
-        </div>
-        </div>
-        <div class="total-works">
-          <span class="total-count">Loading...</span>
-          <span class="total-label">Works</span>
-        </div>
-      </div>
-      <div class="trending-keywords">
-        <h3 class="trending-keywords-heading">Trending Keywords</h3>
-        <div class="keywords-list">
-          <!-- Keywords will be loaded dynamically by trending-keywords.js -->
-          <div class="loading-message" style="width: 100%; text-align: center; color: #6b7280;">
-            <div class="loading-spinner"></div>
-            <p>Loading trending keywords...</p>
+      <article class="card kpi-card total-works-card">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Repository</span>
+            <h3 class="card-title">Total Works</h3>
           </div>
+          <span class="kpi-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M5 7a2 2 0 0 1 2 -2h7l5 5v9a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-12z"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+          </span>
+        </header>
+        <div>
+          <div class="total-count" data-counter="0">&mdash;</div>
+          <div class="total-label">All categories combined</div>
         </div>
-      </div>
-  
+        <div class="works-stack-bar" aria-hidden="true">
+          <span class="seg-confluence" style="width:0%"></span>
+          <span class="seg-dissertation" style="width:0%"></span>
+          <span class="seg-thesis" style="width:0%"></span>
+          <span class="seg-synergy" style="width:0%"></span>
+        </div>
+        <div class="works-stack-legend">
+          <span class="legend-confluence">Confluence</span>
+          <span class="legend-dissertation">Dissertation</span>
+          <span class="legend-thesis">Thesis</span>
+          <span class="legend-synergy">Synergy</span>
+        </div>
+      </article>
+
+      <article class="card kpi-card active-authors-card">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Contributors</span>
+            <h3 class="card-title">Authors</h3>
+          </div>
+          <span class="kpi-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7m-4 0a4 4 0 1 1 8 0a4 4 0 1 1 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.87"/></svg>
+          </span>
+        </header>
+        <div>
+          <div class="active-authors-count" data-counter="0">&mdash;</div>
+          <div class="active-authors-label">Published in the repository</div>
+        </div>
+        <div class="author-avatar-stack" id="author-avatar-stack" aria-hidden="true"></div>
+      </article>
+
+      <!-- ROW 2: Chart (full width) -->
+      <article class="card chart-card">
         <div class="chart-container">
-            <div class="chart-header">
-                <h3>Total Visitors</h3>
-                <div>
-                    <button class="active" data-period="daily">Daily</button>
-                    <button data-period="weekly">Weekly</button>
-                    <button data-period="monthly">Monthly</button>
-                </div>
+          <div class="chart-header">
+            <h3>Total Visitors</h3>
+            <div class="chart-toggle">
+              <button class="active" data-period="daily">Daily</button>
+              <button data-period="weekly">Weekly</button>
+              <button data-period="monthly">Monthly</button>
             </div>
-            <canvas id="visitorChart"></canvas>
+          </div>
+          <canvas id="visitorChart"></canvas>
         </div>
-        
+      </article>
 
-  </div><!--row close Mark-->
+      <!-- ROW 3: Works by Category (full width) -->
+      <article class="card works-by-category-card">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Breakdown</span>
+            <h3 class="card-title">Works by Category</h3>
+          </div>
+        </header>
+        <div class="category-grid">
+          <div class="category-tile is-confluence" data-category="confluence">
+            <div class="tile-icon"><img src="/admin/Components/icons/Category-icons/confluence.png" alt="Confluence"></div>
+            <div class="tile-name">Confluence</div>
+            <div class="tile-count" data-counter="0">&mdash;</div>
+            <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
+            <div class="tile-percent">0% of total</div>
+          </div>
+          <div class="category-tile is-dissertation" data-category="dissertation">
+            <div class="tile-icon"><img src="/admin/Components/icons/Category-icons/dissertation.png" alt="Dissertation"></div>
+            <div class="tile-name">Dissertation</div>
+            <div class="tile-count" data-counter="0">&mdash;</div>
+            <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
+            <div class="tile-percent">0% of total</div>
+          </div>
+          <div class="category-tile is-thesis" data-category="thesis">
+            <div class="tile-icon"><img src="/admin/Components/icons/Category-icons/thesis.png" alt="Thesis"></div>
+            <div class="tile-name">Thesis</div>
+            <div class="tile-count" data-counter="0">&mdash;</div>
+            <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
+            <div class="tile-percent">0% of total</div>
+          </div>
+          <div class="category-tile is-synergy" data-category="synergy">
+            <div class="tile-icon"><img src="/admin/Components/icons/Category-icons/synergy.png" alt="Synergy"></div>
+            <div class="tile-name">Synergy</div>
+            <div class="tile-count" data-counter="0">&mdash;</div>
+            <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
+            <div class="tile-percent">0% of total</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ROW 4: Most Visited Works + Top Authors -->
+      <article class="card most-visited-card">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Engagement</span>
+            <h3 class="card-title most-visited-heading">Most Visited Works</h3>
+          </div>
+          <a href="/admin/Components/documents_list.html" class="card-link">View all &rarr;</a>
+        </header>
+        <table class="most-visited-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Cover</th>
+              <th>Details</th>
+              <th>Visits</th>
+            </tr>
+          </thead>
+          <tbody id="most-visited-works-tbody">
+            <tr><td colspan="4" style="padding:0;background:transparent;">
+              <div class="skeleton-row"><div class="skel-circle"></div><div class="skel"></div><div class="skel-body"><div class="skel-line medium"></div><div class="skel-line short"></div></div><div class="skel-tail skel"></div></div>
+              <div class="skeleton-row"><div class="skel-circle"></div><div class="skel"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line short"></div></div><div class="skel-tail skel"></div></div>
+              <div class="skeleton-row"><div class="skel-circle"></div><div class="skel"></div><div class="skel-body"><div class="skel-line medium"></div><div class="skel-line short"></div></div><div class="skel-tail skel"></div></div>
+            </td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card top-authors-container">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Leaderboard</span>
+            <h3 class="card-title">Top Authors</h3>
+          </div>
+          <a href="/admin/Components/author-list.html" class="card-link">View all &rarr;</a>
+        </header>
+        <div class="authors-list">
+          <div class="skeleton-author"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line"></div></div></div>
+          <div class="skeleton-author"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line"></div></div></div>
+          <div class="skeleton-author"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line"></div></div></div>
+          <div class="skeleton-author"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line"></div></div></div>
+        </div>
+      </article>
+
+      <!-- ROW 5: Trending Keywords (full width) -->
+      <article class="card trending-keywords">
+        <header class="card-header">
+          <div>
+            <span class="card-eyebrow">Discovery</span>
+            <h3 class="card-title trending-keywords-heading">Trending Keywords</h3>
+          </div>
+        </header>
+        <div class="keywords-list">
+          <div class="skeleton-keywords">
+            <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+            <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+          </div>
+        </div>
+      </article>
+
+    </div><!-- /.dashboard-grid -->
 
   <script>
     // Use a minimal handler that just delegates to the sidebar implementation
@@ -195,7 +263,7 @@
       if (typeof window.sidebarHandleLogout === 'function') {
         return window.sidebarHandleLogout(event);
       }
-      
+
       // Only if the sidebar handler isn't available, use a minimal approach
       // that respects the server's redirect
       if (event) event.preventDefault();
@@ -204,7 +272,7 @@
       document.cookie.split(";").forEach(c => {
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-      
+
       // Use the server's logout endpoint and allow redirect to be followed
       fetch('/logout', {
         method: 'POST',
@@ -251,6 +319,6 @@
   </script>
 
   </div>
-  
+
 </body>
 </html>

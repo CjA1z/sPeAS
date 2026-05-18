@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
     <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
     <link rel="stylesheet" href="/admin/Components/css/admin_logs.css">
+    <link rel="stylesheet" href="/admin/Components/css/_toast.css">
+    <script src="/admin/Components/js/toast.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
     <script>
@@ -37,7 +39,7 @@
             
             <div class="flex flex-wrap gap-3">
                 <!-- Refresh button -->
-                <button id="refreshButton" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors flex items-center">
+                <button id="refreshButton" class="btn-ghost refresh-button px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors flex items-center">
                     <svg class="lucide lucide-refresh-cw h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                     Refresh
                 </button>
@@ -53,7 +55,7 @@
                 </h2>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full">
+                <table class="min-w-full data-table">
                     <thead>
                         <tr>
                             <th class="w-16">NO</th>
@@ -63,9 +65,7 @@
                         </tr>
                     </thead>
                         <tbody id="downloadsTableBody" class="divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-gray-500">Fetching data from database...</td>
-                        </tr>
+                            <tr><td colspan="4"><div class="skeleton-row"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line medium"></div><div class="skel-line short"></div></div></div></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -79,7 +79,7 @@
                 </h2>
             </div>
              <div class="overflow-x-auto">
-                <table class="min-w-full">
+                <table class="min-w-full data-table">
                     <thead>
                         <tr>
                             <th class="w-16">NO</th>
@@ -89,9 +89,7 @@
                         </tr>
                     </thead>
                         <tbody id="loginsTableBody" class="divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-gray-500">Fetching data from database...</td>
-                        </tr>
+                            <tr><td colspan="4"><div class="skeleton-row"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line medium"></div><div class="skel-line short"></div></div></div></td></tr>
                          </tbody>
                 </table>
             </div>
@@ -105,7 +103,7 @@
                 </h2>
             </div>
              <div class="overflow-x-auto">
-                <table class="min-w-full">
+                <table class="min-w-full data-table">
                     <thead>
                         <tr>
                             <th class="w-16">NO</th>
@@ -118,9 +116,7 @@
                         </tr>
                     </thead>
                         <tbody id="allLogsTableBody" class="divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-gray-500">Fetching system logs from database...</td>
-                        </tr>
+                            <tr><td colspan="7"><div class="skeleton-row"><div class="skel-circle"></div><div class="skel-body"><div class="skel-line medium"></div><div class="skel-line"></div></div><div class="skel-tail skel"></div></div></td></tr>
                     </tbody>
                 </table>
                 </div>
@@ -177,6 +173,43 @@
         let currentPage = 1;
         let totalPages = 1;
         let pageSize = 20;
+
+        function getTableSkeletonRows(colspan, rows = 3) {
+            return Array.from({ length: rows }, () => `
+                <tr>
+                    <td colspan="${colspan}">
+                        <div class="skeleton-row">
+                            <div class="skel-circle"></div>
+                            <div class="skel-body">
+                                <div class="skel-line medium"></div>
+                                <div class="skel-line short"></div>
+                            </div>
+                            <div class="skel-tail skel"></div>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getEmptyRow(colspan, message, icon = 'inbox') {
+            return `
+                <tr>
+                    <td colspan="${colspan}">
+                        <div class="empty-state">
+                            <i data-lucide="${icon}" aria-hidden="true"></i>
+                            <p>${message}</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function setRefreshLoading(isLoading) {
+            const refreshButton = document.getElementById('refreshButton');
+            if (!refreshButton) return;
+            refreshButton.disabled = isLoading;
+            refreshButton.classList.toggle('is-loading', isLoading);
+        }
         
         // Initialize system logs
         async function initSystemLogs() {
@@ -188,8 +221,11 @@
             
             // Setup event listeners
             document.getElementById('refreshButton').addEventListener('click', () => {
-                fetchLogSummary();
-                fetchLogs(currentPage);
+                setRefreshLoading(true);
+                Promise.all([fetchLogSummary(), fetchLogs(currentPage)]).finally(() => {
+                    setRefreshLoading(false);
+                    if (window.lucide) lucide.createIcons();
+                });
             });
             
             document.getElementById('prevPageBtn').addEventListener('click', () => {
@@ -210,6 +246,9 @@
         // Fetch log summary for widget displays
         async function fetchLogSummary() {
             try {
+                document.getElementById('downloadsTableBody').innerHTML = getTableSkeletonRows(4, 3);
+                document.getElementById('loginsTableBody').innerHTML = getTableSkeletonRows(4, 3);
+
                 const response = await fetch('/api/system-logs/summary');
                 if (!response.ok) {
                     throw new Error(`Error fetching log summary: ${response.status}`);
@@ -227,25 +266,24 @@
                 // Show error message in each table
                 document.getElementById('downloadsTableBody').innerHTML = `
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-red-500">
-                            Failed to load data: ${error.message}
-                        </td>
+                        <td colspan="4"><div class="empty-state"><i data-lucide="alert-triangle" aria-hidden="true"></i><p>Failed to load data: ${error.message}</p></div></td>
                     </tr>
                 `;
                 
                 document.getElementById('loginsTableBody').innerHTML = `
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-red-500">
-                            Failed to load data: ${error.message}
-                        </td>
+                        <td colspan="4"><div class="empty-state"><i data-lucide="alert-triangle" aria-hidden="true"></i><p>Failed to load data: ${error.message}</p></div></td>
                     </tr>
                 `;
+                if (window.lucide) lucide.createIcons();
             }
         }
         
         // Fetch logs with filtering and pagination
         async function fetchLogs(page) {
             try {
+                document.getElementById('allLogsTableBody').innerHTML = getTableSkeletonRows(7, 5);
+
                 // Build query parameters
                 const params = new URLSearchParams();
                 params.append('limit', pageSize);
@@ -268,13 +306,12 @@
                 
                 // Update logs table
                 updateAllLogsTable(data.logs);
+                if (window.lucide) lucide.createIcons();
                 
             } catch (error) {
                 document.getElementById('allLogsTableBody').innerHTML = `
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-red-500">
-                            Failed to load data: ${error.message}
-                        </td>
+                        <td colspan="7"><div class="empty-state"><i data-lucide="alert-triangle" aria-hidden="true"></i><p>Failed to load data: ${error.message}</p></div></td>
                     </tr>
                 `;
                 
@@ -283,17 +320,14 @@
                 document.getElementById('totalLogs').textContent = '0';
                 document.getElementById('prevPageBtn').disabled = true;
                 document.getElementById('nextPageBtn').disabled = true;
+                if (window.lucide) lucide.createIcons();
             }
         }
         
         // Update the downloads table
         function updateDownloadsTable(downloads) {
             if (!downloads || downloads.length === 0) {
-                document.getElementById('downloadsTableBody').innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center py-4 text-gray-500">No download records found in the database</td>
-                    </tr>
-                `;
+                document.getElementById('downloadsTableBody').innerHTML = getEmptyRow(4, 'No download records found in the database', 'download');
                 return;
             }
             
@@ -318,17 +352,13 @@
         // Update the logins table
         function updateLoginsTable(logins) {
             if (!logins || logins.length === 0) {
-                document.getElementById('loginsTableBody').innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center py-4 text-gray-500">No login records found in the database</td>
-                    </tr>
-                `;
+                document.getElementById('loginsTableBody').innerHTML = getEmptyRow(4, 'No login records found in the database', 'log-in');
                 return;
             }
             
             const html = logins.map((log, index) => {
                 const statusClass = log.status === 'success' ? 
-                    'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    'badge badge--success' : 'badge badge--danger';
                     
                 const statusText = log.status === 'success' ? 'Success' : 'Failed';
                 
@@ -338,7 +368,7 @@
                         <td>${log.formatted_timestamp || new Date(log.timestamp).toLocaleString()}</td>
                         <td class="font-medium text-gray-700">${log.username || 'Anonymous'}</td>
                         <td>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusClass}">
+                            <span class="${statusClass}">
                                 ${statusText}
                             </span>
                         </td>
@@ -352,18 +382,14 @@
         // Update the main logs table
         function updateAllLogsTable(logs) {
             if (!logs || logs.length === 0) {
-                document.getElementById('allLogsTableBody').innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-gray-500">No logs found in the database</td>
-                    </tr>
-                `;
+                document.getElementById('allLogsTableBody').innerHTML = getEmptyRow(7, 'No logs found in the database', 'file-search');
                 return;
             }
             
             const html = logs.map((log, index) => {
                 const actualIndex = ((currentPage - 1) * pageSize) + index + 1;
                 const statusClass = log.status === 'success' ? 
-                    'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    'badge badge--success' : 'badge badge--danger';
                     
                 // Format type with color
                 let typeClass = '';
@@ -409,7 +435,7 @@
                         <td>${log.username || 'System'}</td>
                         <td>${log.action}</td>
                         <td>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusClass}">
+                            <span class="${statusClass}">
                                 ${log.status || 'unknown'}
                             </span>
                         </td>
@@ -433,4 +459,3 @@
       </script>
 </body>
 </html>
-

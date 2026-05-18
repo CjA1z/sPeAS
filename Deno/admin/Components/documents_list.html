@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/admin/Components/css/pdf-modal.css">
     <link rel="stylesheet" href="/admin/Components/css/preview.css">
     <link rel="stylesheet" href="/admin/Components/css/edit-document-modals.css">
+    <link rel="stylesheet" href="/admin/Components/css/_toast.css">
   
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
@@ -111,7 +112,10 @@
         </div>
 
         <div id="documents-container" class="document-cards-container">
-            <div id="no-docs-message" class="no-docs">No documents found</div>
+            <div id="no-docs-message" class="no-docs empty-state">
+                <i class="fas fa-file-alt" aria-hidden="true"></i>
+                <p>No documents found</p>
+            </div>
         </div>
 
         <div class="pagination">
@@ -350,7 +354,7 @@
     <div id="success-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-                <path fill="#4caf50" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path>
+                <path fill="#006A4E" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path>
                 <path fill="#ccff90" d="M34.602,14.602L21,28.199l-5.602-5.598l-2.797,2.797L21,33.801l16.398-16.402L34.602,14.602z"></path>
             </svg>
             <h2>Updated successfully!</h2>
@@ -439,6 +443,7 @@
 
     <!-- JavaScript -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
+    <script src="/admin/Components/js/toast.js"></script>
     
     <!-- Load utility scripts first -->
     <script src="/admin/Components/js/document-utils.js"></script>

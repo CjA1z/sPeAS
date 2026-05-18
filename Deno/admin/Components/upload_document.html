@@ -374,8 +374,8 @@
                     colors: {
                         primary: {
                             light: '#ECFDF5', // emerald-50
-                            DEFAULT: '#10B981', // emerald-500
-                            dark: '#047857', // emerald-700
+                            DEFAULT: '#006A4E',
+                            dark: '#00543e',
                         },
                         secondary: '#6B7280', // gray-500
                         gray: {
@@ -408,6 +408,7 @@
     <link rel="stylesheet" href="css/upload_document.css">
     <link rel="stylesheet" href="css/author-search.css">
     <link rel="stylesheet" href="css/research-agenda-search.css">
+    <script src="/admin/Components/js/toast.js"></script>
     
     <style>
         /* Research Agenda Dropdown Styles */
@@ -463,7 +464,7 @@
         .file-input-label {
             display: inline-block;
             padding: 12px 25px;
-            background-color: #10B981; /* Primary color */
+            background-color: var(--brand-green);
             color: white;
             border-radius: 5px;
             cursor: pointer;
@@ -474,7 +475,7 @@
         }
         
         .file-input-label:hover {
-            background-color: #047857; /* Primary dark color */
+            background-color: var(--brand-green-dark);
         }
         
         /* Hide the default file input element */
@@ -498,7 +499,7 @@
             font-size: 16px;
             font-weight: 500;
             color: white;
-            background-color: #10B981;
+            background-color: var(--brand-green);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -508,7 +509,7 @@
         }
         
         .upload-button:hover {
-            background-color: #047857;
+            background-color: var(--brand-green-dark);
         }
         
         .upload-button:disabled {
@@ -544,7 +545,7 @@
         .progress-bar {
             width: 0%;
             height: 100%;
-            background-color: #10B981;
+            background-color: var(--brand-green);
             background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
             background-size: 1rem 1rem;
             border-radius: 25px;
@@ -559,7 +560,7 @@
         /* Status message displayed after completion */
         .status-message {
             margin-top: 15px;
-            color: #10B981;
+            color: var(--brand-green);
             font-weight: bold;
             font-size: 15px;
             display: none;
@@ -1090,7 +1091,7 @@
                             icon: 'error',
                             title: 'Invalid File',
                             text: 'Please upload a PDF file',
-                            confirmButtonColor: '#10B981'
+                            confirmButtonColor: '#006A4E'
                         });
                     }
                 }, false);
@@ -1466,7 +1467,7 @@
                             icon: 'info',
                             title: 'No Document',
                             text: 'Please upload a document first',
-                            confirmButtonColor: '#10B981'
+                            confirmButtonColor: '#006A4E'
                         });
                         return false;
                     }
@@ -1488,7 +1489,7 @@
                             icon: 'info',
                             title: 'No Foreword',
                             text: 'Please upload a foreword document first',
-                            confirmButtonColor: '#10B981'
+                            confirmButtonColor: '#006A4E'
                         });
                     }
                 });
@@ -2120,7 +2121,7 @@
         }
         
         .research-header:hover {
-            background-color: rgba(16, 185, 129, 0.1);
+            background-color: rgba(0, 106, 78, 0.1);
         }
         
         .toggle-icon {
@@ -2149,7 +2150,7 @@
         }
         
         .view-file-btn:hover i {
-            color: #10B981;
+            color: var(--brand-green);
         }
         
         .visible-eye-icon {

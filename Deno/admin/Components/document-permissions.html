@@ -9,7 +9,7 @@
     <style>
         /* --- Custom Properties for Theme --- */
         :root {
-            --primary-green: #047857; /* Tailwind emerald-700 */
+            --primary-green: var(--brand-green);
             --light-green: #d1fae5; /* Tailwind emerald-100 */
             --lighter-green: #ecfdf5; /* Tailwind emerald-50 */
             --dark-green: #064e3b; /* Tailwind emerald-900 */
@@ -532,7 +532,7 @@
         }
         
         #confirmationMessage.success {
-            background-color: #059669;
+            background-color: var(--brand-green);
             color: white;
         }
         
@@ -729,6 +729,10 @@
             font-size: 1.25rem; /* Larger icon size */
         }
     </style>
+    <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
+    <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
+    <link rel="stylesheet" href="/admin/Components/css/document-permissions.css">
+    <script src="/admin/Components/js/toast.js"></script>
 </head>
 <body class="p-0">
     <!-- Navbar container -->
@@ -2558,6 +2562,11 @@
 
         /** MODIFIED: Shows a confirmation message with different styles. */
         function showConfirmationMessage(message, type = 'success') { // Default to 'success'
+             if (window.peasToast) {
+                 window.peasToast.show(message, type);
+                 return;
+             }
+
              confirmationMessage.textContent = message;
              // Remove previous type classes
              confirmationMessage.classList.remove('success', 'error', 'warning');
@@ -3103,9 +3112,9 @@
                 loginBox.style.textAlign = 'center';
                 
                 loginBox.innerHTML = `
-                    <h2 style="color: #047857; margin-bottom: 1rem;">Authentication Required</h2>
+                    <h2 style="color: var(--brand-green); margin-bottom: 1rem;">Authentication Required</h2>
                     <p style="margin-bottom: 1.5rem;">Your session has expired or you are not logged in. Please log in again to continue.</p>
-                    <button id="loginRedirectBtn" style="background-color: #047857; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: bold;">Log In</button>
+                    <button id="loginRedirectBtn" style="background-color: var(--brand-green); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: bold;">Log In</button>
                     <button id="closeAuthOverlayBtn" style="background-color: #6B7280; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; margin-left: 0.5rem; cursor: pointer;">Cancel</button>
                 `;
                 

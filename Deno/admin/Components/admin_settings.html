@@ -75,7 +75,7 @@
             border-radius: 0.5rem;
             font-weight: 600;
             transition: background-color 0.3s ease;
-            background-color: #16a34a; /* green-600 */
+            background-color: var(--brand-green);
             color: white;
             width: 100%;
             margin-top: 1.5rem; /* mt-6 */
@@ -113,6 +113,10 @@
             opacity: 1;
         }
     </style>
+    <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
+    <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
+    <link rel="stylesheet" href="/admin/Components/css/settings.css">
+    <script src="/admin/Components/js/toast.js"></script>
 </head>
 <body> <div id="navbar-header" >
         </div>
@@ -360,6 +364,11 @@
         });
 
         function showMessage(message, type = 'info') {
+            if (window.peasToast) {
+                window.peasToast.show(message, type);
+                return;
+            }
+
             messageText.textContent = message;
             messageBox.classList.remove('bg-red-500', 'bg-green-500', 'bg-blue-500', 'bg-gray-800');
             if (type === 'success') {

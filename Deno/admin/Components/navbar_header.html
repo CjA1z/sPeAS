@@ -6,46 +6,72 @@
     <link rel="icon" href="img/logo_2.png" type="image/png">
     <title>Tabler Header</title>
     <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
-  
 </head>
 <body>
-  
     <div class="header">
         <div class="logo">
-          <div class="logo-spud" style="background-image: url('/admin/Components/img/logo1.png');"></div>
-          
-          <div class="content">
-            <span class="spud-text">St Paul University Dumaguete
-          </span>
-                <p>CARITAS VERITAS SCIENTIA</p> 
-         </div>
-    </div>
-         
+            <div class="logo-spud" style="background-image: url('/admin/Components/img/logo1.png');"></div>
+            <div class="content">
+                <span class="spud-text">St Paul University Dumaguete</span>
+                <p>CARITAS VERITAS SCIENTIA</p>
+            </div>
+        </div>
 
-      </div>
-    
-      <script>document.addEventListener('DOMContentLoaded', function() {
-        const userDropdown = document.querySelector('.user-dropdown');
-        if (!userDropdown) {
-            return; 
-        }
-        const dropdownContent = userDropdown.querySelector('.dropdown-content');
-      
-        if (!dropdownContent) {
-          return;
-        }
-      
-        userDropdown.addEventListener('click', (event) => {
-            event.stopPropagation();
-            dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
-        });
-      
-        window.addEventListener('click', (event) => {
-            if (!userDropdown.contains(event.target)) {
-                dropdownContent.style.display = 'none';
+        <div class="header-actions">
+            <button type="button" class="header-icon-btn" id="header-notification-btn" aria-label="Notifications" title="Notifications">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg>
+                <span class="notification-dot"></span>
+            </button>
+            <div class="header-divider" aria-hidden="true"></div>
+            <div class="header-profile" id="header-profile">
+                <div class="header-profile-avatar">
+                    <img id="header-user-avatar" src="/admin/Components/img/admin.png" alt="User Avatar">
+                </div>
+                <div class="header-profile-meta">
+                    <span class="header-profile-name" id="header-user-name">&mdash;</span>
+                    <span class="header-profile-role" id="header-user-role">Admin</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Mirror sidebar identity into the header chip
+        try {
+          const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+          if (raw) {
+            const u = JSON.parse(raw);
+            const nameEl = document.getElementById('header-user-name');
+            const roleEl = document.getElementById('header-user-role');
+            if (nameEl) nameEl.textContent = u.username || 'User';
+            if (roleEl) roleEl.textContent = (u.role || 'Admin').toString().toUpperCase();
+
+            if (u.id) {
+              fetch('/api/user/profile?userId=' + encodeURIComponent(u.id), { credentials: 'include' })
+                .then(r => r.ok ? r.json() : null)
+                .then(profile => {
+                  if (!profile) return;
+                  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
+                  if (fullName && nameEl) nameEl.textContent = fullName;
+                  const avatarEl = document.getElementById('header-user-avatar');
+                  if (avatarEl && profile.profile_picture) avatarEl.src = profile.profile_picture;
+                })
+                .catch(() => {});
             }
-        });
-      
-      });</script>
+          }
+        } catch (_) { /* ignore */ }
+
+        // Add a subtle shadow when the page scrolls
+        const header = document.querySelector('.header');
+        if (!header) return;
+        const onScroll = () => {
+          if (window.scrollY > 4) header.classList.add('is-scrolled');
+          else header.classList.remove('is-scrolled');
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+      });
+    </script>
 </body>
 </html>
