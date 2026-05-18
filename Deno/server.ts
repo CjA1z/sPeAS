@@ -4,7 +4,7 @@
 import { config } from "https://deno.land/x/dotenv@v3.2.0/mod.ts";
 // Load env variables with absolute path to ensure it's found
 config({ 
-  path: "D:/Documents/Capstone/Peas/paulinian-electronic-archiving-system/deno/.env", 
+  path: new URL("./.env", import.meta.url).pathname, 
   export: true 
 });
 
