@@ -1,0 +1,190 @@
+@import url("./_tokens.css");
+@import url("./_components.css");
+@import url("./_toast.css");
+
+:root {
+    --primary-green: var(--brand-green);
+    --light-green: var(--brand-green-soft);
+    --lighter-green: var(--brand-green-mist);
+    --dark-green: var(--brand-green-dark);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border-color: var(--border);
+    --background-light: var(--bg-muted);
+    --background-page: var(--bg-page);
+}
+
+body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+}
+
+.main-container {
+    background:
+        var(--gradient-banner),
+        #ffffff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin: 88px 32px 48px 280px;
+    width: auto;
+}
+
+.page-title {
+    border-bottom-color: var(--brand-green-soft);
+    color: var(--text-primary);
+    letter-spacing: 0;
+}
+
+.filter-controls,
+.view-layout-controls {
+    background-color: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+
+.form-select,
+.form-input,
+.form-date,
+.list-action-dropdown,
+.tile-action-dropdown {
+    border-color: var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+
+.form-select:focus,
+.form-input:focus,
+.form-date:focus,
+.list-action-dropdown:focus,
+.tile-action-dropdown:focus {
+    border-color: var(--brand-green);
+    box-shadow: var(--ring-focus);
+    outline: none;
+}
+
+.column-toggle-button,
+.date-range-button,
+.view-doc-button {
+    border-color: rgba(0, 106, 78, 0.24);
+    border-radius: var(--radius-sm);
+    color: var(--brand-green);
+    font-weight: 700;
+}
+
+.column-toggle-button:hover,
+.date-range-button:hover,
+.view-doc-button:hover {
+    background-color: var(--brand-green-mist);
+    border-color: rgba(0, 106, 78, 0.38);
+    color: var(--brand-green-dark);
+}
+
+.view-switcher button.active {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green);
+    color: #ffffff;
+}
+
+.table-container {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+}
+
+.table-view th {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green-dark);
+    color: #ffffff;
+}
+
+.table-view tbody tr:hover td {
+    background-color: var(--brand-green-mist);
+}
+
+.status-label,
+.status-pending,
+.status-approved,
+.status-rejected {
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    min-width: 104px;
+    padding: 0.44rem 0.75rem;
+}
+
+.status-approved {
+    background-color: var(--brand-green-soft);
+    border-color: rgba(0, 106, 78, 0.2);
+    color: var(--brand-green);
+}
+
+.status-pending {
+    background-color: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.status-rejected {
+    background-color: #fff1f2;
+    border-color: #fecdd3;
+    color: #be123c;
+}
+
+.pagination-controls button,
+.pagination-controls .page-number {
+    border-radius: 999px;
+}
+
+.pagination-controls .page-number.active {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green);
+}
+
+.tile-header {
+    background-color: var(--brand-green);
+}
+
+.list-item {
+    border-left-color: var(--brand-green-soft);
+}
+
+.list-item:hover,
+.list-item.expanded {
+    border-left-color: var(--brand-green);
+}
+
+.modal-overlay {
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    border-top-color: var(--brand-green);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.approve-button {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green);
+}
+
+.approve-button:hover {
+    background-color: var(--brand-green-dark);
+    border-color: var(--brand-green-dark);
+}
+
+.secondary-button {
+    border-color: rgba(0, 106, 78, 0.24);
+    color: var(--brand-green);
+}
+
+.secondary-button:hover {
+    background-color: var(--brand-green-mist);
+}
+
+@media (max-width: 900px) {
+    .main-container {
+        margin: 84px 16px 32px;
+    }
+}

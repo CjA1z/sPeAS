@@ -1,12 +1,18 @@
+@import url("./_tokens.css");
+@import url("./_components.css");
+@import url("./_toast.css");
+
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #f8fafc;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
 }
 
 /* Style for the drag-over state */
 .drag-over {
-    border-color: #10B981;
-    background-color: #ECFDF5;
+    border-color: var(--brand-green);
+    background-color: var(--brand-green-mist);
+    box-shadow: var(--ring-focus);
 }
 
 /* Hide default file input visually */
@@ -21,7 +27,7 @@ body {
 
 /* Tab styles */
 .tab-active {
-    background-color: #10B981;
+    background-color: var(--brand-green);
     color: white;
 }
 
@@ -29,6 +35,33 @@ body {
     background-color: #f3f4f6;
     color: #4b5563;
     border: 1px solid #d1d5db;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+    border-color: var(--brand-green);
+    box-shadow: var(--ring-focus);
+    outline: none;
+}
+
+.progress-bar {
+    background-color: var(--brand-green);
+}
+
+.status-message {
+    color: var(--brand-green);
+}
+
+.file-input-label,
+.upload-button {
+    background-color: var(--brand-green);
+}
+
+.file-input-label:hover,
+.upload-button:hover {
+    background-color: var(--brand-green-dark);
 }
 
 /* Form section visibility */

@@ -1,10 +1,15 @@
-/* side_bar.css */
-*{
-    font-family: sans-serif;
+/* ============================================================
+   Sidebar — Bold Modern Refresh
+   ============================================================ */
+
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
+    box-sizing: border-box;
 }
+
 .side-bar {
-    width: 28vh;
+    width: 250px;
     height: 100vh;
     position: fixed;
     left: 0;
@@ -13,178 +18,244 @@
     flex-direction: column;
     padding: 0;
     z-index: 1000;
-    background-color: #fffff5;   
-    box-shadow: 5px 0 10px rgba(0, 0, 0, 0.1); /* Soft right-side shadow */    
+    background-color: #ffffff;
+    border-right: 1px solid #eef0f3;
+    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
 }
-
 
 .icon-container {
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     height: 100%;
-    background-color: #fffff5;
-    
-
-    
+    padding: 20px 14px;
+    background-color: #ffffff;
 }
 
-
+/* ---------- Top group: logo + upload ---------- */
 .top-group {
-    
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Align items to the left */
-    width: 90%;
-    height: 20%;
-    
-;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    
-}
-.upload-icon {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    align-items: stretch;
     width: 100%;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
-    text-decoration: none;
-    color: black;
-    position: relative;
-    padding: 10px 15px;
-    box-sizing: border-box;
-    background-color: #12c539;  /* Background color added here */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 20px;
-    
-    
-}
-.upload-icon:hover {
-    background-color: #20a020;
-    color:white;
-}
-
-.middle-group {
-    width: 90%;
-    height: 40%;
-    padding-top: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top:10px;
-    border-top: 1px solid #ddd;
-}
-
-.bottom-group {
-    border-top: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 90%;
-    height: auto;
-    margin-top: 100px;
-    padding-top: 10px;
-}
-
-.icon-wrapper {
-    width: 100%;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
-    text-decoration: none;
-    color: black;
-    position: relative;
-    padding: 0px 15px;
-    box-sizing: border-box;
-    background-color: #fffff5;    
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 20px;
-}
-.icon-wrapper.active {
-    background-color: #e0f0ff;   /* light blue background */
-    border-radius: 8px;
-    color: #007bff;              /* blue text/icon color */
-}
-.icon-wrapper.active .icon svg {
-    stroke: #007bff;             /* change SVG stroke color */
-}
-.icon-wrapper:hover {
-    background-color: #12c539;
-    color: white;
-}
-
-/* Active state for the icon wrapper */
-a.icon-wrapper.active {
-    background-color: #12c539 !important;
-    color: white !important;
-}
-
-/* Hover state for the icon wrapper */
-a.icon-wrapper:hover {
-    background-color: #12c539;
-    color: white;
-}
-
-.icon {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 5px;
-}
-
-.icon svg {
-    width: 100%;
-    height: 100%;
+    padding-bottom: 16px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #eef0f3;
 }
 
 .logo-icon {
-    width: auto; /* Adjust width to fit content */
-    height: 120px;
-    padding: 0; /* Remove left padding */
-    padding-bottom: 20px;
-    background-color: #f7f7f700;
+    width: 100%;
+    height: auto;
+    padding: 4px 8px 14px;
     background-color: transparent;
     display: flex;
-    box-sizing: border-box;
     align-items: center;
-    justify-content: flex-start; /* Align to the left */
-    
-    margin-bottom: 15px;
-}
-
-.top-group span {
-    font-size: 16px;
-}
-
-.icon-text {
-    font-size: 14px;
-    white-space: nowrap;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
 }
 
 .logo-icon img {
-    
-    width: 60%;
-    height: 60%;
-    object-fit:contain;
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
-.user-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 1px solid #ddd;
+.logo-text {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+}
+
+/* ---------- Upload (primary action) ---------- */
+.upload-icon {
+    width: 100%;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.25s ease, transform 0.18s ease, box-shadow 0.25s ease;
+    text-decoration: none;
+    color: #ffffff;
+    position: relative;
+    padding: 0 14px;
+    background: #006A4E;
+    box-shadow: 0 8px 24px rgba(0, 106, 78, 0.22);
+    border-radius: 12px;
+    font-weight: 600;
+    gap: 10px;
+}
+
+.upload-icon:hover {
+    background: #00543e;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(0, 106, 78, 0.30);
+}
+
+.upload-icon:active { transform: translateY(0); }
+
+.upload-icon .icon { margin-right: 0; }
+
+/* ---------- Middle group: nav links ---------- */
+.middle-group {
+    width: 100%;
+    padding: 8px 0 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    flex: 1;
+}
+
+.nav-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: #94a3b8;
+    padding: 8px 12px 4px;
+    margin-top: 4px;
+}
+
+/* ---------- Bottom group ---------- */
+.bottom-group {
+    border-top: 1px solid #eef0f3;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 14px;
+    gap: 4px;
+}
+
+/* ---------- Nav items ---------- */
+.icon-wrapper {
+    width: 100%;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.12s ease;
+    text-decoration: none;
+    color: #475569;
+    position: relative;
+    padding: 0 12px;
+    background-color: transparent;
+    box-shadow: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    gap: 10px;
+}
+
+.icon-wrapper:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.icon-wrapper:hover .icon {
+    background-color: #ffffff;
+}
+
+/* Icon background — subtle container that lights up on hover/active */
+.icon-wrapper .icon {
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: transparent;
+    border-radius: 8px;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+
+.icon-wrapper .icon svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.75;
+}
+
+/* Active state — filled pill with green accent bar */
+.icon-wrapper.active,
+a.icon-wrapper.active {
+    background-color: #e6f2ee;
+    color: #006A4E;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 106, 78, 0.08);
+}
+
+.icon-wrapper.active::before,
+a.icon-wrapper.active::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 22px;
+    background-color: #006A4E;
+    border-radius: 0 4px 4px 0;
+}
+
+.icon-wrapper.active .icon,
+a.icon-wrapper.active .icon {
+    background-color: #ffffff;
+}
+
+.icon-wrapper.active .icon svg,
+a.icon-wrapper.active .icon svg {
+    stroke: #006A4E;
+}
+
+/* Upload uses currentColor for its icon */
+.upload-icon .icon svg { stroke: #ffffff; width: 20px; height: 20px; }
+.upload-icon .icon { background-color: transparent; }
+
+.icon-text {
+    font-size: 13.5px;
+    white-space: nowrap;
+    letter-spacing: -0.005em;
+}
+
+/* ---------- User profile ---------- */
+.user-profile {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #eef0f3;
+    position: relative;
+    gap: 10px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.user-profile:hover {
+    background-color: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+.user-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e6f2ee;
+    flex-shrink: 0;
 }
 
 .user-icon img {
@@ -193,46 +264,76 @@ a.icon-wrapper:hover {
     object-fit: cover;
 }
 
+.user-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.user-name {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 1px;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-control {
+    font-size: 10.5px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.user-status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #22c55e;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px rgba(34, 197, 94, 0.25);
+    flex-shrink: 0;
+}
+
+/* Logout — soft red accent on hover */
+.logout-btn:hover {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
+.logout-btn:hover .icon {
+    background-color: #ffffff;
+}
+
+.logout-btn:hover .icon svg {
+    stroke: #dc2626;
+}
+
+/* ---------- Content offset ---------- */
 .content {
-    margin-left: 20vh; /* Match sidebar width */
+    margin-left: 250px;
     padding: 20px;
 }
 
 .top-group .icon-wrapper,
 .middle-group .icon-wrapper,
 .bottom-group .icon-wrapper {
-    margin: 3px 0;
+    margin: 0;
 }
 
-
-/* User profile styles (from previous responses) */
-.user-profile {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-    width: 100%;
-    padding: 0 10px;
-    box-sizing: border-box;
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .side-bar { width: 220px; }
+    .content { margin-left: 220px; }
 }
 
-.user-avatar-link {
-    display: flex;
-    align-items: center;
+@media (prefers-reduced-motion: reduce) {
+    .upload-icon,
+    .icon-wrapper,
+    .icon-wrapper .icon,
+    .user-profile { transition: none; }
 }
-
-.user-details {
-    display: flex;
-    flex-direction: column;
-    margin-left: 10px;
-}
-
-.user-name {
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 2px;
-}
-
-.user-control {
-    font-size: 12px;
-    color: #777;
-}   

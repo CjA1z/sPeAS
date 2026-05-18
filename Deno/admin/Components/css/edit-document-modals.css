@@ -1,3 +1,6 @@
+@import url("./_tokens.css");
+@import url("./_components.css");
+
 /**
  * Styles for Document Edit Modals
  * Contains styling for both single document and compiled document edit forms
@@ -64,7 +67,7 @@
     margin: 0 0 25px 0;
     color: #2c3e50;
     font-size: 24px;
-    border-bottom: 2px solid #10B981;
+    border-bottom: 2px solid var(--brand-green);
     padding-bottom: 10px;
     position: relative;
 }
@@ -76,7 +79,7 @@
     left: 0;
     width: 60px;
     height: 2px;
-    background-color: #10B981;
+    background-color: var(--brand-green);
 }
 
 /* Right Panel (Preview) */
@@ -133,7 +136,7 @@ input[type="date"]:focus,
 input[type="number"]:focus,
 select:focus,
 textarea:focus {
-    border-color: #10B981;
+    border-color: var(--brand-green);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
     outline: none;
 }
@@ -453,7 +456,7 @@ textarea {
     margin: 20px 25px;
     padding: 12px;
     text-align: center;
-    background-color: #10B981;
+    background-color: var(--brand-green);
     color: white;
     border: none;
     border-radius: 8px;
@@ -463,7 +466,7 @@ textarea {
 }
 
 .read-document-btn:hover {
-    background-color: #059669;
+    background-color: var(--brand-green);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
@@ -572,7 +575,7 @@ textarea {
     display: block;
     width: 100%;
     padding: 12px;
-    background-color: #10B981;
+    background-color: var(--brand-green);
     color: white;
     border: none;
     border-radius: 8px;
@@ -587,7 +590,7 @@ textarea {
 }
 
 #add-child-document-btn:hover {
-    background-color: #059669;
+    background-color: var(--brand-green);
 }
 
 /* Child document selection modal */
@@ -669,7 +672,7 @@ textarea {
 
 .select-document-btn {
     background-color: #ECFDF5;
-    color: #10B981;
+    color: var(--brand-green);
     border: none;
     border-radius: 6px;
     padding: 8px 16px;
@@ -758,7 +761,7 @@ textarea {
     width: 40px;
     height: 40px;
     border: 3px solid #e2e8f0;
-    border-top-color: #10B981;
+    border-top-color: var(--brand-green);
     border-radius: 50%;
     animation: spinner 0.8s linear infinite;
     margin-bottom: 15px;
@@ -858,7 +861,7 @@ textarea {
     padding: 6px 10px;
     background-color: #f8fafc;
     border-radius: 4px;
-    border-left: 3px solid #10B981;
+    border-left: 3px solid var(--brand-green);
 }
 
 .contents-section-header {
@@ -1199,17 +1202,17 @@ textarea {
 
 /* Style for new research section button */
 #edit-add-research-section-btn {
-    background-color: #10B981;
+    background-color: var(--brand-green);
 }
 
 #edit-add-research-section-btn:hover {
-    background-color: #059669;
+    background-color: var(--brand-green);
 }
 
 /* Style for existing document button */
 #edit-add-existing-study-btn {
-    border: 1px solid #10B981;
-    color: #10B981;
+    border: 1px solid var(--brand-green);
+    color: var(--brand-green);
 }
 
 #edit-add-existing-study-btn:hover {
@@ -1298,4 +1301,4 @@ textarea {
 #confirmation-dialog-modal .btn-primary:hover {
     background-color: #c82333;
     border-color: #bd2130;
-} 
+}
