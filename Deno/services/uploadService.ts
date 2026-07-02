@@ -2,6 +2,7 @@
 
 import { ensureDir, extname, join } from "../deps.ts";
 import { createFile } from "../controllers/fileController.ts";
+import { storagePathFor, WORKSPACE_ROOT } from "../config/storage.ts";
 
 interface FileUploadOptions {
   keepOriginalName?: boolean;
@@ -34,13 +35,8 @@ interface FileWithContent {
  * @returns The created directory path
  */
 async function createDocumentTypeDirectory(documentType: string, category?: string): Promise<string> {
-  // Get the workspace root directory (parent of Deno directory)
-  const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
-  
-  // Simplified structure: storage/[documentType]
-  // Convert document type to lowercase for directory naming
-  const directoryName = documentType.toLowerCase();
-  const baseDir = join(workspaceRoot, 'storage', directoryName).replace(/\\/g, '/');
+  // Canonical structure: STORAGE_ROOT/[documentType] (see config/storage.ts)
+  const baseDir = storagePathFor(documentType);
   
   try {
     // Create base directory if it doesn't exist
@@ -68,12 +64,12 @@ async function createDocumentTypeDirectory(documentType: string, category?: stri
  */
 export async function saveFile(
   file: FileWithContent | Uint8Array | ArrayBuffer | string,
-  storagePath = "storage/hello",
+  storagePath = "storage/general",
   options: FileUploadOptions = {}
 ): Promise<FileResponse> {
-    
-  // Get the workspace root directory (parent of Deno directory)
-  const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
+
+  // Workspace root (parent of Deno/) — from the central storage config
+  const workspaceRoot = WORKSPACE_ROOT;
   
   // Get document type and category from options
   const documentType = options.documentType?.toUpperCase() || "GENERAL";

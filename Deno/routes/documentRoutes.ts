@@ -11,6 +11,7 @@ import {
 import { DocumentModel } from "../models/documentModel.ts";
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { verifySessionToken } from "../utils/sessionUtils.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 
@@ -607,9 +608,13 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
         
-        // Verify user authentication (check the token)
-        const token = ctx.request.url.searchParams.get("token");
-                                
+        // Verify user authentication. The token comes from the HttpOnly
+        // session cookie (or a Bearer header) — never from the URL, where
+        // it would leak into logs and browser history.
+        const authHeader = ctx.request.headers.get("Authorization");
+        const token = (await ctx.cookies.get("session_token")) ??
+            (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null);
+
         if (!token) {
             ctx.response.status = 401;
             ctx.response.body = { error: "Authentication token required" };
@@ -943,10 +948,10 @@ export const documentRoutes: Route[] = [
     { method: "GET", path: "/documents/:id", handler: getDocumentById },
     { method: "GET", path: "/documents/:id/download", handler: downloadDocument },
     { method: "GET", path: "/documents/:id/authors", handler: getDocumentAuthorsById },
-    { method: "POST", path: "/documents", handler: createDocument },
-    { method: "PUT", path: "/documents/:id", handler: updateDocument },
-    { method: "DELETE", path: "/documents/:id", handler: deleteDocument },
-    { method: "DELETE", path: "/documents/:id/hard-delete", handler: hardDeleteDocument },
+    { method: "POST", path: "/documents", handler: createDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "PUT", path: "/documents/:id", handler: updateDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "DELETE", path: "/documents/:id", handler: deleteDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "DELETE", path: "/documents/:id/hard-delete", handler: hardDeleteDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/guest/documents/:id", handler: getGuestDocumentById },
     { method: "GET", path: "/guest/documents/:id/authors", handler: getDocumentAuthorsById },
     { method: "GET", path: "/public/documents/:id", handler: getPublicDocumentById },

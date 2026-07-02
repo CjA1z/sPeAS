@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "codex:resets": "node scripts/codex-reset-status.mjs",
+    "codex:with-resets": "scripts/codex-with-resets.sh"
+  },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",

@@ -53,42 +53,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 
                 if (response.ok) {
-                    // Store the session token and user info
-                    if (data.token) {
-                        // Set cookie to expire when browser closes (no expiration date)
-                        document.cookie = `session_token=${data.token}; path=/`;
-                        
-                        // Add server timestamp to detect restarts
-                        const serverTime = data.serverTime || Date.now();
-                        
-                        // Store user information including role and server timestamp
-                        const userInfo = {
-                            isLoggedIn: true,
-                            token: data.token,
-                            id: data.userId || ID,
-                            role: data.role || 'User',
-                            username: data.username || ID,
-                            serverTime: serverTime,
-                            loginTime: Date.now()
-                        };
-                        
-                        // Store in sessionStorage instead of localStorage so it's cleared when browser closes
-                        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                                                
-                        // Also update localStorage to trigger storage event for other tabs
-                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        
-                        // Dispatch storage event to notify current tab
-                        window.dispatchEvent(new StorageEvent('storage', {
-                            key: 'userInfo',
-                            newValue: JSON.stringify(userInfo),
-                            storageArea: localStorage
-                        }));
-                        
-                        // Update header UI
-                        updateHeaderUI(userInfo);
-                    }
-                    
+                    // The session token is set by the server as an HttpOnly cookie —
+                    // it is never exposed to JavaScript. Only display info is stored.
+                    const serverTime = data.serverTime || Date.now();
+
+                    // Store user information including role and server timestamp
+                    const userInfo = {
+                        isLoggedIn: true,
+                        id: data.userId || ID,
+                        role: data.role || 'User',
+                        username: data.username || ID,
+                        serverTime: serverTime,
+                        loginTime: Date.now()
+                    };
+
+                    // Store in sessionStorage instead of localStorage so it's cleared when browser closes
+                    sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                    // Also update localStorage to trigger storage event for other tabs
+                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                    // Dispatch storage event to notify current tab
+                    window.dispatchEvent(new StorageEvent('storage', {
+                        key: 'userInfo',
+                        newValue: JSON.stringify(userInfo),
+                        storageArea: localStorage
+                    }));
+
+                    // Update header UI
+                    updateHeaderUI(userInfo);
+
+
                     // Determine redirect based on role
                     const userRole = data.role ? data.role.toLowerCase() : 'user';
                     let redirectUrl = '/index.html';  // Default redirect for users

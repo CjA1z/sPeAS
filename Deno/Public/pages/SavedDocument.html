@@ -1121,7 +1121,7 @@
                 
                 // Get user info from localStorage or sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
+                const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
                 
                 if (!token) {
                     showToast('You must be logged in to view your library', CSS_CLASS_ERROR);
@@ -1130,9 +1130,9 @@
                 
                                 const response = await fetch(API_ENDPOINTS.GET_DOCUMENTS, {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    credentials: 'include'
                 });
                 
                 if (!response.ok) {
@@ -1187,7 +1187,7 @@
             try {
                 // Get user info from localStorage or sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
+                const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
                 
                 if (!token) {
                     showToast('You must be logged in to delete documents', CSS_CLASS_ERROR);
@@ -1197,9 +1197,9 @@
                 const response = await fetch(`${API_ENDPOINTS.DELETE_DOCUMENT}${docId}`, {
                     method: 'DELETE',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    credentials: 'include'
                 });
                 
                 if (!response.ok) {
@@ -1812,26 +1812,8 @@
             const tokenFromUrl = urlParams.get('token');
             
             if (tokenFromUrl) {
-                                try {
-                    // Get existing user info or create new object
-                    const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-                    
-                    // Update the token if needed
-                    if (!userInfo.token || userInfo.token !== tokenFromUrl) {
-                        userInfo.token = tokenFromUrl;
-                
-                        // Ensure isLoggedIn flag is set
-                        if (!userInfo.isLoggedIn) {
-                            userInfo.isLoggedIn = true;
-                        }
-                        
-                        // Save back to session storage
-                        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                                                }
-                    } catch (e) {
-                }
-                
-                // Remove token from URL to prevent sharing/leaking
+                // Legacy links may still carry ?token= — never trust or store it
+                // (auth rides the HttpOnly session cookie). Just scrub the URL.
                 const cleanUrl = window.location.pathname;
                 window.history.replaceState({}, document.title, cleanUrl);
             }
@@ -1870,7 +1852,7 @@
             try {
                 // Get user info from localStorage or sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
+                const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
                 
                 if (!token) {
                     return;
@@ -1880,9 +1862,9 @@
                 await fetch('/api/analytics/document-view', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ documentId: docId })
                 });
                 
@@ -1896,7 +1878,7 @@
             try {
                 // Get user info for authentication
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
+                const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
                 
                 if (!token) {
                     showToast('You must be logged in to download documents', 'error');
@@ -1910,7 +1892,9 @@
                 recordDocumentDownload(doc.id);
                 
                 // Create a download link with authentication
-                const downloadUrl = `/api/documents/${doc.id}/download?token=${token}`;
+                // The browser sends the HttpOnly session cookie with this
+                // request automatically — no token in the URL.
+                const downloadUrl = `/api/documents/${doc.id}/download`;
                 
                 // Create a hidden link element to trigger the download
                 const a = document.createElement('a');
@@ -1938,7 +1922,7 @@
             try {
                 // Get user info from localStorage or sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
+                const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
                 
                 if (!token) {
                     return;
@@ -1958,9 +1942,9 @@
                     const response = await fetch('/api/analytics/document-download', {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
                         },
+                        credentials: 'include',
                         body: JSON.stringify(downloadData)
                     });
                     
@@ -1975,9 +1959,9 @@
                     const fallbackResponse = await fetch('/api/document-views', {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
                         },
+                        credentials: 'include',
                         body: JSON.stringify({
                             ...downloadData,
                             actionType: 'download' // Add action type to differentiate from views
@@ -2001,7 +1985,7 @@
         async function refreshDocumentList() {
             // Check if user is authenticated
             const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-            const token = userInfo?.token;
+            const token = userInfo?.isLoggedIn; // session token lives in the HttpOnly cookie
             
             if (!token) {
                 // Redirect to login page if in production

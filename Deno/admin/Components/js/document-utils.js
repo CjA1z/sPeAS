@@ -52,17 +52,17 @@ function formatDate(dateString) {
  */
 function getCategoryIcon(category) {
     const iconMap = {
-        'THESIS': 'icons/Category-icons/thesis.png',
-        'Thesis': 'icons/Category-icons/thesis.png',
-        'DISSERTATION': 'icons/Category-icons/dissertation.png',
-        'Dissertation': 'icons/Category-icons/dissertation.png',
-        'CONFLUENCE': 'icons/Category-icons/confluence.png',
-        'Confluence': 'icons/Category-icons/confluence.png',
-        'SYNERGY': 'icons/Category-icons/synergy.png',
-        'Synergy': 'icons/Category-icons/synergy.png'
+        'THESIS': 'icons/category-icons/thesis.png',
+        'Thesis': 'icons/category-icons/thesis.png',
+        'DISSERTATION': 'icons/category-icons/dissertation.png',
+        'Dissertation': 'icons/category-icons/dissertation.png',
+        'CONFLUENCE': 'icons/category-icons/confluence.png',
+        'Confluence': 'icons/category-icons/confluence.png',
+        'SYNERGY': 'icons/category-icons/synergy.png',
+        'Synergy': 'icons/category-icons/synergy.png'
     };
     
-    return iconMap[category] || 'icons/Category-icons/default_category_icon.png';
+    return iconMap[category] || 'icons/category-icons/default_category_icon.png';
 }
 
 /**

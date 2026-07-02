@@ -142,18 +142,18 @@ function getDocumentTypeIcon(type, category) {
         
         // Return appropriate icon based on category
         if (normalizedCategory.includes('thesis')) {
-            return '/admin/Components/icons/Category-icons/thesis.png';
+            return '/admin/Components/icons/category-icons/thesis.png';
         } else if (normalizedCategory.includes('dissertation')) {
-            return '/admin/Components/icons/Category-icons/dissertation.png';
+            return '/admin/Components/icons/category-icons/dissertation.png';
         } else if (normalizedCategory.includes('confluence')) {
-            return '/admin/Components/icons/Category-icons/confluence.png';
+            return '/admin/Components/icons/category-icons/confluence.png';
         } else if (normalizedCategory.includes('synergy')) {
-            return '/admin/Components/icons/Category-icons/synergy.png';
+            return '/admin/Components/icons/category-icons/synergy.png';
         }
         // If category doesn't match any known type, fall through to type-based logic
     }
 
-    if (!type) return '/admin/Components/icons/Category-icons/default_category_icon.png';
+    if (!type) return '/admin/Components/icons/category-icons/default_category_icon.png';
     
     // Normalize the type to lowercase for consistent comparison
     const normalizedType = (type || '').toLowerCase();
@@ -163,20 +163,20 @@ function getDocumentTypeIcon(type, category) {
         normalizedType === 'compilation' || 
         normalizedType.includes('compile') || 
         normalizedType.includes('confluence')) {
-        return '/admin/Components/icons/Category-icons/confluence.png';
+        return '/admin/Components/icons/category-icons/confluence.png';
     }
     
     // Then check for other specific types
     switch (normalizedType) {
         case 'thesis':
-            return '/admin/Components/icons/Category-icons/thesis.png';
+            return '/admin/Components/icons/category-icons/thesis.png';
         case 'dissertation':
-            return '/admin/Components/icons/Category-icons/dissertation.png';
+            return '/admin/Components/icons/category-icons/dissertation.png';
         case 'synergy':
-            return '/admin/Components/icons/Category-icons/synergy.png';
+            return '/admin/Components/icons/category-icons/synergy.png';
         case 'single':
         default:
-            return '/admin/Components/icons/Category-icons/thesis.png'; // Use thesis icon as default
+            return '/admin/Components/icons/category-icons/thesis.png'; // Use thesis icon as default
     }
 }
 

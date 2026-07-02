@@ -8,6 +8,7 @@ import {
     handleUpdateCompiledDocument
 } from "../api/compiledDocument.ts";
 import { client } from "../db/denopost_conn.ts"; // Import the client directly
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // Compiled Document route handlers
 const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
@@ -320,14 +321,14 @@ const getCompiledDocumentItems = async (ctx: RouterContext<any, any, any>) => {
 
 // Export an array of routes
 export const compiledDocumentRoutes: Route[] = [
-    { method: "POST", path: "/compiled-documents", handler: createCompiledDocument },
+    { method: "POST", path: "/compiled-documents", handler: createCompiledDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/compiled-documents/:id", handler: getCompiledDocument },
     { method: "GET", path: "/compiled-documents/:id/children", handler: getCompiledDocumentChildren },
     { method: "GET", path: "/compiled-documents/:id/items", handler: getCompiledDocumentItems },
-    { method: "POST", path: "/compiled-documents/add-documents", handler: addDocumentsToCompilation },
-    { method: "DELETE", path: "/compiled-documents/:id/soft-delete", handler: softDeleteCompiledDocument },
-    { method: "PUT", path: "/compiled-documents/:id", handler: updateCompiledDocument },
-    { method: "DELETE", path: "/compiled-documents/:id/hard-delete", handler: hardDeleteCompiledDocument },
+    { method: "POST", path: "/compiled-documents/add-documents", handler: addDocumentsToCompilation, middleware: [isAuthenticated, isAdmin] },
+    { method: "DELETE", path: "/compiled-documents/:id/soft-delete", handler: softDeleteCompiledDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "PUT", path: "/compiled-documents/:id", handler: updateCompiledDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "DELETE", path: "/compiled-documents/:id/hard-delete", handler: hardDeleteCompiledDocument, middleware: [isAuthenticated, isAdmin] },
     
     // Add guest and public access routes
     { method: "GET", path: "/guest/compiled-documents/:id", handler: getCompiledDocument },

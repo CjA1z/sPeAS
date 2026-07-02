@@ -1,9 +1,16 @@
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { SMTPClient } from "../deps.ts";
 
-// Use the email that worked in GMass test
-const EMAIL = "christianjames2212003@gmail.com"; 
-const PASSWORD = "gjox pkdu xasv yudj "; // Replace with your actual password
+const EMAIL = Deno.env.get("SMTP_USERNAME") || "";
+const PASSWORD = Deno.env.get("SMTP_PASSWORD") || "";
+const HOSTNAME = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
+const PORT = parseInt(Deno.env.get("SMTP_PORT") || "465");
+const RECIPIENT = Deno.env.get("SMTP_TEST_RECIPIENT") || EMAIL;
 
+if (!EMAIL || !PASSWORD || !RECIPIENT) {
+  throw new Error(
+    "Set SMTP_USERNAME, SMTP_PASSWORD, and optionally SMTP_TEST_RECIPIENT before running this script.",
+  );
+}
 
 let client: SMTPClient | null = null;
 
@@ -11,8 +18,8 @@ try {
   // Initialize client
   client = new SMTPClient({
     connection: {
-      hostname: "smtp.gmail.com",
-      port: 465,
+      hostname: HOSTNAME,
+      port: PORT,
       tls: true,
       auth: {
         username: EMAIL,
@@ -20,26 +27,26 @@ try {
       },
     },
   });
-  
-      
+
   // Make sure from and to are properly formatted
   await client.send({
     from: EMAIL, // This should be a valid email address
-    to: "officeresearch520@gmail.com",
+    to: RECIPIENT,
     subject: "Direct SMTP Test",
-    content: "This is a direct test email"
+    content: "This is a direct test email",
   });
-  
-  } catch (error: unknown) {
+} catch (_error: unknown) {
   // Additional debug info
 } finally {
   // Only close the client if it was successfully initialized
   if (client) {
     try {
       await client.close();
-          } catch (closeError: unknown) {
-      console.error("Error closing connection:", 
-        closeError instanceof Error ? closeError.message : String(closeError));
+    } catch (closeError: unknown) {
+      console.error(
+        "Error closing connection:",
+        closeError instanceof Error ? closeError.message : String(closeError),
+      );
     }
   }
 }

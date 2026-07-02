@@ -1,5 +1,6 @@
 import { UserLibraryModel } from "../models/userLibraryModel.ts";
 import { verifySessionToken } from "../utils/sessionUtils.ts";
+import { getTokenFromRequest } from "../services/sessionService.ts";
 
 /**
  * Add a document to user's library
@@ -9,8 +10,7 @@ import { verifySessionToken } from "../utils/sessionUtils.ts";
 export async function addToLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(
@@ -97,8 +97,7 @@ export async function addToLibrary(request: Request): Promise<Response> {
 export async function checkLibraryStatus(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(
@@ -159,8 +158,7 @@ export async function checkLibraryStatus(request: Request): Promise<Response> {
 export async function getUserLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(
@@ -211,8 +209,7 @@ export async function getUserLibrary(request: Request): Promise<Response> {
 export async function removeFromLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(

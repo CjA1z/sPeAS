@@ -9,28 +9,25 @@ import { join } from "../deps.ts";
 import { FileCheckService } from './fileCheckService.ts';
 import { encode as encodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
-// After loading .env file, add debugging output
+// Load .env from the Deno project root (path pinned to this module so it
+// works regardless of the process working directory). Idempotent with the
+// load in config/db.ts.
 try {
-  const dotenv = await import("https://deno.land/x/dotenv@v3.2.2/mod.ts");
-  // Try multiple possible locations for the .env file
-  try { await dotenv.config({ path: "./.env", export: true }); } catch (_) { /* ignore */ }
-  try { await dotenv.config({ path: "../.env", export: true }); } catch (_) { /* ignore */ }
-  try { await dotenv.config({ path: "../../.env", export: true }); } catch (_) { /* ignore */ }
-  try { await dotenv.config({ path: "./Deno/.env", export: true }); } catch (_) { /* ignore */ }
-    
-  // Add debugging output to verify if environment variables are loaded
-      } catch (error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const { dotenvConfig } = await import("../deps.ts");
+  await dotenvConfig({
+    envPath: new URL("../.env", import.meta.url).pathname,
+    export: true,
+  });
+} catch (_error) {
+  // Missing .env is tolerated; SMTP config falls back to Deno.env/shell vars.
 }
 
-// Email configuration using environment variables with fallbacks for development
+// Email configuration. Credentials must come from environment variables.
 const EMAIL_CONFIG = {
-  hostname: "smtp.gmail.com", // Clean hostname without comments
+  hostname: Deno.env.get("SMTP_HOST") || "smtp.gmail.com",
   port: parseInt(Deno.env.get("SMTP_PORT") || "465"),
-  // For quick fix, replace these with your actual Gmail credentials
-  // IMPORTANT: This is a temporary solution - move to environment variables as soon as possible!
-  username: Deno.env.get("SMTP_USERNAME") || "speasspup@gmail.com", // Using previous working email
-  password: Deno.env.get("SMTP_PASSWORD") || "ynhdddlnkuemhmkr", // Using previous working password
+  username: Deno.env.get("SMTP_USERNAME") || "",
+  password: Deno.env.get("SMTP_PASSWORD") || "",
   useTLS: Deno.env.get("SMTP_TLS") !== "false",    // True by default
   connectTimeout: 30000, // 30 seconds timeout for connection
   sendTimeout: 60000,    // 60 seconds timeout for sending operations
@@ -142,7 +139,7 @@ async function logEmailActivity(action: string, details: Record<string, any>): P
   try {
     // Ensure logs directory exists
     await ensureDir("./logs");
-    
+
     const now = new Date();
     const timestamp = now.toISOString();
     const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -1060,13 +1057,12 @@ export async function sendRejectedRequestEmail(
     // Log current working directory for debugging paths
     const cwd = Deno.cwd();
         
-    // Try multiple possible locations for the rejection template
+    // Resolve the template relative to this module (works regardless of CWD);
+    // keep a CWD-relative fallback for unusual layouts. Casing is canonically
+    // "Public" so paths survive case-sensitive filesystems.
     const possibleTemplatePaths = [
+      new URL("../Public/pages/rejectionEmailTemplate.html", import.meta.url).pathname,
       "./Public/pages/rejectionEmailTemplate.html",
-      "./Deno/Public/pages/rejectionEmailTemplate.html",
-      "../Public/pages/rejectionEmailTemplate.html",
-      "../../Public/pages/rejectionEmailTemplate.html",
-      "./public/pages/rejectionEmailTemplate.html"
     ];
     
     let templateFound = false;
@@ -1473,4 +1469,4 @@ Paulinian Electronic Archiving System
     
     return false;
   }
-} 
+}

@@ -544,9 +544,8 @@
             try {
                 // Get user info from localStorage or sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                const token = userInfo?.token;
-                
-                if (!token) {
+
+                if (!userInfo?.isLoggedIn) {
                     throw new Error('AUTH_REQUIRED');
                 }
                 
@@ -568,9 +567,9 @@
                 // Fetch data from API
                 const response = await fetch(url, {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    credentials: 'include' // auth rides the HttpOnly session cookie
                 });
                 
                 if (response.status === 401 || response.status === 403) {
@@ -792,19 +791,20 @@
                 try {
                     // Optional - track that user viewed history
                     const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-                    if (userInfo?.token) {
+                    if (userInfo?.isLoggedIn) {
                         fetch('/api/analytics/track', {
                             method: 'POST',
                             headers: {
-                                'Authorization': `Bearer ${userInfo.token}`,
                                 'Content-Type': 'application/json'
                             },
+                            credentials: 'include',
                             body: JSON.stringify({
                                 event: 'history_view',
                                 page: window.location.pathname,
                                 filters: filters
                             })
-                        }).catch(e =>                     }
+                        }).catch(() => {});
+                    }
                 } catch (analyticsError) {
                                     }
             } catch (error) {
@@ -1025,10 +1025,10 @@
                 // Get user info from sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
                 
-                if (!userInfo || !userInfo.token) {
+                if (!userInfo || !userInfo.isLoggedIn) {
                     // Try to recover from localStorage if available (backward compatibility)
                     const localUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                    if (localUserInfo && localUserInfo.token) {
+                    if (localUserInfo && localUserInfo.isLoggedIn) {
                                                 sessionStorage.setItem('userInfo', JSON.stringify(localUserInfo));
                     } else {
                     }
@@ -1049,15 +1049,9 @@
                     if (e.target.tagName === 'A' || e.target.parentElement.tagName === 'A') {
                         e.preventDefault();
                         
-                        // Ensure we have a token in the URL
-                        const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-                        if (userInfo && userInfo.token) {
-                            // Navigate with token to ensure authentication is maintained
-                            window.location.href = '/pages/savedDocument.html?token=' + userInfo.token;
-                                                    } else {
-                            // Fallback navigation
-                            window.location.href = '/pages/savedDocument.html';
-                                                    }
+                        // Auth rides the HttpOnly session cookie — never put
+                        // tokens in URLs (they leak into logs/history).
+                        window.location.href = '/pages/savedDocument.html';
                     }
                 }
             }, true); // Use capture to ensure we handle the event first

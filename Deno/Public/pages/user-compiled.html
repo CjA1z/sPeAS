@@ -306,30 +306,26 @@
                 }
             }
 
-            // Check if user is logged in
+            // Check if user is logged in. The session token lives in an
+            // HttpOnly cookie (not readable here); isLoggedIn is the
+            // display-side signal, verified server-side per request.
             function isUserLoggedIn(userInfo) {
                 if (!userInfo) {
                     return false;
                 }
-                
-                // Check for token validity
-                if (!userInfo.token) {
-                    return false;
-                }
-                
+
                 // Check for login timestamp and validate it's not too old (24 hours)
                 if (userInfo.loginTime) {
                     const loginTime = new Date(userInfo.loginTime);
                     const currentTime = new Date();
                     const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
-                    
+
                     if (hoursSinceLogin > 24) {
                         return false;
                     }
                 }
-                
-                // Final check for essential properties - ensuring isLoggedIn is explicitly true
-                return userInfo.isLoggedIn === true && userInfo.token && userInfo.token.length > 0;
+
+                return userInfo.isLoggedIn === true;
             }
             
             // Get document ID from URL

@@ -2095,14 +2095,14 @@ window.documentArchive = (function() {
         
         // Map document types to icon paths
         const iconMap = {
-            'thesis': 'icons/Category-icons/thesis.png',
-            'dissertation': 'icons/Category-icons/dissertation.png',
-            'confluence': 'icons/Category-icons/confluence.png',
-            'synergy': 'icons/Category-icons/synergy.png'
+            'thesis': 'icons/category-icons/thesis.png',
+            'dissertation': 'icons/category-icons/dissertation.png',
+            'confluence': 'icons/category-icons/confluence.png',
+            'synergy': 'icons/category-icons/synergy.png'
         };
         
         // Return the appropriate icon or the default
-        return iconMap[type] || 'icons/Category-icons/default_category_icon.png';
+        return iconMap[type] || 'icons/category-icons/default_category_icon.png';
     }
 
     /**

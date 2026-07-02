@@ -936,20 +936,20 @@ function createArchivedDocumentCard(doc) {
  */
 function getCategoryIcon(category) {
     if (!category) {
-        return 'icons/Category-icons/default_category_icon.png';
+        return 'icons/category-icons/default_category_icon.png';
     }
     
     // Normalize category to handle case variations
     const normalizedCategory = category.toString().toUpperCase();
     
     const iconMap = {
-        'THESIS': 'icons/Category-icons/thesis.png',
-        'DISSERTATION': 'icons/Category-icons/dissertation.png',
-        'CONFLUENCE': 'icons/Category-icons/confluence.png',
-        'SYNERGY': 'icons/Category-icons/synergy.png'
+        'THESIS': 'icons/category-icons/thesis.png',
+        'DISSERTATION': 'icons/category-icons/dissertation.png',
+        'CONFLUENCE': 'icons/category-icons/confluence.png',
+        'SYNERGY': 'icons/category-icons/synergy.png'
     };
     
-    return iconMap[normalizedCategory] || 'icons/Category-icons/default_category_icon.png';
+    return iconMap[normalizedCategory] || 'icons/category-icons/default_category_icon.png';
 }
 
 /**

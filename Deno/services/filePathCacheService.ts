@@ -6,6 +6,11 @@
 import { FileCheckService } from './fileCheckService.ts';
 import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
 import { join } from "../deps.ts";
+import {
+  DOCUMENT_TYPE_DIRS,
+  STORAGE_ROOT,
+  WORKSPACE_ROOT,
+} from "../config/storage.ts";
 
 // Cache of file paths
 interface FilePathInfo {
@@ -22,19 +27,11 @@ const pathCache = new Map<string, FilePathInfo>();
 // Cache constants
 const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes
 const MAX_CACHE_SIZE = 1000;         // Maximum number of cache entries
+// Derived from the canonical STORAGE_ROOT (config/storage.ts)
 const COMMON_BASE_PATHS = [
-  './Public/documents/',
-  './documents/',
-  './uploads/',
-  './Public/uploads/',
-  './storage/',
-  './Public/storage/',
-  './storage/thesis/',
-  './storage/dissertation/',
-  './storage/confluence/',
-  './storage/synergy/',
-  './Public/documents/thesis/',
-  './Public/documents/dissertation/'
+  ...DOCUMENT_TYPE_DIRS.map((type) => join(STORAGE_ROOT, type)),
+  STORAGE_ROOT,
+  WORKSPACE_ROOT,
 ];
 
 // Cache persistence 

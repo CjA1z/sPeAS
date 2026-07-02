@@ -10,8 +10,8 @@ window.NavbarModule = (function() {
     'use strict';
 
     // Configuration
-    const USER_NAVBAR_URL = '/components/NavBar/user-Navbar.html';
-    const GUEST_NAVBAR_URL = '/components/NavBar/default-NavBar.html';
+    const USER_NAVBAR_URL = '/Components/NavBar/user-Navbar.html';
+    const GUEST_NAVBAR_URL = '/Components/NavBar/default-NavBar.html';
     const USER_PROFILE_URL = '/api/user/profile';
     const LIBRARY_COUNT_URL = '/api/user/library/count';
     const JQUERY_CDN_URL = 'https://code.jquery.com/jquery-3.6.4.min.js';
@@ -117,9 +117,9 @@ window.NavbarModule = (function() {
                     fetch('/api/page-visits', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            ...(userInfo?.token ? {'Authorization': `Bearer ${userInfo.token}`} : {})
+                            'Content-Type': 'application/json'
                         },
+                        credentials: 'include', // auth rides the HttpOnly session cookie
                         body: JSON.stringify(visitData)
                     }).then(response => {
                         if (!response.ok) {
@@ -157,8 +157,8 @@ window.NavbarModule = (function() {
                         }
                     }
                     
-                    // If no token or login status is false, clear it
-                    if (!userInfo.token || userInfo.isLoggedIn !== true) {
+                    // If login status is false, clear it
+                    if (userInfo.isLoggedIn !== true) {
                                                 sessionStorage.removeItem('userInfo');
                     }
                 } catch (e) {
@@ -267,16 +267,10 @@ window.NavbarModule = (function() {
             if (sessionUserInfo) {
                 try {
                     const userInfo = JSON.parse(sessionUserInfo);
-                                        
-                    // Validate essential properties
-                    if (!userInfo.token) {
-                    }
-                    
-                    if (userInfo.isLoggedIn !== true) {
-                    }
-                    
-                    // Fetch additional user info from database if we have a token
-                    if (userInfo.token) {
+
+                    // Fetch additional user info from database if logged in
+                    // (auth rides the HttpOnly session cookie)
+                    if (userInfo.isLoggedIn === true) {
                         fetchUserProfileFromDatabase(userInfo)
                             .then(dbUserInfo => {
                                 if (dbUserInfo) {
@@ -303,22 +297,22 @@ window.NavbarModule = (function() {
 
     // Fetch user profile information from the database
     async function fetchUserProfileFromDatabase(userInfo) {
-        if (!userInfo || !userInfo.token) {
+        if (!userInfo || userInfo.isLoggedIn !== true) {
             return null;
         }
-        
+
         try {
-                        
+
             // Make API call to fetch user data from database
             // Add userId to the URL as a query parameter
             const userId = userInfo.id || userInfo.user_id || '';
-                        
+
             const response = await fetch(`/api/user/profile?userId=${userId}`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${userInfo.token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include' // auth rides the HttpOnly session cookie
             });
             
             if (!response.ok) {
@@ -367,27 +361,22 @@ window.NavbarModule = (function() {
         }
         
                 
-        // Check for token validity
-        if (!userInfo.token) {
-                        return false;
-        }
-        
         // Check for login timestamp and validate it's not too old (24 hours)
         if (userInfo.loginTime) {
             const loginTime = new Date(userInfo.loginTime);
             const currentTime = new Date();
             const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
-            
+
             if (hoursSinceLogin > 24) {
                                 // Clear stale data
                 sessionStorage.removeItem('userInfo');
                 return false;
             }
         }
-        
-        // Final check for essential properties - ensuring isLoggedIn is explicitly true
-        const isLoggedIn = userInfo.isLoggedIn === true && userInfo.token && userInfo.token.length > 0;
-                return isLoggedIn;
+
+        // The session token lives in an HttpOnly cookie (not readable here);
+        // isLoggedIn is the display-side signal, verified server-side per request.
+        return userInfo.isLoggedIn === true;
     }
 
     // Fetch and load the navbar HTML
@@ -399,7 +388,7 @@ window.NavbarModule = (function() {
         // Try both capitalizations of path
         const urls = [
             navbarUrl,
-            navbarUrl.replace('/components/', '/Components/')
+            navbarUrl.replace('/Components/', '/components/')
         ];
         
         // Check if jQuery is available
@@ -455,7 +444,7 @@ window.NavbarModule = (function() {
             if (userInfo && isUserLoggedIn(userInfo)) {
                                 
                 // Fetch fresh user data from database if not already done
-                if (userInfo.token && !userInfo.first_name) {
+                if (!userInfo.first_name) {
                     fetchUserProfileFromDatabase(userInfo)
                         .then(dbUserInfo => {
                             if (dbUserInfo) {
@@ -1295,7 +1284,7 @@ window.NavbarModule = (function() {
                 <nav class="emergency-navbar" style="background-color: #f8f9fa; padding: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <div style="display: flex; align-items: center;">
                         <a href="/" style="text-decoration: none; color: #006A4E; font-weight: bold; font-size: 1.25rem; display: flex; align-items: center;">
-                            <img src="/components/img/logo1.png" alt="Logo" style="height: 2.5rem; margin-right: 0.5rem;" onerror="this.onerror=null; this.src='https://placehold.co/80x40/f8f9fa/006A4E?text=LOGO';">
+                            <img src="/Components/img/logo1.png" alt="Logo" style="height: 2.5rem; margin-right: 0.5rem;" onerror="this.onerror=null; this.src='https://placehold.co/80x40/f8f9fa/006A4E?text=LOGO';">
                             <span>Paulinian Electronic Archiving System</span>
                             </a>
                         </div>
@@ -1399,4 +1388,4 @@ document.addEventListener('DOMContentLoaded', function() {
         window.NavbarModule.init();
     } else {
     }
-}); 
+});

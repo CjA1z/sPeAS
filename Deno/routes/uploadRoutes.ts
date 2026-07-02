@@ -2,12 +2,13 @@
 
 import { Router } from "../deps.ts";
 import { handleFileUpload } from "../controllers/uploadController.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // Create a router
 const router = new Router();
 
-// Route for file uploads
-router.post("/api/upload", async (ctx) => {
+// Route for file uploads (admin only)
+router.post("/api/upload", isAuthenticated, isAdmin, async (ctx) => {
   try {
     // Handle the upload using the upload controller
     await handleFileUpload(ctx);

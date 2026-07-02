@@ -7,10 +7,13 @@ speas(cj version)/
 
 # Uploads & Data
 storage/
+logs/
+*.log
 
 # Node/Deno
 node_modules/
 .env
+Deno/.env
 
 # Editor
 .vscode/

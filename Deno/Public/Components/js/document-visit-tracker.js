@@ -128,24 +128,26 @@ function isUserLoggedIn() {
     // Try multiple storage locations
     try {
                 
-        // First check sessionStorage (primary storage for login status)
+        // First check sessionStorage (primary storage for login status).
+        // The session token itself lives in an HttpOnly cookie and is not
+        // readable from JS — userInfo.isLoggedIn is the display-side signal.
         let userInfo = sessionStorage.getItem('userInfo');
         if (userInfo) {
             try {
                 userInfo = JSON.parse(userInfo);
-                if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
+                if (userInfo && userInfo.isLoggedIn === true) {
                                         return true;
                 }
             } catch (e) {
                             }
         }
-        
+
         // Then check localStorage (used for cross-tab communication)
         userInfo = localStorage.getItem('userInfo');
         if (userInfo) {
             try {
                 userInfo = JSON.parse(userInfo);
-                if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
+                if (userInfo && userInfo.isLoggedIn === true) {
                                         return true;
                 }
             } catch (e) {

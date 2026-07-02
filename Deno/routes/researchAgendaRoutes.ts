@@ -1,11 +1,12 @@
 import { Router } from "../deps.ts";
-import { 
+import {
     handleAddResearchAgendaItems,
     handleGetResearchAgendaItems,
     handleCreateResearchAgendaItem,
     handleCreateResearchAgendaItems,
     handleSearchResearchAgendaItems
 } from "../api/researchAgenda.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // Create a router for research agenda routes
 const router = new Router();
@@ -107,11 +108,11 @@ const searchResearchAgendaItems = async (ctx: any) => {
     ctx.response.body = await response.json();
 };
 
-// Register routes
-router.post("/document-research-agenda", addResearchAgendaItems);
+// Register routes (writes are admin-only)
+router.post("/document-research-agenda", isAuthenticated, isAdmin, addResearchAgendaItems);
 router.get("/document-research-agenda/:documentId", getResearchAgendaItems);
-router.post("/research-agenda-items", createResearchAgendaItem);
-router.post("/research-agenda-items/batch", createResearchAgendaItems);
+router.post("/research-agenda-items", isAuthenticated, isAdmin, createResearchAgendaItem);
+router.post("/research-agenda-items/batch", isAuthenticated, isAdmin, createResearchAgendaItems);
 router.get("/research-agenda-items/search", searchResearchAgendaItems);
 
 // Export the routes
@@ -122,16 +123,17 @@ export interface Route {
     method: string;
     path: string;
     handler: (context: any) => Promise<void> | void;
+    middleware?: ((ctx: any, next: any) => Promise<void> | void)[];
 }
 
-// Keep the original array export for backward compatibility
+// Keep the original array export for backward compatibility (writes are admin-only)
 export const researchAgendaRoutesArray: Route[] = [
     // Document-related research agenda routes
-    { method: "POST", path: "/document-research-agenda", handler: addResearchAgendaItems },
+    { method: "POST", path: "/document-research-agenda", handler: addResearchAgendaItems, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/document-research-agenda/:documentId", handler: getResearchAgendaItems },
-    
+
     // Standalone research agenda item routes
-    { method: "POST", path: "/research-agenda-items", handler: createResearchAgendaItem },
-    { method: "POST", path: "/research-agenda-items/batch", handler: createResearchAgendaItems },
+    { method: "POST", path: "/research-agenda-items", handler: createResearchAgendaItem, middleware: [isAuthenticated, isAdmin] },
+    { method: "POST", path: "/research-agenda-items/batch", handler: createResearchAgendaItems, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/research-agenda-items/search", handler: searchResearchAgendaItems },
 ]; 

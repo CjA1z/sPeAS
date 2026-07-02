@@ -479,7 +479,7 @@
                                                             if (window.NavbarModule) {
                                 
                 // Fix path case sensitivity issues
-                if (window.NavbarModule.USER_NAVBAR_URL === '/components/NavBar/user-Navbar.html') {
+                if (window.NavbarModule.USER_NAVBAR_URL === '/Components/NavBar/user-Navbar.html') {
                     window.NavbarModule.USER_NAVBAR_URL = '/Components/NavBar/user-Navbar.html';
                                     }
             } else {
@@ -792,11 +792,13 @@
 
         // --- API Functions ---
         
-        // Get auth token from storage
+        // Check login state from storage. The session token itself lives in an
+        // HttpOnly cookie and is not readable from JS; requests are authenticated
+        // by the browser sending that cookie automatically.
         function getAuthToken() {
             try {
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-                return userInfo?.token || null;
+                return userInfo?.isLoggedIn || null;
             } catch (error) {
                 return null;
             }
@@ -818,25 +820,22 @@
             let userInfo;
             try {
                 userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-                if (!userInfo || !userInfo.token || !userInfo.isLoggedIn) {
+                if (!userInfo || !userInfo.isLoggedIn) {
                     showMessage('Authentication error. Please log in again.', 'error');
                     return null;
                 }
-                
+
                 // Start loading indicator
                 setLoading(true);
-                
-                // Add slight delay to ensure token is available
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Fetch user profile
+
+                // Fetch user profile (auth rides the HttpOnly session cookie)
                 const userId = userInfo.id || '';
                                 const response = await fetch(`${API_ENDPOINTS.profile}?userId=${userId}`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${userInfo.token}`,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    credentials: 'include'
                 });
                 
                 if (!response.ok) {
@@ -889,24 +888,23 @@
             let userInfo;
             try {
                 userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-                if (!userInfo || !userInfo.token || !userInfo.isLoggedIn) {
+                if (!userInfo || !userInfo.isLoggedIn) {
                     throw new Error('Invalid or missing user authentication data');
                 }
             } catch (error) {
                 showMessage('Authentication error. Please log in again.', 'error');
                 return null;
             }
-            
+
             try {
                 setLoading(true);
-                // Include userId in the URL
-                const userId = userInfo.id || '';
-                const response = await fetch(`${API_ENDPOINTS.updatePassword}?userId=${userId}`, {
+                // The server scopes the update to the authenticated session user
+                const response = await fetch(API_ENDPOINTS.updatePassword, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${userInfo.token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
                         currentPassword,
                         newPassword
@@ -935,14 +933,14 @@
             let userInfo;
             try {
                 userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-                if (!userInfo || !userInfo.token || !userInfo.isLoggedIn) {
+                if (!userInfo || !userInfo.isLoggedIn) {
                     throw new Error('Invalid or missing user authentication data');
                 }
             } catch (error) {
                 showMessage('Authentication error. Please log in again.', 'error');
                 return null;
             }
-            
+
             const formData = new FormData();
             // Use PNG instead of WebP for better compatibility
             const imageTypeToUse = 'image/png';
@@ -987,18 +985,16 @@
             async function performUpload() {
                                 
                 try {
-                    // Get the token directly from sessionStorage
+                    // Check login state (auth rides the HttpOnly session cookie)
                     let userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-                    if (!userInfo || !userInfo.token) {
+                    if (!userInfo || !userInfo.isLoggedIn) {
                         throw new Error("Authentication required");
                     }
-                    
+
                     const userId = userInfo.id || '';
                     const response = await fetch(`${API_ENDPOINTS.uploadProfilePicture}?userId=${userId}`, {
                         method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${userInfo.token}`
-                        },
+                        credentials: 'include',
                         body: formData
                     });
                     

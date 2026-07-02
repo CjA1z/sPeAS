@@ -1,12 +1,7 @@
 // server.ts
 
-// Load environment variables from .env file
-import { config } from "https://deno.land/x/dotenv@v3.2.0/mod.ts";
-// Load env variables with absolute path to ensure it's found
-config({ 
-  path: new URL("./.env", import.meta.url).pathname, 
-  export: true 
-});
+// Environment variables are loaded (and exported to Deno.env) once by
+// config/db.ts via the std dotenv loader — no separate loader here.
 
 // -----------------------------
 // SECTION: Imports
@@ -47,10 +42,11 @@ import { systemLogsRoutes, systemLogsAllowedMethods } from "./routes/systemLogsR
 import keywordsRoutes from "./routes/keywordsRoutes.ts"; // Import keywords routes
 import { getCompiledDocument } from "./api/compiledDocument.ts";
 import { handleGetUserProfileForNavbar } from "./api/user.ts"; // Import user profile handler
-import { handleLogout } from "./routes/logout.ts"; // Import logout handler
 import { handleLibraryRequest } from "./api/userLibrary.ts"; // Import user library handler
 import { handleUserPasswordUpdate } from "./api/userPassword.ts"; // Import user password handler
 import { handleUserProfilePictureUpload } from "./api/userProfilePicture.ts"; // Import user profile picture handler
+import { isAuthenticated, isAdmin } from "./middleware/authMiddleware.ts"; // Authn/authz middleware
+import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
 // Import the document view controller
 // TODO: Fix DocumentViewController implementation
 // import { DocumentViewController } from "./controllers/documentViewController.ts";
@@ -159,8 +155,10 @@ app.use(async (ctx, next) => {
 // Add static file serving middleware
 app.use(async (ctx, next) => {
   try {
+    const publicPath = ctx.request.url.pathname.replace(/^\/components(\/|$)/i, "/Components$1");
     await ctx.send({
-      root: `${Deno.cwd()}/public`,
+      root: `${Deno.cwd()}/Public`,
+      path: publicPath,
       index: "index.html",
     });
   } catch {
@@ -172,9 +170,10 @@ app.use(async (ctx, next) => {
 app.use(async (ctx, next) => {
   if (ctx.request.url.pathname.startsWith('/admin/')) {
     try {
+      const adminPath = ctx.request.url.pathname.replace("/icons/Category-icons/", "/icons/category-icons/");
       await ctx.send({
         root: `${Deno.cwd()}`,
-        path: ctx.request.url.pathname,
+        path: adminPath,
       });
     } catch {
       await next();
@@ -254,17 +253,19 @@ app.use(async (ctx, next) => {
 // SECTION: Routes Setup
 // -----------------------------
 
-// Register all routes with the router
+// Register all routes with the router, including any per-route middleware
+// (e.g. isAuthenticated / isAdmin declared on the Route object)
 routes.forEach(route => {
   const method = route.method.toLowerCase();
+  const chain = [...(route.middleware ?? []), route.handler] as unknown as [any, ...any[]];
   if (method === 'get') {
-    router.get(route.path, route.handler);
+    router.get(route.path, ...chain);
   } else if (method === 'post') {
-    router.post(route.path, route.handler);
+    router.post(route.path, ...chain);
   } else if (method === 'put') {
-    router.put(route.path, route.handler);
+    router.put(route.path, ...chain);
   } else if (method === 'delete') {
-    router.delete(route.path, route.handler);
+    router.delete(route.path, ...chain);
   }
 });
 
@@ -272,7 +273,7 @@ routes.forEach(route => {
 emailRoutes.forEach(route => {
   const method = route.method.toLowerCase();
   if (method === 'post') {
-    router.post(route.path, route.handler);
+    router.post(route.path, ...([...(route.middleware ?? []), route.handler] as unknown as [any, ...any[]]));
   }
 });
 
@@ -410,7 +411,7 @@ router.get("/api/documents", async (ctx) => {
 });
 
 // Add POST endpoint for document creation
-router.post("/api/documents", async (ctx) => {
+router.post("/api/documents", isAuthenticated, isAdmin, async (ctx) => {
   try {
     // Get JSON body from request
     const body = await ctx.request.body({ type: "json" }).value;
@@ -805,7 +806,7 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
 });
 
 // Add endpoint to update author information
-router.put("/api/authors/:authorId", async (ctx) => {
+router.put("/api/authors/:authorId", isAuthenticated, isAdmin, async (ctx) => {
   const authorId = ctx.params.authorId;
   
   if (!authorId) {
@@ -881,7 +882,7 @@ router.put("/api/authors/:authorId", async (ctx) => {
 });
 
 // Add authors endpoint
-router.post("/api/document-research-agenda/link", async (ctx) => {
+router.post("/api/document-research-agenda/link", isAuthenticated, isAdmin, async (ctx) => {
   try {
     const body = await ctx.request.body({ type: "json" }).value;
     
@@ -954,7 +955,7 @@ app.use(unifiedArchiveAllowedMethods);
 // SECTION: Document Metadata Update Route
 // -----------------------------
 // Add a route to update document metadata after processing
-router.put("/api/documents/:id/metadata", async (ctx) => {
+router.put("/api/documents/:id/metadata", isAuthenticated, isAdmin, async (ctx) => {
   try {
     const id = ctx.params.id;
     
@@ -996,7 +997,7 @@ router.put("/api/documents/:id/metadata", async (ctx) => {
 // SECTION: Directory Management Route
 // -----------------------------
 // Add a route to ensure directories exist
-router.post("/api/ensure-directory", async (ctx) => {
+router.post("/api/ensure-directory", isAuthenticated, isAdmin, async (ctx) => {
   try {
     // Get the path from request body
     const body = await ctx.request.body({ type: "json" }).value;
@@ -1187,24 +1188,17 @@ async function startServer() {
         if (acceptHeader.includes("text/html")) {
           // For HTML requests, serve the custom 404 page
           // Use normalized path to handle case-sensitivity across environments
+          // Directory is canonically "Public" (capital P) — one consistent
+          // casing so paths survive case-sensitive filesystems (Linux/Docker).
           const customErrorPath = `${Deno.cwd()}/Public/pages/miscellaneous/404.html`;
           try {
-            // Normalize the path to handle different file systems
-                        const content = await Deno.readTextFile(customErrorPath);
+            const content = await Deno.readTextFile(customErrorPath);
             ctx.response.type = "text/html";
             ctx.response.body = content;
           } catch (e: unknown) {
-            // Try alternative path with lowercase
-            try {
-              const lowerCasePath = `${Deno.cwd()}/public/pages/miscellaneous/404.html`;
-                            const content = await Deno.readTextFile(lowerCasePath);
-              ctx.response.type = "text/html";
-              ctx.response.body = content;
-            } catch (innerE: unknown) {
-              // Fallback to simple text response if file can't be read
-              ctx.response.type = "text/plain";
-              ctx.response.body = "404 - Page Not Found";
-            }
+            // Fallback to simple text response if file can't be read
+            ctx.response.type = "text/plain";
+            ctx.response.body = "404 - Page Not Found";
           }
         } else {
           // For API requests, return JSON
@@ -1264,36 +1258,8 @@ app.use(documentRequestRoutes.routes());
 app.use(documentRequestRoutes.allowedMethods());
 
 // Add an endpoint to view email logs for document requests (admin only)
-router.get("/api/email-logs", async (ctx) => {
+router.get("/api/email-logs", isAuthenticated, isAdmin, async (ctx) => {
   try {
-    // Get user info from auth header
-    const authHeader = ctx.request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Unauthorized: Authentication required" };
-      return;
-    }
-    
-    // Extract token
-    const token = authHeader.split(" ")[1];
-    
-    // Check if user is admin
-    try {
-      // We'll use the verification function from authRoutes
-      const { verifySession } = await import("./routes/authRoutes.ts");
-      const session = await verifySession(token);
-      
-      if (!session || session.role !== "admin") {
-        ctx.response.status = 403;
-        ctx.response.body = { error: "Forbidden: Admin access required" };
-        return;
-      }
-    } catch (err) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Invalid authentication token" };
-      return;
-    }
-    
     // Get date from query parameter or use today
     const url = new URL(ctx.request.url);
     const dateParam = url.searchParams.get("date");
@@ -1624,21 +1590,26 @@ router.get("/api/user/profile", async (ctx) => {
   });
 
 // Register user password update endpoint
-router.put("/api/user/profile/password", async (ctx) => {
+router.put("/api/user/profile/password", isAuthenticated, async (ctx) => {
   try {
-        
+
     // Convert Oak request to standard Request
     const headers = new Headers(ctx.request.headers);
-    
+
     // Create body from the request
     let body = null;
     if (ctx.request.hasBody) {
       const reqBody = ctx.request.body({ type: "json" });
       body = await reqBody.value;
     }
-    
+
+    // Owner-scope the update: the target user is always the authenticated
+    // session user — never a caller-supplied userId query param.
+    const scopedUrl = new URL(ctx.request.url.toString());
+    scopedUrl.searchParams.set("userId", ctx.state.user.id);
+
     // Create a Request object
-    const request = new Request(ctx.request.url.toString(), {
+    const request = new Request(scopedUrl.toString(), {
       method: "PUT",
       headers: headers,
       body: body ? JSON.stringify(body) : undefined
@@ -1675,7 +1646,7 @@ router.put("/api/user/profile/password", async (ctx) => {
 });
 
 // Register profile picture upload endpoint
-router.post("/api/user/profile/picture", async (ctx) => {
+router.post("/api/user/profile/picture", isAuthenticated, async (ctx) => {
   try {
         
     // Directly call the handler with the context
@@ -1691,48 +1662,8 @@ router.post("/api/user/profile/picture", async (ctx) => {
 });
 
 // Register logout endpoint 
-router.post("/logout", async (ctx) => {
-    
-  const request = new Request(ctx.request.url.toString(), {
-    method: "POST",
-    headers: ctx.request.headers
-  });
-  
-  const response = await handleLogout(request);
-  
-  ctx.response.status = response.status;
-  
-  // Copy all headers from the response
-  for (const [key, value] of response.headers.entries()) {
-    ctx.response.headers.set(key, value);
-  }
-  
-  if (response.status === 302) {
-      } else {
-  }
-});
-
-// Also handle GET requests to /logout (for direct link access)
-router.get("/logout", async (ctx) => {
-    
-  const request = new Request(ctx.request.url.toString(), {
-    method: "GET",
-    headers: ctx.request.headers
-  });
-  
-  const response = await handleLogout(request);
-  
-  ctx.response.status = response.status;
-  
-  // Copy all headers from the response
-  for (const [key, value] of response.headers.entries()) {
-    ctx.response.headers.set(key, value);
-  }
-  
-  if (response.status === 302) {
-      } else {
-  }
-});
+// /logout (POST and GET) is handled by the logout handler in
+// routes/authRoutes.ts, registered via the routes array above.
 
 // Add route for most visited documents
 router.get("/api/documents/most-visited", async (ctx) => {
@@ -1767,7 +1698,7 @@ router.get("/api/documents/most-visited", async (ctx) => {
 });
 
 // Add route for recording document view
-router.post("/api/document-views", async (ctx) => {
+router.post("/api/document-views", analyticsRateLimit, async (ctx) => {
   try {
         // TODO: Fix DocumentViewController implementation
     // const request = new Request(ctx.request.url.toString(), {
@@ -1990,34 +1921,11 @@ router.all("/api/user/library(/.*)?", async (ctx) => {
 });
 
 // Add endpoint to save compiled documents to user's library
-router.post("/api/compiled-documents/save-to-library", async (ctx) => {
+router.post("/api/compiled-documents/save-to-library", isAuthenticated, async (ctx) => {
   try {
-        
-    // Verify user authentication
-    const authHeader = ctx.request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Authentication required" };
-      return;
-    }
-    
-    // Extract token
-    const token = authHeader.split(" ")[1];
-    
-    // Import verification function
-    try {
-      // Import verification function dynamically
-      const { verifySessionToken } = await import("./utils/sessionUtils.ts");
-      const session = await verifySessionToken(token);
-      
-      if (!session) {
-        ctx.response.status = 401;
-        ctx.response.body = { error: "Invalid or expired token" };
-        return;
-      }
-      
-      // Get user ID from session
-      const userId = session.id;
+    {
+      // User ID comes from the authenticated session (owner-scoped)
+      const userId = ctx.state.user.id;
       
       // Get document ID from request body
       const body = await ctx.request.body({ type: "json" }).value;
@@ -2070,9 +1978,6 @@ router.post("/api/compiled-documents/save-to-library", async (ctx) => {
       } else {
         throw new Error("Failed to add compiled document to library");
       }
-    } catch (authError) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Authentication failed" };
     }
   } catch (error) {
     ctx.response.status = 500;
@@ -2084,32 +1989,10 @@ router.post("/api/compiled-documents/save-to-library", async (ctx) => {
 });
 
 // Also add a matching endpoint for the alternative method
-router.post("/api/library/save-compiled", async (ctx) => {
+router.post("/api/library/save-compiled", isAuthenticated, async (ctx) => {
   try {
-        
-    // Verify user authentication
-    const authHeader = ctx.request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Authentication required" };
-      return;
-    }
-    
-    // Extract token
-    const token = authHeader.split(" ")[1];
-    
-    // Import verification function dynamically
-    const { verifySessionToken } = await import("./utils/sessionUtils.ts");
-    const session = await verifySessionToken(token);
-    
-    if (!session) {
-      ctx.response.status = 401;
-      ctx.response.body = { error: "Invalid or expired token" };
-      return;
-    }
-    
-    // Get user ID from session
-    const userId = session.id;
+    // User ID comes from the authenticated session (owner-scoped)
+    const userId = ctx.state.user.id;
     
     // Get document ID from request body
     const body = await ctx.request.body({ type: "json" }).value;
@@ -2179,7 +2062,7 @@ import {
 } from "./api/userDocumentHistory.ts";
 
 // Add route for analytics document view recording
-router.post("/api/analytics/document-view", async (ctx) => {
+router.post("/api/analytics/document-view", analyticsRateLimit, async (ctx) => {
   try {
         
     // Convert Oak request to standard Request
@@ -2230,7 +2113,7 @@ router.post("/api/analytics/document-view", async (ctx) => {
 });
 
 // Add route for analytics document download recording
-router.post("/api/analytics/document-download", async (ctx) => {
+router.post("/api/analytics/document-download", analyticsRateLimit, async (ctx) => {
   try {
         
     // Convert Oak request to standard Request

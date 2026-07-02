@@ -13,6 +13,8 @@ export interface Route {
   method: string;
   path: string;
   handler: (context: any) => Promise<void> | void;
+  /** Optional middleware (e.g. isAuthenticated, isAdmin) run before the handler */
+  middleware?: ((ctx: any, next: any) => Promise<void> | void)[];
 }
 
 // Root route handler

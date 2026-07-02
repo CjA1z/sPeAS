@@ -298,7 +298,7 @@ window.documentEdit = {
     // Get document type icon path
     getDocumentTypeIcon: function(documentType) {
         if (!documentType) {
-            return '/admin/Components/icons/Category-icons/default_category_icon.png';
+            return '/admin/Components/icons/category-icons/default_category_icon.png';
         }
 
         // Normalize document type to uppercase
@@ -306,23 +306,23 @@ window.documentEdit = {
         
         // Map document types to icon paths
         const iconMap = {
-            'THESIS': '/admin/Components/icons/Category-icons/thesis.png',
-            'DISSERTATION': '/admin/Components/icons/Category-icons/dissertation.png',
-            'CONFLUENCE': '/admin/Components/icons/Category-icons/confluence.png',
-            'RESEARCH': '/admin/Components/icons/Category-icons/research.png',
-            'ARTICLE': '/admin/Components/icons/Category-icons/article.png',
-            'REPORT': '/admin/Components/icons/Category-icons/report.png',
-            'BOOK': '/admin/Components/icons/Category-icons/book.png',
-            'JOURNAL': '/admin/Components/icons/Category-icons/journal.png',
-            'PROCEEDINGS': '/admin/Components/icons/Category-icons/proceedings.png',
-            'PRESENTATION': '/admin/Components/icons/Category-icons/presentation.png',
-            'POSTER': '/admin/Components/icons/Category-icons/poster.png',
-            'PATENT': '/admin/Components/icons/Category-icons/patent.png',
-            'OTHER': '/admin/Components/icons/Category-icons/other.png'
+            'THESIS': '/admin/Components/icons/category-icons/thesis.png',
+            'DISSERTATION': '/admin/Components/icons/category-icons/dissertation.png',
+            'CONFLUENCE': '/admin/Components/icons/category-icons/confluence.png',
+            'RESEARCH': '/admin/Components/icons/category-icons/research.png',
+            'ARTICLE': '/admin/Components/icons/category-icons/article.png',
+            'REPORT': '/admin/Components/icons/category-icons/report.png',
+            'BOOK': '/admin/Components/icons/category-icons/book.png',
+            'JOURNAL': '/admin/Components/icons/category-icons/journal.png',
+            'PROCEEDINGS': '/admin/Components/icons/category-icons/proceedings.png',
+            'PRESENTATION': '/admin/Components/icons/category-icons/presentation.png',
+            'POSTER': '/admin/Components/icons/category-icons/poster.png',
+            'PATENT': '/admin/Components/icons/category-icons/patent.png',
+            'OTHER': '/admin/Components/icons/category-icons/other.png'
         };
 
         // Return the mapped icon path or default if not found
-        return iconMap[type] || '/admin/Components/icons/Category-icons/default_category_icon.png';
+        return iconMap[type] || '/admin/Components/icons/category-icons/default_category_icon.png';
     },
     
     // Function to show the edit modal for a single document
@@ -1976,7 +1976,7 @@ window.documentEdit = {
                 typeIcon.src = iconPath;
             } else {
                 // Use a default icon path if the document type doesn't have a specific icon
-                typeIcon.src = '/admin/Components/icons/Category-icons/default_category_icon.png';
+                typeIcon.src = '/admin/Components/icons/category-icons/default_category_icon.png';
             }
             
             // Add background color to the icon container
@@ -3527,9 +3527,9 @@ window.documentEdit = {
             // Update category icon
             if (categoryIcon) {
                 if (data.category === 'SYNERGY' || data.category === 'Synergy') {
-                    categoryIcon.src = '/admin/Components/icons/Category-icons/synergy.png';
+                    categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
                 } else {
-                    categoryIcon.src = '/admin/Components/icons/Category-icons/confluence.png';
+                    categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
                 }
             }
             

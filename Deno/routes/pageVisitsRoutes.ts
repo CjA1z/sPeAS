@@ -1,6 +1,8 @@
 import { Router, RouterContext } from "../deps.ts";
 import { PageVisitsModel } from "../models/pageVisitsModel.ts";
 import { client } from "../db/denopost_conn.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { analyticsRateLimit } from "../middleware/rateLimit.ts";
 
 // Create a router for page visit routes
 const router = new Router();
@@ -928,11 +930,11 @@ router.get("/api/page-visits/most-visited-documents", getMostVisitedDocuments);
 // Get top visited pages
 router.get("/api/page-visits/most-visited-pages", getMostVisitedPages);
 
-// Purge old visit data
-router.delete("/api/page-visits/purge", purgeOldVisitData);
+// Purge old visit data (admin only)
+router.delete("/api/page-visits/purge", isAuthenticated, isAdmin, purgeOldVisitData);
 
-// Record a visit
-router.post("/api/page-visits", recordPageVisit);
+// Record a visit (public, rate-limited per IP)
+router.post("/api/page-visits", analyticsRateLimit, recordPageVisit);
 
 // COMPATIBILITY ROUTES FOR DASHBOARD
 // Get most visited documents for dashboard
@@ -948,7 +950,7 @@ router.get("/api/page-visits/stats", compatGetGeneralVisitStats);
 router.get("/api/page-visits/home-stats", compatGetHomePageVisitStats);
 
 // New document visit direct routes
-router.post("/api/document-visits", recordDocumentVisitDirectly);
+router.post("/api/document-visits", analyticsRateLimit, recordDocumentVisitDirectly);
 router.get("/api/document-visits/counts", getDocumentVisitCounts);
 
 // Parent-child document relation route

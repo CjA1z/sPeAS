@@ -1,5 +1,6 @@
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { verifySessionToken } from "../utils/sessionUtils.ts";
+import { getTokenFromRequest } from "../services/sessionService.ts";
 
 /**
  * Record a document view action
@@ -9,8 +10,7 @@ import { verifySessionToken } from "../utils/sessionUtils.ts";
 export async function recordDocumentView(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(
@@ -76,8 +76,7 @@ export async function recordDocumentView(request: Request): Promise<Response> {
 export async function recordDocumentDownload(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(
@@ -143,8 +142,7 @@ export async function recordDocumentDownload(request: Request): Promise<Response
 export async function getUserHistory(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const authHeader = request.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(request);
     
     if (!token) {
       return new Response(

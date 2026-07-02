@@ -1,6 +1,7 @@
 import { Route } from "./index.ts";
 import { RouterContext } from "../deps.ts";
 import { sendApprovedRequestEmail, sendRejectedRequestEmail } from "../services/emailService.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 import { DocumentModel } from "../models/documentModel.ts";
 import { FileCheckService } from "../services/fileCheckService.ts";
 
@@ -474,9 +475,9 @@ const checkDocumentFiles = async (ctx: RouterContext<any, any, any>) => {
   }
 };
 
-// Export email routes
+// Export email routes — triggered from the admin request-review flow
 export const emailRoutes: Route[] = [
-  { method: "POST", path: "/api/email/send-approval", handler: sendApprovalEmail },
-  { method: "POST", path: "/api/email/send-rejection", handler: sendRejectionEmail },
-  { method: "POST", path: "/api/email/check-document-files", handler: checkDocumentFiles }
+  { method: "POST", path: "/api/email/send-approval", handler: sendApprovalEmail, middleware: [isAuthenticated, isAdmin] },
+  { method: "POST", path: "/api/email/send-rejection", handler: sendRejectionEmail, middleware: [isAuthenticated, isAdmin] },
+  { method: "POST", path: "/api/email/check-document-files", handler: checkDocumentFiles, middleware: [isAuthenticated, isAdmin] }
 ]; 

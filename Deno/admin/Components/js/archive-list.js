@@ -533,15 +533,15 @@ function getDocumentTypeIcon(documentType = '') {
     
     switch (type) {
         case 'thesis':
-            return 'icons/Category-icons/thesis.png';
+            return 'icons/category-icons/thesis.png';
         case 'dissertation':
-            return 'icons/Category-icons/dissertation.png';
+            return 'icons/category-icons/dissertation.png';
         case 'confluence':
-            return 'icons/Category-icons/confluence.png';
+            return 'icons/category-icons/confluence.png';
         case 'synergy':
-            return 'icons/Category-icons/synergy.png';
+            return 'icons/category-icons/synergy.png';
         default:
-            return 'icons/Category-icons/default_category_icon.png';
+            return 'icons/category-icons/default_category_icon.png';
     }
 }
 

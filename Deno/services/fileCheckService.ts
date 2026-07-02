@@ -5,6 +5,11 @@
 
 import { join } from "../deps.ts";
 import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
+import {
+  DOCUMENT_TYPE_DIRS,
+  STORAGE_ROOT,
+  WORKSPACE_ROOT,
+} from "../config/storage.ts";
 
 interface FileCheckResult {
   path: string;        // Path that was checked
@@ -19,22 +24,17 @@ const LOG_DIR = "./logs/file-checks";
 let logInitialized = false;
 
 /**
- * Document storage locations to check, in order of priority
+ * Document storage locations to check, in order of priority.
+ * All derive from the canonical STORAGE_ROOT (config/storage.ts):
+ *  - the per-document-type subdirectories (storage/thesis/, ...)
+ *  - the storage root itself (bare filenames)
+ *  - the workspace root, so DB paths stored relative to the repo
+ *    (e.g. "storage/thesis/x.pdf") resolve correctly
  */
 const STORAGE_LOCATIONS = [
-  "./Public/documents/",
-  "./documents/",
-  "./uploads/",
-  "./Public/uploads/",
-  "./storage/",
-  "./Public/storage/",
-  "./storage/thesis/",
-  "./storage/dissertation/",
-  "./storage/confluence/",
-  "./storage/synergy/",
-  "./Public/documents/thesis/",
-  "./Public/documents/dissertation/",
-  // Add more locations as needed
+  ...DOCUMENT_TYPE_DIRS.map((type) => join(STORAGE_ROOT, type)),
+  STORAGE_ROOT,
+  WORKSPACE_ROOT,
 ];
 
 /**

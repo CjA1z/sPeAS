@@ -1,5 +1,7 @@
 import { Router, RouterContext } from "../deps.ts";
 import { AuthorVisitsModel } from "../models/authorVisitsModel.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { analyticsRateLimit } from "../middleware/rateLimit.ts";
 
 // Create a router for author visit routes
 const router = new Router();
@@ -193,8 +195,8 @@ async function purgeOldVisitData(ctx: RouterContext<string>) {
   }
 }
 
-// Record a visit to an author profile
-router.post("/api/author-visits", recordAuthorVisit);
+// Record a visit to an author profile (public, rate-limited per IP)
+router.post("/api/author-visits", analyticsRateLimit, recordAuthorVisit);
 
 // Get visit statistics for a specific author
 router.get("/api/author-visits/:authorId", getAuthorVisitStats);
@@ -205,8 +207,8 @@ router.get("/api/author-visits/top-authors", getTopAuthors);
 // COMPATIBILITY: Get top authors for admin dashboard
 router.get("/api/author-visits/stats", compatGetTopAuthorsForDashboard);
 
-// Purge old visit data
-router.delete("/api/author-visits/purge", purgeOldVisitData);
+// Purge old visit data (admin only)
+router.delete("/api/author-visits/purge", isAuthenticated, isAdmin, purgeOldVisitData);
 
 // Export the router
 export const authorVisitsRoutes = router.routes();

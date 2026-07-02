@@ -2,11 +2,12 @@
 
 import { Router } from "../deps.ts";
 import { createFile, getFileById } from "../controllers/fileController.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 const router = new Router();
 
-// Route to create a file record
-router.post("/api/files", async (ctx) => {
+// Route to create a file record (admin only)
+router.post("/api/files", isAuthenticated, isAdmin, async (ctx) => {
   try {
     // Get request body
     const body = await ctx.request.body({ type: "json" }).value;

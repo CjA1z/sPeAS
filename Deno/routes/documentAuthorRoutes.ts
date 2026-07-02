@@ -2,11 +2,12 @@
 
 import { Router } from "../deps.ts";
 import { createDocumentAuthors, getDocumentAuthors } from "../controllers/documentAuthorController.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 const router = new Router();
 
-// Route to add authors to a document
-router.post("/document-authors", async (ctx) => {
+// Route to add authors to a document (admin only)
+router.post("/document-authors", isAuthenticated, isAdmin, async (ctx) => {
   try {
     // Get request body
     const body = await ctx.request.body({ type: "json" }).value;

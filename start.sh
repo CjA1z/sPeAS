@@ -80,9 +80,13 @@ else
   warn "Database 'peas_db' not found or 'postgres' role missing."
   log "Setting up database…"
 
-  # Create postgres role if missing
+  # Create postgres role if missing — password comes from Deno/.env, never hardcoded
   if ! psql -U "$(whoami)" -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='postgres'" | grep -q 1; then
-    psql -U "$(whoami)" -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD '1234';" 2>/dev/null
+    PGPASS_FROM_ENV="$(grep '^PGPASSWORD=' "$DENO_DIR/.env" | cut -d= -f2-)"
+    if [[ -z "$PGPASS_FROM_ENV" ]]; then
+      fail "PGPASSWORD is not set in $DENO_DIR/.env — set it before first-time setup."
+    fi
+    psql -U "$(whoami)" -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD '${PGPASS_FROM_ENV}';" 2>/dev/null
     ok "Created 'postgres' role."
   fi
 

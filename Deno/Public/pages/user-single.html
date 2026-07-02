@@ -603,7 +603,7 @@
             let userInfo;
             try {
                 userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo'));
-                if (!userInfo || !userInfo.isLoggedIn || !userInfo.token) {
+                if (!userInfo || !userInfo.isLoggedIn) {
                     showMessage('Please log in to add documents to your library', 'error');
                     return;
                 }
@@ -629,9 +629,9 @@
             fetch('/api/user/library', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userInfo.token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include', // auth rides the HttpOnly session cookie
                 body: JSON.stringify({
                     documentId: documentId
                 })
@@ -952,9 +952,7 @@
                     // Try API check first
                     try {
                         const response = await fetch(`/api/user/library/check?documentId=${documentId}`, {
-                            headers: {
-                                'Authorization': `Bearer ${userInfo.token}`
-                            }
+                            credentials: 'include' // auth rides the HttpOnly session cookie
                         });
                         
                         if (response.ok) {

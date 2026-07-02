@@ -739,60 +739,46 @@
                         }
                         
                         if (response.ok) {
-                            // Store user info
-                            if (result.token) {
-                                // Set cookie to expire when browser closes (no expiration date)
-                                document.cookie = `session_token=${result.token}; path=/`;
-                                
-                                // Add server timestamp to detect restarts
-                                const serverTime = result.serverTime || Date.now();
-                                
-                                // Store user information including role and server timestamp
-                                const userInfo = {
-                                    isLoggedIn: true,
-                                    token: result.token,
-                                    id: result.userId || schoolId,
-                                    role: result.role || 'User',
-                                    username: result.username || schoolId,
-                                    serverTime: serverTime,
-                                    loginTime: Date.now()
-                                };
-                                
-                                // Store in sessionStorage instead of localStorage so it's cleared when browser closes
-                                sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                                
-                                // Also update localStorage to trigger storage event for other tabs
-                                localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                                
-                                // Dispatch storage event to notify current tab
-                                window.dispatchEvent(new StorageEvent('storage', {
-                                    key: 'userInfo',
-                                    newValue: JSON.stringify(userInfo),
-                                    storageArea: localStorage
-                                }));
-                                
-                                // Update UI for the user
-                                showMessage(loginMessageBox, result.message || 'Login successful! Redirecting...', 'success');
-                                
-                                // Determine redirect based on role
-                                let redirectUrl = '/index.html';  // Default redirect for users
-                                
-                                if (result.role && result.role.toLowerCase() === 'admin') {
-                                    redirectUrl = '/admin/dashboard.html';
-                                }
-                                
-                                result.redirectUrl = result.redirectUrl || redirectUrl;
-                                
-                                // Redirect after a short delay
-                                setTimeout(() => { 
-                                    window.location.href = result.redirectUrl; 
-                                }, 1500);
-                            } else {
-                                showMessage(loginMessageBox, result.message || 'Login successful! Redirecting...', 'success');
-                                setTimeout(() => { 
-                                    window.location.href = result.redirectUrl || '/index.html'; 
-                                }, 1500);
+                            // The session token is set by the server as an HttpOnly
+                            // cookie — it is never exposed to JavaScript. We only
+                            // store display info (name/role) for the UI.
+                            const serverTime = result.serverTime || Date.now();
+
+                            const userInfo = {
+                                isLoggedIn: true,
+                                id: result.userId || schoolId,
+                                role: result.role || 'User',
+                                username: result.username || schoolId,
+                                serverTime: serverTime,
+                                loginTime: Date.now()
+                            };
+
+                            // Store in sessionStorage instead of localStorage so it's cleared when browser closes
+                            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                            // Also update localStorage to trigger storage event for other tabs
+                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                            // Dispatch storage event to notify current tab
+                            window.dispatchEvent(new StorageEvent('storage', {
+                                key: 'userInfo',
+                                newValue: JSON.stringify(userInfo),
+                                storageArea: localStorage
+                            }));
+
+                            // Update UI for the user
+                            showMessage(loginMessageBox, result.message || 'Login successful! Redirecting...', 'success');
+
+                            // Prefer the server-provided redirect, fall back by role
+                            let redirectUrl = result.redirect || '/index.html';
+                            if (!result.redirect && result.role && result.role.toLowerCase() === 'admin') {
+                                redirectUrl = '/admin/dashboard.html';
                             }
+
+                            // Redirect after a short delay
+                            setTimeout(() => {
+                                window.location.href = redirectUrl;
+                            }, 1500);
                         } else {
                             showMessage(loginMessageBox, result.message || 'Login failed. Please check your credentials.', 'error');
                         }

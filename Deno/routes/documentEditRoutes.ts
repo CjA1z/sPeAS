@@ -1,6 +1,7 @@
 import { Route } from "./index.ts";
 import { RouterContext } from "../deps.ts";
 import { getDocumentForEdit, saveDocument } from "../api/documentEdit.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 /**
  * Route handler to get a document for editing
@@ -52,7 +53,8 @@ const saveDocumentEditHandler = async (ctx: RouterContext<any, any, any>) => {
 /**
  * Export document edit routes
  */
+// Document editing is an admin dashboard feature
 export const documentEditRoutes: Route[] = [
-  { method: "GET", path: "/document-edit/:id", handler: getDocumentEditHandler },
-  { method: "PUT", path: "/document-edit/:id", handler: saveDocumentEditHandler },
+  { method: "GET", path: "/document-edit/:id", handler: getDocumentEditHandler, middleware: [isAuthenticated, isAdmin] },
+  { method: "PUT", path: "/document-edit/:id", handler: saveDocumentEditHandler, middleware: [isAuthenticated, isAdmin] },
 ]; 

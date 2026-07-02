@@ -946,7 +946,7 @@
                 const sessionUserInfo = sessionStorage.getItem('userInfo');
                 if (sessionUserInfo) {
                     const userInfo = JSON.parse(sessionUserInfo);
-                    if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
+                    if (userInfo && userInfo.isLoggedIn === true) {
                         isLoggedIn = true;
                         userId = userInfo.id;
                                             }
@@ -957,7 +957,7 @@
                     const localUserInfo = localStorage.getItem('userInfo');
                     if (localUserInfo) {
                         const userInfo = JSON.parse(localUserInfo);
-                        if (userInfo && userInfo.isLoggedIn === true && userInfo.token) {
+                        if (userInfo && userInfo.isLoggedIn === true) {
                             isLoggedIn = true;
                             userId = userInfo.id;
                                                     }

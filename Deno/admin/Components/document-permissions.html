@@ -1978,8 +1978,8 @@
             try {
                 // Get user info for authentication
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-                if (!userInfo.token) {
-                    throw new Error('No authentication token found. Please log in again.');
+                if (!userInfo.isLoggedIn) {
+                    throw new Error('Not logged in. Please log in again.');
                 }
 
                 // Send rejection through API
@@ -2277,8 +2277,8 @@
                                 
                 // Get user info from sessionStorage
                 const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-                if (!userInfo.token) {
-                    throw new Error('No authentication token found. Please log in again.');
+                if (!userInfo.isLoggedIn) {
+                    throw new Error('Not logged in. Please log in again.');
                 }
 
                 // Check if user is admin
@@ -3438,19 +3438,11 @@
                                             }
                     
                                         
-                    // Get the most up-to-date token at click time
-                    const token = getAuthToken();
-                    
-                    // Prepare the final URL with auth parameter
-                    let finalUrl;
+                    // Auth rides the HttpOnly session cookie — never put
+                    // tokens in URLs. Just add a cache-busting timestamp.
                     const hasParams = urlToUse.includes('?');
                     const separator = hasParams ? '&' : '?';
-                    
-                    if (token) {
-                                                finalUrl = `${urlToUse}${separator}auth_token=${token}&ts=${Date.now()}`;
-                    } else {
-                                                finalUrl = `${urlToUse}${separator}use_cookie_auth=true&ts=${Date.now()}`;
-                    }
+                    const finalUrl = `${urlToUse}${separator}ts=${Date.now()}`;
                     
                     // Force opening in a new tab for document viewing
                                         try {
@@ -3466,28 +3458,16 @@
                     return false; // Prevent default and stop propagation
                 };
                 
-                // Also update the href for non-JS users (though click handler will intercept with JS enabled)
-                const token = getAuthToken();
-                
                 // Keep the original URL as a data attribute for reference
                 linkElement.setAttribute('data-original-url', originalUrl);
                 linkElement.setAttribute('data-needs-auth', 'true');
-                
+
                 // Set target to _blank to open in new tab
                 linkElement.setAttribute('target', '_blank');
-                
-                // Update href with authentication for non-JS fallback
-                let hrefWithAuth;
-                const hasParams = documentUrl.includes('?');
-                const separator = hasParams ? '&' : '?';
-                
-                if (token) {
-                    hrefWithAuth = `${documentUrl}${separator}auth_token=${token}`;
-                } else {
-                    hrefWithAuth = `${documentUrl}${separator}use_cookie_auth=true`;
-                }
-                
-                linkElement.href = hrefWithAuth;
+
+                // Plain href — the browser sends the HttpOnly session cookie
+                // with the navigation automatically; no token in the URL.
+                linkElement.href = documentUrl;
                 
             } catch (error) {
                 // Fallback to basic href without authentication
@@ -3496,40 +3476,31 @@
         }
 
         /**
-         * Helper function to get the authentication token from multiple sources
-         * @returns {string|null} The authentication token or null if not found
+         * Login-state check. The session token itself lives in an HttpOnly
+         * cookie (not readable from JS); the browser attaches it to requests
+         * automatically. Returns a truthy sentinel when logged in so existing
+         * `if (!token)` gates keep working.
+         * @returns {string|null}
          */
         function getAuthToken() {
             try {
-                // Check session storage first (main source)
                 const sessionData = sessionStorage.getItem('userInfo');
                 if (sessionData) {
                     const userInfo = JSON.parse(sessionData);
-                    if (userInfo && userInfo.token) {
-                        return userInfo.token;
+                    if (userInfo && userInfo.isLoggedIn) {
+                        return 'cookie-session';
                     }
                 }
-                
+
                 // Try localStorage as fallback
                 const localData = localStorage.getItem('userInfo');
                 if (localData) {
                     const userInfo = JSON.parse(localData);
-                    if (userInfo && userInfo.token) {
-                        return userInfo.token;
+                    if (userInfo && userInfo.isLoggedIn) {
+                        return 'cookie-session';
                     }
                 }
-                
-                // Try other known storage locations
-                const authToken = localStorage.getItem('authToken') || 
-                                 sessionStorage.getItem('authToken') ||
-                                 localStorage.getItem('token') ||
-                                 sessionStorage.getItem('token');
-                                 
-                if (authToken) {
-                    return authToken;
-                }
-                
-                // If we reach here, no token was found
+
                 return null;
             } catch (error) {
                 return null;
@@ -3537,59 +3508,13 @@
         }
 
         /**
-         * Tries to fetch a fresh auth token from the server
-         * @returns {Promise<string|null>} A promise that resolves to the token or null
+         * Legacy no-op kept for callers. Sessions live in an HttpOnly cookie
+         * managed by the server; there is no client-side token to refresh.
+         * If the cookie session has expired, the user must log in again.
+         * @returns {Promise<string|null>}
          */
         async function refreshAuthToken() {
-            try {
-                                
-                // Try a different endpoint - users endpoint is more likely to exist than profile
-                const response = await fetch('/api/auth/status', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    const userData = await response.json();
-                    if (userData && userData.token) {
-                        // Save the token in both storages for redundancy
-                        const userInfo = { token: userData.token, role: userData.role || 'user' };
-                        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        
-                                                return userData.token;
-                    }
-                }
-                
-                // If the first endpoint fails, try a fallback endpoint
-                                const fallbackResponse = await fetch('/api/users/current', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include'
-                });
-                
-                if (fallbackResponse.ok) {
-                    const fallbackData = await fallbackResponse.json();
-                    if (fallbackData && fallbackData.token) {
-                        // Save the token
-                        const userInfo = { token: fallbackData.token, role: fallbackData.role || 'user' };
-                        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        
-                                                return fallbackData.token;
-                    }
-                }
-                
-                // If we get here, could not get a new token
-                return null;
-            } catch (error) {
-                return null;
-            }
+            return null;
         }
         
         // Function to initialize all document links with authentication tokens

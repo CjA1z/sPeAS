@@ -1,33 +1,34 @@
 import { Router } from "../deps.ts";
-import { 
-  searchAuthors, 
-  testAuthorApi, 
+import {
+  searchAuthors,
+  testAuthorApi,
   createAuthor,
   createAuthors,
-  deleteAuthor, 
-  restoreAuthor 
+  deleteAuthor,
+  restoreAuthor
 } from "../controllers/authorController.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // Create a router for author-related routes
 const router = new Router();
 
-// Author search route
+// Author search route (public read)
 router.get("/authors/search", searchAuthors);
 
 // Author API test route
 router.get("/api/authors/test", testAuthorApi);
 
-// Author creation route
-router.post("/authors", createAuthor);
+// Author creation route (admin only)
+router.post("/authors", isAuthenticated, isAdmin, createAuthor);
 
-// Batch author creation route
-router.post("/authors/batch", createAuthors);
+// Batch author creation route (admin only)
+router.post("/authors/batch", isAuthenticated, isAdmin, createAuthors);
 
-// Author deletion route
-router.delete("/authors/:id", deleteAuthor);
+// Author deletion route (admin only)
+router.delete("/authors/:id", isAuthenticated, isAdmin, deleteAuthor);
 
-// Author restoration route
-router.post("/authors/:id/restore", restoreAuthor);
+// Author restoration route (admin only)
+router.post("/authors/:id/restore", isAuthenticated, isAdmin, restoreAuthor);
 
 // Export the routes
 export const authorRoutes = router.routes(); 

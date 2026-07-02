@@ -1,5 +1,6 @@
 import { Route } from "./index.ts";
 import { RouterContext } from "../deps.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // Permissions route handlers
 const getPermissions = async (ctx: RouterContext<any, any, any>) => {
@@ -30,10 +31,11 @@ const deletePermission = async (ctx: RouterContext<any, any, any>) => {
 };
 
 // Export an array of routes
+// Permission management is admin-only
 export const permissionsRoutes: Route[] = [
-  { method: "GET", path: "/permissions", handler: getPermissions },
-  { method: "GET", path: "/permissions/:id", handler: getPermissionById },
-  { method: "POST", path: "/permissions", handler: createPermission },
-  { method: "PUT", path: "/permissions/:id", handler: updatePermission },
-  { method: "DELETE", path: "/permissions/:id", handler: deletePermission },
+  { method: "GET", path: "/permissions", handler: getPermissions, middleware: [isAuthenticated, isAdmin] },
+  { method: "GET", path: "/permissions/:id", handler: getPermissionById, middleware: [isAuthenticated, isAdmin] },
+  { method: "POST", path: "/permissions", handler: createPermission, middleware: [isAuthenticated, isAdmin] },
+  { method: "PUT", path: "/permissions/:id", handler: updatePermission, middleware: [isAuthenticated, isAdmin] },
+  { method: "DELETE", path: "/permissions/:id", handler: deletePermission, middleware: [isAuthenticated, isAdmin] },
 ];

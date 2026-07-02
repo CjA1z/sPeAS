@@ -7,6 +7,7 @@ import {
 import { DocumentModel } from "../models/documentModel.ts";
 import { UserLibraryModel } from "../models/userLibraryModel.ts";
 import { verifySessionToken } from "../utils/sessionUtils.ts";
+import { getTokenFromRequest } from "../services/sessionService.ts";
 
 /**
  * Handle library requests based on method
@@ -48,8 +49,7 @@ export async function handleLibraryRequest(req: Request): Promise<Response> {
 export async function getSavedDocuments(req: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
     
     if (!token) {
       return new Response(

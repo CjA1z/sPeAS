@@ -1,5 +1,6 @@
 import { Route } from "./index.ts";
 import { RouterContext } from "../deps.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 // User routes handlers
 const getUsers = async (ctx: RouterContext<any, any, any>) => {
@@ -30,10 +31,11 @@ const deleteUser = async (ctx: RouterContext<any, any, any>) => {
 };
 
 // Export an array of routes
+// User management is admin-only
 export const userRoutes: Route[] = [
-  { method: "GET", path: "/users", handler: getUsers },
-  { method: "GET", path: "/users/:id", handler: getUserById },
-  { method: "POST", path: "/users", handler: createUser },
-  { method: "PUT", path: "/users/:id", handler: updateUser },
-  { method: "DELETE", path: "/users/:id", handler: deleteUser },
+  { method: "GET", path: "/users", handler: getUsers, middleware: [isAuthenticated, isAdmin] },
+  { method: "GET", path: "/users/:id", handler: getUserById, middleware: [isAuthenticated, isAdmin] },
+  { method: "POST", path: "/users", handler: createUser, middleware: [isAuthenticated, isAdmin] },
+  { method: "PUT", path: "/users/:id", handler: updateUser, middleware: [isAuthenticated, isAdmin] },
+  { method: "DELETE", path: "/users/:id", handler: deleteUser, middleware: [isAuthenticated, isAdmin] },
 ];
