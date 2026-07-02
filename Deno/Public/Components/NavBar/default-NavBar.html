@@ -1011,6 +1011,500 @@
             background-color: var(--theme-green-lighter-bg);
             color: var(--theme-green-dark);
         }
+
+        /* --- UX polish: close button anchored inside modal card --- */
+        .search-overlay-content { position: relative !important; }
+        .search-overlay-content > .search-overlay-close-btn {
+            top: 0.6rem !important; right: 0.6rem !important;
+            width: 2rem !important; height: 2rem !important;
+            background: rgba(15, 23, 42, 0.06) !important;
+            color: #475569 !important;
+            z-index: 5 !important;
+            transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
+        }
+        .search-overlay-content > .search-overlay-close-btn:hover,
+        .search-overlay-content > .search-overlay-close-btn:focus-visible {
+            background: rgba(15, 23, 42, 0.12) !important;
+            color: #0f172a !important;
+            outline: none !important;
+            transform: scale(1.04);
+        }
+        .search-overlay-content > .search-overlay-close-btn svg { width: 1.05rem !important; height: 1.05rem !important; }
+        .search-input-wrapper-overlay { padding-right: 3.25rem !important; }
+        #searchInputOverlay { padding-right: 4.5rem !important; }
+        #clearSearchInputButton { right: 3.25rem !important; }
+        #loadingSpinnerOverlay { right: 5.75rem !important; }
+
+        /* --- Rich empty state --- */
+        .search-empty-state {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.4rem !important;
+            padding: 2.25rem 1.5rem !important;
+            text-align: center;
+            color: #475569 !important;
+        }
+        .search-empty-state .empty-state-icon {
+            width: 3rem; height: 3rem;
+            color: #94a3b8;
+            margin-bottom: 0.1rem;
+        }
+        .search-empty-state .empty-state-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #0f3d2e;
+        }
+        .search-empty-state .empty-state-subtitle {
+            margin: 0;
+            font-size: 0.875rem;
+            color: #64748b;
+            max-width: 22rem;
+            line-height: 1.4;
+        }
+        .search-empty-state .empty-state-hints {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.72rem;
+            color: #64748b;
+        }
+        .search-empty-state .empty-state-hints kbd {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            background: #eef2f7;
+            border: 1px solid #d6dde6;
+            border-bottom-width: 2px;
+            color: #334155;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.68rem;
+            font-weight: 600;
+            margin-right: 0.3rem;
+        }
+
+        /* --- Show All Results: disabled when nothing actionable --- */
+        .show-all-results-btn[disabled],
+        .show-all-results-btn.is-disabled {
+            background: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+            color: #94a3b8 !important;
+            cursor: not-allowed !important;
+            pointer-events: none;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        /* --- Collapsible filters --- */
+        .filters-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.55rem 1rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .filters-toggle-wrapper .filters-toggle-hint {
+            font-size: 0.72rem;
+            color: #64748b;
+        }
+        .filters-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .filters-toggle-btn:hover,
+        .filters-toggle-btn:focus-visible {
+            background: #eef6f3;
+            border-color: #b7d5ca;
+            color: #00523D;
+            outline: none;
+        }
+        .filters-toggle-btn[aria-expanded="true"] {
+            background: #006A4E;
+            border-color: #006A4E;
+            color: #ffffff;
+        }
+        .filters-toggle-btn svg { width: 0.95rem; height: 0.95rem; }
+        .filters-toggle-btn .filters-toggle-chevron { transition: transform 0.2s ease; }
+        .filters-toggle-btn[aria-expanded="true"] .filters-toggle-chevron { transform: rotate(180deg); }
+        .filters-toggle-btn .filters-active-count {
+            margin-left: 0.15rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.1rem;
+            height: 1.1rem;
+            padding: 0 0.3rem;
+            border-radius: 999px;
+            background: #FDB813;
+            color: #0f3d2e;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        .filters-toggle-btn[aria-expanded="true"] .filters-active-count {
+            background: rgba(255,255,255,0.22);
+            color: #ffffff;
+        }
+        .filters-toggle-btn .filters-active-count:empty { display: none; }
+        .filters-container-overlay.is-collapsed { display: none !important; }
+
+        /* =========================================================
+           Spotlight rehaul — compact command-palette layout
+           ========================================================= */
+        #search-overlay {
+            background: rgba(15, 23, 42, 0.45) !important;
+            padding: 6vh 1rem 1rem !important;
+            align-items: flex-start !important;
+        }
+        .search-overlay-content {
+            max-width: 640px !important;
+            margin: 0 auto !important;
+            max-height: min(80vh, 620px) !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(15, 23, 42, 0.08) !important;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+        }
+        /* Close button: compact top-right of input row */
+        .search-overlay-content > .search-overlay-close-btn {
+            top: 0.95rem !important;
+            right: 0.85rem !important;
+            width: 1.85rem !important;
+            height: 1.85rem !important;
+            background: transparent !important;
+            color: #94a3b8 !important;
+            border-radius: 6px !important;
+            z-index: 6 !important;
+            transition: background-color 0.12s ease, color 0.12s ease;
+        }
+        .search-overlay-content > .search-overlay-close-btn:hover,
+        .search-overlay-content > .search-overlay-close-btn:focus-visible {
+            background: #f1f5f9 !important;
+            color: #0f172a !important;
+            transform: none !important;
+        }
+        .search-overlay-content > .search-overlay-close-btn svg { width: 1rem !important; height: 1rem !important; }
+
+        /* Input row: hero */
+        .search-input-wrapper-overlay {
+            min-height: 4rem !important;
+            padding: 0.85rem 3.25rem 0.85rem 1.15rem !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #eef0f3 !important;
+            gap: 0.8rem !important;
+        }
+        .search-icon-overlay {
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+            color: #94a3b8 !important;
+            margin: 0 !important;
+        }
+        #searchInputOverlay {
+            font-size: 1.0625rem !important;
+            color: #0f172a !important;
+            padding-right: 0 !important;
+        }
+        #searchInputOverlay::placeholder { color: #94a3b8 !important; }
+        #clearSearchInputButton {
+            right: 3rem !important;
+            width: 1.65rem !important;
+            height: 1.65rem !important;
+            border-radius: 6px !important;
+        }
+        #clearSearchInputButton svg { width: 0.85rem; height: 0.85rem; }
+        #loadingSpinnerOverlay { right: 5rem !important; }
+
+        /* Hide standalone sections we now fold elsewhere */
+        .top-keywords-section { display: none !important; }
+        .show-all-results-button-container { display: none !important; }
+
+        /* Category chips row */
+        .category-buttons-container-overlay {
+            padding: 0.55rem 0.85rem !important;
+            gap: 0.35rem !important;
+            background: #ffffff !important;
+            border-bottom: 0 !important;
+            justify-content: flex-start !important;
+            flex-wrap: wrap !important;
+        }
+        .category-filter-button {
+            min-width: 0 !important;
+            min-height: 0 !important;
+            padding: 0.3rem 0.65rem !important;
+            border-radius: 999px !important;
+            background: #f8faf9 !important;
+            color: #475569 !important;
+            border: 1px solid #e6ebef !important;
+            box-shadow: none !important;
+            font-size: 0.8rem !important;
+            line-height: 1 !important;
+            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease !important;
+        }
+        .category-filter-button:hover {
+            background: #eef6f3 !important;
+            border-color: #b7d5ca !important;
+            color: #00523D !important;
+            transform: none !important;
+        }
+        .category-filter-button.active {
+            background: #006A4E !important;
+            border-color: #006A4E !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
+            transform: none !important;
+            animation: none !important;
+        }
+        .category-button-content {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.4rem !important;
+            min-width: 0 !important;
+        }
+        .category-icon { display: none !important; }
+        .category-name { font-size: 0.8rem !important; font-weight: 600 !important; line-height: 1 !important; white-space: nowrap !important; }
+        .category-count {
+            padding: 0.08rem 0.4rem !important;
+            border-radius: 999px !important;
+            background: rgba(15, 23, 42, 0.06) !important;
+            color: #64748b !important;
+            font-size: 0.66rem !important;
+            line-height: 1 !important;
+            margin-top: 0 !important;
+        }
+        .category-filter-button.active .category-count {
+            background: rgba(255, 255, 255, 0.22) !important;
+            color: #ffffff !important;
+        }
+
+        /* Filters toggle: subdued chip in its own slim row */
+        .filters-toggle-wrapper {
+            padding: 0 0.85rem 0.55rem !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #eef0f3 !important;
+            justify-content: flex-end !important;
+        }
+        .filters-toggle-wrapper .filters-toggle-hint {
+            font-size: 0.7rem !important;
+            color: #94a3b8 !important;
+        }
+        .filters-toggle-btn {
+            padding: 0.3rem 0.65rem !important;
+            border-radius: 999px !important;
+            font-size: 0.78rem !important;
+            background: #f8faf9 !important;
+            border: 1px solid #e6ebef !important;
+            color: #475569 !important;
+        }
+        .filters-toggle-btn[aria-expanded="true"] {
+            background: #006A4E !important;
+            border-color: #006A4E !important;
+            color: #ffffff !important;
+        }
+
+        /* Filters panel: slimmer */
+        .filters-container-overlay {
+            padding: 0.6rem 0.85rem 0.75rem !important;
+            gap: 0.5rem !important;
+            background: #f8faf9 !important;
+            border-bottom: 1px solid #eef0f3 !important;
+        }
+        .filter-item-overlay label {
+            font-size: 0.68rem !important;
+            margin-bottom: 0.2rem !important;
+        }
+        .filter-item-overlay select {
+            height: 2.1rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Results: tight, scannable rows */
+        #search-results-overlay {
+            padding: 0.3rem !important;
+            background: #ffffff !important;
+        }
+        .search-results-category-section { margin: 0 0 0.4rem !important; }
+        .search-results-category-header {
+            padding: 0.45rem 0.75rem 0.25rem !important;
+            margin: 0 !important;
+            background: transparent !important;
+            color: #94a3b8 !important;
+            font-size: 0.65rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border: 0 !important;
+            border-radius: 0 !important;
+            justify-content: flex-start !important;
+        }
+        .search-results-category-header .header-icon {
+            width: 0.8rem !important;
+            height: 0.8rem !important;
+            color: #94a3b8 !important;
+        }
+        .search-result-item {
+            margin: 0 !important;
+            padding: 0.55rem 0.75rem !important;
+            border-radius: 6px !important;
+            border: 0 !important;
+            background: transparent !important;
+            transition: background-color 0.1s ease !important;
+        }
+        .search-result-item:hover,
+        .search-result-item:focus-visible {
+            background: #f8faf9 !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+        .search-result-item.kbd-focus {
+            background: #eef6f3 !important;
+            box-shadow: inset 3px 0 0 #006A4E !important;
+        }
+        .search-result-title {
+            margin-bottom: 0.2rem !important;
+            color: #0f172a !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+        }
+        .search-result-meta-primary {
+            font-size: 0.72rem !important;
+            color: #64748b !important;
+            padding: 0 !important;
+            border: 0 !important;
+            margin-bottom: 0.25rem !important;
+            gap: 0.5rem !important;
+        }
+
+        /* Empty state: looser top + popular list */
+        .search-empty-state {
+            padding: 1.5rem 1.25rem 0.5rem !important;
+            gap: 0.3rem !important;
+        }
+        .search-empty-state .empty-state-icon { width: 2.5rem; height: 2.5rem; margin: 0; }
+        .search-empty-state .empty-state-title { font-size: 0.95rem; }
+        .search-empty-state .empty-state-subtitle { font-size: 0.825rem; }
+        .search-empty-state .empty-state-hints { display: none !important; }
+
+        .empty-popular-section {
+            width: 100%;
+            margin-top: 1rem;
+            text-align: left;
+        }
+        .empty-popular-header {
+            padding: 0 0.6rem 0.3rem;
+            color: #94a3b8;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .empty-popular-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .empty-popular-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.6rem;
+            border-radius: 6px;
+            color: #334155;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.1s ease, color 0.1s ease;
+        }
+        .empty-popular-item:hover {
+            background: #f8faf9;
+            color: #00523D;
+        }
+        .empty-popular-item.kbd-focus {
+            background: #eef6f3;
+            color: #00523D;
+            box-shadow: inset 3px 0 0 #006A4E;
+        }
+        .empty-popular-item svg {
+            width: 0.95rem;
+            height: 0.95rem;
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+        .empty-popular-item:hover svg,
+        .empty-popular-item.kbd-focus svg { color: #00523D; }
+        .empty-popular-item .keyword-arrow {
+            margin-left: auto;
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            opacity: 0;
+            transition: opacity 0.1s ease, color 0.1s ease;
+        }
+        .empty-popular-item:hover .keyword-arrow,
+        .empty-popular-item.kbd-focus .keyword-arrow {
+            opacity: 1;
+            color: #00523D;
+        }
+
+        /* Footer keyboard-hint bar */
+        .search-footer-hints {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.5rem 0.85rem;
+            background: #f8faf9;
+            border-top: 1px solid #eef0f3;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        .search-footer-hints .footer-hint-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+        }
+        .search-footer-hints kbd {
+            display: inline-block;
+            min-width: 1rem;
+            padding: 0.05rem 0.35rem;
+            margin-right: 0.3rem;
+            border-radius: 4px;
+            background: #ffffff;
+            border: 1px solid #d6dde6;
+            border-bottom-width: 2px;
+            color: #334155;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .search-footer-hints .powered-by {
+            color: #94a3b8;
+            font-size: 0.65rem;
+            letter-spacing: 0.04em;
+        }
+        @media (max-width: 540px) {
+            .search-footer-hints .footer-hint-group { gap: 0.5rem; }
+            .search-footer-hints .powered-by { display: none; }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -1071,11 +1565,11 @@
     </nav>
 
     <div id="search-overlay" class="hidden">
-        <button id="search-close-button" type="button" class="search-overlay-close-btn">
-            <span class="sr-only">Close search</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-        </button>
         <div class="search-overlay-content">
+            <button id="search-close-button" type="button" class="search-overlay-close-btn">
+                <span class="sr-only">Close search</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
             <div class="search-input-wrapper-overlay">
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="search-icon-overlay">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -1108,7 +1602,16 @@
             </div>
             <div id="categoryButtonsContainerOverlay" class="category-buttons-container-overlay">
                 </div>
-            <div class="filters-container-overlay">
+            <div class="filters-toggle-wrapper">
+                <span class="filters-toggle-hint">Narrow results by author, keyword, or year</span>
+                <button type="button" id="filtersToggleBtn" class="filters-toggle-btn" aria-expanded="false" aria-controls="filtersPanel">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12M10 20h4" /></svg>
+                    Filters
+                    <span class="filters-active-count" id="filtersActiveCount"></span>
+                    <span class="filters-toggle-chevron"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg></span>
+                </button>
+            </div>
+            <div id="filtersPanel" class="filters-container-overlay is-collapsed" aria-hidden="true">
                 <div class="filter-item-overlay">
                     <label for="authorFilterOverlay">Author</label>
                     <select id="authorFilterOverlay"><option value="">All</option></select>
@@ -1123,10 +1626,27 @@
                 </div>
             </div>
             <div id="search-results-overlay">
-                 <p id="searchPlaceholderOverlay" class="search-no-results">No search yet.</p>
+                <div id="searchPlaceholderOverlay" class="search-no-results search-empty-state">
+                    <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                    <h3 class="empty-state-title">Search the sPEAS archive</h3>
+                    <p class="empty-state-subtitle">Find theses, dissertations, and publications by title, author, or keyword.</p>
+                    <div class="empty-state-hints">
+                        <span><kbd>Enter</kbd>Search</span>
+                        <span><kbd>Esc</kbd>Close</span>
+                        <span><kbd>⌘</kbd><kbd>K</kbd>Open anywhere</span>
+                    </div>
+                </div>
             </div>
-            <div id="showAllResultsContainer" class="show-all-results-button-container">
+            <div id="showAllResultsContainer" class="show-all-results-button-container hidden">
                 <button id="showAllResultsBtn" type="button" class="show-all-results-btn" onclick="window.location.href = '/pages/searchResultsPage.html?q=' + encodeURIComponent(document.getElementById('searchInputOverlay').value)">Show All Results</button>
+            </div>
+            <div class="search-footer-hints">
+                <div class="footer-hint-group">
+                    <span><kbd>&#8629;</kbd>Open</span>
+                    <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd>Navigate</span>
+                    <span><kbd>esc</kbd>Close</span>
+                </div>
+                <span class="powered-by">sPEAS Archive</span>
             </div>
         </div>
     </div>
@@ -1196,6 +1716,102 @@
     let isDropdownOpen = false;
     let originalBodyOverflow = '';
     let currentUser = null; // Will be populated by checkAuthStatus from backend
+
+    function escapeHTMLAttr(str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, function(c) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+    }
+
+    function getPopularKeywordsForEmptyState(limit) {
+        limit = limit || 6;
+        try {
+            var data = window.NavbarModule && window.NavbarModule.topKeywordsData && window.NavbarModule.topKeywordsData.top_keywords;
+            if (Array.isArray(data) && data.length) {
+                var seen = new Set(); var out = [];
+                for (var i = 0; i < data.length && out.length < limit; i++) {
+                    var raw = data[i];
+                    var v = (raw && typeof raw === 'object') ? (raw.name || raw.keyword || raw.text || '') : raw;
+                    var s = String(v == null ? '' : v).trim();
+                    if (!s) continue;
+                    var k = s.toLowerCase();
+                    if (seen.has(k)) continue;
+                    seen.add(k); out.push(s);
+                }
+                if (out.length) return out;
+            }
+        } catch (_) {}
+        var belt = document.getElementById('keywordsConveyorBelt');
+        if (belt) {
+            var items = Array.from(belt.querySelectorAll('.keyword-conveyor-item'));
+            var seen2 = new Set(); var out2 = [];
+            for (var j = 0; j < items.length && out2.length < limit; j++) {
+                var t = ((items[j].dataset && items[j].dataset.query) || items[j].textContent || '').trim();
+                if (!t) continue;
+                var lk = t.toLowerCase();
+                if (seen2.has(lk)) continue;
+                seen2.add(lk); out2.push(t);
+            }
+            return out2;
+        }
+        return [];
+    }
+
+    function getEmptyStateHTML() {
+        var popular = getPopularKeywordsForEmptyState(6);
+        var popularBlock = '';
+        if (popular.length) {
+            var items = popular.map(function(k) {
+                var safe = escapeHTMLAttr(k);
+                return '<li class="empty-popular-item" data-keyword="' + safe + '" role="button" tabindex="-1">' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>' +
+                    '<span>' + safe + '</span>' +
+                    '<span class="keyword-arrow">&rarr;</span>' +
+                '</li>';
+            }).join('');
+            popularBlock = '<div class="empty-popular-section">' +
+                '<div class="empty-popular-header">Popular searches</div>' +
+                '<ul class="empty-popular-list">' + items + '</ul>' +
+            '</div>';
+        }
+        return '<div id="searchPlaceholderOverlay" class="search-no-results search-empty-state">' +
+            '<svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>' +
+            '<h3 class="empty-state-title">Search the sPEAS archive</h3>' +
+            '<p class="empty-state-subtitle">Find theses, dissertations, and publications by title, author, or keyword.</p>' +
+            popularBlock +
+        '</div>';
+    }
+
+    function refreshEmptyStateIfShowing() {
+        var placeholder = document.getElementById('searchPlaceholderOverlay');
+        var results = document.getElementById('search-results-overlay');
+        var input = document.getElementById('searchInputOverlay');
+        if (placeholder && placeholder.classList.contains('search-empty-state') && results &&
+            (!input || !input.value.trim())) {
+            results.innerHTML = getEmptyStateHTML();
+        }
+    }
+
+    function updateShowAllResultsState() {
+        const btn = document.getElementById('showAllResultsBtn');
+        const input = document.getElementById('searchInputOverlay');
+        if (!btn || !input) return;
+        const hasQuery = input.value.trim().length > 0;
+        const author = document.getElementById('authorFilterOverlay');
+        const kw = document.getElementById('keywordsFilterOverlay');
+        const yr = document.getElementById('yearFilterOverlay');
+        const hasDropdownFilters = !!(author && author.value) || !!(kw && kw.value) || !!(yr && yr.value);
+        let hasSpecificCategory = false;
+        try {
+            const cats = (typeof getActiveCategories === 'function') ? getActiveCategories() : [];
+            const container = document.getElementById('categoryButtonsContainerOverlay');
+            const allActive = container && container.querySelector('.category-filter-button[data-category=""].active');
+            hasSpecificCategory = cats.length > 0 && !allActive;
+        } catch (_) {}
+        const actionable = hasQuery || hasDropdownFilters || hasSpecificCategory;
+        btn.classList.toggle('is-disabled', !actionable);
+        if (actionable) btn.removeAttribute('disabled'); else btn.setAttribute('disabled', '');
+    }
 
     // Conveyor scroll & drag variables
     let currentTranslateX = 0;
@@ -1674,18 +2290,18 @@
         if (mobileMenu && !mobileMenu.classList.contains(HIDDEN_CLASS)) {
             toggleMobileMenu(true);
         }
-        const currentPlaceholderText = 'No search yet.';
         if (searchInputOverlay.value === '' && (getActiveCategories().length > 0 || authorFilterOverlay.value || keywordsFilterOverlay.value || yearFilterOverlay.value)) {
             performSearchOverlay();
         } else if (searchInputOverlay.value === '' && searchResultsOverlay) {
-            searchResultsOverlay.innerHTML = `<p id="searchPlaceholderOverlay" class="search-no-results">${currentPlaceholderText}</p>`;
+            searchResultsOverlay.innerHTML = getEmptyStateHTML();
             showAllResultsContainer.classList.add(HIDDEN_CLASS);
             const newPlaceholder = document.getElementById('searchPlaceholderOverlay');
             if(newPlaceholder) newPlaceholder.classList.remove(HIDDEN_CLASS);
         } else if (searchResultsOverlay.innerHTML.trim() === '') {
-             searchResultsOverlay.innerHTML = `<p id="searchPlaceholderOverlay" class="search-no-results">${currentPlaceholderText}</p>`;
+             searchResultsOverlay.innerHTML = getEmptyStateHTML();
              showAllResultsContainer.classList.add(HIDDEN_CLASS);
         }
+        updateShowAllResultsState();
         
         // Load filters data if not already loaded
         if (!openSearch.filtersLoaded) {
@@ -1825,10 +2441,21 @@
                 if (!keywordsConveyorBelt || !Array.isArray(keywordsToDisplay)) {
             return;
         }
-        
+
+        // Dedupe case-insensitively while preserving first occurrence's casing.
+        const seen = new Map();
+        keywordsToDisplay.forEach(term => {
+            const value = (term && typeof term === 'object') ? (term.name || term.keyword || term.text || '') : term;
+            const str = String(value == null ? '' : value).trim();
+            if (!str) return;
+            const key = str.toLowerCase();
+            if (!seen.has(key)) seen.set(key, str);
+        });
+        keywordsToDisplay = Array.from(seen.values());
+
         // Clear existing content
         keywordsConveyorBelt.innerHTML = '';
-        
+
         // If no keywords, add some placeholders
         if (keywordsToDisplay.length === 0) {
                         keywordsToDisplay = ["Thesis", "Research", "Academic", "Journal", "Paper", "University", "Education", "Literature", "Theory", "Analysis"];
@@ -1878,7 +2505,8 @@
         firstSetWidth = 0;
         keywordsConveyorBelt.style.transform = 'none';
         keywordsConveyorBelt.style.transition = 'none';
-        
+
+        refreshEmptyStateIfShowing();
             }
     function closeSearch() {
         if (!searchOverlay || !searchInputOverlay || !bodyElement) return;
@@ -1889,8 +2517,9 @@
         if (clearSearchInputButton) {
             clearSearchInputButton.classList.remove(VISIBLE_CLASS);
         }
-        searchResultsOverlay.innerHTML = '<p id="searchPlaceholderOverlay" class="search-no-results">No search yet.</p>';
+        searchResultsOverlay.innerHTML = getEmptyStateHTML();
         showAllResultsContainer.classList.add(HIDDEN_CLASS);
+        updateShowAllResultsState();
     }
     function highlightText(text, query) {
         if (!query || typeof text !== 'string') return text || '';
@@ -2074,14 +2703,14 @@
         const isAllCategoryActive = categoryButtonsContainerOverlay?.querySelector(`.${CATEGORY_FILTER_BUTTON_CLASS}[${DATA_CATEGORY_ATTR}=""].${ACTIVE_CLASS}`) !== null;
         const hasDropdownFilters = !!selectedAuthor || !!selectedKeywordsFilter || !!selectedYear;
         const hasActiveFilters = (hasSpecificCategoryFilter && !isAllCategoryActive) || hasDropdownFilters;
-        const currentPlaceholderText = 'No search yet.';
         let placeholderEl = document.getElementById('searchPlaceholderOverlay');
 
         if (!hasQuery && isAllCategoryActive && !hasDropdownFilters) {
-            searchResultsOverlay.innerHTML = `<p id="searchPlaceholderOverlay" class="search-no-results">${currentPlaceholderText}</p>`;
+            searchResultsOverlay.innerHTML = getEmptyStateHTML();
             showAllResultsContainer.classList.add(HIDDEN_CLASS);
             loadingSpinnerOverlay.classList.remove(VISIBLE_CLASS);
             if (clearSearchInputButton) clearSearchInputButton.classList.remove(VISIBLE_CLASS);
+            updateShowAllResultsState();
             return;
         }
 
@@ -2527,6 +3156,112 @@
                 if (clearSearchInputButton) {
                     clearSearchInputButton.classList.toggle(VISIBLE_CLASS, this.value.length > 0);
                 }
+                updateShowAllResultsState();
+            });
+        }
+
+        // Filters: collapsible panel toggle + active-count badge
+        const filtersToggleBtn = document.getElementById('filtersToggleBtn');
+        const filtersPanel = document.getElementById('filtersPanel');
+        const filtersActiveCountEl = document.getElementById('filtersActiveCount');
+        function refreshFiltersActiveCount() {
+            if (!filtersActiveCountEl) return;
+            let count = 0;
+            if (authorFilterOverlay && authorFilterOverlay.value) count++;
+            if (keywordsFilterOverlay && keywordsFilterOverlay.value) count++;
+            if (yearFilterOverlay && yearFilterOverlay.value) count++;
+            filtersActiveCountEl.textContent = count > 0 ? String(count) : '';
+        }
+        if (filtersToggleBtn && filtersPanel) {
+            filtersToggleBtn.addEventListener('click', () => {
+                const expanded = filtersToggleBtn.getAttribute('aria-expanded') === 'true';
+                const next = !expanded;
+                filtersToggleBtn.setAttribute('aria-expanded', String(next));
+                filtersPanel.classList.toggle('is-collapsed', !next);
+                filtersPanel.setAttribute('aria-hidden', String(!next));
+            });
+        }
+        [authorFilterOverlay, keywordsFilterOverlay, yearFilterOverlay].forEach(el => {
+            if (el) el.addEventListener('change', () => { refreshFiltersActiveCount(); updateShowAllResultsState(); });
+        });
+        refreshFiltersActiveCount();
+
+        // Spotlight rehaul: keyboard nav + Enter handling + popular keyword clicks
+        function getResultRows() {
+            if (!searchResultsOverlay) return [];
+            return Array.from(searchResultsOverlay.querySelectorAll('.search-result-item, .empty-popular-item'));
+        }
+        function setKbdFocus(targetIdx) {
+            const rows = getResultRows();
+            rows.forEach((row, i) => row.classList.toggle('kbd-focus', i === targetIdx));
+            const target = rows[targetIdx];
+            if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'nearest' });
+        }
+        function moveKbdFocus(delta) {
+            const rows = getResultRows();
+            if (!rows.length) return;
+            const current = rows.findIndex(r => r.classList.contains('kbd-focus'));
+            let next = current + delta;
+            if (current === -1) next = delta > 0 ? 0 : rows.length - 1;
+            if (next < 0) next = rows.length - 1;
+            if (next >= rows.length) next = 0;
+            setKbdFocus(next);
+        }
+        function clearKbdFocus() {
+            if (!searchResultsOverlay) return;
+            searchResultsOverlay.querySelectorAll('.kbd-focus').forEach(el => el.classList.remove('kbd-focus'));
+        }
+        if (searchInputOverlay) {
+            searchInputOverlay.addEventListener('input', clearKbdFocus);
+            searchInputOverlay.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowDown') { event.preventDefault(); moveKbdFocus(1); }
+                else if (event.key === 'ArrowUp') { event.preventDefault(); moveKbdFocus(-1); }
+                else if (event.key === 'Enter') {
+                    const focused = searchResultsOverlay && searchResultsOverlay.querySelector('.kbd-focus');
+                    if (focused) {
+                        event.preventDefault();
+                        focused.click();
+                        return;
+                    }
+                    const q = searchInputOverlay.value.trim();
+                    const hasFilters = (authorFilterOverlay && authorFilterOverlay.value) ||
+                                       (keywordsFilterOverlay && keywordsFilterOverlay.value) ||
+                                       (yearFilterOverlay && yearFilterOverlay.value);
+                    if (q || hasFilters) {
+                        event.preventDefault();
+                        const url = new URL('/pages/searchResultsPage.html', window.location.origin);
+                        if (q) url.searchParams.append('q', q);
+                        try {
+                            getActiveCategories().forEach(cat => url.searchParams.append('category', cat));
+                        } catch (_) {}
+                        if (authorFilterOverlay && authorFilterOverlay.value) url.searchParams.append('author', authorFilterOverlay.value);
+                        if (keywordsFilterOverlay && keywordsFilterOverlay.value) url.searchParams.append('keyword', keywordsFilterOverlay.value);
+                        if (yearFilterOverlay && yearFilterOverlay.value) url.searchParams.append('year', yearFilterOverlay.value);
+                        window.location.href = url.toString();
+                    }
+                }
+            });
+        }
+        if (searchResultsOverlay) {
+            searchResultsOverlay.addEventListener('click', (event) => {
+                const popular = event.target.closest('.empty-popular-item');
+                if (popular && searchInputOverlay) {
+                    event.preventDefault();
+                    const kw = popular.dataset.keyword || (popular.textContent || '').trim();
+                    if (kw) {
+                        searchInputOverlay.value = kw;
+                        if (clearSearchInputButton) clearSearchInputButton.classList.add(VISIBLE_CLASS);
+                        clearKbdFocus();
+                        performSearchOverlay();
+                        searchInputOverlay.focus();
+                    }
+                }
+            });
+            searchResultsOverlay.addEventListener('mouseover', (event) => {
+                const row = event.target.closest('.search-result-item, .empty-popular-item');
+                if (!row) return;
+                clearKbdFocus();
+                row.classList.add('kbd-focus');
             });
         }
         if (clearSearchInputButton) {

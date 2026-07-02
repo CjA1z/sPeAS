@@ -518,9 +518,19 @@
             cursor: pointer; user-select: none;
         }
         .modal-close-button:hover, .modal-close-button:focus { color: #bbb; text-decoration: none; }
-        .d-animated-gradient-line { 
-            height: 3px; width: 60%; margin: 2rem auto; 
-            border-radius: 1.5px; background-color: #D1D5DB; 
+        .d-animated-gradient-line {
+            height: 2px;
+            width: min(60%, 28rem);
+            margin: 3rem auto;
+            border-radius: 1px;
+            background-image: linear-gradient(90deg,
+                transparent 0%,
+                var(--ft-theme-gold) 30%,
+                var(--ft-theme-green-dark) 70%,
+                transparent 100%);
+            background-size: 200% 100%;
+            animation: subtleBgMove 14s ease-in-out infinite;
+            opacity: 0.75;
         }
         @keyframes subtleBgMove {
             0% { background-position: 0% 50%; }
@@ -613,7 +623,310 @@
             will-change: opacity, transform; 
         }
         .scroll-reveal-section.is-visible { opacity: 1; transform: translateY(0); }
-        
+
+        /* --- Modernization Additions --- */
+        .section-header {
+            text-align: center;
+            max-width: 56rem;
+            margin: 0 auto 2.5rem;
+            padding: 0 1rem;
+        }
+        .section-eyebrow {
+            display: inline-block;
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--ft-theme-green-dark);
+            padding: 0.35rem 0.9rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, var(--ft-pastel-gold), var(--ft-pastel-green));
+            border: 1px solid rgba(0, 106, 78, 0.15);
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-size: 2rem;
+            line-height: 1.15;
+            font-weight: 700;
+            color: var(--ft-theme-green-dark);
+            margin: 0 0 0.75rem;
+        }
+        @media (min-width: 768px) {
+            .section-title { font-size: 2.4rem; }
+        }
+        .section-subtitle {
+            font-size: 1rem;
+            color: #4b5563;
+            line-height: 1.65;
+            margin: 0 auto;
+            max-width: 42rem;
+        }
+        .section-accent-bar {
+            display: block;
+            margin: 1.25rem auto 0;
+            width: 4rem;
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--ft-theme-gold), var(--ft-theme-green-dark));
+        }
+
+        /* Hero CTA buttons */
+        .hero-cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            justify-content: center;
+        }
+        @media (min-width: 1024px) {
+            .hero-cta-row { justify-content: flex-start; }
+        }
+        .hero-cta-primary {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.4rem;
+            border-radius: 0.55rem;
+            background-image: linear-gradient(135deg, var(--ft-theme-green-dark), #00523D);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            box-shadow: 0 10px 22px -10px rgba(0, 106, 78, 0.55);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-image 0.2s ease;
+        }
+        .hero-cta-primary:hover {
+            transform: translateY(-2px);
+            background-image: linear-gradient(135deg, #00523D, var(--ft-theme-green-dark));
+            box-shadow: 0 14px 26px -10px rgba(0, 106, 78, 0.65);
+        }
+        .hero-cta-secondary {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.4rem;
+            border-radius: 0.55rem;
+            background: rgba(255, 255, 255, 0.7);
+            color: var(--ft-theme-green-dark);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            border: 1px solid rgba(0, 106, 78, 0.28);
+            transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .hero-cta-secondary:hover {
+            background: #fff;
+            border-color: var(--ft-theme-gold);
+            color: #00523D;
+            transform: translateY(-2px);
+        }
+
+        /* Quick-link feature cards */
+        .feature-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            max-width: 64rem;
+            margin: 0 auto 1rem;
+            padding: 0 0.5rem;
+        }
+        @media (min-width: 640px) {
+            .feature-cards { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+        }
+        .feature-card {
+            display: block;
+            background: rgba(255, 255, 255, 0.72);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 106, 78, 0.12);
+            border-radius: 0.875rem;
+            padding: 1.4rem;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--ft-theme-gold), var(--ft-theme-green-dark));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.35s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px -14px rgba(0, 106, 78, 0.28);
+            border-color: rgba(253, 184, 19, 0.55);
+        }
+        .feature-card:hover::before { transform: scaleX(1); }
+        .feature-card .feature-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.625rem;
+            background: linear-gradient(135deg, var(--ft-pastel-gold), var(--ft-pastel-green));
+            color: var(--ft-theme-green-dark);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.875rem;
+        }
+        .feature-card h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--ft-theme-green-dark);
+            margin: 0 0 0.3rem;
+        }
+        .feature-card p {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin: 0;
+            line-height: 1.55;
+        }
+        .feature-card .feature-arrow {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 0.75rem;
+            font-size: 0.825rem;
+            font-weight: 600;
+            color: var(--ft-theme-green-dark);
+            transition: gap 0.2s ease, color 0.2s ease;
+            gap: 0.25rem;
+        }
+        .feature-card:hover .feature-arrow {
+            color: #00523D;
+            gap: 0.5rem;
+        }
+
+        /* Mission / about card */
+        .mission-card {
+            max-width: 56rem;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid rgba(0, 106, 78, 0.1);
+            border-radius: 1rem;
+            padding: 2rem 1.75rem;
+            box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.18);
+        }
+        @media (min-width: 768px) {
+            .mission-card { padding: 2.5rem 2.5rem; }
+        }
+        .mission-card p {
+            color: #374151;
+            line-height: 1.7;
+            margin: 0 0 1rem;
+            font-size: 1rem;
+        }
+        .mission-card p:last-child { margin-bottom: 0; }
+
+        /* Image card wrapper */
+        .image-card {
+            background: #ffffff;
+            border: 1px solid rgba(0, 106, 78, 0.1);
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 14px 32px -18px rgba(0, 0, 0, 0.22);
+            max-width: 56rem;
+            margin: 0 auto;
+        }
+        .image-card .research-image-display {
+            margin: 0;
+            box-shadow: none;
+            background: transparent;
+            border: none;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            border-radius: 0.625rem;
+        }
+        .image-card-caption {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.75rem;
+            padding: 0 0.5rem 0.25rem;
+        }
+
+        /* Agenda reading list */
+        .agenda-list-modern {
+            background: #ffffff;
+            border: 1px solid rgba(0, 106, 78, 0.1);
+            border-radius: 1rem;
+            box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.18);
+            max-width: 56rem;
+            margin: 0 auto;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .agenda-item {
+            display: grid;
+            grid-template-columns: 2.5rem 1fr;
+            align-items: start;
+            gap: 0.85rem;
+            padding: 1rem 0.75rem 1rem 1rem;
+            border-bottom: 1px solid rgba(0, 106, 78, 0.08);
+            position: relative;
+            color: #374151;
+            line-height: 1.55;
+            font-size: 0.92rem;
+            transition: background-color 0.2s ease, padding-left 0.2s ease;
+        }
+        .agenda-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--ft-theme-gold), var(--ft-theme-green-dark));
+            border-radius: 0 2px 2px 0;
+            transition: height 0.3s ease;
+        }
+        .agenda-item:hover {
+            background-color: rgba(253, 184, 19, 0.06);
+            padding-left: 1.4rem;
+        }
+        .agenda-item:hover::before { height: 65%; }
+        .agenda-item:last-child { border-bottom: none; }
+        .agenda-item .agenda-num {
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            color: var(--ft-theme-green-dark);
+            padding-top: 0.1rem;
+            transition: color 0.2s ease;
+            font-variant-numeric: tabular-nums;
+        }
+        .agenda-item:hover .agenda-num { color: var(--ft-theme-gold); }
+
+        /* Bottom CTA section */
+        .bottom-cta {
+            max-width: 64rem;
+            margin: 4rem auto 2rem;
+            padding: 2.25rem 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+            background: linear-gradient(135deg, var(--ft-pastel-gold), var(--ft-pastel-green));
+            border: 1px solid rgba(0, 106, 78, 0.18);
+            box-shadow: 0 22px 40px -28px rgba(0, 106, 78, 0.35);
+        }
+        .bottom-cta h2 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--ft-theme-green-dark);
+            margin: 0 0 0.5rem;
+        }
+        .bottom-cta p {
+            color: #4b5563;
+            margin: 0 auto 1.25rem;
+            max-width: 38rem;
+            line-height: 1.6;
+        }
+
         /* --- Footer Styles --- */
         @keyframes subtleGradientAnimation {
             0% { background-position: 0% 50%; }
@@ -694,79 +1007,170 @@
                             </div>
                         </div>
                     </div>
-                    <div class="hero-text-column text-center lg:text-left"> 
-                        <img src="/components/images/peas.png" 
-                             alt="PeAS Logo" 
+                    <div class="hero-text-column text-center lg:text-left">
+                        <img src="/components/images/peas.png"
+                             alt="PeAS Logo"
                              class="hero-logo w-auto mb-4 mx-auto lg:mx-0"
                              onerror="this.onerror=null;this.src='https://placehold.co/150x80/006A4E/FFFFFF?text=PeAS+Logo';">
-                        
-                        <h1 class="hero-title text-3xl lg:text-4xl font-bold text-green-800 mb-5 sm:mb-6">Welcome to the Office of Research &amp; Publications</h1>
-                        <div class="hero-copy space-y-3 text-base md:text-[1.05rem] text-gray-700">
-                            <p>The Office of Research &amp; Publications of St. Paul University Dumaguete is proud to share the institution's research activities, initiatives and publications in this website.</p>
-                            <p>Our innovations and scientific discoveries are expanding human knowledge and extending help to improve the institution and the public community.</p>
-                            <p>The office provides standards aligned with its newly crafted research agenda and in parallel with the priorities mandated by several agencies towards sustainability and development goals of our country.</p>
-                            <p>This is an avenue that would allow both faculty and students to engage in meaningful research and innovations to improve our understanding of the population we serve. The office strives for excellence, integrity, and ethics in our work, and dedicates all outputs to the pursuit of truth, knowledge, freedom, and holistic formation.</p>
-                            
-                            <div class="mt-6">
-                                <a href="#about" class="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
-                                    View Research Agenda
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </a>
-                            </div>
+
+                        <span class="section-eyebrow" style="margin-bottom: 1.25rem;">St. Paul University Dumaguete</span>
+
+                        <h1 class="hero-title text-3xl lg:text-4xl font-bold text-green-800 mt-4 mb-5 sm:mb-6">Welcome to the Office of <span style="color: var(--ft-theme-gold); background: linear-gradient(135deg, var(--ft-theme-gold), #EAA10F); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Research &amp; Publications</span></h1>
+
+                        <div class="hero-copy text-base md:text-[1.05rem] text-gray-700">
+                            <p>Sharing the institution's research activities, initiatives, and publications &mdash; innovations and scientific discoveries that expand human knowledge and serve the broader community.</p>
+                        </div>
+
+                        <div class="hero-cta-row">
+                            <a href="#research-agenda" class="hero-cta-primary">
+                                View Research Agenda
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                            </a>
+                            <a href="/contact.html" class="hero-cta-secondary">
+                                Contact the Office
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <div class="container mx-auto">
+            <div class="scroll-reveal-section feature-cards" aria-label="Quick links">
+                <a href="#mission" class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    <h3>Our Mission</h3>
+                    <p>Excellence, integrity, and ethics in the pursuit of truth, knowledge, and holistic formation.</p>
+                    <span class="feature-arrow">Read more
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </span>
+                </a>
+                <a href="#org-chart" class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h.93a3 3 0 00.27 1.342A2 2 0 008 6h4a2 2 0 001.8-1.658A3 3 0 0014.07 3H15a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
+                        </svg>
+                    </span>
+                    <h3>Organizational Chart</h3>
+                    <p>Meet the team driving research, publications, and innovation at the university.</p>
+                    <span class="feature-arrow">View chart
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </span>
+                </a>
+                <a href="#research-agenda" class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                        </svg>
+                    </span>
+                    <h3>Research Agenda</h3>
+                    <p>Twenty focus areas aligned with national priorities and global development goals.</p>
+                    <span class="feature-arrow">Explore agenda
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </span>
+                </a>
+            </div>
+        </div>
+
         <div class="d-animated-gradient-line" title="Divider"></div>
 
-        <div class="container mx-auto"> 
-            <div class="scroll-reveal-section" id="org-chart">
-                <h2 class="main-title text-4xl font-bold text-center mb-10 md:mb-16 text-green-700">Organizational Chart</h2>
-                <img src="/components/images/org-chart.png"
-                     alt="Organization Chart (Click to enlarge)"
-                     id="orgChartImage"
-                     class="research-image-display"
-                     onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Org+Chart+Not+Found';"> 
+        <div class="container mx-auto">
+            <div class="scroll-reveal-section" id="mission">
+                <div class="section-header">
+                    <span class="section-eyebrow">Our Mission</span>
+                    <h2 class="section-title">Advancing knowledge in service of the community</h2>
+                    <p class="section-subtitle">The Office of Research &amp; Publications of St. Paul University Dumaguete supports faculty and students in meaningful research that improves the institution and the populations we serve.</p>
+                    <span class="section-accent-bar" aria-hidden="true"></span>
+                </div>
+
+                <div class="mission-card">
+                    <p>Our innovations and scientific discoveries are expanding human knowledge and extending help to improve the institution and the public community.</p>
+                    <p>The office provides standards aligned with its newly crafted research agenda and in parallel with the priorities mandated by several agencies towards sustainability and development goals of our country.</p>
+                    <p>This is an avenue that would allow both faculty and students to engage in meaningful research and innovations to improve our understanding of the population we serve. The office strives for excellence, integrity, and ethics in our work, and dedicates all outputs to the pursuit of truth, knowledge, freedom, and holistic formation.</p>
+                </div>
             </div>
-            
+
             <div class="d-animated-gradient-line" title="Divider"></div>
 
-            <div class="scroll-reveal-section" id="about">
-                <h1 class="main-title text-4xl font-bold text-center mb-10 md:mb-16 text-green-700">Research Agenda</h1>
-                <img src="/components/images/prism.png"
-                     alt="Research Prism Diagram (Click to enlarge)"
-                     id="prismImage"
-                     class="research-image-display"
-                     onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Prism+Diagram+Not+Found';">
-                
-                <div class="agenda-container">
-                    <ul class="agenda-list" id="researchAgendaList">
-                        <li>Paulinian Spirituality/Identity and its impact to international community and global partnerships</li>
-                        <li>Paulinian Mission / Vision / Philosophy / Goals</li>
-                        <li>Paulinian Roots and Formation</li>
-                        <li>Advocacy (Peace, Pro-Life, Environment, Disaster & Risks Management)</li>
-                        <li>Global Mental Health and Wellness</li>
-                        <li>Synodal Church: Communion, Participation, and Mission</li>
-                        <li>Inclusivity and Equity in Education</li>
-                        <li>Curriculum development and Innovation geared towards internalization and global partnership</li>
-                        <li>OBE - Instruction</li>
-                        <li>Technology Integration</li>
-                        <li>Faculty / Staff Development</li>
-                        <li>Infrastructure / Software Development and Innovation</li>
-                        <li>Financial Management, Sustainability, and Energy Security</li>
-                        <li>Environmental Discipline and Stewardship</li>
-                        <li>Ethical Leaders & Professionals</li>
-                        <li>Cutting-edge Resilient Visionaries & Innovators; Engaging, Trustworthy Team Builders & Mentors; Reliable, Productive Experts & Implementers; Dedicated, Transformative Supporters & Stewardship in the context of international community and global partnerships</li>
-                        <li>Civic and Community Involvement</li>
-                        <li>Equality and Diversity</li>
-                        <li>Economic cooperation and integration</li>
-                        <li>Student and Faculty Mobility</li>
-                    </ul>
+            <div class="scroll-reveal-section" id="org-chart">
+                <div class="section-header">
+                    <span class="section-eyebrow">Team</span>
+                    <h2 class="section-title">Organizational Chart</h2>
+                    <p class="section-subtitle">The structure behind the Office of Research &amp; Publications &mdash; click the chart to enlarge.</p>
+                    <span class="section-accent-bar" aria-hidden="true"></span>
                 </div>
+
+                <div class="image-card">
+                    <img src="/components/images/org-chart.png"
+                         alt="Organization Chart (Click to enlarge)"
+                         id="orgChartImage"
+                         class="research-image-display"
+                         onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Org+Chart+Not+Found';">
+                    <p class="image-card-caption">Click to view the full organizational chart.</p>
+                </div>
+            </div>
+
+            <div class="d-animated-gradient-line" title="Divider"></div>
+
+            <div class="scroll-reveal-section" id="research-agenda">
+                <div class="section-header">
+                    <span class="section-eyebrow">Focus Areas</span>
+                    <h2 class="section-title">Research Agenda</h2>
+                    <p class="section-subtitle">Twenty priority areas guiding faculty and student research &mdash; from Paulinian identity and formation to technology, sustainability, and global partnerships.</p>
+                    <span class="section-accent-bar" aria-hidden="true"></span>
+                </div>
+
+                <div class="image-card" style="margin-bottom: 2.5rem;">
+                    <img src="/components/images/prism.png"
+                         alt="Research Prism Diagram (Click to enlarge)"
+                         id="prismImage"
+                         class="research-image-display"
+                         onerror="this.onerror=null;this.src='https://placehold.co/768x500/e0e0e0/757575?text=Prism+Diagram+Not+Found';">
+                    <p class="image-card-caption">Click to view the research prism diagram in detail.</p>
+                </div>
+
+                <div class="agenda-list-modern" id="researchAgendaList">
+                    <div class="agenda-item"><span class="agenda-num">01</span><span class="agenda-text">Paulinian Spirituality/Identity and its impact to international community and global partnerships</span></div>
+                    <div class="agenda-item"><span class="agenda-num">02</span><span class="agenda-text">Paulinian Mission / Vision / Philosophy / Goals</span></div>
+                    <div class="agenda-item"><span class="agenda-num">03</span><span class="agenda-text">Paulinian Roots and Formation</span></div>
+                    <div class="agenda-item"><span class="agenda-num">04</span><span class="agenda-text">Advocacy (Peace, Pro-Life, Environment, Disaster &amp; Risks Management)</span></div>
+                    <div class="agenda-item"><span class="agenda-num">05</span><span class="agenda-text">Global Mental Health and Wellness</span></div>
+                    <div class="agenda-item"><span class="agenda-num">06</span><span class="agenda-text">Synodal Church: Communion, Participation, and Mission</span></div>
+                    <div class="agenda-item"><span class="agenda-num">07</span><span class="agenda-text">Inclusivity and Equity in Education</span></div>
+                    <div class="agenda-item"><span class="agenda-num">08</span><span class="agenda-text">Curriculum development and Innovation geared towards internalization and global partnership</span></div>
+                    <div class="agenda-item"><span class="agenda-num">09</span><span class="agenda-text">OBE &mdash; Instruction</span></div>
+                    <div class="agenda-item"><span class="agenda-num">10</span><span class="agenda-text">Technology Integration</span></div>
+                    <div class="agenda-item"><span class="agenda-num">11</span><span class="agenda-text">Faculty / Staff Development</span></div>
+                    <div class="agenda-item"><span class="agenda-num">12</span><span class="agenda-text">Infrastructure / Software Development and Innovation</span></div>
+                    <div class="agenda-item"><span class="agenda-num">13</span><span class="agenda-text">Financial Management, Sustainability, and Energy Security</span></div>
+                    <div class="agenda-item"><span class="agenda-num">14</span><span class="agenda-text">Environmental Discipline and Stewardship</span></div>
+                    <div class="agenda-item"><span class="agenda-num">15</span><span class="agenda-text">Ethical Leaders &amp; Professionals</span></div>
+                    <div class="agenda-item"><span class="agenda-num">16</span><span class="agenda-text">Cutting-edge Resilient Visionaries &amp; Innovators; Engaging, Trustworthy Team Builders &amp; Mentors; Reliable, Productive Experts &amp; Implementers; Dedicated, Transformative Supporters &amp; Stewardship in the context of international community and global partnerships</span></div>
+                    <div class="agenda-item"><span class="agenda-num">17</span><span class="agenda-text">Civic and Community Involvement</span></div>
+                    <div class="agenda-item"><span class="agenda-num">18</span><span class="agenda-text">Equality and Diversity</span></div>
+                    <div class="agenda-item"><span class="agenda-num">19</span><span class="agenda-text">Economic cooperation and integration</span></div>
+                    <div class="agenda-item"><span class="agenda-num">20</span><span class="agenda-text">Student and Faculty Mobility</span></div>
+                </div>
+            </div>
+
+            <div class="scroll-reveal-section bottom-cta">
+                <h2>Collaborate with the Office of Research &amp; Publications</h2>
+                <p>Have a research inquiry, an idea for a publication, or a question about our work? We&rsquo;d love to hear from you.</p>
+                <a href="/contact.html" class="hero-cta-primary">
+                    Get in touch
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </a>
             </div>
         </div>
 
