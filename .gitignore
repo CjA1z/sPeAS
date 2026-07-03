@@ -1,19 +1,59 @@
 # macOS
 .DS_Store
 **/.DS_Store
+.AppleDouble
+.LSOverride
 
 # Backups & Alternate Versions
 speas(cj version)/
+*.bak
+*.backup
+*.tmp
+*.swp
+*~
 
-# Uploads & Data
-storage/
-logs/
-*.log
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+Deno/.env
+Deno/.env.*
+!Deno/.env.example
+!Deno/.env.*.example
 
 # Node/Deno
 node_modules/
-.env
-Deno/.env
+**/node_modules/
+.npm/
+.pnpm-store/
+.deno/
+deno-dir/
 
-# Editor
+# Build, Cache & Test Output
+dist/
+build/
+coverage/
+.nyc_output/
+.cache/
+.tmp/
+
+# Uploads, Data & Logs
+storage/
+Deno/storage/
+uploads/
+Deno/uploads/
+logs/
+Deno/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local Tooling & Editors
+.claude/
 .vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
