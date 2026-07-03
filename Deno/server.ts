@@ -24,9 +24,7 @@ import documentAuthorRoutes from "./routes/documentAuthorRoutes.ts";
 import fileRoutes from "./routes/fileRoutes.ts"; // Import file routes
 import { uploadRoutes, uploadRoutesAllowedMethods } from "./routes/uploadRoutes.ts"; // Import upload routes
 import reportsRoutes from "./routes/reportsRoutes.ts"; // Import reports routes
-import { handler as categoryHandler } from "./api/category.ts"; // Import category handler
-import { getDepartments } from "./api/departments.ts";
-import { getCategories } from "./controllers/categoryController.ts";
+import { categoryRoutes, categoryAllowedMethods } from "./routes/categoryRoutes.ts";
 import { getChildDocuments } from "./controllers/documentController.ts";
 import { getDocumentAuthors } from "./controllers/documentAuthorController.ts";
 import { AuthorModel } from "./models/authorModel.ts";
@@ -262,19 +260,7 @@ emailRoutes.forEach(route => {
   }
 });
 
-// Add category routes
-router.get("/api/category", async (ctx) => {
-  const request = new Request(ctx.request.url.toString(), {
-    method: ctx.request.method,
-    headers: ctx.request.headers
-  });
-  
-  const response = await categoryHandler(request);
-  
-  ctx.response.status = response.status;
-  ctx.response.headers = response.headers;
-  ctx.response.body = await response.json();
-});
+// Category/departments reference-data endpoints live in routes/categoryRoutes.ts.
 
 // NOTE: /api/documents/count-by-category and /api/documents/most-visited are
 // shadowed by the documentRoutes array's GET /api/documents/:id (registered
@@ -307,12 +293,6 @@ router.get("/api/documents/:id/children", async (ctx) => {
     };
   }
 });
-
-// Add the departments endpoint to your router
-router.get("/api/departments", getDepartments);
-
-// Add categories endpoint to router
-router.get("/api/categories", getCategories);
 
 // Add document-authors endpoint
 router.get("/api/document-authors/:documentId", async (ctx) => {
@@ -781,6 +761,10 @@ app.use(uploadRoutesAllowedMethods);
 // Add router to app
 app.use(router.routes());
 app.use(router.allowedMethods());
+
+// Register category/departments reference-data routes
+app.use(categoryRoutes);
+app.use(categoryAllowedMethods);
 
 // Add Author routes
 app.use(authorRoutes);

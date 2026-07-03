@@ -1,5 +1,16 @@
 import { Context } from "../deps.ts";
 import { client } from "../db/denopost_conn.ts";
+import { fetchCategories } from "./documentController.ts";
+
+/**
+ * GET /api/category — list categories (moved from api/category.ts)
+ */
+export async function getCategoryList(req: Request): Promise<Response> {
+  if (req.method === "GET") {
+    return await fetchCategories();
+  }
+  return new Response("Method Not Allowed", { status: 405 });
+}
 
 // Interface for a category with a document count
 interface CategoryWithCount {
