@@ -668,7 +668,7 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
                     await SystemLogsModel.createLog({
                         log_type: 'download',
                         user_id: sessionData.id,
-                        username: sessionData.username || sessionData.id,
+                        username: sessionData.id,
                         action: 'Document download',
                         details: {
                             document_id: id,
@@ -690,7 +690,7 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
                     await SystemLogsModel.createLog({
                         log_type: 'download',
                         user_id: sessionData.id,
-                        username: sessionData.username || sessionData.id,
+                        username: sessionData.id,
                         action: 'Failed document download',
                         details: {
                             document_id: id,

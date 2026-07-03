@@ -184,7 +184,7 @@ export class ResearchAgendaModel {
         [documentId]
       );
       
-      return result.rows as ResearchAgendaItem[];
+      return result.rows as unknown as ResearchAgendaItem[];
     } catch (error) {
       return [];
     }
@@ -223,7 +223,7 @@ export class ResearchAgendaModel {
       );
 
       if (existingItem.rows.length > 0) {
-                return existingItem.rows[0] as ResearchAgendaItem;
+                return existingItem.rows[0] as unknown as ResearchAgendaItem;
       }
 
       // Create new agenda item
@@ -236,7 +236,7 @@ export class ResearchAgendaModel {
         throw new Error("Failed to create research agenda item");
       }
 
-            return result.rows[0] as ResearchAgendaItem;
+            return result.rows[0] as unknown as ResearchAgendaItem;
     } catch (error) {
       return null;
     }
@@ -289,7 +289,7 @@ export class ResearchAgendaModel {
             error: "Failed to create research agenda item" 
           });
         } else {
-          created.push(result.rows[0] as ResearchAgendaItem);
+          created.push(result.rows[0] as unknown as ResearchAgendaItem);
                   }
       } catch (error) {
         errors.push({ 
@@ -318,7 +318,7 @@ export class ResearchAgendaModel {
         [`%${query}%`]
       );
 
-      return result.rows as ResearchAgendaItem[];
+      return result.rows as unknown as ResearchAgendaItem[];
     } catch (error) {
       return [];
     }

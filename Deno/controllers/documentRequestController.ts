@@ -157,9 +157,12 @@ export class DocumentRequestController {
                     
                     // Update request with email status
                     try {
-                        await this.documentRequestModel.update(request.id, { 
+                        if (request.id === undefined) {
+                            throw new Error("Document request is missing an ID");
+                        }
+                        await this.documentRequestModel.update(request.id, {
                             email_sent: emailSuccess,
-                            email_error: emailSuccess ? null : "Failed to send confirmation email"
+                            email_error: emailSuccess ? undefined : "Failed to send confirmation email"
                 });
                     } catch (updateError) {
                     }

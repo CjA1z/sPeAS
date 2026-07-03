@@ -2,10 +2,13 @@ import { pool } from "../config/db.ts";
 
 // Export a client for direct DB operations
 export const client = {
-  async queryArray(text: string, params: unknown[] = []) {
+  async queryArray<T extends unknown[] = unknown[]>(
+    text: string,
+    params: unknown[] = [],
+  ) {
     const connection = await pool.connect();
     try {
-      return await connection.queryArray(text, params);
+      return await connection.queryArray<T>(text, params);
     } finally {
       connection.release();
     }

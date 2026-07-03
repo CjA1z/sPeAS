@@ -1007,7 +1007,7 @@ export async function hardDeleteArchivedDocument(ctx: any) {
       is_compilation: boolean;
     }
     
-    const documentInfo = checkResult.rows[0] as DocumentInfo;
+    const documentInfo = checkResult.rows[0] as unknown as DocumentInfo;
     
     if (!documentInfo || !documentInfo.source_table) {
       ctx.response.status = 404;

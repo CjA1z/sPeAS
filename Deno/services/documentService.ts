@@ -27,11 +27,18 @@ export interface Document {
   parent_compiled_id?: number | null;
   start_year?: number;
   end_year?: number;
+  // Fields present on DB rows and consumed by route handlers
+  deleted_at?: Date | string | null;
+  file_path?: string;
+  visit_count?: number;
+  guest_count?: number;
+  user_count?: number;
 }
 
 interface Author {
-  id: number;
+  id: number | string;
   full_name?: string;
+  author_order?: number;
 }
 
 interface Topic {

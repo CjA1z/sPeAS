@@ -215,7 +215,7 @@ export class DocumentModel {
    */
   static async create(document: Omit<Document, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>): Promise<Document | null> {
     try {
-      const result = await client.queryObject(
+      const result = await client.queryObject<Document>(
         `INSERT INTO documents (
           title, description, abstract, publication_date, 
           start_year, end_year, category_id, department_id,
@@ -301,7 +301,7 @@ export class DocumentModel {
       // Add document ID as the last parameter
       queryParams.push(id);
       
-      const result = await client.queryObject(
+      const result = await client.queryObject<Document>(
         `UPDATE documents 
          SET ${updateFields.join(', ')} 
          WHERE id = $${paramIndex} AND deleted_at IS NULL
@@ -327,7 +327,7 @@ export class DocumentModel {
         [id]
       );
       
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       return false;
     }
@@ -349,7 +349,7 @@ export class DocumentModel {
         [id]
       );
       
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       return false;
     }

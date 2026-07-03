@@ -1,6 +1,6 @@
 import { DocumentModel } from "../models/documentModel.ts";
-import type { Request } from "../deps.ts";
 import { client } from "../db/denopost_conn.ts";
+import { getErrorMessage } from "../utils/errorHandler.ts";
 import { fetchDocuments as fetchDocumentsService, fetchChildDocuments as fetchChildDocumentsService } from "../services/documentService.ts";
 
 /**
@@ -436,7 +436,7 @@ export async function createDocument(req: Request): Promise<Response> {
       });
     }
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
@@ -493,7 +493,7 @@ export async function updateDocument(req: Request): Promise<Response> {
       });
     }
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
@@ -541,7 +541,7 @@ export async function deleteDocument(req: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });

@@ -214,7 +214,7 @@ export class AuthorVisitsModel {
         ]
       );
       
-      return result.rows[0] as AuthorVisit || null;
+      return result.rows[0] as unknown as AuthorVisit || null;
     } catch (error) {
       return null;
     }
@@ -293,7 +293,7 @@ export class AuthorVisitsModel {
         [authorId]
       );
       
-      return parseInt((result.rows[0] as CountResult)?.count.toString() || "0");
+      return parseInt((result.rows[0] as unknown as CountResult)?.count.toString() || "0");
     } catch (error) {
       return 0;
     }
@@ -376,7 +376,7 @@ export class AuthorVisitsModel {
           let legacyUser = 0;
           let legacyTotal = 0;
           
-          (legacyBreakdown.rows as VisitorTypeCount[]).forEach(row => {
+          (legacyBreakdown.rows as unknown as VisitorTypeCount[]).forEach(row => {
             const count = parseInt(row.count.toString());
             legacyTotal += count;
             
@@ -413,7 +413,7 @@ export class AuthorVisitsModel {
       let guestCount = 0;
       let userCount = 0;
       
-      (result.rows as VisitorTypeCount[]).forEach(row => {
+      (result.rows as unknown as VisitorTypeCount[]).forEach(row => {
         if (row.visitor_type === "guest") {
           guestCount = parseInt(row.count.toString());
         } else if (row.visitor_type === "user") {
@@ -519,7 +519,7 @@ export class AuthorVisitsModel {
       
             const result = await client.queryObject(legacyQuery, [limit]);
             
-      const authors = (result.rows as TopAuthorResult[]).map(row => ({
+      const authors = (result.rows as unknown as TopAuthorResult[]).map(row => ({
         author_id: row.author_id,
         full_name: row.full_name,
         profile_picture: row.profile_picture,
@@ -593,7 +593,7 @@ export class AuthorVisitsModel {
       let guestCount = 0;
       let userCount = 0;
       
-      (result.rows as VisitorTypeCount[]).forEach(row => {
+      (result.rows as unknown as VisitorTypeCount[]).forEach(row => {
         if (row.visitor_type === "guest") {
           guestCount = parseInt(row.count.toString());
         } else if (row.visitor_type === "user") {

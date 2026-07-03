@@ -176,7 +176,7 @@ export class AuthorModel {
         [id]
       );
       
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       return false;
     }
@@ -244,7 +244,7 @@ export class AuthorModel {
         [`%${searchTerm}%`]
       );
       
-      return result.rows as Author[];
+      return result.rows as unknown as Author[];
     } catch (error) {
       return [];
     }

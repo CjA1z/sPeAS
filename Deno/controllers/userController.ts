@@ -45,7 +45,7 @@ export const getCurrentUser = async (ctx: Context) => {
       return;
     }
     
-    const user = result.rows[0] as User;
+    const user = result.rows[0] as unknown as User;
     
     ctx.response.status = 200;
     ctx.response.type = "application/json";
@@ -90,7 +90,7 @@ export const getUserById = async (ctx: Context) => {
       return;
     }
     
-    const user = result.rows[0] as User;
+    const user = result.rows[0] as unknown as User;
     
     ctx.response.status = 200;
     ctx.response.type = "application/json";
@@ -145,7 +145,7 @@ export const handleGetUserProfile = async (req: Request): Promise<Response> => {
     }
     
     // Type userData correctly
-    const userData = result.rows[0] as UserRecord;
+    const userData = result.rows[0] as unknown as UserRecord;
     
     // Get the user's library count
     try {

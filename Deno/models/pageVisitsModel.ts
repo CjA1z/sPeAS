@@ -162,7 +162,7 @@ export class PageVisitsModel {
         ]
       );
       
-      return result.rows[0] as PageVisit || null;
+      return result.rows[0] as unknown as PageVisit || null;
     } catch (error) {
       return null;
     }
@@ -181,7 +181,7 @@ export class PageVisitsModel {
         [pageUrl]
       );
       
-      return parseInt((result.rows[0] as CountResult)?.count.toString() || "0");
+      return parseInt((result.rows[0] as unknown as CountResult)?.count.toString() || "0");
     } catch (error) {
       return 0;
     }
@@ -206,7 +206,7 @@ export class PageVisitsModel {
       let guestCount = 0;
       let userCount = 0;
       
-      (result.rows as VisitorTypeCount[]).forEach(row => {
+      (result.rows as unknown as VisitorTypeCount[]).forEach(row => {
         if (row.visitor_type === "guest") {
           guestCount = parseInt(row.count.toString());
         } else if (row.visitor_type === "user") {
@@ -240,7 +240,7 @@ export class PageVisitsModel {
       let guestCount = 0;
       let userCount = 0;
       
-      (result.rows as VisitorTypeCount[]).forEach(row => {
+      (result.rows as unknown as VisitorTypeCount[]).forEach(row => {
         if (row.visitor_type === "guest") {
           guestCount = parseInt(row.count.toString());
         } else if (row.visitor_type === "user") {
@@ -280,7 +280,7 @@ export class PageVisitsModel {
       let guestCount = 0;
       let userCount = 0;
       
-      (homepageResult.rows as VisitorTypeCount[]).forEach(row => {
+      (homepageResult.rows as unknown as VisitorTypeCount[]).forEach(row => {
         if (row.visitor_type === "guest") {
           guestCount = parseInt(row.count.toString());
         } else if (row.visitor_type === "user") {

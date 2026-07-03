@@ -7,6 +7,8 @@
 // SECTION: Imports
 // -----------------------------
 import { Application, Router, FormDataReader } from "./deps.ts";
+import type { RouterContext } from "./deps.ts";
+import { getErrorMessage } from "./utils/errorHandler.ts";
 import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
 import { join } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { connectToDb, diagnoseDatabaseIssues } from "./db/denopost_conn.ts"; // Using connectToDb from conn.ts
@@ -17,6 +19,7 @@ import { researchAgendaRoutes } from "./routes/researchAgendaRoutes.ts"; // Impo
 import { saveFile } from "./services/uploadService.ts"; // Import file upload service
 import { extractPdfMetadata } from "./services/pdfService.ts"; // Import PDF service
 import { fetchDocuments, fetchChildDocuments } from "./services/documentService.ts"; // Import document service
+import type { Document as DocumentData } from "./services/documentService.ts";
 import documentAuthorRoutes from "./routes/documentAuthorRoutes.ts";
 import fileRoutes from "./routes/fileRoutes.ts"; // Import file routes
 import { uploadRoutes, uploadRoutesAllowedMethods } from "./routes/uploadRoutes.ts"; // Import upload routes
@@ -31,7 +34,7 @@ import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
 import { ResearchAgendaModel } from "./models/researchAgendaModel.ts";
 import { unifiedArchiveRoutes, unifiedArchiveAllowedMethods } from "./routes/unifiedArchiveRoutes.ts";
-import { authRoutes } from "./routes/authRoutes.ts"; // Import auth routes
+import { authRoutes, setServerStartTime } from "./routes/authRoutes.ts"; // Import auth routes
 import { createDocumentRequestRoutes } from "./routes/documentRequestRoutes.ts";
 import { DocumentRequestModel } from "./models/documentRequestModel.ts";
 import { DocumentRequestController } from "./controllers/documentRequestController.ts";
@@ -111,23 +114,14 @@ async function ensureVisitCounterTablesExist() {
       CREATE INDEX IF NOT EXISTS idx_page_visits_counter_date ON page_visits_counter(date);
     `);
     
-      } catch (error) {
+  } catch (error) {
+    // Non-fatal: the server can run without the analytics counter tables.
+    console.error("Failed to ensure visit counter tables exist:", error);
   }
 }
 
-// Update the cachedServerStartTime in authRoutes if possible
-try {
-  // Use dynamic import to get the module
-  import("./routes/authRoutes.ts").then(authRoutesModule => {
-    // Check if the module exports a function to set server time
-    if (authRoutesModule.setServerStartTime) {
-      authRoutesModule.setServerStartTime(SERVER_START_TIME);
-    } else {
-    }
-  }).catch(err => {
-  });
-} catch (error) {
-}
+// Let authRoutes know when the server started (used for session invalidation)
+setServerStartTime(SERVER_START_TIME);
 
 // -----------------------------
 // SECTION: Middleware (Optional)
@@ -137,20 +131,12 @@ app.use(async (ctx, next) => {
   try {
     await next();
   } catch (err) {
+    // Log the details server-side; never echo internals back to the client.
+    console.error(`Unhandled error on ${ctx.request.method} ${ctx.request.url.pathname}:`, err);
     ctx.response.status = 500;
-    ctx.response.body = {
-      message: "Internal server error",
-      error: err.message
-    };
+    ctx.response.body = { message: "Internal server error" };
   }
 });
-
-// Logger middleware
-app.use(async (ctx, next) => {
-  const start = Date.now();
-  await next();
-  const ms = Date.now() - start;
-  });
 
 // Add static file serving middleware
 app.use(async (ctx, next) => {
@@ -387,7 +373,7 @@ router.get("/api/documents", async (ctx) => {
     ctx.response.body = {
       documents: response.documents.map(doc => {
         // Ensure each document has author_names field populated
-        let authors = [];
+        let authors: string[] = [];
         if (doc.authors && Array.isArray(doc.authors)) {
           authors = doc.authors.map(a => a.full_name || `Author ${a.id}`);
         }
@@ -434,7 +420,7 @@ router.post("/api/documents", isAuthenticated, isAdmin, async (ctx) => {
     ctx.response.body = await response.json();
   } catch (error) {
     ctx.response.status = 500;
-    ctx.response.body = { error: error.message };
+    ctx.response.body = { error: getErrorMessage(error) };
   }
 });
 
@@ -988,7 +974,7 @@ router.put("/api/documents/:id/metadata", isAuthenticated, isAdmin, async (ctx) 
     ctx.response.status = 500;
     ctx.response.body = { 
       error: "Failed to update document metadata",
-      details: error.message
+      details: getErrorMessage(error)
     };
   }
 });
@@ -1137,10 +1123,9 @@ async function startServer() {
     // Ensure the visit counter tables exist
     await ensureVisitCounterTablesExist();
     
-    // Register routes with the application
-    app.use(router.routes());
-    app.use(router.allowedMethods());
-    
+    // Note: `router` is already registered on the app (routes added to it
+    // after registration still dispatch, since Oak matches at request time).
+
     // Register author visits routes
         app.use(authorVisitsRoutes);
     app.use(authorVisitsAllowedMethods);
@@ -1218,6 +1203,7 @@ async function startServer() {
     // Start the server
         await app.listen({ port: Number(PORT) });
   } catch (error) {
+    console.error("Fatal error during server startup:", error);
     Deno.exit(1);
   }
 }
@@ -1249,7 +1235,7 @@ router.get("/ping", (ctx) => {
 });
 
 // Initialize document request system
-const documentRequestModel = new DocumentRequestModel(client);
+const documentRequestModel = new DocumentRequestModel();
 const documentRequestController = new DocumentRequestController(documentRequestModel);
 const documentRequestRoutes = createDocumentRequestRoutes(documentRequestController);
 
@@ -1345,7 +1331,7 @@ router.get("/api/compiled-documents/:id", async (ctx) => {
     }
     
     // Get child documents
-    let childDocs = [];
+    let childDocs: DocumentData[] = [];
     try {
       const childDocsResponse = await fetchChildDocuments(id);
       childDocs = childDocsResponse.documents || [];
@@ -1360,7 +1346,7 @@ router.get("/api/compiled-documents/:id", async (ctx) => {
         authors = compiledDoc.authors;
       } else {
         // Try to fetch authors separately
-        const authorsData = await getDocumentAuthors(id);
+        const authorsData = await getDocumentAuthors(String(id));
         authors = authorsData || [];
       }
     } catch (authorError) {
@@ -1410,7 +1396,7 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
     }
     
     // Get child documents
-    let childDocs = [];
+    let childDocs: DocumentData[] = [];
     try {
       const childDocsResponse = await fetchChildDocuments(id);
       childDocs = childDocsResponse.documents || [];
@@ -1448,7 +1434,7 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
         authors = compiledDoc.authors;
       } else {
         // Try to fetch authors separately
-        const authorsData = await getDocumentAuthors(id);
+        const authorsData = await getDocumentAuthors(String(id));
         authors = authorsData || [];
       }
     } catch (authorError) {
@@ -1650,7 +1636,7 @@ router.post("/api/user/profile/picture", isAuthenticated, async (ctx) => {
   try {
         
     // Directly call the handler with the context
-    await handleUserProfilePictureUpload(ctx);
+    await handleUserProfilePictureUpload(ctx as unknown as RouterContext<string>);
     
   } catch (error) {
     ctx.response.status = 500;
@@ -2260,7 +2246,9 @@ router.post("/api/documents/by-ids", async (ctx) => {
 });
 
 // Serve PDF files with proper content type
-router.get(/\.(pdf)$/i, async (ctx) => {
+// Oak's router types only admit string paths, but path-to-regexp (used at
+// runtime) accepts RegExp, hence the cast.
+router.get(/\.(pdf)$/i as unknown as string, async (ctx: RouterContext<string>) => {
   try {
     const urlPath = ctx.request.url.pathname;
         

@@ -36,8 +36,9 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       for (const [key, value] of Object.entries(data.fields)) {
         if (key === "file" && value) {
           // If the value is a file-like object
-          if (typeof value === "object" && (value.name || value.filename)) {
-            file = value;
+          const fileLike = value as unknown as { name?: string; filename?: string };
+          if (typeof value === "object" && (fileLike.name || fileLike.filename)) {
+            file = value as unknown as typeof file;
             break;
           }
         }

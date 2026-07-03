@@ -1,4 +1,5 @@
 import { client } from "../db/denopost_conn.ts";
+import { getErrorMessage } from "../utils/errorHandler.ts";
 
 /**
  * Interface for user document history entry
@@ -36,7 +37,7 @@ export class UserDocumentHistoryModel {
         [userId, documentId, action]
       );
       
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       return false;
     }
@@ -195,7 +196,7 @@ export class UserDocumentHistoryModel {
         totalCount
       };
     } catch (error) {
-      throw new Error(`Failed to retrieve user document history: ${error.message}`);
+      throw new Error(`Failed to retrieve user document history: ${getErrorMessage(error)}`);
     }
   }
   

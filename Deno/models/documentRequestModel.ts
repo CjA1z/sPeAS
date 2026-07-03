@@ -45,7 +45,7 @@ export class DocumentRequestModel {
                 now
             ]
         );
-        return result.rows[0] as DocumentRequest;
+        return result.rows[0] as unknown as DocumentRequest;
     }
 
     // Get all document requests
@@ -68,7 +68,7 @@ export class DocumentRequestModel {
             ) a ON true
             ORDER BY dr.created_at DESC`
         );
-        return result.rows as DocumentRequest[];
+        return result.rows as unknown as DocumentRequest[];
     }
 
     // Get requests by status
@@ -93,7 +93,7 @@ export class DocumentRequestModel {
             ORDER BY dr.created_at DESC`,
             [status]
         );
-        return result.rows as DocumentRequest[];
+        return result.rows as unknown as DocumentRequest[];
     }
 
     // Get requests for a specific document
@@ -118,7 +118,7 @@ export class DocumentRequestModel {
             ORDER BY dr.created_at DESC`,
             [documentId]
         );
-        return result.rows as DocumentRequest[];
+        return result.rows as unknown as DocumentRequest[];
     }
 
     // Get a single request by ID
@@ -142,7 +142,7 @@ export class DocumentRequestModel {
             WHERE dr.id = $1`,
             [id]
         );
-        return result.rows[0] as DocumentRequest || null;
+        return result.rows[0] as unknown as DocumentRequest || null;
     }
 
     // Update request status

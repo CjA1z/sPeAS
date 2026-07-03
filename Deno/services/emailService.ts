@@ -232,7 +232,9 @@ async function encodeFileForEmail(filePath: string): Promise<{
   const fileBytes = await Deno.readFile(filePath);
   
   // Use the standard Deno base64 encoder instead of custom implementation
-  const base64Content = encodeBase64(fileBytes);
+  // std@0.190 encode() handles Uint8Array at runtime; its signature only
+  // admits ArrayBuffer | string, hence the cast.
+  const base64Content = encodeBase64(fileBytes as unknown as ArrayBuffer);
     
   return {
     content: base64Content,
@@ -243,7 +245,7 @@ async function encodeFileForEmail(filePath: string): Promise<{
 // Helper function to encode binary data to base64
 function encode(data: Uint8Array): string {
   try {
-    return encodeBase64(data);
+    return encodeBase64(data as unknown as ArrayBuffer);
   } catch (e) {
     // Fallback method if the standard library function fails
     // Convert binary data to a format that btoa can handle
@@ -312,8 +314,23 @@ export async function sendEmailWithAttachment(
   filePath?: string,
   fileName?: string
 ): Promise<any> {
+  // Track attachment details for response (declared outside the try so the
+  // outer catch can still report attachment state on unexpected errors)
+  const attachmentInfo: {
+    attached: boolean;
+    path: string | null;
+    size: number;
+    error: string | null;
+    fileType?: string;
+  } = {
+    attached: false,
+    path: filePath || null,
+    size: 0,
+    error: null
+  };
+
   try {
-        
+
     // Check if email configuration is valid before attempting to initialize
     if (!EMAIL_CONFIG.username || !EMAIL_CONFIG.password) {
       await logEmailActivity("EMAIL_CONFIG_ERROR", {
@@ -373,20 +390,6 @@ export async function sendEmailWithAttachment(
       text: text,
       html: html,
       attachments: []
-    };
-    
-    // Track attachment details for response
-    let attachmentInfo: {
-      attached: boolean;
-      path: string | null;
-      size: number;
-      error: string | null;
-      fileType?: string;
-    } = {
-      attached: false,
-      path: filePath || null,
-      size: 0,
-      error: null
     };
     
     // Add attachment if provided
@@ -683,12 +686,15 @@ export async function sendApprovedRequestEmail(
     childDocumentCount: childDocumentPaths?.length || 0
   });
 
+  // Declared outside the try so the catch blocks can report attachment state
+  const subject = `Your request for "${documentTitle}" has been approved`;
+  let fileSize = 0;
+  let fileExists = false;
+
   try {
     // CRITICAL FIX: Add direct PDF handling right at the start
         let mainPdfContent: Uint8Array | null = null;
     let childPdfContents: Array<{path: string, content: Uint8Array}> = [];
-    let fileSize = 0;
-    let fileExists = false;
     let successfulAttachments = 0;
     
     // Try multiple paths for the main document
@@ -811,8 +817,6 @@ export async function sendApprovedRequestEmail(
       ? `the compiled document and ${successfulAttachments} child document${successfulAttachments !== 1 ? 's' : ''}`
       : 'the document';
 
-    const subject = `Your request for "${documentTitle}" has been approved`;
-    
     // Plain text version
     const text = `
 Dear ${fullName},
@@ -831,7 +835,7 @@ sPeAS - Library Document Management System
 `;
 
     // Get the approved email template
-    let emailTemplate: string;
+    let emailTemplate = "";
     try {
             emailTemplate = await Deno.readTextFile("./Public/pages/approvedEmailTemplate.html");
           } catch (error) {
@@ -967,8 +971,7 @@ sPeAS - Library Document Management System
         documentPath: documentFilePath,
         fileExists: fileExists,
         fileSize: fileSize,
-        attachment_success: fileExists,
-        error: null
+        attachment_success: fileExists
       };
     } catch (sendError) {
       // Handle specific error types
@@ -1052,7 +1055,7 @@ export async function sendRejectedRequestEmail(
   const subject = `Your request for "${documentTitle}" has been rejected`;
   
   // Get the rejection-specific email template
-  let emailTemplate: string;
+  let emailTemplate = "";
   try {
     // Log current working directory for debugging paths
     const cwd = Deno.cwd();
@@ -1081,7 +1084,7 @@ export async function sendRejectedRequestEmail(
             try {
         emailTemplate = await Deno.readTextFile("./Public/pages/EmailTemplate.html");
               } catch (generalError) {
-        throw new Error(`Could not find any email templates: ${generalError.message}`);
+        throw new Error(`Could not find any email templates: ${generalError instanceof Error ? generalError.message : String(generalError)}`);
       }
     }
   } catch (error) {
@@ -1302,7 +1305,7 @@ export async function sendRequestConfirmationEmail(
   const subject = `Your request for "${documentInfo.title}" has been received`;
   
   // Get the email template
-  let emailTemplate: string;
+  let emailTemplate = "";
   try {
     emailTemplate = await Deno.readTextFile("./Public/pages/EmailTemplate.html");
   } catch (error) {

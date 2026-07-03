@@ -1,5 +1,6 @@
 import { Context } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { SystemLogsModel, SystemLog } from "../models/systemLogsModel.ts";
+import { getErrorMessage } from "../utils/errorHandler.ts";
 
 export class SystemLogsController {
   /**
@@ -59,7 +60,7 @@ export class SystemLogsController {
       ctx.response.body = {
         success: false,
         message: "Failed to retrieve logs",
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   }
@@ -96,7 +97,7 @@ export class SystemLogsController {
       ctx.response.body = {
         success: false,
         message: "Failed to retrieve log summary",
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   }
@@ -141,7 +142,7 @@ export class SystemLogsController {
       ctx.response.body = {
         success: false,
         message: "Failed to create log entry",
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   }
