@@ -18,15 +18,14 @@ import { authorRoutes } from "./routes/authorRoutes.ts"; // Import author routes
 import { researchAgendaRoutes } from "./routes/researchAgendaRoutes.ts"; // Import research agenda routes directly
 import { saveFile } from "./services/uploadService.ts"; // Import file upload service
 import { extractPdfMetadata } from "./services/pdfService.ts"; // Import PDF service
-import { fetchDocuments, fetchChildDocuments } from "./services/documentService.ts"; // Import document service
+import { fetchChildDocuments } from "./services/documentService.ts"; // Import document service
 import type { Document as DocumentData } from "./services/documentService.ts";
 import documentAuthorRoutes from "./routes/documentAuthorRoutes.ts";
 import fileRoutes from "./routes/fileRoutes.ts"; // Import file routes
 import { uploadRoutes, uploadRoutesAllowedMethods } from "./routes/uploadRoutes.ts"; // Import upload routes
 import reportsRoutes from "./routes/reportsRoutes.ts"; // Import reports routes
-import { handler as categoryHandler, countByCategory } from "./api/category.ts"; // Import category handler
+import { handler as categoryHandler } from "./api/category.ts"; // Import category handler
 import { getDepartments } from "./api/departments.ts";
-import { handleCreateDocument } from "./api/document.ts"; // Import document creation handler
 import { getCategories } from "./controllers/categoryController.ts";
 import { getChildDocuments } from "./controllers/documentController.ts";
 import { getDocumentAuthors } from "./controllers/documentAuthorController.ts";
@@ -277,152 +276,10 @@ router.get("/api/category", async (ctx) => {
   ctx.response.body = await response.json();
 });
 
-// Add count-by-category route
-router.get("/api/documents/count-by-category", async (ctx) => {
-  const request = new Request(ctx.request.url.toString(), {
-    method: ctx.request.method,
-    headers: ctx.request.headers
-  });
-  
-  const response = await countByCategory(request);
-  
-  ctx.response.status = response.status;
-  ctx.response.headers = response.headers;
-  ctx.response.body = await response.json();
-});
-
-// Add document routes directly
-router.get("/api/documents", async (ctx) => {
-  try {
-    // Extract query parameters
-    const url = new URL(ctx.request.url);
-    const rawPage = url.searchParams.get("page") || "1";
-    const rawLimit = url.searchParams.get("size") || "10";
-    const sort = url.searchParams.get("sort") || "latest";
-    const category = url.searchParams.get("category") || null;
-    const search = url.searchParams.get("search") || null;
-    
-        
-    // Validate page and limit parameters
-    const page = parseInt(rawPage);
-    const limit = parseInt(rawLimit);
-    
-    if (isNaN(page) || page < 1) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Invalid page parameter" };
-      return;
-    }
-    
-    if (isNaN(limit) || limit < 1 || limit > 50) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Invalid limit parameter" };
-      return;
-    }
-    
-    const response = await fetchDocuments({
-      page,
-      limit,
-      category,
-      search,
-      sort: sort === "latest" ? "publication_date" : "publication_date",
-      order: sort === "latest" ? "DESC" : "ASC"
-    });
-    
-        
-    // Detailed logging
-    if (response.documents && response.documents.length > 0) {
-            response.documents.slice(0, 3).forEach(doc => {
-              });
-    }
-    
-    // Make sure all documents are filtered to exclude deleted items
-    if (response.documents) {
-            
-      // Check for compiled documents that might be deleted
-      const filteredDocuments = response.documents.filter(doc => {
-        // Debug
-                
-        // If document has deleted_at timestamp, it should be filtered out
-        if (doc.deleted_at) {
-          return false;
-        }
-        
-        // For compiled documents, check the delete status differently
-        if (doc.is_compiled === true) {
-                    // Only filter out if we know for sure it's deleted
-          if (doc.deleted_at !== null && doc.deleted_at !== undefined) {
-            return false;
-          }
-          // If deleted_at is null/undefined, keep the document
-                    return true;
-        }
-        
-                return true;
-      });
-      
-      // Log any discrepancies
-      if (filteredDocuments.length !== response.documents.length) {
-      } else {
-              }
-      
-      // Replace documents with filtered list
-      response.documents = filteredDocuments;
-    }
-    
-    // Return the data
-    ctx.response.body = {
-      documents: response.documents.map(doc => {
-        // Ensure each document has author_names field populated
-        let authors: string[] = [];
-        if (doc.authors && Array.isArray(doc.authors)) {
-          authors = doc.authors.map(a => a.full_name || `Author ${a.id}`);
-        }
-        
-        return {
-          ...doc,
-          author_names: authors.length > 0 ? authors : []
-        };
-      }),
-      totalPages: response.totalPages,
-      totalDocuments: response.totalCount,
-      page
-    };
-      } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Failed to fetch documents",
-      details: error instanceof Error ? error.message : "Unknown error"
-    };
-  }
-});
-
-// Add POST endpoint for document creation
-router.post("/api/documents", isAuthenticated, isAdmin, async (ctx) => {
-  try {
-    // Get JSON body from request
-    const body = await ctx.request.body({ type: "json" }).value;
-    
-    // Convert context to Request for the handler
-    const request = new Request(ctx.request.url.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-    
-    // Use the document creation handler
-    const response = await handleCreateDocument(request);
-    
-    // Set response attributes
-    ctx.response.status = response.status;
-    ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: getErrorMessage(error) };
-  }
-});
+// NOTE: /api/documents/count-by-category and /api/documents/most-visited are
+// shadowed by the documentRoutes array's GET /api/documents/:id (registered
+// first), which returns 400 for non-numeric ids. Their former inline handlers
+// here were dead code and have been removed.
 
 // Add endpoint for child documents
 router.get("/api/documents/:id/children", async (ctx) => {
@@ -1312,61 +1169,6 @@ router.get("/api/email-logs", isAuthenticated, isAdmin, async (ctx) => {
   }
 });
 
-// Add a route for getting a compiled document by ID
-router.get("/api/compiled-documents/:id", async (ctx) => {
-  try {
-    const id = parseInt(ctx.params.id);
-    if (isNaN(id)) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Invalid ID" };
-      return;
-    }
-    
-    // Fetch the compiled document
-    const compiledDoc = await getCompiledDocument(id);
-    if (!compiledDoc) {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "Compiled document not found" };
-      return;
-    }
-    
-    // Get child documents
-    let childDocs: DocumentData[] = [];
-    try {
-      const childDocsResponse = await fetchChildDocuments(id);
-      childDocs = childDocsResponse.documents || [];
-    } catch (childError) {
-    }
-    
-    // Fetch authors for the document if they're not already included
-    let authors = [];
-    try {
-      // Authors might already be included in the document
-      if (compiledDoc.authors && Array.isArray(compiledDoc.authors)) {
-        authors = compiledDoc.authors;
-      } else {
-        // Try to fetch authors separately
-        const authorsData = await getDocumentAuthors(String(id));
-        authors = authorsData || [];
-      }
-    } catch (authorError) {
-    }
-    
-    // Combine all data
-    const result = {
-      ...compiledDoc,
-      authors: authors,
-      child_documents: childDocs
-    };
-    
-        
-    ctx.response.body = result;
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Failed to fetch compiled document" };
-  }
-});
-
 // Add a route for getting detailed compiled document information with visit statistics
 router.get("/api/compiled-documents/:id/details", async (ctx) => {
   try {
@@ -1455,80 +1257,6 @@ router.get("/api/compiled-documents/:id/details", async (ctx) => {
   } catch (error) {
     ctx.response.status = 500;
     ctx.response.body = { error: "Failed to fetch compiled document details" };
-  }
-});
-
-// Add a new endpoint specifically for compiled document children
-router.get("/api/compiled-documents/:id/children", async (ctx) => {
-  try {
-    const id = ctx.params.id;
-        
-    if (!id) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Compiled document ID is required" };
-      return;
-    }
-    
-    // Get the category parameter if specified in the request
-    const url = new URL(ctx.request.url);
-    const categoryParam = url.searchParams.get('category');
-        
-    // Fetch child documents
-    const childDocumentsResponse = await fetchChildDocuments(id);
-    let childDocuments = childDocumentsResponse.documents || [];
-    
-    // If we have a category parameter and child documents, filter by category
-    if (categoryParam && childDocuments.length > 0) {
-            const originalCount = childDocuments.length;
-      
-      // Convert category param to uppercase for case-insensitive comparison
-      const targetCategory = categoryParam.toUpperCase();
-      
-      childDocuments = childDocuments.filter(doc => {
-        const docType = (doc.document_type || '').toUpperCase();
-        // Keep documents matching the target category
-        return docType === targetCategory;
-      });
-      
-          }
-    
-    // Process and enhance child documents if needed
-    const enhancedChildren = await Promise.all(childDocuments.map(async (doc) => {
-      try {
-        // If authors aren't included, try to fetch them
-        if (!doc.authors || doc.authors.length === 0) {
-          try {
-            const authors = await getDocumentAuthors(String(doc.id));
-            doc.authors = authors || [];
-          } catch (err) {
-          }
-        }
-        
-        // Return enhanced document with file path format fixed if needed
-        return {
-          ...doc,
-          file_path: doc.file_path && !doc.file_path.startsWith('/') ? `/${doc.file_path}` : doc.file_path,
-          document_type: doc.document_type || categoryParam // Use category param as fallback if document_type is missing
-        };
-      } catch (docError) {
-        return doc;
-      }
-    }));
-    
-        
-    ctx.response.status = 200;
-    ctx.response.body = { 
-      parent_id: id,
-      category: categoryParam,
-      children: enhancedChildren,
-      count: enhancedChildren.length
-    };
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Failed to fetch child documents",
-      details: error instanceof Error ? error.message : String(error)
-    };
   }
 });
 
@@ -1650,38 +1378,6 @@ router.post("/api/user/profile/picture", isAuthenticated, async (ctx) => {
 // Register logout endpoint 
 // /logout (POST and GET) is handled by the logout handler in
 // routes/authRoutes.ts, registered via the routes array above.
-
-// Add route for most visited documents
-router.get("/api/documents/most-visited", async (ctx) => {
-  try {
-        
-    // Extract query parameters
-    const url = new URL(ctx.request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "10");
-    const days = parseInt(url.searchParams.get("days") || "30");
-    
-    // Use the PageVisitsModel to get most visited documents
-    const { PageVisitsModel } = await import("./models/pageVisitsModel.ts");
-    const documents = await PageVisitsModel.getMostVisitedDocuments(limit, days);
-    
-        
-    // Format response to match expected format in frontend
-    ctx.response.status = 200;
-    ctx.response.body = { 
-      documents: documents.map(doc => ({
-        document_id: doc.document_id,
-        id: doc.document_id, // Add id as an alias for document_id
-        title: doc.title || 'Untitled Document',
-        document_type: doc.document_type || 'single',
-        visit_count: doc.visit_count,
-        last_visit_date: doc.last_visit_date
-      }))
-    };
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
-});
 
 // Add route for recording document view
 router.post("/api/document-views", analyticsRateLimit, async (ctx) => {
