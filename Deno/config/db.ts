@@ -2,11 +2,17 @@ import { dotenvConfig, Pool } from "../deps.ts";
 
 // Load .env from the Deno project root (path pinned to this module so it
 // works regardless of the process working directory) and export the values
-// to Deno.env — this is the single dotenv load for the whole app.
-const env = await dotenvConfig({
-  envPath: new URL("../.env", import.meta.url).pathname,
-  export: true,
-});
+// to Deno.env. Missing .env is allowed because Docker and production hosts
+// can provide the same values directly as environment variables.
+let env: Record<string, string> = {};
+try {
+  env = await dotenvConfig({
+    envPath: new URL("../.env", import.meta.url).pathname,
+    export: true,
+  });
+} catch (_error) {
+  env = {};
+}
 
 function requireEnv(name: string): string {
   const value = Deno.env.get(name) ?? env[name];
@@ -15,7 +21,7 @@ function requireEnv(name: string): string {
     // deployment must not silently connect as a superuser with a weak password.
     throw new Error(
       `Missing required environment variable ${name}. ` +
-        `Set it in Deno/.env (see ReadMe) before starting the server.`,
+        `Set it in Deno/.env or the container environment before starting the server.`,
     );
   }
   return value;

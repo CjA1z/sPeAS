@@ -9,9 +9,15 @@ export function webHandler(
   handler: (req: Request) => Promise<Response> | Response,
 ) {
   return async (ctx: Context) => {
-    const body = ctx.request.hasBody
+    const bodyBytes = ctx.request.hasBody
       ? await ctx.request.body({ type: "bytes" }).value
       : undefined;
+    let body: ArrayBuffer | undefined;
+    if (bodyBytes) {
+      const bodyCopy = new Uint8Array(bodyBytes.byteLength);
+      bodyCopy.set(bodyBytes);
+      body = bodyCopy.buffer;
+    }
     const request = new Request(ctx.request.url.toString(), {
       method: ctx.request.method,
       headers: ctx.request.headers,

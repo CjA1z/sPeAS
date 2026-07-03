@@ -1,0 +1,32 @@
+.git
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+!*.env.example
+Deno/.env
+Deno/.env.*
+!Deno/*.env.example
+
+# Local dependencies and caches
+node_modules
+**/node_modules
+.deno
+deno-dir
+.cache
+.tmp
+
+# Runtime data should live in Docker volumes
+storage
+Deno/storage
+uploads
+Deno/uploads
+logs
+Deno/logs
+*.log
+
+# Local editor/tooling state
+.claude
+.vscode
+.idea

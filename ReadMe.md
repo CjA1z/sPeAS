@@ -91,39 +91,36 @@ The repository is primarily organized as follows:
 
 ## Setup and Installation
 
+PeAS is configured to run through Docker Compose. The host machine only needs
+Docker; Deno and PostgreSQL run inside containers.
+
 1.  **Prerequisites**:
-    * Deno runtime installed.
-    * PostgreSQL database server.
-    * Node.js and npm (for frontend dependencies like Tailwind CSS, if used for its compilation).
+    * Docker Desktop or Docker Engine with the Docker Compose plugin.
 2.  **Clone the repository**:
     ```bash
     git clone <repository-url>
     cd sPeAS 
     ```
-3.  **Database Setup**:
-    * Create a PostgreSQL database for PeAS.
-    * Update database connection details. This is typically managed in `Deno/config/db.ts` or through environment variables referenced in `Deno/db/denopost_conn.ts`.
-    * Run the database schema setup using `Deno/db/peas_db.sql` to create tables and relationships.
-4.  **Environment Variables**:
-    * Create a `.env` file in the `Deno/` directory.
-    * Populate it with necessary variables such as `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT`, and `PORT` for the application. Refer to `Deno/server.ts` for environment variable usage.
-5.  **Install Frontend Dependencies** (if `package.json` is actively used for managing frontend build tools):
+3.  **Optional environment overrides**:
+    * Docker Compose has safe local defaults for the app and database.
+    * To customize the exposed port, Postgres password, or SMTP settings:
+        ```bash
+        cp .env.docker.example .env
+        ```
+      Then edit `.env`.
+4.  **Start the full system**:
     ```bash
-    npm install
+    ./start.sh
     ```
-    (This might be needed for compiling Tailwind CSS or other frontend assets).
-6.  **Run the application**:
-    * Use the Deno tasks defined in `Deno/deno.json`:
-        ```bash
-        deno task dev  # For development, often includes --watch flag
-        # or
-        deno task start # For production
-        ```
-    * Alternatively, run the server directly (ensure necessary permissions are granted):
-        ```bash
-        deno run --allow-net --allow-read --allow-write --allow-env --unstable Deno/server.ts
-        ```
-        (The `--unstable` flag might be required depending on Deno features used).
+    Or run Compose directly:
+    ```bash
+    docker compose up --build
+    ```
+    The app will be available at `http://localhost:8000` by default.
+
+The first database boot imports `Deno/db/peas_db.sql` and then runs the SQL
+migrations in `Deno/db/migrations/`. PostgreSQL data, uploaded documents, and
+logs are stored in Docker volumes.
 
 ## Usage
 
