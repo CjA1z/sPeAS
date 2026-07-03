@@ -57,3 +57,4 @@ pnpm-debug.log*
 .idea/
 *.sublime-project
 *.sublime-workspace
+Deno/scratch/
