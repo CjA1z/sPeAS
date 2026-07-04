@@ -16,6 +16,10 @@ node_modules
 deno-dir
 .cache
 .tmp
+test-results
+
+# Built by Docker's experience-builder stage
+Deno/admin/experience-studio
 
 # Runtime data should live in Docker volumes
 storage
