@@ -500,6 +500,13 @@ body {
     font-size: 0.78em;
     color: var(--text-secondary);
     font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.author-avatar-stack a.stack-more:hover {
+    color: #006A4E;
+    text-decoration: underline;
 }
 
 /* ============================================================
@@ -529,26 +536,7 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-.category-tile .tile-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.category-tile .tile-icon img {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-}
-
-.category-tile.is-confluence    .tile-icon { background-color: #FFF4D4; }
-.category-tile.is-dissertation  .tile-icon { background-color: #DCFFDC; }
-.category-tile.is-thesis        .tile-icon { background-color: #FCE7E7; }
-.category-tile.is-synergy       .tile-icon { background-color: #E0E4FF; }
+/* Category tile icons are defined centrally in category-icons.css */
 
 .category-tile .tile-name {
     font-size: 0.7em;

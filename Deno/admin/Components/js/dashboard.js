@@ -361,8 +361,10 @@ function updateAuthorAvatarStack(topAuthors, totalAuthors) {
         stack.appendChild(a);
     });
     if (totalAuthors && totalAuthors > sample.length) {
-        const more = document.createElement('span');
+        const more = document.createElement('a');
         more.className = 'stack-more';
+        more.href = '/admin/Components/author-list.html';
+        more.title = 'View all authors';
         more.textContent = `+${(totalAuthors - sample.length).toLocaleString()} more`;
         stack.appendChild(more);
     }

@@ -406,6 +406,7 @@
     <link rel="stylesheet" href="css/side_bar.css">
     <link rel="stylesheet" href="css/navbar_header.css">
     <link rel="stylesheet" href="css/upload_document.css">
+    <link rel="stylesheet" href="/admin/Components/css/category-icons.css">
     <link rel="stylesheet" href="css/author-search.css">
     <link rel="stylesheet" href="css/research-agenda-search.css">
     <script src="/admin/Components/js/toast.js"></script>
@@ -908,7 +909,7 @@
                         <h2 class="text-xl font-semibold text-gray-800 mb-4">Preview</h2>
                         <div class="space-y-4">
                             <div class="w-24 h-24 bg-[#fffff5] rounded-lg flex items-center justify-center mb-4 shadow preview-icon">
-                                <img src="icons/category-icons/default_category_icon.png" class="w-16 h-16 object-contain" id="preview-category-icon" alt="Document icon">
+                                <span class="category-icon category-icon--lg" id="preview-category-icon" aria-hidden="true"></span>
                             </div>
 
                             <div>
@@ -955,7 +956,7 @@
                         <h2 class="text-xl font-semibold mb-4 text-gray-800">Preview</h2>
                         
                         <div class="w-24 h-24 bg-[#fffff5] rounded-lg flex items-center justify-center mb-4 shadow compiled-preview-icon">
-                            <img src="icons/category-icons/default_category_icon.png" class="w-16 h-16 object-contain" id="compiled-preview-category-icon" alt="Document icon">
+                            <span class="category-icon category-icon--lg" id="compiled-preview-category-icon" aria-hidden="true"></span>
                         </div>
 
                         <div class="mb-6 border-b pb-4">
@@ -1607,10 +1608,10 @@
                                     
                 // Update category icon
                     if (compiledCategoryInput && compiledCategoryInput.value) {
-                    compiledPreviewIcon.src = `icons/category-icons/${compiledCategoryInput.value.toLowerCase()}.png`;
+                    compiledPreviewIcon.dataset.category = compiledCategoryInput.value;
                                     } else {
                         if (compiledPreviewIcon) {
-                    compiledPreviewIcon.src = 'icons/category-icons/default_category_icon.png';
+                    compiledPreviewIcon.dataset.category = '';
                         } else {
                         }
                 }
@@ -2203,7 +2204,7 @@
                 
                 if (compiledCategoryInput && compiledCategoryInput.value) {
                     title = compiledCategoryInput.value;
-                    if (categoryIcon) categoryIcon.src = `icons/category-icons/${compiledCategoryInput.value.toLowerCase()}.png`;
+                    if (categoryIcon) categoryIcon.dataset.category = compiledCategoryInput.value;
                     
                     // Add volume if provided
                     if (compiledVolumeInput && compiledVolumeInput.value) {
@@ -2225,7 +2226,7 @@
                         title += ` Issue ${issuedValue}`;
                     }
                 } else if (categoryIcon) {
-                    categoryIcon.src = 'icons/category-icons/default_category_icon.png';
+                    categoryIcon.dataset.category = '';
                 }
                 
                 // Update preview elements

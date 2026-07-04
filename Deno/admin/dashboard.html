@@ -6,16 +6,27 @@
   <title>Dashboard</title>
   <!-- Session validation script - must run first -->
   <script>
-    // Immediately check if user is logged in
     (function() {
-      const sessionToken = localStorage.getItem('session_token') ||
-                         sessionStorage.getItem('session_token') ||
-                         document.cookie.split(';').find(c => c.trim().startsWith('session_token='));
+      const redirectHome = () => {
+        window.location.replace('/index.html?redirected=true&t=' + Date.now());
+      };
 
-      // If no session token found, redirect immediately to index page
-      if (!sessionToken) {
-                window.location.href = '/index.html?redirected=true&t=' + Date.now();
-      }
+      fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(response => response.ok ? response.json() : null)
+      .then(session => {
+        const role = String(session && session.role ? session.role : '').toLowerCase();
+        if (!session || !session.authenticated || role !== 'admin') {
+          redirectHome();
+        }
+      })
+      .catch(() => {
+        redirectHome();
+      });
     })();
   </script>
   <!-- Modern typography -->
@@ -27,6 +38,7 @@
   <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
   <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
   <link rel="stylesheet" href="/admin/Components/css/chart.css">
+  <link rel="stylesheet" href="/admin/Components/css/category-icons.css">
   <!-- Then load JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/Components/js/document-visit-tracker.js"></script>
@@ -137,7 +149,7 @@
           <div class="active-authors-count" data-counter="0">&mdash;</div>
           <div class="active-authors-label">Published in the repository</div>
         </div>
-        <div class="author-avatar-stack" id="author-avatar-stack" aria-hidden="true"></div>
+        <div class="author-avatar-stack" id="author-avatar-stack"></div>
       </article>
 
       <!-- ROW 2: Chart (full width) -->
@@ -165,28 +177,28 @@
         </header>
         <div class="category-grid">
           <div class="category-tile is-confluence" data-category="confluence">
-            <div class="tile-icon"><img src="/admin/Components/icons/category-icons/confluence.png" alt="Confluence"></div>
+            <div class="category-icon" data-category="confluence" aria-hidden="true"></div>
             <div class="tile-name">Confluence</div>
             <div class="tile-count" data-counter="0">&mdash;</div>
             <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
             <div class="tile-percent">0% of total</div>
           </div>
           <div class="category-tile is-dissertation" data-category="dissertation">
-            <div class="tile-icon"><img src="/admin/Components/icons/category-icons/dissertation.png" alt="Dissertation"></div>
+            <div class="category-icon" data-category="dissertation" aria-hidden="true"></div>
             <div class="tile-name">Dissertation</div>
             <div class="tile-count" data-counter="0">&mdash;</div>
             <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
             <div class="tile-percent">0% of total</div>
           </div>
           <div class="category-tile is-thesis" data-category="thesis">
-            <div class="tile-icon"><img src="/admin/Components/icons/category-icons/thesis.png" alt="Thesis"></div>
+            <div class="category-icon" data-category="thesis" aria-hidden="true"></div>
             <div class="tile-name">Thesis</div>
             <div class="tile-count" data-counter="0">&mdash;</div>
             <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
             <div class="tile-percent">0% of total</div>
           </div>
           <div class="category-tile is-synergy" data-category="synergy">
-            <div class="tile-icon"><img src="/admin/Components/icons/category-icons/synergy.png" alt="Synergy"></div>
+            <div class="category-icon" data-category="synergy" aria-hidden="true"></div>
             <div class="tile-name">Synergy</div>
             <div class="tile-count" data-counter="0">&mdash;</div>
             <div class="tile-bar"><div class="tile-bar-fill" style="width:0%"></div></div>
