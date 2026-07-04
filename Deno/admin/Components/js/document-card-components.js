@@ -11,7 +11,6 @@ window.documentCardComponents = {
     formatAuthors,
     formatDate,
     getTopicColors,
-    getCategoryIcon,
     formatCategoryName
 };
 
@@ -44,7 +43,7 @@ function createDocumentCard(doc) {
     // Create card HTML
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${getCategoryIcon(documentType)}" alt="${category} Icon">
+            <span class="category-icon" data-category="${documentType}" title="${category}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h3 class="document-title">${doc.title || 'Untitled Document'}</h3>
@@ -163,7 +162,7 @@ function createCompiledDocumentCard(doc, expandedDocIds = []) {
     // Create card HTML with improved display - hide elements if data is missing
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${getCategoryIcon(documentType)}" alt="${category} Icon">
+            <span class="category-icon" data-category="${documentType}" title="${category}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h3 class="document-title">
@@ -433,26 +432,6 @@ function getTopicColor(topicName) {
     }
     
     return color;
-}
-
-/**
- * Get the icon path for a category
- * @param {string} category - Category name
- * @returns {string} - Path to category icon
- */
-function getCategoryIcon(category) {
-    const iconMap = {
-        'THESIS': 'icons/category-icons/thesis.png',
-        'Thesis': 'icons/category-icons/thesis.png',
-        'DISSERTATION': 'icons/category-icons/dissertation.png',
-        'Dissertation': 'icons/category-icons/dissertation.png',
-        'CONFLUENCE': 'icons/category-icons/confluence.png',
-        'Confluence': 'icons/category-icons/confluence.png',
-        'SYNERGY': 'icons/category-icons/synergy.png',
-        'Synergy': 'icons/category-icons/synergy.png'
-    };
-    
-    return iconMap[category] || 'icons/category-icons/default_category_icon.png';
 }
 
 /**

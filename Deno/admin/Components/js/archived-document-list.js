@@ -526,7 +526,7 @@ function createCompiledParentCard(doc, childCount) {
     card.dataset.isExpanded = 'false'; // Start collapsed
     
     // Get icon path for document type
-    const iconPath = getCategoryIcon(doc.document_type || doc.category);
+    const categoryValue = doc.document_type || doc.category || '';
     
     // Format archive date
     const formattedArchiveDate = formatDocumentDate(doc.deleted_at || doc.deleted_at_formatted || doc.archived_at);
@@ -547,7 +547,7 @@ function createCompiledParentCard(doc, childCount) {
     // Generate HTML for the card to match the document list view
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${iconPath}" alt="${documentType}">
+            <span class="category-icon" data-category="${categoryValue}" title="${documentType}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h3 class="document-title">
@@ -596,7 +596,7 @@ function createChildDocumentCard(doc) {
     card.dataset.id = doc.id;
     
     // Get icon path for document type
-    const iconPath = getCategoryIcon(doc.document_type || doc.category);
+    const categoryValue = doc.document_type || doc.category || '';
     
     // Format document type
     const documentType = formatDocumentType(doc.document_type || doc.category);
@@ -607,7 +607,7 @@ function createChildDocumentCard(doc) {
     // Generate HTML for the card to match child documents in document list
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${iconPath}" alt="${documentType}" style="width: 24px; height: 24px;">
+            <span class="category-icon category-icon--sm" data-category="${categoryValue}" title="${documentType}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h4 class="document-title">${doc.title || 'Untitled Document'}</h4>
@@ -701,7 +701,7 @@ function createArchivedDocumentCard(doc) {
     card.dataset.id = doc.id; // Set data-id attribute for easier selection
     
     // Get icon path for document type
-    const iconPath = getCategoryIcon(doc.document_type || doc.category);
+    const categoryValue = doc.document_type || doc.category || '';
     
     // Debug: Log the entire document object to find all date fields
         
@@ -881,7 +881,7 @@ function createArchivedDocumentCard(doc) {
     // Generate HTML for the card
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${iconPath}" alt="${documentType}">
+            <span class="category-icon" data-category="${categoryValue}" title="${documentType}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h3 class="document-title">${doc.title || 'Untitled Document'}</h3>
@@ -927,29 +927,6 @@ function createArchivedDocumentCard(doc) {
     visibleEntriesCount++;
     
     return card;
-}
-
-/**
- * Get icon path for a document category
- * @param {string} category - Document category
- * @returns {string} - Icon path
- */
-function getCategoryIcon(category) {
-    if (!category) {
-        return 'icons/category-icons/default_category_icon.png';
-    }
-    
-    // Normalize category to handle case variations
-    const normalizedCategory = category.toString().toUpperCase();
-    
-    const iconMap = {
-        'THESIS': 'icons/category-icons/thesis.png',
-        'DISSERTATION': 'icons/category-icons/dissertation.png',
-        'CONFLUENCE': 'icons/category-icons/confluence.png',
-        'SYNERGY': 'icons/category-icons/synergy.png'
-    };
-    
-    return iconMap[normalizedCategory] || 'icons/category-icons/default_category_icon.png';
 }
 
 /**

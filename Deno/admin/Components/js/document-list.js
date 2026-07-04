@@ -738,21 +738,6 @@ function renderBasicDocumentCard(doc) {
         pubDate = doc.start_year + (doc.end_year ? `-${doc.end_year}` : '');
     }
     
-    // Get the appropriate icon for the category
-    const getCategoryIcon = (category) => {
-        const iconMap = {
-            'THESIS': 'icons/category-icons/thesis.png',
-            'Thesis': 'icons/category-icons/thesis.png',
-            'DISSERTATION': 'icons/category-icons/dissertation.png',
-            'Dissertation': 'icons/category-icons/dissertation.png',
-            'CONFLUENCE': 'icons/category-icons/confluence.png',
-            'Confluence': 'icons/category-icons/confluence.png',
-            'SYNERGY': 'icons/category-icons/synergy.png',
-            'Synergy': 'icons/category-icons/synergy.png'
-        };
-        return iconMap[category] || 'icons/category-icons/default_category_icon.png';
-    };
-    
     // Format the document_type into a readable category name
     const formatDocumentType = (type) => {
         if (!type) return 'Uncategorized';
@@ -774,7 +759,7 @@ function renderBasicDocumentCard(doc) {
     // Create the document card structure
     card.innerHTML = `
         <div class="document-icon">
-            <img src="${getCategoryIcon(documentType || category)}" alt="${category} Icon">
+            <span class="category-icon" data-category="${documentType || category}" title="${category}" aria-hidden="true"></span>
         </div>
         <div class="document-info">
             <h3 class="document-title">

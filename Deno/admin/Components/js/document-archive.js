@@ -1908,9 +1908,9 @@ window.documentArchive = (function() {
         
         card.classList.add('archived');
         
-        // Get document type icon
-        const iconSrc = getDocumentTypeIcon(doc.document_type || '');
-        
+        // Category slug for the central icon classes (category-icons.css)
+        const iconCategory = doc.document_type || '';
+
         // Format the date when it was archived
         const archivedDate = formatDate(doc.deleted_at);
         
@@ -1948,7 +1948,7 @@ window.documentArchive = (function() {
         // Create card inner HTML
         card.innerHTML = `
                 <div class="document-icon">
-                <img src="${iconSrc}" alt="Document" class="icon">
+                <span class="category-icon" data-category="${iconCategory}" aria-hidden="true"></span>
                 </div>
                 <div class="document-info">
                     <div class="document-header">
@@ -2082,27 +2082,6 @@ window.documentArchive = (function() {
             default:
                 return 'fas fa-file-alt';
         }
-    }
-
-    /**
-     * Get the proper document type icon for display
-     * @param {string} documentType - Document type string
-     * @returns {string} - Icon image path
-     */
-    function getDocumentTypeIcon(documentType = '') {
-        // Convert to lowercase for case-insensitive matching
-        const type = documentType.toLowerCase();
-        
-        // Map document types to icon paths
-        const iconMap = {
-            'thesis': 'icons/category-icons/thesis.png',
-            'dissertation': 'icons/category-icons/dissertation.png',
-            'confluence': 'icons/category-icons/confluence.png',
-            'synergy': 'icons/category-icons/synergy.png'
-        };
-        
-        // Return the appropriate icon or the default
-        return iconMap[type] || 'icons/category-icons/default_category_icon.png';
     }
 
     /**
@@ -2741,14 +2720,14 @@ window.documentArchive = (function() {
         // Format date if available
         const archivedDate = formatDate(child.deleted_at) || 'Unknown date';
         
-        // Get document type icon
-        const iconSrc = getDocumentTypeIcon(child.document_type || child.category || 'default');
+        // Category slug for the central icon classes (category-icons.css)
+        const iconCategory = child.document_type || child.category || '';
         
         // Create a more simplified layout based on the image
         childCard.innerHTML = `
             <div class="child-document-inner">
                 <div class="document-icon">
-                    <img src="${iconSrc}" alt="Document" class="small-icon">
+                    <span class="category-icon category-icon--sm" data-category="${iconCategory}" aria-hidden="true"></span>
                 </div>
                 <div class="document-info">
                     <h4 class="document-title">${child.title || 'Untitled Document'}</h4>

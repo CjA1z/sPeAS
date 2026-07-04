@@ -7,7 +7,6 @@
 window.documentUtils = {
     formatAuthors,
     formatDate,
-    getCategoryIcon,
     formatCategoryName
 };
 
@@ -43,26 +42,6 @@ function formatDate(dateString) {
     } catch (error) {
         return 'Unknown Date';
     }
-}
-
-/**
- * Get the appropriate icon path for a category
- * @param {string} category - Category name
- * @returns {string} - Path to the category icon
- */
-function getCategoryIcon(category) {
-    const iconMap = {
-        'THESIS': 'icons/category-icons/thesis.png',
-        'Thesis': 'icons/category-icons/thesis.png',
-        'DISSERTATION': 'icons/category-icons/dissertation.png',
-        'Dissertation': 'icons/category-icons/dissertation.png',
-        'CONFLUENCE': 'icons/category-icons/confluence.png',
-        'Confluence': 'icons/category-icons/confluence.png',
-        'SYNERGY': 'icons/category-icons/synergy.png',
-        'Synergy': 'icons/category-icons/synergy.png'
-    };
-    
-    return iconMap[category] || 'icons/category-icons/default_category_icon.png';
 }
 
 /**

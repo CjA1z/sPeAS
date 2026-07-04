@@ -295,36 +295,6 @@ function showToast(message, type = 'info') {
 
 // Document edit module
 window.documentEdit = {
-    // Get document type icon path
-    getDocumentTypeIcon: function(documentType) {
-        if (!documentType) {
-            return '/admin/Components/icons/category-icons/default_category_icon.png';
-        }
-
-        // Normalize document type to uppercase
-        const type = documentType.toUpperCase();
-        
-        // Map document types to icon paths
-        const iconMap = {
-            'THESIS': '/admin/Components/icons/category-icons/thesis.png',
-            'DISSERTATION': '/admin/Components/icons/category-icons/dissertation.png',
-            'CONFLUENCE': '/admin/Components/icons/category-icons/confluence.png',
-            'RESEARCH': '/admin/Components/icons/category-icons/research.png',
-            'ARTICLE': '/admin/Components/icons/category-icons/article.png',
-            'REPORT': '/admin/Components/icons/category-icons/report.png',
-            'BOOK': '/admin/Components/icons/category-icons/book.png',
-            'JOURNAL': '/admin/Components/icons/category-icons/journal.png',
-            'PROCEEDINGS': '/admin/Components/icons/category-icons/proceedings.png',
-            'PRESENTATION': '/admin/Components/icons/category-icons/presentation.png',
-            'POSTER': '/admin/Components/icons/category-icons/poster.png',
-            'PATENT': '/admin/Components/icons/category-icons/patent.png',
-            'OTHER': '/admin/Components/icons/category-icons/other.png'
-        };
-
-        // Return the mapped icon path or default if not found
-        return iconMap[type] || '/admin/Components/icons/category-icons/default_category_icon.png';
-    },
-    
     // Function to show the edit modal for a single document
     showEditModal: function(documentId) {
                 
@@ -902,8 +872,7 @@ window.documentEdit = {
                     const selectedType = e.target.value;
                     const typeIcon = document.getElementById('edit-single-document-type-icon');
                     if (typeIcon) {
-                        const iconPath = this.getDocumentTypeIcon(selectedType);
-                        typeIcon.src = iconPath;
+                        typeIcon.dataset.category = selectedType || '';
                                             }
                 };
                 
@@ -1971,13 +1940,7 @@ window.documentEdit = {
         // Set document type icon if available
         const typeIcon = document.getElementById('edit-single-document-type-icon');
         if (typeIcon) {
-            const iconPath = this.getDocumentTypeIcon(data.document_type || data.category);
-            if (iconPath && !iconPath.includes('undefined')) {
-                typeIcon.src = iconPath;
-            } else {
-                // Use a default icon path if the document type doesn't have a specific icon
-                typeIcon.src = '/admin/Components/icons/category-icons/default_category_icon.png';
-            }
+            typeIcon.dataset.category = data.document_type || data.category || '';
             
             // Add background color to the icon container
             const iconContainer = document.getElementById('edit-single-document-preview-icon');
@@ -3527,9 +3490,9 @@ window.documentEdit = {
             // Update category icon
             if (categoryIcon) {
                 if (data.category === 'SYNERGY' || data.category === 'Synergy') {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
+                    categoryIcon.dataset.category = 'synergy';
                 } else {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
+                    categoryIcon.dataset.category = 'confluence';
                 }
             }
             

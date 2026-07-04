@@ -133,50 +133,49 @@ async function fetchRecentDocuments() {
     }
 }
 
-// Function to get icon path for document type
-function getDocumentTypeIcon(type, category) {
+// Resolve a document type/category to a category slug for category-icons.css
+function getDocumentTypeCategory(type, category) {
     // First check for explicit category if provided
     if (category) {
         // Normalize the category to lowercase for consistent comparison
         const normalizedCategory = category.toLowerCase();
-        
-        // Return appropriate icon based on category
+
         if (normalizedCategory.includes('thesis')) {
-            return '/admin/Components/icons/category-icons/thesis.png';
+            return 'thesis';
         } else if (normalizedCategory.includes('dissertation')) {
-            return '/admin/Components/icons/category-icons/dissertation.png';
+            return 'dissertation';
         } else if (normalizedCategory.includes('confluence')) {
-            return '/admin/Components/icons/category-icons/confluence.png';
+            return 'confluence';
         } else if (normalizedCategory.includes('synergy')) {
-            return '/admin/Components/icons/category-icons/synergy.png';
+            return 'synergy';
         }
         // If category doesn't match any known type, fall through to type-based logic
     }
 
-    if (!type) return '/admin/Components/icons/category-icons/default_category_icon.png';
-    
+    if (!type) return '';
+
     // Normalize the type to lowercase for consistent comparison
     const normalizedType = (type || '').toLowerCase();
-    
+
     // Check for compiled documents first using multiple indicators
-    if (normalizedType === 'compiled' || 
-        normalizedType === 'compilation' || 
-        normalizedType.includes('compile') || 
+    if (normalizedType === 'compiled' ||
+        normalizedType === 'compilation' ||
+        normalizedType.includes('compile') ||
         normalizedType.includes('confluence')) {
-        return '/admin/Components/icons/category-icons/confluence.png';
+        return 'confluence';
     }
-    
+
     // Then check for other specific types
     switch (normalizedType) {
         case 'thesis':
-            return '/admin/Components/icons/category-icons/thesis.png';
-        case 'dissertation':
-            return '/admin/Components/icons/category-icons/dissertation.png';
-        case 'synergy':
-            return '/admin/Components/icons/category-icons/synergy.png';
         case 'single':
+            return 'thesis';
+        case 'dissertation':
+            return 'dissertation';
+        case 'synergy':
+            return 'synergy';
         default:
-            return '/admin/Components/icons/category-icons/thesis.png'; // Use thesis icon as default
+            return '';
     }
 }
 
@@ -372,8 +371,6 @@ function renderDocumentsToTable(documents, tableBody) {
         const coverDiv = document.createElement('div');
         coverDiv.className = 'cover most-visited-cover';
         
-        // Add image instead of text
-        const coverImg = document.createElement('img');
         // Extract category from the title for compiled documents
         let category = null;
         if (doc.document_type === 'compiled' && doc.title) {
@@ -383,20 +380,15 @@ function renderDocumentsToTable(documents, tableBody) {
                 category = titleParts[0].trim();
             }
         }
-        
-        // Get icon based on document type and category
-        coverImg.src = getDocumentTypeIcon(doc.document_type, category);
-        coverImg.alt = category || formatDocumentType(doc.document_type);
-        coverImg.className = 'cover-icon most-visited-cover-icon';
-        
-        // Add error handler in case image doesn't load
-        coverImg.onerror = function() {
-            // Fallback to document type text if image fails to load
-            this.style.display = 'none';
-            coverDiv.textContent = formatDocumentType(doc.document_type);
-        };
-        
-        coverDiv.appendChild(coverImg);
+
+        // Central category icon (see category-icons.css)
+        const coverIcon = document.createElement('span');
+        coverIcon.className = 'category-icon category-icon--sm';
+        coverIcon.dataset.category = getDocumentTypeCategory(doc.document_type, category);
+        coverIcon.title = category || formatDocumentType(doc.document_type);
+        coverIcon.setAttribute('aria-hidden', 'true');
+
+        coverDiv.appendChild(coverIcon);
         coverCell.appendChild(coverDiv);
         
         // Create details cell

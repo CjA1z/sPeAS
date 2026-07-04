@@ -1256,32 +1256,12 @@ function showWarning(message, callback) {
     });
 }
 
-// Function to update preview icon based on document category
+// Function to update preview icon based on document category (see category-icons.css)
 function updatePreviewIcon(category) {
     const previewIcon = document.getElementById('preview-category-icon');
     if (!previewIcon) return;
-    
-    let iconPath = 'icons/category-icons/default_category_icon.png';
-    
-    // Set the appropriate icon based on the selected category
-    switch (category) {
-        case 'Thesis':
-            iconPath = 'icons/category-icons/thesis.png';
-            break;
-        case 'Dissertation':
-            iconPath = 'icons/category-icons/dissertation.png';
-            break;
-        case 'Confluence':
-            iconPath = 'icons/category-icons/confluence.png';
-            break;
-        case 'Synergy':
-            iconPath = 'icons/category-icons/synergy.png';
-            break;
-        default:
-            iconPath = 'icons/category-icons/default_category_icon.png';
-    }
-    
-    previewIcon.src = iconPath;
+
+    previewIcon.dataset.category = category || '';
     }
 
 // Function to update compiled document preview
@@ -1332,24 +1312,10 @@ function updateCompiledPreview() {
         volumeElement.textContent = volumeInput.value || 'N/A';
     }
     
-    // Update icon
+    // Update icon (see category-icons.css)
     const previewIcon = document.getElementById('compiled-preview-category-icon');
     if (previewIcon) {
-    let iconPath = 'icons/category-icons/default_category_icon.png';
-    
-    // Set the appropriate icon based on the selected category
-    switch (category) {
-        case 'Confluence':
-            iconPath = 'icons/category-icons/confluence.png';
-            break;
-        case 'Synergy':
-            iconPath = 'icons/category-icons/synergy.png';
-            break;
-        default:
-            iconPath = 'icons/category-icons/default_category_icon.png';
-    }
-    
-    previewIcon.src = iconPath;
+        previewIcon.dataset.category = category || '';
         }
 }
 

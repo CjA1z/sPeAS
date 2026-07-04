@@ -2316,7 +2316,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon
                 const categoryIcon = document.getElementById('edit-compiled-category-icon');
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
+                    categoryIcon.dataset.category = 'synergy';
                 }
             } else {
                 // For any other category, use "Issued No." and show text input
@@ -2330,7 +2330,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon for Confluence
                 const categoryIcon = document.getElementById('edit-compiled-category-icon');
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
+                    categoryIcon.dataset.category = 'confluence';
                 }
             }
             
@@ -2476,7 +2476,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon
                 const categoryIcon = document.getElementById('edit-compiled-category-icon');
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
+                    categoryIcon.dataset.category = 'synergy';
                 }
             } else {
                 // For any other category, use "Issued No." and show text input
@@ -2490,7 +2490,7 @@ window.enhancedCompiledDocumentEdit = {
                 // Update category icon for Confluence
                 const categoryIcon = document.getElementById('edit-compiled-category-icon');
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
+                    categoryIcon.dataset.category = 'confluence';
                 }
             }
             
@@ -2583,7 +2583,7 @@ window.enhancedCompiledDocumentEdit = {
                 
                 // Update category icon
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
+                    categoryIcon.dataset.category = 'synergy';
                                     }
         } else {
                 // For other categories, show issued number
@@ -2596,7 +2596,7 @@ window.enhancedCompiledDocumentEdit = {
                 
                 // Update category icon
                 if (categoryIcon) {
-                    categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
+                    categoryIcon.dataset.category = 'confluence';
                                     }
             }
         }
@@ -3754,7 +3754,7 @@ window.enhancedCompiledDocumentEdit = {
             // Update category icon
             const categoryIcon = document.getElementById('edit-compiled-category-icon');
             if (categoryIcon) {
-                categoryIcon.src = '/admin/Components/icons/category-icons/synergy.png';
+                categoryIcon.dataset.category = 'synergy';
             }
             
             // Populate departmental dropdown with values from the database
@@ -3774,7 +3774,7 @@ window.enhancedCompiledDocumentEdit = {
             // Update category icon
             const categoryIcon = document.getElementById('edit-compiled-category-icon');
             if (categoryIcon) {
-                categoryIcon.src = '/admin/Components/icons/category-icons/confluence.png';
+                categoryIcon.dataset.category = 'confluence';
             }
         }
         
