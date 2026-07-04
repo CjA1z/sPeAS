@@ -37,6 +37,8 @@ coverage/
 .nyc_output/
 .cache/
 .tmp/
+test-results/
+Deno/admin/experience-studio/
 
 # Uploads, Data & Logs
 storage/
