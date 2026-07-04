@@ -218,6 +218,25 @@ const register = async (ctx: RouterContext<any, any, any>) => {
   ctx.response.body = { message: "User registered successfully", data: body };
 };
 
+const sessionStatus = async (ctx: RouterContext<any, any, any>) => {
+  const token = await ctx.cookies.get("session_token");
+  const session = await sessionService.verifySession(token);
+
+  if (!session) {
+    ctx.response.status = 401;
+    ctx.response.body = { authenticated: false };
+    return;
+  }
+
+  ctx.response.status = 200;
+  ctx.response.body = {
+    authenticated: true,
+    userId: session.id,
+    username: session.id,
+    role: session.role,
+  };
+};
+
 const logout = async (ctx: RouterContext<any, any, any>) => {
   try {
     // Extract the session token: cookie first, Bearer header as fallback
@@ -285,6 +304,8 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
 export const authRoutes: Route[] = [
   { method: "POST", path: "/auth/login", handler: login, middleware: [loginRateLimit] },
   { method: "POST", path: "/login", handler: login, middleware: [loginRateLimit] }, // Add plain /login endpoint
+  { method: "GET", path: "/api/auth/session", handler: sessionStatus },
+  { method: "GET", path: "/auth/session", handler: sessionStatus },
   { method: "POST", path: "/auth/register", handler: register },
   { method: "POST", path: "/auth/logout", handler: logout },
   { method: "POST", path: "/logout", handler: logout }, // Add direct /logout endpoint

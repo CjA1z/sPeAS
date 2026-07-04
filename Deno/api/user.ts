@@ -44,12 +44,15 @@ export async function handleGetUserProfileForNavbar(req: Request): Promise<Respo
       });
     }
     
-    // For development convenience, always return mock data if no userId provided
     const url = new URL(req.url);
     if (!url.searchParams.has("userId")) {
-      url.searchParams.set("mock", "true");
-      const modifiedRequest = new Request(url.toString(), req);
-      return await handleGetUserProfile(modifiedRequest);
+      return new Response(JSON.stringify({ error: "User not authenticated" }), {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
     }
     
     // Otherwise, delegate to the main handler
