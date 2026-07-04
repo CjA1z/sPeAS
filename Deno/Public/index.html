@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-experience-page="landing">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,8 +56,10 @@
     })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@4.0.2/dist/flowbite.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin/experience-studio/style.css">
     <style>
         /* --- Theme Colors (Combined & Prefixed) --- */
         :root {
@@ -1205,11 +1207,15 @@
     </div>
 
     <!-- Back to top button -->
-    <a href="#" id="back-to-top" class="fixed bottom-5 right-5 z-50 bg-green-700 text-white rounded-full shadow-lg p-3 flex items-center justify-center transition-all duration-300 opacity-0 invisible">
+    <a href="#" id="back-to-top" data-tooltip-target="back-to-top-tooltip" data-tooltip-placement="left" aria-label="Back to top" class="fixed bottom-5 right-5 z-50 bg-green-700 text-white rounded-full shadow-lg p-3 flex items-center justify-center transition-all duration-300 opacity-0 invisible">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
         </svg>
     </a>
+    <div id="back-to-top-tooltip" role="tooltip" class="absolute z-50 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip">
+        Back to top
+        <div class="tooltip-arrow" data-popper-arrow></div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -1391,6 +1397,8 @@
         });
     </script>
     
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.2/dist/flowbite.min.js"></script>
+
     <!-- Navbar Manager: Dynamically loads the appropriate navbar based on user role -->
     <script src="/Components/js/navbar-loader.js"></script>
     
@@ -1454,6 +1462,6 @@
             recordPageVisit();
         });
     </script>
-   
+    <script type="module" src="/admin/experience-studio/publicRuntime.js"></script>
 </body>
 </html>

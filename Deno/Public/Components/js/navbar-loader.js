@@ -42,6 +42,15 @@ window.NavbarModule = (function() {
         document.head.appendChild(script);
     }
 
+    function initFlowbiteComponents() {
+        try {
+            if (typeof window.initFlowbite === 'function') {
+                window.initFlowbite();
+            }
+        } catch (error) {
+        }
+    }
+
     // Main initialization function - call this from each page
     function initNavbar() {
                         
@@ -193,8 +202,29 @@ window.NavbarModule = (function() {
         // Check user authentication and load appropriate navbar
         const userInfo = getUserInfo();
         const isLoggedIn = isUserLoggedIn(userInfo);
-        
-                
+
+        // The server session (HttpOnly cookie) is the source of truth. If it is
+        // gone but client storage still says logged-in, drop the stale state and
+        // re-render as guest. Covers logout paths that miss cleanup and
+        // server-side session expiry.
+        if (isLoggedIn) {
+            fetch('/api/auth/session', {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => (response.ok ? response.json() : null))
+            .then(session => {
+                if (!session || !session.authenticated) {
+                    sessionStorage.removeItem('userInfo');
+                    localStorage.removeItem('userInfo');
+                    window.location.reload();
+                }
+            })
+            .catch(() => {});
+        }
+
         // Add initialized flag to the container
         navbarContainer.dataset.initializing = 'true';
         
@@ -226,6 +256,7 @@ window.NavbarModule = (function() {
                         setupDropdown();
                         setupMobileMenu();
                         setupSearch();
+                        initFlowbiteComponents();
                         
                         break;
                     }
@@ -252,6 +283,7 @@ window.NavbarModule = (function() {
                 setupDropdown();
                 setupMobileMenu();
                 setupSearch();
+                initFlowbiteComponents();
             }
         }, 800); // Slightly longer timeout to ensure content is loaded
     }
@@ -477,6 +509,8 @@ window.NavbarModule = (function() {
             
             // Set up search button
             setupSearch();
+
+            initFlowbiteComponents();
         } catch (error) {
         }
     }
@@ -539,6 +573,16 @@ window.NavbarModule = (function() {
                     
                     // Full name for display - prioritize first_name from database
                     const displayName = user.display_name || user.first_name || user.name || user.username || 'User';
+                    const isAdminUser = String(user.role || '').toLowerCase() === 'admin';
+                    const adminDashboardLink = isAdminUser ? `
+                            <a href="/admin/dashboard.html" class="group text-green-800 flex items-center px-4 py-2 text-sm hover:bg-amber-100 hover:text-green-900 rounded-md mx-1 font-semibold" role="menuitem" tabindex="-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="w-5 h-5 mr-3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h6.75v6.75H3.75V3.75zm9.75 0h6.75v6.75H13.5V3.75zM3.75 13.5h6.75v6.75H3.75V13.5zm9.75 0h6.75v6.75H13.5V13.5z" />
+                                </svg>
+                                Dashboard
+                            </a>
+                            <div class="dropdown-divider mx-1" role="separator"></div>
+                    ` : '';
                     
                     // Create profile badge container
                     const profileBadgeContainer = document.createElement('div');
@@ -608,6 +652,7 @@ window.NavbarModule = (function() {
                             <span id="user-name-part" class="greeting-name">${displayName}</span>
                         </div>
                         <div class="py-1" role="none">
+                            ${adminDashboardLink}
                             <a href="#" class="group text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-amber-100 hover:text-green-800 rounded-md mx-1" role="menuitem" tabindex="-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="w-5 h-5 mr-3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -677,6 +722,10 @@ window.NavbarModule = (function() {
                     
                     // Full name for display
                     const displayName = user.display_name || user.first_name || user.name || user.username || 'User';
+                    const isAdminUser = String(user.role || '').toLowerCase() === 'admin';
+                    const adminMobileLink = isAdminUser
+                        ? '<a href="/admin/dashboard.html" class="block px-3 py-2 rounded-md text-base font-semibold text-green-800 hover:bg-amber-100 hover:text-green-900">Dashboard</a>'
+                        : '';
                     
                     // Create mobile profile section
                     const section = document.createElement('div');
@@ -693,6 +742,7 @@ window.NavbarModule = (function() {
                             </div>
                         </div>
                         <div class="mt-3 px-2 space-y-1">
+                            ${adminMobileLink}
                             <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-amber-100 hover:text-green-800">Profile</a>
                             <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-amber-100 hover:text-green-800">History</a>
                             <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-amber-100 hover:text-green-800">
@@ -1303,6 +1353,8 @@ window.NavbarModule = (function() {
                                         window.location.href = '/log-in.html';
                 });
             }
+
+            initFlowbiteComponents();
             
                     } catch (error) {
             // Ultimate fallback - just a simple login link
