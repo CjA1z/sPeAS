@@ -797,7 +797,8 @@ CREATE TABLE public.users (
     department_id integer,
     role_id integer,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    last_login timestamp without time zone
+    last_login timestamp without time zone,
+    profile_picture character varying(255)
 );
 
 
