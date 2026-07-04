@@ -1,5 +1,10 @@
 {
+  "name": "paulinian-electronic-archiving-system",
+  "private": true,
   "scripts": {
+    "build:experience": "vite build --config experience-studio/vite.config.ts",
+    "check:experience": "tsc -p experience-studio/tsconfig.json",
+    "test:experience": "playwright test -c experience-studio/playwright.config.ts",
     "codex:resets": "node scripts/codex-reset-status.mjs",
     "codex:with-resets": "scripts/codex-with-resets.sh"
   },
@@ -7,5 +12,19 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.3"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.61.1",
+    "@puckeditor/core": "^0.22.0",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.1",
+    "@uppy/xhr-upload": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "axe-core": "^4.12.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "zod": "^4.4.3"
   }
 }

@@ -92,7 +92,8 @@ The repository is primarily organized as follows:
 ## Setup and Installation
 
 PeAS is configured to run through Docker Compose. The host machine only needs
-Docker; Deno and PostgreSQL run inside containers.
+Docker; Deno, PostgreSQL, and the Experience Studio frontend build all run
+inside containers.
 
 1.  **Prerequisites**:
     * Docker Desktop or Docker Engine with the Docker Compose plugin.
@@ -118,6 +119,10 @@ Docker; Deno and PostgreSQL run inside containers.
     ```
     The app will be available at `http://localhost:8000` by default.
 
+    The Docker image builds the React/Vite Experience Studio during
+    `docker compose up --build`; do not run local Deno, npm, or Vite commands
+    to serve the application.
+
 The first database boot imports `Deno/db/peas_db.sql` and then runs the SQL
 migrations in `Deno/db/migrations/`. PostgreSQL data, uploaded documents, and
 logs are stored in Docker volumes.
@@ -127,6 +132,7 @@ logs are stored in Docker volumes.
 * **Public Users**: Access the application via the main URL (e.g., `http://localhost:PORT`). Browse and view publicly available documents. Submit requests for restricted documents.
 * **Registered Users**: Log in via the `/log-in.html` page to access download features, save documents to a personal library, and view interaction history.
 * **Admin Users**: Access the `/admin/dashboard.html` path for administrative functionalities, including document management, user management, viewing system logs, and managing document access requests.
+* **Experience Studio**: Admins can customize the public landing and login experiences from `/admin/Components/experience-studio.html`. The editor is built into the Docker image and served by the same Deno container.
 
 ## API Endpoints
 

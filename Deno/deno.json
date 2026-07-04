@@ -5,5 +5,8 @@
     "watch": "deno run --watch --allow-net --allow-read --allow-write --allow-env server.ts",
     "debug": "deno run --inspect-brk --allow-net --allow-read --allow-write --allow-env server.ts",
     "check": "deno check server.ts"
+  },
+  "imports": {
+    "zod": "npm:zod@4.4.3"
   }
 }
