@@ -47,6 +47,8 @@ import { handleUserPasswordUpdate } from "./api/userPassword.ts"; // Import user
 import { handleUserProfilePictureUpload } from "./api/userProfilePicture.ts"; // Import user profile picture handler
 import { isAuthenticated, isAdmin } from "./middleware/authMiddleware.ts"; // Authn/authz middleware
 import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
+import experienceRoutes from "./routes/experienceRoutes.ts";
+import { ensureExperienceTablesExist } from "./services/experienceService.ts";
 // Import the document view controller
 // TODO: Fix DocumentViewController implementation
 // import { DocumentViewController } from "./controllers/documentViewController.ts";
@@ -758,6 +760,10 @@ app.use(fileRoutes.allowedMethods());
 app.use(uploadRoutes.routes());
 app.use(uploadRoutesAllowedMethods);
 
+// Register Experience Studio routes
+app.use(experienceRoutes.routes());
+app.use(experienceRoutes.allowedMethods());
+
 // Add router to app
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -906,7 +912,8 @@ async function setupDirectories() {
       join(storageBase, 'confluence'),
       join(storageBase, 'synergy'),
       join(storageBase, 'hello'),
-      join(storageBase, 'authors', 'profile-pictures') // Updated path to match existing structure
+      join(storageBase, 'authors', 'profile-pictures'), // Updated path to match existing structure
+      join(storageBase, 'site-branding')
     ];
     
     // Create all directories
@@ -963,6 +970,7 @@ async function startServer() {
     
     // Ensure the visit counter tables exist
     await ensureVisitCounterTablesExist();
+    await ensureExperienceTablesExist();
     
     // Note: `router` is already registered on the app (routes added to it
     // after registration still dispatch, since Oak matches at request time).
@@ -1273,8 +1281,11 @@ router.get("/compiled-documents/:id/children", async (ctx) => {
 });
 
 // Register user profile endpoint for the navbar
-router.get("/api/user/profile", async (ctx) => {
-  const request = new Request(ctx.request.url.toString(), {
+router.get("/api/user/profile", isAuthenticated, async (ctx) => {
+  const scopedUrl = new URL(ctx.request.url.toString());
+  scopedUrl.searchParams.set("userId", ctx.state.user.id);
+
+  const request = new Request(scopedUrl.toString(), {
     method: ctx.request.method,
     headers: ctx.request.headers
   });
