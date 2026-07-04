@@ -67,16 +67,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; } /* For Chrome, Safari, Opera */
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } /* For IE, Edge, Firefox */
 
-        /* Toggle Button Container/Button */
-        .ad-toggle-container { /* Container for centering the button */
-             padding-top: 0.5rem; /* Add some space above the button area */
-             padding-bottom: 0.5rem; /* Add some space below the button area */
-        }
-        .ad-toggle-button {
-             white-space: nowrap; /* Prevent text wrapping */
-             transition: background-color 0.2s ease-in-out; /* Add transition for hover effect */
-        }
-
         /* Edit Icon Button Styling */
         .ad-edit-icon-button {
             cursor: pointer;
@@ -239,34 +229,63 @@
     </div>
 
     <div class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-md " style="width: 1200px; max-width: 100%; margin: 0 auto;">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">Author Directory</h1>
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Author Directory</h1>
+                <p class="text-sm text-gray-500 mt-1">Browse, search, and manage research authors and their published works.</p>
+            </div>
+            <span id="authorTotalCount" class="ad-count-badge self-start sm:self-auto" hidden></span>
+        </div>
 
-        <div class="flex flex-col md:flex-row gap-4 mb-6 items-center">
+        <div class="flex flex-col md:flex-row gap-3 mb-2">
             <div class="relative flex-grow w-full md:w-auto">
-                <input type="text" id="searchInput" placeholder="Search by author name..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"/>
+                <input type="text" id="searchInput" placeholder="Search by author name..." class="w-full pl-10 pr-9 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"/>
                 <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
+                <button type="button" id="clearSearchBtn" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full" title="Clear search" aria-label="Clear search">
+                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
-            <div class="w-full md:w-auto">
+            <div class="w-full md:w-52">
                 <label for="departmentFilter" class="sr-only">Filter by Department</label>
                 <select id="departmentFilter" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                     <option value="">All Departments</option>
                     </select>
             </div>
-            <div class="w-full md:w-auto">
+            <div class="w-full md:w-44">
                 <label for="affiliationFilter" class="sr-only">Filter by Affiliation</label>
                 <select id="affiliationFilter" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                     <option value="">All Affiliations</option>
                     </select>
             </div>
+            <div class="w-full md:w-44">
+                <label for="sortSelect" class="sr-only">Sort authors</label>
+                <select id="sortSelect" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                    <option value="name-asc">Sort: Name A&ndash;Z</option>
+                    <option value="name-desc">Sort: Name Z&ndash;A</option>
+                    <option value="works-desc">Sort: Most works</option>
+                </select>
+            </div>
         </div>
 
-        <div id="authorList" class="grid grid-cols-1 gap-4">
+        <div class="flex items-center justify-between gap-3 mb-4 min-h-6">
+            <p id="resultsInfo" class="text-sm text-gray-500"></p>
+            <button type="button" id="clearFiltersBtn" class="hidden text-sm font-medium text-green-700 hover:text-green-800 hover:underline" onclick="clearFilters()">Clear filters</button>
+        </div>
+
+        <div id="authorList" class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
             </div>
 
-        <div id="noResultsMessage" class="text-center text-gray-500 mt-6 hidden">
-            No authors found matching your criteria.
+        <div id="noResultsMessage" class="text-center mt-6 py-12 hidden">
+            <svg class="w-10 h-10 mx-auto text-gray-300 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <p class="text-gray-700 font-medium">No authors found</p>
+            <p class="text-sm text-gray-400 mt-1">Try a different name, or reset the filters below.</p>
+            <button type="button" onclick="clearFilters()" class="mt-4 px-4 py-2 text-sm font-medium bg-green-50 text-green-700 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-300">Clear all filters</button>
         </div>
     </div>
 
@@ -349,6 +368,11 @@
         const searchInput = document.getElementById('searchInput');
         const departmentFilter = document.getElementById('departmentFilter');
         const affiliationFilter = document.getElementById('affiliationFilter');
+        const sortSelect = document.getElementById('sortSelect');
+        const resultsInfo = document.getElementById('resultsInfo');
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const authorTotalCount = document.getElementById('authorTotalCount');
         const authorListContainer = document.getElementById('authorList');
         const noResultsMessage = document.getElementById('noResultsMessage');
         const editModal = document.getElementById('editAuthorModal');
@@ -372,6 +396,34 @@
                 .replace(/"/g, '&quot;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
+        }
+
+        // --- Shared HTML fragments ---
+        function workCardHtml(work) {
+            // encodeURIComponent leaves single quotes alone, which would break the onclick attribute
+            const encodedWorkData = encodeURIComponent(JSON.stringify(work)).replace(/'/g, '%27');
+            return `
+                <div class="ad-work-card">
+                    <a href="javascript:void(0)" onclick="openDocument('${encodedWorkData}')" class="ad-work-title-link block text-sm mb-1.5">${escapeAttr(work.title) || 'Untitled'}</a>
+                    <div class="ad-work-meta">
+                        <span class="ad-chip">${escapeAttr(work.category) || 'Uncategorized'}</span>
+                        <span class="ad-chip">${escapeAttr(work.year) || 'No year'}</span>
+                        ${work.researchAgenda ? `<span class="ad-work-keywords" title="${escapeAttr(work.researchAgenda)}">${escapeAttr(work.researchAgenda)}</span>` : ''}
+                    </div>
+                </div>`;
+        }
+
+        function worksToggleHtml(authorId, index, worksCount) {
+            if (worksCount > 0) {
+                return `<button id="toggle-${authorId}-${index}" class="ad-works-toggle" aria-expanded="false" title="Show works" onclick="toggleWorks('works-${authorId}-${index}', 'toggle-${authorId}-${index}', 'workFilters-${authorId}-${index}', '${authorId}', ${index})">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-3.5 h-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                    </svg>
+                    ${worksCount} Work${worksCount !== 1 ? 's' : ''}
+                    <span class="arrow" aria-hidden="true">&#x25BE;</span>
+                </button>`;
+            }
+            return `<span class="ad-works-toggle ad-works-none">No works</span>`;
         }
 
         // --- Populate Author Filter Dropdowns ---
@@ -492,9 +544,17 @@
         // --- Fetch Authors from API ---
         async function fetchAuthors() {
             try {
-                // Show loading indicator
-                authorListContainer.innerHTML = '<div class="flex justify-center items-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div></div>';
-                
+                // Show skeleton placeholders while loading
+                authorListContainer.innerHTML = Array.from({ length: 4 }, () => `
+                    <div class="ad-skeleton-card">
+                        <div class="ad-skel ad-skel-avatar"></div>
+                        <div class="flex-grow pt-1">
+                            <div class="ad-skel" style="width: 45%; height: 14px;"></div>
+                            <div class="ad-skel" style="width: 65%; height: 10px; margin-top: 10px;"></div>
+                        </div>
+                        <div class="ad-skel" style="width: 72px; height: 24px; border-radius: 999px;"></div>
+                    </div>`).join('');
+
                 // Fetch authors from the API
                 const response = await fetch(API_URL);
                 
@@ -506,14 +566,17 @@
                 
                 // Update the global authors array
                 authors = data.authors || [];
-                
-                                
+
+                // Update the total count badge
+                authorTotalCount.textContent = `${authors.length} author${authors.length !== 1 ? 's' : ''}`;
+                authorTotalCount.hidden = false;
+
                 // Fetch departments from API and populate affiliations from frontend data
                 await populateDepartmentFilter();
                 populateAffiliationFilter();
-                
+
                 // Render authors first (for faster initial display)
-                renderAuthors(authors);
+                filterAuthors();
                 
                 // Then fetch works for each author (this will happen in the background)
                 const workFetchPromises = authors.map(async (author) => {
@@ -537,10 +600,10 @@
                 
                 // Wait for all work fetches to complete
                 await Promise.all(workFetchPromises);
-                
-                // Re-render the author list to ensure all works are properly displayed
-                renderAuthors(authors);
-                
+
+                // Re-render the author list (through the active filters/sort) so all works are displayed
+                filterAuthors();
+
             } catch (error) {
                 authorListContainer.innerHTML = `
                     <div class="text-center text-red-600 py-8">
@@ -554,83 +617,27 @@
 
         // --- Update UI for an author's works (after fetching) ---
         function updateAuthorWorksUI(authorId, works, worksCount) {
-                        
             // Find all instances of this author's cards (there might be multiple due to filtering)
             const authorCards = document.querySelectorAll(`.ad-author-card[data-author-id="${authorId}"]`);
-            
-            if (authorCards.length === 0) {
-                return;
-            }
-            
-            authorCards.forEach((card, cardIndex) => {
-                // Update the toggle button area
-                const toggleContainer = card.querySelector('.ad-toggle-container');
-                if (toggleContainer) {
-                    // Format the toggle button HTML based on works count
-                    if (worksCount > 0) {
-                        toggleContainer.innerHTML = `
-                            <button id="toggle-${authorId}-${cardIndex}" class="ad-toggle-button inline-flex items-center py-1 px-3 rounded-md bg-green-100 hover:bg-green-200 text-xs text-green-800 font-medium focus:outline-none focus:ring-1 focus:ring-green-300" onclick="toggleWorks('works-${authorId}-${cardIndex}', 'toggle-${authorId}-${cardIndex}', 'workFilters-${authorId}-${cardIndex}', '${authorId}', ${cardIndex})">
-                                ${worksCount} Work${worksCount !== 1 ? 's' : ''} <span class="arrow ml-1">&#x25BC;</span>
-                            </button>
-                        `;
-                    } else {
-                        // Check if there's already a no-works message container
-                        const noWorksContainer = card.querySelector('.no-works-container');
-                        if (!noWorksContainer) {
-                            // Replace the toggle container with a no works message
-                            toggleContainer.parentNode.innerHTML = `
-                                <div class="flex justify-center bg-gray-50 py-2 border-t border-gray-200 rounded-b-lg no-works-container"> 
-                                    <span class="text-xs text-gray-500 italic">No works listed</span>
-                                </div>
-                            `;
-                        }
-                    }
-                } else if (worksCount > 0) {
-                    // If no toggle container exists but we have works, we need to add one
-                    const cardContent = card.querySelector('.p-4.flex-grow');
-                    if (cardContent) {
-                        // Add toggle container after the card content
-                        const toggleContainerDiv = document.createElement('div');
-                        toggleContainerDiv.className = 'ad-toggle-container flex justify-center bg-gray-50 border-t border-gray-200 rounded-b-lg';
-                        toggleContainerDiv.innerHTML = `
-                            <button id="toggle-${authorId}-${cardIndex}" class="ad-toggle-button inline-flex items-center py-1 px-3 rounded-md bg-green-100 hover:bg-green-200 text-xs text-green-800 font-medium focus:outline-none focus:ring-1 focus:ring-green-300" onclick="toggleWorks('works-${authorId}-${cardIndex}', 'toggle-${authorId}-${cardIndex}', 'workFilters-${authorId}-${cardIndex}', '${authorId}', ${cardIndex})">
-                                ${worksCount} Work${worksCount !== 1 ? 's' : ''} <span class="arrow ml-1">&#x25BC;</span>
-                            </button>
-                        `;
-                        card.appendChild(toggleContainerDiv);
-                    }
+
+            authorCards.forEach(card => {
+                const index = card.dataset.index;
+
+                // Swap the works pill (count button or "No works" label) in place
+                const toggle = card.querySelector('.ad-works-toggle');
+                if (toggle) {
+                    toggle.outerHTML = worksToggleHtml(authorId, index, worksCount);
                 }
-                
+
                 // Update the works container with actual works
-                const worksContainer = card.querySelector(`#worksContainer-${authorId}-${cardIndex}`);
+                const worksContainer = card.querySelector(`#worksContainer-${authorId}-${index}`);
                 if (worksContainer) {
                     if (works.length > 0) {
-                        let worksHtml = '<div class="space-y-2">';
-                        works.forEach(work => {
-                            // Log each work to console for debugging
-                                                        
-                            // Encode the work data for passing to openDocument
-                            const encodedWorkData = encodeURIComponent(JSON.stringify(work));
-                            
-                            worksHtml += `
-                                <div class="ad-work-card">
-                                    <div class="flex justify-between items-center text-xs text-gray-500 mb-1">
-                                        <span class="font-medium">${work.category || 'N/A'}</span>
-                                        <span class="font-medium">${work.year || 'N/A'}</span>
-                                    </div>
-                                    <a href="javascript:void(0)" onclick="openDocument('${encodedWorkData}')" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
-                                    <p class="text-xs text-gray-600"><span class="font-medium">Keywords:</span> ${work.researchAgenda || 'N/A'}</p>
-                                </div>`;
-                        });
-                        worksHtml += '</div>';
-                        worksContainer.innerHTML = worksHtml;
-                        
-                        // Update filters if works are available
-                        populateWorkFilters(authorId, cardIndex);
+                        worksContainer.innerHTML = `<div class="space-y-2">${works.map(workCardHtml).join('')}</div>`;
+                        populateWorkFilters(authorId, index);
                     } else {
-                        worksContainer.innerHTML = '<p class="text-sm text-gray-500 italic px-4">No works listed.</p>';
+                        worksContainer.innerHTML = '<p class="text-sm text-gray-500 italic">No works listed.</p>';
                     }
-                } else {
                 }
             });
         }
@@ -701,24 +708,10 @@
                 return categoryMatch && agendaMatch && yearMatch;
             });
 
-            worksContainer.innerHTML = ''; // Clear previous works
             if (filteredWorks.length === 0) {
-                worksContainer.innerHTML = '<p class="text-sm text-gray-500 italic px-4">No works match the selected filters.</p>';
+                worksContainer.innerHTML = '<p class="text-sm text-gray-500 italic">No works match the selected filters.</p>';
             } else {
-                let worksHtml = '<div class="space-y-2">';
-                filteredWorks.forEach(work => {
-                    worksHtml += `
-                        <div class="ad-work-card">
-                            <div class="flex justify-between items-center text-xs text-gray-500 mb-1">
-                                <span class="font-medium">${work.category || 'N/A'}</span>
-                                <span class="font-medium">${work.year || 'N/A'}</span>
-                            </div>
-                            <a href="${work.url || '#'}" target="_blank" rel="noopener noreferrer" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
-                            <p class="text-xs text-gray-600"><span class="font-medium">Keywords:</span> ${work.researchAgenda || 'N/A'}</p>
-                        </div>`;
-                });
-                worksHtml += '</div>';
-                worksContainer.innerHTML = worksHtml;
+                worksContainer.innerHTML = `<div class="space-y-2">${filteredWorks.map(workCardHtml).join('')}</div>`;
             }
         }
 
@@ -736,8 +729,9 @@
 
                 filteredAuthors.forEach((author, index) => {
                     const card = document.createElement('div');
-                    card.className = 'ad-author-card bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col';
+                    card.className = 'ad-author-card bg-white border border-gray-200 rounded-lg shadow-sm';
                     card.setAttribute('data-author-id', author.id); // Add author ID for reference
+                    card.dataset.index = index; // Used by updateAuthorWorksUI to find per-card element IDs
 
                     // Unique IDs for elements within this author card
                     const worksSectionId = `works-${author.id}-${index}`;
@@ -746,25 +740,9 @@
                     const worksContainerId = `worksContainer-${author.id}-${index}`;
 
                     // Generate initial HTML for the works list (shown when expanded)
-                    let initialWorksHtml = '<p class="text-sm text-gray-500 italic px-4">No works listed.</p>';
+                    let initialWorksHtml = '<p class="text-sm text-gray-500 italic">No works listed.</p>';
                     if (author.works && author.works.length > 0) {
-                        initialWorksHtml = '<div class="space-y-2">'; // Container for work cards
-                        author.works.forEach(work => {
-                            // Encode the work data for passing to openDocument
-                            const encodedWorkData = encodeURIComponent(JSON.stringify(work));
-                            
-                            // Create HTML for each work item
-                            initialWorksHtml += `
-                                <div class="ad-work-card">
-                                    <div class="flex justify-between items-center text-xs text-gray-500 mb-1">
-                                        <span class="font-medium">${work.category || 'N/A'}</span>
-                                        <span class="font-medium">${work.year || 'N/A'}</span>
-                                    </div>
-                                    <a href="javascript:void(0)" onclick="openDocument('${encodedWorkData}')" class="ad-work-title-link block text-sm mb-1">${work.title || 'Untitled'}</a>
-                                    <p class="text-xs text-gray-600"><span class="font-medium">Keywords:</span> ${work.researchAgenda || 'N/A'}</p>
-                                </div>`;
-                        });
-                        initialWorksHtml += '</div>';
+                        initialWorksHtml = `<div class="space-y-2">${author.works.map(workCardHtml).join('')}</div>`;
                     }
 
                     const hasProfilePic = Boolean(author.profilePicUrl);
@@ -776,33 +754,35 @@
 
                     // Construct the inner HTML of the author card
                     card.innerHTML = `
-                        <div class="p-4 flex-grow"> <div class="flex justify-between items-start mb-4"> <div class="flex items-start flex-grow pr-4"> <div class="ad-avatar-wrap mr-3 flex-shrink-0">
-                                        ${hasProfilePic ? `<img src="${profilePic}" alt="Profile picture of ${safeAuthorName}" class="ad-author-photo" data-author-name="${safeAuthorName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'; if (window.peasAvatars) window.peasAvatars.applyInitialsAvatar(this.nextElementSibling, this.dataset.authorName);">` : ''}
-                                        <div class="ad-author-avatar" data-author-name="${safeAuthorName}" style="${hasProfilePic ? 'display: none;' : ''}"></div>
-                                    </div>
-                                    <div class="flex-grow"> <div class="flex items-baseline mb-1">
-                                            <h3 class="text-lg font-semibold text-green-700 mr-2">${author.full_name}</h3>
-                                            <span class="text-xs text-gray-500">(${author.spud_id || 'No ID'})</span>
-                                        </div>
-                                        <div class="text-sm text-gray-600">
-                                            <span>${author.department || 'No Department'}</span>
-                                            <span class="mx-1 text-gray-400">|</span>
-                                            <span>${author.affiliation || 'No Affiliation'}</span>
-                                        </div>
-                                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start gap-3">
+                                <div class="ad-avatar-wrap flex-shrink-0">
+                                    ${hasProfilePic ? `<img src="${profilePic}" alt="Profile picture of ${safeAuthorName}" class="ad-author-photo" data-author-name="${safeAuthorName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'; if (window.peasAvatars) window.peasAvatars.applyInitialsAvatar(this.nextElementSibling, this.dataset.authorName);">` : ''}
+                                    <div class="ad-author-avatar" data-author-name="${safeAuthorName}" style="${hasProfilePic ? 'display: none;' : ''}"></div>
                                 </div>
-                                <div class="flex-shrink-0"> <button class="ad-edit-icon-button text-gray-500 hover:text-green-600 focus:outline-none" onclick="openEditModal('${author.id}')" title="Edit Author">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+                                        <h3 class="ad-author-name">${safeAuthorName}</h3>
+                                        <span class="ad-chip ad-chip-id ${author.spud_id ? '' : 'ad-chip--missing'}">${escapeAttr(author.spud_id) || 'No ID'}</span>
+                                    </div>
+                                    <div class="ad-meta-row">
+                                        <span class="ad-chip ${author.department ? '' : 'ad-chip--missing'}">${escapeAttr(author.department) || 'No department'}</span>
+                                        <span class="ad-chip ${author.affiliation ? '' : 'ad-chip--missing'}">${escapeAttr(author.affiliation) || 'No affiliation'}</span>
+                                    </div>
+                                    ${author.bio ? `<p class="ad-bio" title="${escapeAttr(author.bio)}">${escapeAttr(author.bio)}</p>` : ''}
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    ${worksToggleHtml(author.id, index, worksCount)}
+                                    <button class="ad-edit-icon-button text-gray-500 hover:text-green-600 focus:outline-none" onclick="openEditModal('${author.id}')" title="Edit author" aria-label="Edit ${safeAuthorName}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                         </svg>
                                     </button>
                                 </div>
                             </div>
 
-                            <p class="text-sm text-gray-700 mb-4">${author.bio || ''}</p>
-
-                            <div id="${worksSectionId}" class="ad-works-section border-t border-gray-200 pt-2 no-scrollbar" data-button-id="${toggleButtonId}">
-                                <div id="${workFiltersId}" class="ad-work-filters px-4">
+                            <div id="${worksSectionId}" class="ad-works-section no-scrollbar" data-button-id="${toggleButtonId}">
+                                <div id="${workFiltersId}" class="ad-work-filters">
                                      <select id="workCategoryFilter-${author.id}-${index}" class="ad-work-filter-select" onchange="filterAndRenderWorks('${author.id}', ${index})"><option value="">All Categories</option></select>
                                      <select id="workAgendaFilter-${author.id}-${index}" class="ad-work-filter-select" onchange="filterAndRenderWorks('${author.id}', ${index})"><option value="">All Keywords</option></select>
                                      <select id="workYearFilter-${author.id}-${index}" class="ad-work-filter-select" onchange="filterAndRenderWorks('${author.id}', ${index})"><option value="">All Years</option></select>
@@ -813,17 +793,9 @@
                                         Refresh
                                      </button>
                                 </div>
-                                <div id="${worksContainerId}" class="px-4">${initialWorksHtml}</div>
+                                <div id="${worksContainerId}">${initialWorksHtml}</div>
                             </div>
                         </div>
-
-                        ${worksCount > 0 ? `
-                        <div class="ad-toggle-container flex justify-center bg-gray-50 border-t border-gray-200 rounded-b-lg"> <button id="${toggleButtonId}" class="ad-toggle-button inline-flex items-center py-1 px-3 rounded-md bg-green-100 hover:bg-green-200 text-xs text-green-800 font-medium focus:outline-none focus:ring-1 focus:ring-green-300" onclick="toggleWorks('${worksSectionId}', '${toggleButtonId}', '${workFiltersId}', '${author.id}', ${index})"> ${worksCount} Work${worksCount !== 1 ? 's' : ''} <span class="arrow ml-1">&#x25BC;</span> </button>
-                        </div>
-                        ` : `
-                        <div class="flex justify-center bg-gray-50 py-2 border-t border-gray-200 rounded-b-lg"> <span class="text-xs text-gray-500 italic">No works listed</span>
-                        </div>
-                        `}
                     `;
 
                     authorListContainer.appendChild(card);
@@ -841,7 +813,11 @@
         }
 
 
-        // --- Filter Authors Logic ---
+        // --- Filter + Sort Authors Logic ---
+        function getWorksCount(author) {
+            return author.works?.length ?? author.worksCount ?? 0;
+        }
+
         function filterAuthors() {
             const searchTerm = searchInput.value.toLowerCase();
             const selectedDepartment = departmentFilter.value;
@@ -849,7 +825,7 @@
 
             const filtered = authors.filter(author => {
                 // Search in full_name
-                const nameMatch = author.full_name.toLowerCase().includes(searchTerm);
+                const nameMatch = (author.full_name || '').toLowerCase().includes(searchTerm);
 
                 // Check department match (allow empty filter)
                 const departmentMatch = !selectedDepartment || author.department === selectedDepartment;
@@ -861,7 +837,35 @@
                 return nameMatch && departmentMatch && affiliationMatch;
             });
 
+            // Apply the selected sort order
+            const sortBy = sortSelect.value;
+            filtered.sort((a, b) => {
+                if (sortBy === 'works-desc') {
+                    return getWorksCount(b) - getWorksCount(a)
+                        || (a.full_name || '').localeCompare(b.full_name || '');
+                }
+                const cmp = (a.full_name || '').localeCompare(b.full_name || '');
+                return sortBy === 'name-desc' ? -cmp : cmp;
+            });
+
             renderAuthors(filtered); // Re-render the list with filtered results
+            updateResultsInfo(filtered.length);
+        }
+
+        function updateResultsInfo(shownCount) {
+            const hasActiveFilters = Boolean(searchInput.value || departmentFilter.value || affiliationFilter.value);
+            resultsInfo.textContent = hasActiveFilters
+                ? `Showing ${shownCount} of ${authors.length} author${authors.length !== 1 ? 's' : ''}`
+                : '';
+            clearFiltersBtn.classList.toggle('hidden', !hasActiveFilters);
+            clearSearchBtn.classList.toggle('hidden', !searchInput.value);
+        }
+
+        function clearFilters() {
+            searchInput.value = '';
+            departmentFilter.value = '';
+            affiliationFilter.value = '';
+            filterAuthors();
         }
 
         // --- Edit Modal Functions ---
@@ -1150,8 +1154,8 @@
                     }
                 }
 
-                // Re-render the author list to reflect the changes
-                renderAuthors(authors);
+                // Re-render the author list (respecting active filters/sort) to reflect the changes
+                filterAuthors();
                 
                 // Show success notification instead of alert
                 showNotification("Author information updated successfully!", "success");
@@ -1174,28 +1178,18 @@
             const toggleButton = document.getElementById(buttonId);
             if (worksSection && worksSection.classList.contains('expanded')) {
                 worksSection.classList.remove('expanded');
-                if (toggleButton) {
-                    const arrow = toggleButton.querySelector('.arrow');
-                    if (arrow) arrow.innerHTML = '&#x25BC;'; // Down arrow
-                }
+                if (toggleButton) toggleButton.setAttribute('aria-expanded', 'false');
             }
         }
 
         function toggleWorks(worksSectionId, buttonId, workFiltersId, authorId, authorIndex) {
             const worksSection = document.getElementById(worksSectionId);
             const toggleButton = document.getElementById(buttonId);
-            // const workFilters = document.getElementById(workFiltersId); // Filter container
 
             if (!worksSection || !toggleButton) return;
 
             const isExpanded = worksSection.classList.toggle('expanded');
-            const arrow = toggleButton.querySelector('.arrow');
-
-            if (isExpanded) {
-                if (arrow) arrow.innerHTML = '&#x25B2;'; // Up arrow
-            } else {
-                if (arrow) arrow.innerHTML = '&#x25BC;'; // Down arrow
-            }
+            toggleButton.setAttribute('aria-expanded', String(isExpanded));
 
              // --- Auto-collapse other sections ---
              const allWorkSections = document.querySelectorAll('.ad-works-section.expanded');
@@ -1215,6 +1209,12 @@
         searchInput.addEventListener('input', filterAuthors);
         departmentFilter.addEventListener('change', filterAuthors);
         affiliationFilter.addEventListener('change', filterAuthors);
+        sortSelect.addEventListener('change', filterAuthors);
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            filterAuthors();
+            searchInput.focus();
+        });
 
         // Close modal if clicked outside of it
         window.addEventListener('click', function(event) {
