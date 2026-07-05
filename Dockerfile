@@ -1,21 +1,26 @@
-FROM node:24-alpine AS experience-builder
+FROM node:24-alpine AS ui-builder
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY experience-studio ./experience-studio
+COPY app-ui ./app-ui
 COPY Deno/shared ./Deno/shared
 
 RUN npm ci
 RUN npm run check:experience
 RUN npm run build:experience
+RUN npm run check:app-ui
+RUN npm run build:app-ui
 
 FROM denoland/deno:2.7.13
 
 WORKDIR /app
 
 COPY . .
-COPY --from=experience-builder /app/Deno/admin/experience-studio ./Deno/admin/experience-studio
+COPY --from=ui-builder /app/Deno/admin/experience-studio ./Deno/admin/experience-studio
+COPY --from=ui-builder /app/Deno/admin/react-ui ./Deno/admin/react-ui
+COPY --from=ui-builder /app/Deno/Public/react-ui ./Deno/Public/react-ui
 
 RUN deno cache Deno/server.ts
 RUN mkdir -p \
