@@ -44,6 +44,11 @@ window.NavbarModule = (function() {
 
     function initFlowbiteComponents() {
         try {
+            if (window.SystemUI && typeof window.SystemUI.init === 'function') {
+                window.SystemUI.init();
+                return;
+            }
+
             if (typeof window.initFlowbite === 'function') {
                 window.initFlowbite();
             }

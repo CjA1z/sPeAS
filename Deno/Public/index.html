@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-experience-page="landing">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,7 +56,7 @@
     })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@4.0.2/dist/flowbite.min.css">
+    <script src="/Components/js/system-ui.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/admin/experience-studio/style.css">
@@ -1397,8 +1397,6 @@
         });
     </script>
     
-    <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.2/dist/flowbite.min.js"></script>
-
     <!-- Navbar Manager: Dynamically loads the appropriate navbar based on user role -->
     <script src="/Components/js/navbar-loader.js"></script>
     
@@ -1462,6 +1460,7 @@
             recordPageVisit();
         });
     </script>
+    <!-- Experience Studio runtime is dormant here unless the URL explicitly asks for preview/runtime mode. -->
     <script type="module" src="/admin/experience-studio/publicRuntime.js"></script>
 </body>
 </html>
