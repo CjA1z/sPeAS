@@ -1,885 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-system-ui="flowbite">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Access Requests Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '#006A4E',
+                            dark: '#00543e',
+                            soft: '#e6f2ee',
+                            mist: '#f3f9f6'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <style>
-        /* --- Custom Properties for Theme --- */
-        :root {
-            --primary-green: var(--brand-green);
-            --light-green: #d1fae5; /* Tailwind emerald-100 */
-            --lighter-green: #ecfdf5; /* Tailwind emerald-50 */
-            --dark-green: #064e3b; /* Tailwind emerald-900 */
-            --gold-accent: #d97706; /* Tailwind amber-600 */
-            --light-gold: #fef3c7; /* Tailwind amber-100 */
-            --dark-gold: #92400e; /* Tailwind amber-800 */
-            --text-primary: #1f2937; /* Tailwind gray-800 */
-            --text-secondary: #4b5563; /* Tailwind gray-600 */
-            --border-color: #e5e7eb; /* Tailwind gray-200 */
-            --background-light: #f9fafb; /* Tailwind gray-50 */
-            --background-page: #f3f4f6; /* Tailwind gray-100 */
-            --danger-red: #dc2626; /* Tailwind red-600 */
-            --danger-red-dark: #b91c1c; /* Tailwind red-800 */
-            --danger-red-light: #fee2e2; /* Tailwind red-100 */
-             --sky-blue-light: #e0f2fe; /* sky-100 */
-             --sky-blue-dark: #0369a1; /* sky-700 */
-             --sky-blue-border: #bae6fd; /* sky-200 */
-        }
-
-        /* --- Base Styles --- */
-        body {
-            font-family: "Inter", sans-serif;
-            background-color: var(--background-page);
-            color: var(--text-primary);
-            line-height: 1.6;
-            
-            
-        }
-        /* Main Page Title */
-        .page-title {
-            color: var(--dark-green);
-            border-bottom: 2px solid var(--light-green);
-            padding-bottom: 0.5rem;
-        }
-        /* Main Container */
-        .main-container {
-            width: 1200px;
-             background-color: #fff;
-             border-radius: 0.75rem; /* Slightly more rounded */
-             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-
-        /* --- Filter Controls --- */
-        .filter-controls {
-            display: flex;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
-            gap: 1rem; /* Space between filter groups */
-            align-items: center; /* Align items vertically */
-        }
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem; /* Space within a group */
-        }
-        .filter-group label {
-             font-size: 0.875rem; /* Slightly smaller label */
-             font-weight: 500; /* Medium weight */
-             color: var(--text-secondary);
-             flex-shrink: 0;
-        }
-        /* Adjust date input width */
-        .form-date {
-            max-width: 150px; /* Limit width of date inputs */
-        }
-         /* Column Visibility Toggle & Date Range Button */
-        .column-toggle-button, .date-range-button { /* Added date-range-button */
-            background-color: #fff;
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
-            display: inline-flex; /* Ensure icon and text align */
-            align-items: center;
-        }
-        .column-toggle-button:hover, .date-range-button:hover {
-             background-color: var(--background-light);
-             border-color: var(--primary-green);
-             color: var(--text-primary);
-        }
-        .column-toggle-button i, .date-range-button i { margin-right: 0.3rem; }
-
-        .column-checklist {
-            display: none; /* Hidden by default */
-            position: absolute;
-            background-color: white;
-            border: 1px solid var(--border-color);
-            border-radius: 0.375rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            padding: 0.5rem 0; /* Adjust padding */
-            z-index: 50; /* Ensure it's above table */
-            max-height: 250px; /* Limit height */
-            overflow-y: auto;
-            margin-top: 0.25rem; /* Space below button */
-            list-style: none; /* Remove default list styles */
-            right: 0; /* Align to the right of the button group */
-        }
-        .column-checklist li {
-            padding: 0;
-            margin: 0;
-        }
-        .column-checklist.visible { display: block; }
-        .column-checklist label {
-            display: flex;
-            align-items: center;
-            padding: 0.4rem 0.8rem;
-            font-size: 0.9rem;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-         .column-checklist label:hover { background-color: var(--lighter-green); }
-        .column-checklist input[type="checkbox"] { margin-right: 0.5rem; }
-
-
-        /* --- View/Layout Controls Container --- */
-        .view-layout-controls {
-            display: flex;
-            flex-wrap: wrap; /* Allow wrapping */
-            align-items: center;
-            gap: 0.75rem; /* Space between control groups */
-            background-color: var(--background-light); /* Subtle background */
-            padding: 0.5rem 0.75rem; /* Padding around the controls */
-            border-radius: 0.5rem; /* Rounded corners */
-        }
-        .view-layout-controls .filter-group {
-             margin-bottom: 0; /* Remove bottom margin if any */
-        }
-
-
-        /* --- View Switcher --- */
-        .view-switcher button {
-            padding: 0.5rem 1rem; border: 1px solid var(--border-color); background-color: #fff;
-            color: var(--text-secondary); transition: all 0.2s ease;
-        }
-        .view-switcher button:first-child { border-radius: 0.375rem 0 0 0.375rem; }
-        .view-switcher button:last-child { border-radius: 0 0.375rem 0.375rem 0; border-left-width: 0; }
-        .view-switcher button.active {
-            background-color: var(--primary-green); color: #fff; border-color: var(--primary-green); z-index: 10;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .view-switcher button:hover:not(.active) { background-color: var(--background-light); }
-        .view-switcher button i { margin-right: 0.3rem; }
-
-        /* --- Table Styling (Detailed View) --- */
-        .table-container {
-            overflow-x: auto;
-            width: 100%;
-            border-radius: 0.5rem;
-             -webkit-overflow-scrolling: touch;
-        }
-        .table-view {
-             min-width: 950px; /* Adjusted min-width for new column */
-             width: 100%;
-             border-collapse: collapse;
-        }
-        .table-view th, .table-view td { padding: 0.85rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; font-size: 0.9rem; }
-        .table-view th {
-            background-color: var(--primary-green);
-            color: white;
-            font-weight: 600;
-            white-space: nowrap;
-            position: sticky; top: 0; /* Keep header sticky */
-            z-index: 1;
-            border-left: 1px solid var(--dark-green);
-            border-right: 1px solid var(--dark-green);
-        }
-         .table-view th:first-child { border-left: none; }
-         .table-view th:last-child { border-right: none; }
-        .table-view th.sortable { cursor: pointer; position: relative; padding-right: 1.5rem; }
-        .table-view th.sortable .sort-icon { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.8em; color: var(--light-green); opacity: 0.7; transition: opacity 0.2s ease; }
-        .table-view th.sortable:hover .sort-icon { opacity: 1; }
-        .table-view th.sorted-asc .sort-icon, .table-view th.sorted-desc .sort-icon { opacity: 1; color: white; }
-        .table-view tbody tr { transition: background-color 0.2s ease-in-out; }
-        .table-view tbody tr:hover td { background-color: var(--lighter-green); cursor: pointer; }
-        .table-view tbody tr:hover:has(a.view-doc-button:hover) td,
-        .table-view tbody tr:hover:has(select:hover) td { background-color: transparent; cursor: default; }
-
-        .table-view td { white-space: nowrap; color: var(--text-secondary); }
-        .table-view td:first-child { font-weight: 500; color: var(--text-primary); } /* First cell styling */
-        .table-view td.wrap-text { white-space: normal; }
-        .table-view td.actions-cell { white-space: nowrap; }
-        /* Add truncation style for specific table cells if needed */
-         .table-view td.truncate-cell {
-             max-width: 200px; /* Adjust max width as needed */
-             overflow: hidden;
-             text-overflow: ellipsis;
-             white-space: nowrap;
-         }
-
-
-        /* --- Pagination Controls --- */
-        .pagination-controls {
-            display: flex;
-            justify-content: center; /* Center items */
-            align-items: center;
-            padding: 1rem 0.5rem; /* Add some padding */
-            margin-top: 0.5rem; /* Space above controls */
-            border-top: 1px solid var(--border-color);
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            flex-wrap: wrap; /* Allow wrapping on small screens */
-            gap: 0.5rem; /* Add gap between elements */
-        }
-        .pagination-controls button, .pagination-controls .page-number, .pagination-controls .ellipsis {
-            background-color: #fff;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 0.4rem 0.8rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-            font-weight: 500;
-            min-width: 36px; /* Ensure buttons have minimum width */
-            text-align: center;
-        }
-        .pagination-controls .ellipsis {
-            border: none;
-            background: none;
-            cursor: default;
-            padding: 0.4rem 0.2rem; /* Reduce padding for ellipsis */
-        }
-        .pagination-controls button:hover:not(:disabled), .pagination-controls .page-number:hover:not(.active) {
-            background-color: var(--lighter-green);
-            border-color: var(--primary-green);
-            color: var(--dark-green);
-        }
-        .pagination-controls button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background-color: var(--background-light);
-        }
-        .pagination-controls .page-number.active {
-            background-color: var(--primary-green);
-            border-color: var(--primary-green);
-            color: #fff;
-            font-weight: 600;
-            cursor: default;
-        }
-        .pagination-info { display: none; }
-
-
-        /* --- Tile View Styling --- */
-        .tile-view-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
-        .tile-item { background-color: #fff; border: 1px solid var(--border-color); border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s ease, box-shadow 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; /* Prevent content spill */ }
-        .tile-item:hover:not(:has(select:hover)) { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); cursor: pointer; }
-        .tile-header {
-            background-color: var(--primary-green);
-            color: white;
-            padding: 0.75rem 1.25rem; /* Adjust padding */
-        }
-        .tile-header .tile-request-id { font-size: 0.75rem; color: var(--light-green); /* Lighter color on green */ margin-bottom: 0.25rem; display: block; font-weight: 500; }
-        .tile-header .tile-title {
-            font-size: 1.1rem; font-weight: 600; color: white; margin-bottom: 0.25rem;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-         }
-        .tile-header .tile-author { font-size: 0.9rem; color: var(--light-green); /* Lighter color on green */ margin-bottom: 0; }
-        .tile-body { padding: 1rem 1.25rem; flex-grow: 1; } /* Padding for body content */
-        .tile-body p { margin-bottom: 0.3rem; font-size: 0.9rem; color: var(--text-secondary); }
-        .tile-body strong { color: var(--text-primary); }
-        .tile-body .tile-requester { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.75rem; }
-        .tile-actions { margin-top: auto; /* Push actions to bottom */ padding: 0.75rem 1.25rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-start; /* Align action to the left */ align-items: center; gap: 0.5rem; background-color: var(--background-light); /* Light background for footer */ }
-
-        /* --- List View Styling --- */
-        .list-view-container ul { list-style: none; padding: 0; margin: 0; }
-        .list-item {
-            background-color: #fff;
-            border: 1px solid var(--border-color);
-            border-left: 4px solid var(--light-green); /* Default light green left border */
-            border-radius: 0.375rem;
-            margin-bottom: 0.5rem;
-            overflow: hidden;
-            transition: border-left-color 0.2s ease; /* Smooth transition for border color */
-        }
-         .list-item:hover {
-             border-left-color: var(--primary-green); /* Darker green border on hover */
-         }
-         .list-item:hover .list-item-summary {
-             background-color: var(--lighter-green); /* Keep subtle background on summary hover */
-         }
-        .list-item-summary {
-            padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center;
-            cursor: pointer; transition: background-color 0.2s ease;
-            background-color: transparent; /* Make summary background transparent */
-            color: var(--text-primary);
-             border-bottom: 1px solid var(--border-color); /* Add border like table rows */
-        }
-        .list-item-summary .list-info { display: flex; flex-direction: column; flex-grow: 1; margin-right: 1rem; gap: 0.1rem; min-width: 0; /* Allow info section to shrink */ }
-        .list-item-summary .list-info span { display: block; }
-        .list-item-summary .list-info .list-request-id { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; font-weight: 500; }
-        .list-item-summary .list-info .list-requester-name { font-weight: 600; color: var(--dark-green); font-size: 1rem; }
-        .list-item-summary .list-info .list-book-title {
-             font-weight: 500; color: var(--text-primary); margin-top: 0.25rem;
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .list-item-summary .list-info .list-author { font-size: 0.85rem; color: var(--text-secondary);}
-        .list-item-summary .list-info .list-volume { font-size: 0.8rem; color: var(--text-secondary); font-style: italic;}
-        .list-item-summary .list-info .list-email, .list-item-summary .list-info .list-affiliation { font-size: 0.85rem; color: var(--text-secondary); display: none; }
-        .list-item-summary .list-actions { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-        .list-item-summary .expand-icon { margin-left: 0.5rem; color: var(--text-secondary); transition: transform 0.3s ease; } /* Default icon color */
-        .list-item.expanded { border-left-color: var(--primary-green); }
-        .list-item.expanded .list-item-summary { background-color: var(--lighter-green); } /* Light green when expanded */
-        .list-item.expanded .list-item-summary .expand-icon { transform: rotate(180deg); }
-        .list-item-details { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, padding 0.4s ease-out, border-top-color 0.4s ease-out; padding: 0 1rem; background-color: var(--background-light); border-top: 1px solid transparent; }
-        .list-item.expanded .list-item-details { max-height: 500px; padding: 1rem 1rem; border-top: 1px solid var(--border-color); } /* Use standard border color */
-        .list-item-details p { margin-bottom: 0.4rem; font-size: 0.9rem; color: var(--text-secondary); }
-        .list-item-details strong { color: var(--text-primary); min-width: 100px; display: inline-block; }
-        .list-item-details .reason-tags-display .reason-tag-display { display: inline-block; background-color: #e0f2fe; color: #0369a1; padding: 0.1rem 0.5rem; margin: 0.1rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
-        .list-item-details .reason-details-text { background-color: #e5e7eb; padding: 0.5rem; border-radius: 0.25rem; margin-top: 0.25rem; font-size: 0.85rem; display: block; white-space: pre-wrap; }
-         /* Display rejection reason */
-         .rejection-reason-display {
-             background-color: var(--danger-red-light);
-             border: 1px solid var(--danger-red);
-             border-radius: 0.375rem;
-             padding: 0.5rem 0.75rem;
-             margin-top: 0.5rem;
-             font-size: 0.85rem;
-             color: var(--danger-red-dark);
-         }
-         .rejection-reason-display strong { color: var(--danger-red-dark); }
-
-
-         /* Style for the action dropdown (used in List and Tile views) */
-        .list-action-dropdown, .tile-action-dropdown {
-            padding: 0.4rem 2.2rem 0.4rem 0.8rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            border: 1px solid var(--border-color);
-            border-radius: 0.375rem;
-            appearance: none;
-            cursor: pointer;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23b45309' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.7rem center;
-            background-repeat: no-repeat;
-            background-size: 1em 1em;
-            min-width: 120px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-            text-align: center; /* Center the selected option text */
-        }
-        /* Apply pending colors specifically */
-        .list-action-dropdown.status-pending, .tile-action-dropdown.status-pending {
-            background-color: var(--light-gold);
-            color: var(--dark-gold);
-            border-color: var(--gold-accent);
-        }
-         /* Style options within the dropdown */
-        .list-action-dropdown option, .tile-action-dropdown option {
-            background-color: white;
-            color: var(--text-primary);
-            text-align: left; /* Keep option text left-aligned */
-        }
-         /* Attempt hover style (browser support varies) */
-         .list-action-dropdown option:hover, .tile-action-dropdown option:hover {
-             background-color: var(--light-gold) !important; /* Use !important cautiously */
-             color: var(--dark-gold) !important;
-         }
-
-        .list-action-dropdown.status-pending:focus, .tile-action-dropdown.status-pending:focus {
-            outline: 2px solid transparent; outline-offset: 2px; border-color: var(--gold-accent);
-            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2); /* Amber focus ring */
-        }
-
-
-        /* --- Common Styles --- */
-        /* Style for the "View Document" button (used on <a> tag) */
-        .view-doc-button {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--dark-gold);
-            background-color: var(--light-gold);
-            border: 1px solid var(--gold-accent);
-            border-radius: 0.375rem;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            text-align: center;
-        }
-        .view-doc-button:hover {
-            background-color: var(--gold-accent);
-            color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .view-doc-button i { margin-right: 0.25rem; }
-
-        /* MODIFIED: Status label styles to match dropdown */
-        .status-label {
-            font-weight: 500; /* Match dropdown weight */
-            font-size: 0.9rem; /* Match dropdown font size */
-            padding: 0.4rem 0.8rem; /* Match dropdown padding (adjust as needed) */
-            border-radius: 0.375rem; /* Match dropdown radius */
-            display: inline-block;
-            border: 1px solid transparent;
-            text-align: center; /* Center text */
-            min-width: 120px; /* Match dropdown width */
-            white-space: nowrap; /* Prevent wrapping */
-        }
-        .status-pending { background-color: #fef3c7; color: #b45309; border-color: #fde68a; } /* Amber */
-        .status-approved { background-color: #dcfce7; color: #166534; border-color: #bbf7d0; } /* Green */
-        .status-rejected { background-color: #fee2e2; color: #991b1b; border-color: #fecaca; } /* Red */
-
-        .form-select, .form-input, .form-date { /* Added .form-date */
-            border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.5rem 0.75rem;
-            font-size: 0.9rem; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            color: var(--text-secondary); /* Default text color for date placeholder */
-        }
-        .form-select:focus, .form-input:focus, .form-date:focus {
-            outline: 2px solid transparent; outline-offset: 2px; border-color: var(--primary-green);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); /* Emerald focus ring */
-        }
-         /* Style date input when a value is selected */
-        .form-date:valid {
-            color: var(--text-primary); /* Darker text color when date is chosen */
-        }
-        .form-select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.25em 1.25em; padding-right: 2.5rem; }
-
-        /* --- Modal Styles --- */
-        .reason-tags-display .reason-tag-display { display: inline-block; background-color: var(--sky-blue-light); color: var(--sky-blue-dark); padding: 0.1rem 0.5rem; margin: 0.1rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; } /* Sky blue */
-        textarea[readonly] { background-color: var(--background-light); cursor: default; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.65); display: flex; justify-content: center; align-items: center; z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0s linear 0.3s; overflow-y: auto; padding: 20px 0; }
-        .modal-overlay.visible { visibility: visible; opacity: 1; transition: opacity 0.3s ease; }
-        .modal-content { background-color: #fff; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); max-width: 90%; width: 600px; position: relative; margin: auto; text-align: left; border-top: 4px solid var(--primary-green); } /* Green top border */
-        .modal-content h2 { color: var(--dark-green); }
-        .close-button { position: absolute; top: 1rem; right: 1rem; font-size: 1.5rem; cursor: pointer; color: #9ca3af; transition: color 0.3s ease; }
-        .close-button:hover { color: var(--text-primary); }
-        #modalDetailsContent p strong { color: var(--dark-green); font-weight: 600; } /* Bolder labels */
-        #modalDetailsContent hr { border-color: var(--light-green); }
-        /* Modal Buttons */
-        .modal-button {
-            font-weight: 600; 
-            padding: 0.6rem 1.25rem; 
-            border-radius: 0.375rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .modal-button:focus {
-            outline: none;
-            ring: 2px;
-            ring-offset: 2px;
-        }
-        .approve-button { background-color: var(--primary-green); color: white; border: 1px solid var(--primary-green); }
-        .approve-button:hover { background-color: var(--dark-green); border-color: var(--dark-green); }
-        .approve-button:focus { ring-color: var(--primary-green); }
-        .reject-button { background-color: var(--danger-red); color: white; border: 1px solid var(--danger-red); } /* Red-600 */
-        .reject-button:hover { background-color: var(--danger-red-dark); border-color: var(--danger-red-dark); } /* Red-800 */
-        .reject-button:focus { ring-color: var(--danger-red); }
-        /* Secondary button style (for Cancel) */
-        .secondary-button {
-            background-color: #fff; color: var(--text-secondary); border: 1px solid var(--border-color);
-        }
-         .secondary-button:hover { background-color: var(--background-light); }
-         .secondary-button:focus { ring-color: var(--primary-green); }
-
-         /* Rejection Reason Modal Specific Styles */
-         #reasonTagsContainer {
-             display: flex;
-             flex-wrap: wrap;
-             gap: 0.5rem;
-             margin-bottom: 1rem;
-         }
-         .reason-tag {
-             display: inline-block;
-             padding: 0.3rem 0.75rem;
-             border: 1px solid var(--border-color);
-             border-radius: 9999px; /* Pill shape */
-             font-size: 0.85rem;
-             cursor: pointer;
-             transition: all 0.2s ease;
-             background-color: #fff;
-             color: var(--text-secondary);
-         }
-         .reason-tag:hover {
-             background-color: var(--lighter-green);
-             border-color: var(--primary-green);
-         }
-         .reason-tag.active {
-             background-color: var(--sky-blue-light);
-             color: var(--sky-blue-dark);
-             border-color: var(--sky-blue-border);
-             font-weight: 500;
-         }
-         #rejectionOtherReasonContainer {
-             margin-top: 0.75rem;
-         }
-
-
-        /* --- Confirmation Message Styling --- */
-        .confirmation-message {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            color: white; padding: 0.8rem 1.5rem; border-radius: 0.5rem;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); z-index: 1001;
-            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s;
-            font-size: 0.9rem; font-weight: 500;
-        }
-        /* MODIFIED: Added background colors for confirmation types */
-        .confirmation-message.success { background-color: var(--dark-green); }
-        .confirmation-message.error { background-color: var(--danger-red-dark); }
-        .confirmation-message.visible { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }
-
-        /* Confirmation message */
-        #confirmationMessage {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 4px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 1000;
-            font-weight: 500;
-            max-width: 90%;
-            text-align: center;
-        }
-        
-        #confirmationMessage.visible {
-            opacity: 1;
-        }
-        
-        #confirmationMessage.success {
-            background-color: var(--brand-green);
-            color: white;
-        }
-        
-        #confirmationMessage.error {
-            background-color: #DC2626;
-            color: white;
-        }
-        
-        #confirmationMessage.warning {
-            background-color: #F59E0B;
-            color: white;
-        }
-
-        /* Detailed confirmation popup */
-        #detailedConfirmation {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-            padding: 1.5rem;
-            max-width: 90%;
-            width: 450px;
-            z-index: 3000; /* Higher z-index to ensure it appears above ALL other elements */
-            display: none;
-            animation: fadeIn 0.3s ease-out;
-            /* Add additional visibility properties */
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.3s, visibility 0.3s;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -48%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-        }
-        
-        #detailedConfirmation .file-status-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-        
-        #detailedConfirmation .message-title {
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-        
-        #detailedConfirmation .message-details {
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-            line-height: 1.5;
-        }
-        
-        #detailedConfirmation .buttons-container {
-            display: flex;
-            justify-content: flex-end;
-        }
-        
-        #detailedConfirmation button.close-button {
-            color: var(--text-secondary);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.2rem;
-            padding: 0.2rem;
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            transition: color 0.2s ease;
-        }
-        
-        #detailedConfirmation button.close-button:hover {
-            color: var(--text-primary);
-        }
-        
-        #detailedConfirmation button.ok-button {
-            background-color: var(--background-light);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        #detailedConfirmation button.ok-button:hover {
-            background-color: var(--border-color);
-        }
-        
-        #detailedConfirmation.success .header-icon {
-            color: var(--primary-green);
-        }
-        
-        #detailedConfirmation.warning .header-icon {
-            color: var(--gold-accent);
-        }
-        
-        #detailedConfirmation.error .header-icon {            
-            color: var(--danger-red);        
-        }                
-        
-        /* Add styles for content container */        
-        #detailedConfirmation .content-container {            
-            position: relative;            
-            padding: 0.5rem 1rem 1rem 1rem;        
-        }                
-        
-        #detailedConfirmation.success .content-container {            
-            border-left: 4px solid var(--primary-green);        
-        }                
-        
-        #detailedConfirmation.warning .content-container {            
-            border-left: 4px solid var(--gold-accent);        
-        }                
-        
-        #detailedConfirmation.error .content-container {            
-            border-left: 4px solid var(--danger-red);        
-        }                
-        
-        #detailedConfirmation .flex {            
-            display: flex;        
-        }                
-        
-        #detailedConfirmation .items-center {            
-            align-items: center;        
-        }                
-        
-        #detailedConfirmation .mb-4 {            
-            margin-bottom: 1rem;        
-        }                
-        
-        #detailedConfirmation .mr-3 {            
-            margin-right: 0.75rem;        
-        }
-
-        /* Added CSS for detailed confirmation */
-        #detailedConfirmation .header-icon {
-            font-size: 1.5rem;
-        }
-        
-        #detailedConfirmation .file-status-icon {
-            display: inline-block;
-            margin-right: 0.5rem;
-        }
-
-        #detailedConfirmation .file-status-badge {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-            font-weight: 500;
-            text-align: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        #detailedConfirmation .file-status-badge::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
-            animation: shine 2s infinite;
-            pointer-events: none;
-        }
-        
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-        
-        /* Existing header-icon and file-status-icon styles */
-        #detailedConfirmation .header-icon {
-            font-size: 1.5rem;
-        }
-        
-        #detailedConfirmation .file-status-icon {
-            display: inline-block;
-            margin-right: 0.5rem;
-            font-size: 1.25rem; /* Larger icon size */
-        }
-    </style>
     <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
     <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
     <link rel="stylesheet" href="/admin/Components/css/document-permissions.css">
     <script src="/admin/Components/js/toast.js"></script>
+    <script src="/Components/js/system-ui.js" defer></script>
+    <script src="/admin/Components/js/side_bar.js"></script>
 </head>
-<body class="p-0">
+<body>
     <!-- Navbar container -->
-  <div id="navbar-header"></div>
+    <div id="navbar-header"></div>
     <div id="sidebar-container"></div>
-  
-    <div class="main-container max-w-7xl mx-auto p-6 md:p-8">
-        <h1 class="page-title text-2xl md:text-3xl font-bold mb-6 text-center">Document Access Requests</h1>
 
-        <div class="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4 lg:gap-6">
-            <div class="filter-controls w-full lg:w-auto flex-grow lg:flex-grow-0">
-                <div class="filter-group">
-                    <label for="statusFilter">Status:</label>
-                    <select id="statusFilter" class="form-select">
+    <main class="main-container p-6 md:p-8">
+        <div class="mb-6 border-b border-gray-200 pb-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Document Access Requests</h1>
+            <p class="mt-1 text-sm text-gray-500">Review, approve, or reject requests to access library documents.</p>
+        </div>
+
+        <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-6">
+            <div class="filter-controls flex flex-wrap items-center gap-3">
+                <div class="filter-group flex items-center gap-2">
+                    <label for="statusFilter" class="text-sm font-medium text-gray-700">Status</label>
+                    <select id="statusFilter" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5">
                         <option value="all">All Status</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                     </select>
                 </div>
-                 <div class="filter-group">
-                    <button id="dateRangeButton" class="date-range-button" type="button">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span id="dateRangeButtonText">Date Range</span>
-                    </button>
-                 </div>
-                <div class="filter-group flex-grow sm:flex-grow-0">
-                    <label for="searchInput" class="sr-only">Search:</label> <input type="text" id="searchInput" class="form-input w-full sm:w-48" placeholder="Search...">
+                <button id="dateRangeButton" type="button" class="inline-flex items-center py-2.5 px-4 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 hover:text-brand focus:z-10 focus:ring-4 focus:ring-gray-100">
+                    <i class="fas fa-calendar-alt me-2 text-gray-500"></i>
+                    <span id="dateRangeButtonText">Date Range</span>
+                </button>
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                        <i class="fas fa-search text-gray-400 text-sm"></i>
+                    </div>
+                    <label for="searchInput" class="sr-only">Search</label>
+                    <input type="text" id="searchInput" class="block w-full sm:w-64 p-2.5 ps-9 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand" placeholder="Search requests...">
                 </div>
             </div>
 
-            <div class="view-layout-controls flex-shrink-0">
-                 <div class="filter-group" id="layoutControlGroup"> <label for="columnOrderSelect">Layout:</label>
-                    <select id="columnOrderSelect" class="form-select">
+            <div class="view-layout-controls flex flex-wrap items-center gap-3">
+                <div class="filter-group flex items-center gap-2" id="layoutControlGroup">
+                    <label for="columnOrderSelect" class="text-sm font-medium text-gray-700">Layout</label>
+                    <select id="columnOrderSelect" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5">
                         <option value="default">Default</option>
                         <option value="requesterFirst">Requester First</option>
                         <option value="bookFirst">Book First</option>
                     </select>
                 </div>
-                 <div class="filter-group relative" id="columnToggleGroup"> <button id="columnToggleButton" class="column-toggle-button" type="button" style="display: none;"> <i class="fas fa-columns"></i> Columns
+                <div class="filter-group relative" id="columnToggleGroup">
+                    <button id="columnToggleButton" type="button" style="display: none;" class="column-toggle-button inline-flex items-center py-2.5 px-4 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 hover:text-brand focus:z-10 focus:ring-4 focus:ring-gray-100">
+                        <i class="fas fa-columns me-2 text-gray-500"></i>Columns
+                        <i class="fas fa-chevron-down ms-2 text-xs text-gray-400"></i>
                     </button>
-                    <ul id="columnChecklist" class="column-checklist">
-                        </ul>
+                    <ul id="columnChecklist" class="column-checklist"></ul>
                 </div>
-                <div class="view-switcher flex flex-shrink-0" role="group">
-                    <button type="button" data-view="list" title="List View">
-                        <i class="fas fa-list fa-fw"></i> <span class="hidden sm:inline">List</span>
+                <div class="view-switcher inline-flex rounded-lg shadow-sm" role="group">
+                    <button type="button" data-view="list" title="List View" class="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-s-lg hover:bg-gray-100 hover:text-brand focus:z-10 focus:ring-2 focus:ring-brand/30 transition-colors">
+                        <i class="fas fa-list fa-fw me-1.5"></i><span class="hidden sm:inline">List</span>
                     </button>
-                    <button type="button" data-view="detailed" title="Detailed Table View" class="active">
-                        <i class="fas fa-table fa-fw"></i> <span class="hidden sm:inline">Detailed</span>
+                    <button type="button" data-view="detailed" title="Detailed Table View" class="active inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border-t border-b border-gray-300 hover:bg-gray-100 hover:text-brand focus:z-10 focus:ring-2 focus:ring-brand/30 transition-colors">
+                        <i class="fas fa-table fa-fw me-1.5"></i><span class="hidden sm:inline">Detailed</span>
                     </button>
-                    <button type="button" data-view="tile" title="Tile View">
-                        <i class="fas fa-th-large fa-fw"></i> <span class="hidden sm:inline">Tile</span>
+                    <button type="button" data-view="tile" title="Tile View" class="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-e-lg hover:bg-gray-100 hover:text-brand focus:z-10 focus:ring-2 focus:ring-brand/30 transition-colors">
+                        <i class="fas fa-th-large fa-fw me-1.5"></i><span class="hidden sm:inline">Tile</span>
                     </button>
                 </div>
             </div>
         </div>
 
         <div id="requestsContentContainer">
-            <p class="text-center text-gray-600" id="loadingMessage">Loading requests...</p>
+            <p class="text-center text-gray-500 py-8" id="loadingMessage">
+                <i class="fas fa-circle-notch fa-spin me-2"></i>Loading requests...
+            </p>
         </div>
-    </div>
+    </main>
 
-    <div id="requestDetailsModal" class="modal-overlay">
-       <div class="modal-content">
-            <span class="close-button" id="closeDetailsModalButton">&times;</span>
-            <h2 class="text-xl font-semibold mb-6 text-center">Request Details</h2>
-            <div id="modalDetailsContent">
+    <!-- Request Details Modal -->
+    <div id="requestDetailsModal" class="modal-overlay" tabindex="-1" aria-hidden="true">
+        <div class="modal-content relative w-full max-w-2xl">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 rounded-t">
+                <h2 class="text-xl font-semibold text-gray-900">Request Details</h2>
+                <button type="button" id="closeDetailsModalButton" class="text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fas fa-times"></i>
+                    <span class="sr-only">Close modal</span>
+                </button>
+            </div>
+            <div id="modalDetailsContent" class="p-4 md:p-5 text-sm text-gray-600">
                 <p><strong>Request ID:</strong> <span id="detailRequestId"></span></p>
-                <hr class="my-3">
+                <hr class="my-3 border-gray-200">
                 <p><strong>Requester Name:</strong> <span id="detailFullName"></span></p>
                 <p><strong>Email:</strong> <span id="detailEmail"></span></p>
                 <p><strong>Affiliation:</strong> <span id="detailAffiliation"></span></p>
                 <p><strong>Date Requested:</strong> <span id="detailRequestedAt"></span></p>
-                <hr class="my-3">
+                <hr class="my-3 border-gray-200">
                 <p><strong>Book Title:</strong> <span id="detailBookTitle"></span></p>
                 <p><strong>Author:</strong> <span id="detailAuthorName"></span></p>
                 <p><strong>Volume:</strong> <span id="detailVolume"></span></p>
-                <div class="mt-2"> <a id="detailDocumentLink" href="#" target="_blank" class="view-doc-button">View Document</a>
+                <div class="mt-2">
+                    <a id="detailDocumentLink" href="#" target="_blank" class="view-doc-button"><i class="fas fa-file-pdf"></i>View Document</a>
                 </div>
-                <hr class="my-3">
+                <hr class="my-3 border-gray-200">
                 <div class="mt-4">
-                    <p class="text-sm font-bold mb-1">Reason(s) for Access:</p>
+                    <p class="text-sm font-bold mb-1 text-gray-900">Reason(s) for Access:</p>
                     <div id="detailReasons" class="reason-tags-display"></div>
                 </div>
                 <div id="detailReasonDetailsSection" class="mt-4 hidden">
-                    <label class="block text-sm font-bold mb-2">Reason Details:</label>
-                    <textarea id="detailReasonDetails" class="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight bg-gray-50" rows="4" readonly></textarea>
+                    <label class="block text-sm font-bold mb-2 text-gray-900">Reason Details:</label>
+                    <textarea id="detailReasonDetails" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-700 focus:ring-brand focus:border-brand" rows="4" readonly></textarea>
                 </div>
-                 <div id="detailRejectionReasonSection" class="mt-4 hidden">
-                     <p class="rejection-reason-display"><strong>Rejection Reason:</strong><br><span id="detailRejectionReason"></span></p>
-                 </div>
-                <hr class="my-3">
-                <p class="mt-4"><strong>Status:</strong> <span id="detailStatus" class="status-label"></span></p>
+                <div id="detailRejectionReasonSection" class="mt-4 hidden">
+                    <p class="rejection-reason-display"><strong>Rejection Reason:</strong><br><span id="detailRejectionReason"></span></p>
+                </div>
+                <hr class="my-3 border-gray-200">
+                <p class="mt-4 flex items-center gap-2"><strong>Status:</strong> <span id="detailStatus" class="status-label"></span></p>
                 <p id="detailProcessedAt" class="mt-2 text-sm text-gray-500 hidden"><strong>Processed At:</strong> <span></span></p>
             </div>
-            <div id="modalActions" class="flex justify-center gap-4 mt-6">
-                </div>
+            <div id="modalActions" class="flex items-center justify-end gap-3 p-4 md:p-5 border-t border-gray-200 rounded-b"></div>
         </div>
     </div>
 
-     <div id="rejectionReasonModal" class="modal-overlay">
-         <div class="modal-content" style="border-top-color: var(--danger-red);">
-             <span class="close-button" id="closeRejectionModalButton">&times;</span>
-             <h2 class="text-xl font-semibold mb-4 text-center text-red-700">Provide Rejection Reason</h2>
-             <p class="text-sm text-gray-600 mb-4">Select reason(s) for rejecting request <strong id="rejectModalRequestId"></strong>.</p>
-             <form id="rejectionForm">
-                 <input type="hidden" id="rejectionRequestId">
-                 <div class="mb-4">
-                     <label class="block text-sm font-medium text-gray-700 mb-2">Select Reason(s):</label>
-                     <div id="reasonTagsContainer">
-                        <span class="reason-tag" data-reason="Insufficient Information">Insufficient Information</span>
-                        <span class="reason-tag" data-reason="Duplicate Request">Duplicate Request</span>
-                        <span class="reason-tag" data-reason="Policy Violation">Policy Violation</span>
-                        <span class="reason-tag" data-reason="Document Unavailable">Document Unavailable</span>
-                        <span class="reason-tag" data-reason="Invalid Justification">Invalid Justification</span>
-                        <span class="reason-tag" data-reason="Other">Other (Specify Below)</span>
-                     </div>
-                 </div>
-                 <div id="rejectionOtherReasonContainer" class="mb-4 hidden">
-                     <label for="rejectionOtherReasonText" class="block text-sm font-medium text-gray-700 mb-1">Specify Other Reason:</label>
-                     <textarea id="rejectionOtherReasonText" name="rejectionOtherReason" rows="3" class="form-input w-full" placeholder="Please provide details..."></textarea>
-                 </div>
-                 <div class="flex justify-end gap-3 mt-6">
-                     <button type="button" id="cancelRejectionButton" class="modal-button secondary-button">Cancel</button>
-                     <button type="submit" class="modal-button reject-button">Submit Rejection</button>
-                 </div>
-             </form>
-         </div>
-     </div>
+    <!-- Rejection Reason Modal -->
+    <div id="rejectionReasonModal" class="modal-overlay" tabindex="-1" aria-hidden="true">
+        <div class="modal-content relative w-full max-w-xl">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 rounded-t">
+                <h2 class="text-xl font-semibold text-red-700">Provide Rejection Reason</h2>
+                <button type="button" id="closeRejectionModalButton" class="text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fas fa-times"></i>
+                    <span class="sr-only">Close modal</span>
+                </button>
+            </div>
+            <form id="rejectionForm">
+                <div class="p-4 md:p-5">
+                    <p class="text-sm text-gray-600 mb-4">Select reason(s) for rejecting request <strong id="rejectModalRequestId" class="text-gray-900"></strong>.</p>
+                    <input type="hidden" id="rejectionRequestId">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Reason(s):</label>
+                        <div id="reasonTagsContainer">
+                            <span class="reason-tag" data-reason="Insufficient Information">Insufficient Information</span>
+                            <span class="reason-tag" data-reason="Duplicate Request">Duplicate Request</span>
+                            <span class="reason-tag" data-reason="Policy Violation">Policy Violation</span>
+                            <span class="reason-tag" data-reason="Document Unavailable">Document Unavailable</span>
+                            <span class="reason-tag" data-reason="Invalid Justification">Invalid Justification</span>
+                            <span class="reason-tag" data-reason="Other">Other (Specify Below)</span>
+                        </div>
+                    </div>
+                    <div id="rejectionOtherReasonContainer" class="mb-2 hidden">
+                        <label for="rejectionOtherReasonText" class="block text-sm font-medium text-gray-700 mb-1">Specify Other Reason:</label>
+                        <textarea id="rejectionOtherReasonText" name="rejectionOtherReason" rows="3" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:ring-brand focus:border-brand" placeholder="Please provide details..."></textarea>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-3 p-4 md:p-5 border-t border-gray-200 rounded-b">
+                    <button type="button" id="cancelRejectionButton" class="modal-button secondary-button">Cancel</button>
+                    <button type="submit" class="modal-button reject-button">Submit Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-     <div id="dateRangeModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="close-button" id="closeDateRangeModalButton">&times;</span>
-            <h2 class="text-xl font-semibold mb-6 text-center">Select Date Range</h2>
+    <!-- Date Range Modal -->
+    <div id="dateRangeModal" class="modal-overlay" tabindex="-1" aria-hidden="true">
+        <div class="modal-content relative w-full max-w-md">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 rounded-t">
+                <h2 class="text-xl font-semibold text-gray-900">Select Date Range</h2>
+                <button type="button" id="closeDateRangeModalButton" class="text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fas fa-times"></i>
+                    <span class="sr-only">Close modal</span>
+                </button>
+            </div>
             <form id="dateRangeForm">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div class="p-4 md:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label for="modalStartDate" class="block text-sm font-medium text-gray-700 mb-1">Start Date:</label>
-                        <input type="date" id="modalStartDate" name="startDate" class="form-date w-full">
+                        <input type="date" id="modalStartDate" name="startDate" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand focus:border-brand block w-full p-2.5">
                     </div>
                     <div>
                         <label for="modalEndDate" class="block text-sm font-medium text-gray-700 mb-1">End Date:</label>
-                        <input type="date" id="modalEndDate" name="endDate" class="form-date w-full">
+                        <input type="date" id="modalEndDate" name="endDate" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand focus:border-brand block w-full p-2.5">
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 mt-6">
+                <div class="flex items-center justify-end gap-3 p-4 md:p-5 border-t border-gray-200 rounded-b">
                     <button type="button" id="cancelDateRangeButton" class="modal-button secondary-button">Cancel</button>
                     <button type="submit" class="modal-button approve-button">Apply</button>
                 </div>
@@ -888,51 +213,49 @@
     </div>
 
     <!-- Rejection Confirmation Modal -->
-    <div id="rejectionConfirmationModal" class="modal-overlay">
-        <div class="modal-content" style="border-top-color: var(--danger-red);">
-            <span class="close-button" id="closeRejectionConfirmationModalButton">&times;</span>
-            <h2 class="text-xl font-semibold mb-4 text-center text-red-700">Request Rejected</h2>
-            
-            <div class="text-center mb-6">
-                <div class="inline-block bg-red-100 rounded-full p-3 mb-4">
-                    <i class="fas fa-times-circle text-3xl text-red-600"></i>
-                </div>
-                <p class="text-lg font-medium text-gray-800 mb-2">The request has been rejected successfully</p>
-                <p class="text-sm text-gray-600" id="rejectionConfirmationDetails">The requester will be notified by email.</p>
+    <div id="rejectionConfirmationModal" class="modal-overlay" tabindex="-1" aria-hidden="true">
+        <div class="modal-content relative w-full max-w-lg">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 rounded-t">
+                <h2 class="text-xl font-semibold text-red-700">Request Rejected</h2>
+                <button type="button" id="closeRejectionConfirmationModalButton" class="text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fas fa-times"></i>
+                    <span class="sr-only">Close modal</span>
+                </button>
             </div>
-            
-            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-info-circle text-red-600"></i>
+            <div class="p-4 md:p-5">
+                <div class="text-center mb-6">
+                    <div class="inline-flex items-center justify-center bg-red-100 rounded-full w-14 h-14 mb-4">
+                        <i class="fas fa-times-circle text-3xl text-red-600"></i>
                     </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-800" id="rejectionReasonDisplay">
-                            Rejection reason will appear here
-                        </p>
-                    </div>
+                    <p class="text-lg font-medium text-gray-800 mb-2">The request has been rejected successfully</p>
+                    <p class="text-sm text-gray-600" id="rejectionConfirmationDetails">The requester will be notified by email.</p>
                 </div>
-            </div>
-            
-            <div id="rejectionEmailStatus" class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 hidden">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-exclamation-triangle text-yellow-600"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-yellow-800" id="rejectionEmailMessage">
-                            Email notification status will appear here
-                        </p>
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-e-lg">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-red-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-800" id="rejectionReasonDisplay">Rejection reason will appear here</p>
+                        </div>
                     </div>
                 </div>
+                <div id="rejectionEmailStatus" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-e-lg hidden">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-800" id="rejectionEmailMessage">Email notification status will appear here</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="flex justify-center gap-3 mt-6">
+            <div class="flex items-center justify-center gap-3 p-4 md:p-5 border-t border-gray-200 rounded-b">
                 <button id="rejectionConfirmationCloseButton" class="modal-button secondary-button">Close</button>
             </div>
         </div>
     </div>
-
 
     <div id="confirmationMessage" class="confirmation-message"> Action successful! </div>
 
@@ -1425,6 +748,8 @@
                         if (colDef.format) {
                             cellContent = colDef.format(cellContent, request);
                             td.innerHTML = cellContent; // Use innerHTML for formatted content like status/actions
+                        } else if (colKey === 'book_title') {
+                            td.innerHTML = cellContent; // Compiled titles include a badge
                         } else {
                             td.textContent = cellContent;
                         }
@@ -2662,9 +1987,7 @@
             currentColumnOrder = event.target.value;
             saveColumnOrder(); // Save preference
             renderColumnVisibilityControl(); // Re-render checklist and show/hide button
-            if (currentView === 'detailed') {
-                renderTable(); // Re-render table immediately if in detailed view
-            }
+            renderActiveView(); // Re-render and update control-group visibility
         });
 
         // Column Toggle Button click
@@ -2983,7 +2306,7 @@
             
             // If not compiled, just return the regular title
             if (!isCompiled) {
-                return getRequestData(request, 'book_title', 'N/A');
+                return getRequestData(request, 'book_title', 'N/A') || 'N/A';
             }
             
             // For compiled documents, format according to the specification
