@@ -5,6 +5,7 @@ import { CategoryIcon } from "../../components/documents/CategoryIcon";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
 import { PublicFooter } from "../../components/public/PublicFooter";
 import { PublicNavbar } from "../../components/public/PublicNavbar";
+import { PrismDiagram } from "../../components/public/PrismDiagram";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { fetchPublicHomeData, keywordSearchUrl, searchResultsUrl, type PublicHomeData } from "../../lib/api/public";
@@ -175,6 +176,15 @@ export function PublicHomePage() {
             <FeatureItem icon={<Sparkles aria-hidden="true" />} title="Innovation and discovery" />
             <FeatureItem icon={<UsersRound aria-hidden="true" />} title="Community partnership" />
           </div>
+        </section>
+
+        <section className="peas-public-band" aria-labelledby="prism-title">
+          <div className="peas-public-section-head">
+            <span>Framework</span>
+            <h2 id="prism-title">The PRISM framework</h2>
+            <p>Right mindset, right method, and right motivation driving transformative outcome-based education.</p>
+          </div>
+          <PrismDiagram />
         </section>
 
         <section className="peas-public-band peas-public-band--soft" aria-labelledby="latest-title">

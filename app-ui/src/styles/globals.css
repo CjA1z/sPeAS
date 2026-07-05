@@ -1,4 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "./theme.css";
+
+:root {
+  --font-body: Inter, sans-serif;
+  --font-display: "Times New Roman", Times, serif;
+}
+
+html,
+body {
+  font-family: var(--font-body);
+}
 
 #react-documents-admin-root,
 #react-upload-admin-root,
@@ -24,7 +35,7 @@
 .peas-ui-dropdown-content *,
 .peas-ui-tooltip-content {
   box-sizing: border-box;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 .peas-admin-island {
@@ -62,7 +73,8 @@ body:has(#react-permissions-admin-root) {
 }
 
 .peas-admin-sidebar {
-  background: #ffffff;
+  /* frost comes from the GlassBackdrop layer rendered inside */
+  background: transparent;
   border-right: 1px solid var(--border-soft);
   bottom: 0;
   box-shadow: var(--shadow-sm);
@@ -217,7 +229,8 @@ body:has(#react-permissions-admin-root) {
 
 .peas-admin-topbar {
   align-items: center;
-  background: rgba(255, 255, 255, 0.94);
+  /* frost comes from the GlassBackdrop layer rendered inside */
+  background: transparent;
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   height: 72px;
@@ -239,7 +252,9 @@ body:has(#react-permissions-admin-root) {
 .peas-admin-collapse-btn,
 .peas-admin-icon-btn {
   align-items: center;
-  background: #ffffff;
+  backdrop-filter: blur(10px) saturate(1.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   color: var(--academic-slate);
@@ -274,7 +289,9 @@ body:has(#react-permissions-admin-root) {
 }
 
 .peas-admin-user {
-  background: #ffffff;
+  backdrop-filter: blur(10px) saturate(1.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   min-height: 46px;
@@ -449,7 +466,8 @@ body:has(#react-permissions-admin-root) {
   align-items: center;
   background: #ffffff;
   border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  /* 18.2% of 60px height — same corner ratio as the 44px icon tile's 8px radius */
+  border-radius: 11px;
   box-shadow: var(--shadow-xs);
   color: var(--foreground);
   cursor: pointer;
@@ -2068,11 +2086,15 @@ body:has(#react-public-search-root) {
 }
 
 .peas-public-page,
-.peas-public-page *,
 .peas-public-mobile-menu,
+.peas-public-mobile-menu {
+  box-sizing: border-box;
+  font-family: var(--font-body);
+}
+
+.peas-public-page *,
 .peas-public-mobile-menu * {
   box-sizing: border-box;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .peas-public-page {
@@ -2082,8 +2104,8 @@ body:has(#react-public-search-root) {
 
 .peas-public-navbar {
   align-items: center;
-  backdrop-filter: blur(18px);
-  background: rgba(255, 255, 255, 0.92);
+  /* frost comes from the GlassBackdrop layer rendered inside */
+  background: transparent;
   border-bottom: 1px solid rgba(226, 232, 240, 0.86);
   display: grid;
   gap: 18px;
@@ -2168,7 +2190,9 @@ body:has(#react-public-search-root) {
 .peas-public-navsearch,
 .peas-public-mobile-search {
   align-items: center;
-  background: #ffffff;
+  backdrop-filter: blur(10px) saturate(1.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   display: flex;
@@ -2325,6 +2349,7 @@ body:has(#react-public-search-root) {
 }
 
 .peas-public-hero h1 {
+  font-family: var(--font-display);
   font-size: clamp(2.4rem, 5vw, 5.6rem);
   font-weight: 900;
   letter-spacing: 0;
@@ -2476,6 +2501,7 @@ body:has(#react-public-search-root) {
 
 .peas-public-section-head h2 {
   color: var(--foreground);
+  font-family: var(--font-display);
   font-size: clamp(1.8rem, 3.3vw, 3.25rem);
   font-weight: 900;
   letter-spacing: 0;
@@ -3053,7 +3079,10 @@ body:has(#react-public-search-root) {
 }
 
 .peas-public-mobile-panel {
-  background: #ffffff;
+  /* frost comes from the GlassBackdrop layer rendered inside; the panel must
+     be positioned so the backdrop fills the panel, not the fixed overlay */
+  background: transparent;
+  position: relative;
   box-shadow: var(--shadow-lg);
   display: grid;
   gap: 10px;
@@ -3529,5 +3558,303 @@ body:has(#react-public-search-root) {
 
   .peas-public-search-skeleton {
     grid-template-columns: 1fr;
+  }
+}
+
+/* PRISM education diagram (PrismDiagram.tsx) */
+.peas-prism-diagram {
+  --prism-bg: #4d6c70;
+  --prism-orange: #e98131;
+  --prism-yellow: #ffc15d;
+  --prism-green: #7ed957;
+  --prism-ink: #070707;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.95fr) minmax(280px, 1.25fr) minmax(210px, 0.88fr);
+  gap: clamp(14px, 2.2vw, 44px);
+  align-items: stretch;
+  width: 100%;
+  min-height: clamp(340px, 32vw, 620px);
+  padding: clamp(16px, 2.2vw, 44px);
+  overflow: hidden;
+  background: var(--prism-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.peas-prism-diagram * {
+  box-sizing: border-box;
+}
+
+.peas-prism-diagram svg path,
+.peas-prism-diagram svg line {
+  vector-effect: non-scaling-stroke;
+}
+
+.peas-prism-stage,
+.peas-prism-flow {
+  position: relative;
+  min-height: clamp(260px, 26vw, 500px);
+}
+
+.peas-prism-triangle {
+  position: absolute;
+  left: 0;
+  top: 7%;
+  width: 100%;
+  height: 86%;
+  background: var(--prism-yellow);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  filter: drop-shadow(0 0 0.6px var(--prism-ink));
+}
+
+.peas-prism-triangle::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  border: 2px solid var(--prism-ink);
+  opacity: 0.85;
+}
+
+.peas-prism-label {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  background: var(--prism-orange);
+  color: var(--prism-ink);
+  border: 2px solid #916123;
+  border-radius: 5px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.35) inset;
+  z-index: 4;
+}
+
+.peas-prism-mindset {
+  left: 10%;
+  top: 31%;
+  width: 80%;
+  height: 23%;
+  font-size: clamp(0.88rem, 1.35vw, 1.6rem);
+}
+
+.peas-prism-method {
+  left: 3%;
+  top: 4%;
+  width: 56%;
+  height: 19%;
+  font-size: clamp(0.82rem, 1.15vw, 1.35rem);
+}
+
+.peas-prism-title {
+  position: absolute;
+  left: 24%;
+  top: 63%;
+  width: 52%;
+  text-align: center;
+  font-size: clamp(2rem, 3.2vw, 4.35rem);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: var(--prism-ink);
+  z-index: 3;
+}
+
+.peas-prism-curved-arrow {
+  position: absolute;
+  left: 92%;
+  top: 11%;
+  width: 26%;
+  height: 31%;
+  z-index: 5;
+  overflow: visible;
+}
+
+.peas-prism-top-arrow {
+  position: absolute;
+  left: 57%;
+  top: 11.5%;
+  width: 48%;
+  height: 8%;
+  z-index: 3;
+  overflow: visible;
+}
+
+.peas-prism-main-arrow {
+  position: absolute;
+  left: 0;
+  top: 30%;
+  width: 94%;
+  height: 48%;
+  background: var(--prism-yellow);
+  clip-path: polygon(0 15%, 67% 15%, 67% 0, 100% 50%, 67% 100%, 67% 76%, 0 76%);
+  z-index: 1;
+}
+
+.peas-prism-main-arrow-text {
+  position: absolute;
+  left: 8%;
+  top: 45%;
+  width: 58%;
+  text-align: center;
+  z-index: 2;
+  color: var(--prism-ink);
+  line-height: 1.25;
+  font-size: clamp(0.82rem, 1.15vw, 1.35rem);
+}
+
+.peas-prism-main-arrow-text strong {
+  display: block;
+  font-size: clamp(0.92rem, 1.35vw, 1.55rem);
+  letter-spacing: 0.2px;
+}
+
+.peas-prism-card {
+  display: grid;
+  grid-template-rows: 14% 61% 25%;
+  align-self: center;
+  justify-self: end;
+  width: 100%;
+  aspect-ratio: 7 / 8;
+  border: 2px solid #10250e;
+  background: var(--prism-green);
+  box-shadow: 2px 2px 0 rgba(255, 255, 255, 0.2) inset;
+  z-index: 4;
+}
+
+.peas-prism-card-title,
+.peas-prism-card-footer {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--prism-ink);
+  text-align: center;
+}
+
+.peas-prism-card-title {
+  font-style: italic;
+  font-weight: 800;
+  font-size: clamp(0.86rem, 1.18vw, 1.45rem);
+}
+
+.peas-prism-card-image {
+  width: 100%;
+  min-height: 0;
+  border-top: 2px solid #33622b;
+  border-bottom: 2px solid #33622b;
+  overflow: hidden;
+}
+
+.peas-prism-card-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.peas-prism-card-footer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding-bottom: 3%;
+}
+
+.peas-prism-card-footer em {
+  font-size: clamp(0.82rem, 1.05vw, 1.3rem);
+  line-height: 1.1;
+}
+
+.peas-prism-card-footer strong {
+  font-size: clamp(0.92rem, 1.35vw, 1.6rem);
+  line-height: 1.1;
+}
+
+@media (max-width: 840px) {
+  .peas-prism-diagram {
+    grid-template-columns: 1fr;
+    gap: clamp(18px, 5vw, 28px);
+    min-height: auto;
+    padding: clamp(14px, 4vw, 24px);
+    box-shadow: none;
+  }
+
+  .peas-prism-stage {
+    min-height: clamp(240px, 66vw, 360px);
+  }
+
+  .peas-prism-flow {
+    min-height: clamp(250px, 64vw, 340px);
+  }
+
+  .peas-prism-curved-arrow,
+  .peas-prism-top-arrow {
+    display: none;
+  }
+
+  .peas-prism-triangle {
+    left: 12%;
+    width: 76%;
+  }
+
+  .peas-prism-mindset {
+    left: 22%;
+    width: 56%;
+    height: 20%;
+    font-size: clamp(0.94rem, 4.2vw, 1.3rem);
+  }
+
+  .peas-prism-title {
+    left: 30%;
+    width: 40%;
+    font-size: clamp(2.1rem, 10vw, 3.2rem);
+  }
+
+  .peas-prism-method {
+    left: 50%;
+    top: 0;
+    width: min(78%, 360px);
+    height: 58px;
+    transform: translateX(-50%);
+    font-size: clamp(0.94rem, 4vw, 1.25rem);
+  }
+
+  .peas-prism-main-arrow {
+    left: 50%;
+    top: 76px;
+    width: min(78%, 320px);
+    height: calc(100% - 82px);
+    transform: translateX(-50%);
+    clip-path: polygon(14% 0, 86% 0, 86% 60%, 100% 60%, 50% 100%, 0 60%, 14% 60%);
+  }
+
+  .peas-prism-main-arrow-text {
+    left: 50%;
+    top: 43%;
+    width: min(54%, 240px);
+    transform: translate(-50%, -50%);
+    font-size: clamp(0.86rem, 3.6vw, 1.12rem);
+  }
+
+  .peas-prism-main-arrow-text strong {
+    font-size: clamp(1rem, 4.5vw, 1.32rem);
+  }
+
+  .peas-prism-card {
+    justify-self: center;
+    width: min(100%, 430px);
+  }
+
+  .peas-prism-card-title {
+    font-size: clamp(1rem, 4.4vw, 1.35rem);
+  }
+
+  .peas-prism-card-footer em {
+    font-size: clamp(0.92rem, 4vw, 1.2rem);
+  }
+
+  .peas-prism-card-footer strong {
+    font-size: clamp(1.05rem, 4.8vw, 1.45rem);
   }
 }
