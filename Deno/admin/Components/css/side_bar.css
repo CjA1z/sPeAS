@@ -8,8 +8,17 @@
     box-sizing: border-box;
 }
 
+:root {
+    --sidebar-width: 250px;
+    --header-height: 73px;
+}
+
+html.sidebar-collapsed {
+    --sidebar-width: 78px;
+}
+
 .side-bar {
-    width: 250px;
+    width: var(--sidebar-width);
     height: 100vh;
     position: fixed;
     left: 0;
@@ -21,6 +30,59 @@
     background-color: #ffffff;
     border-right: 1px solid #eef0f3;
     box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
+    transform-origin: left center;
+    transition: width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
+}
+
+/* Jelly wobble replayed on each toggle: the width transition lands
+   around the halfway mark, then the panel squashes and stretches */
+.side-bar.jelly {
+    animation: sidebar-jelly 0.85s linear both;
+}
+
+@keyframes sidebar-jelly {
+    0%, 50% { transform: scaleX(1); }
+    62%     { transform: scaleX(1.07); }
+    74%     { transform: scaleX(0.96); }
+    84%     { transform: scaleX(1.025); }
+    93%     { transform: scaleX(0.99); }
+    100%    { transform: scaleX(1); }
+}
+
+/* ---------- Collapse toggle ---------- */
+.sidebar-toggle {
+    position: absolute;
+    top: 31px;
+    right: -13px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+    z-index: 1100;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+    color: #006A4E;
+    background-color: #f8fafc;
+}
+
+.sidebar-toggle svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html.sidebar-collapsed .sidebar-toggle svg {
+    transform: rotate(180deg);
 }
 
 .icon-container {
@@ -31,6 +93,7 @@
     height: 100%;
     padding: 20px 14px;
     background-color: #ffffff;
+    transition: padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
 }
 
 /* ---------- Top group: logo + upload ---------- */
@@ -54,6 +117,7 @@
     justify-content: flex-start;
     gap: 10px;
     margin-bottom: 6px;
+    transition: padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), gap 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
 }
 
 .logo-icon img {
@@ -69,6 +133,12 @@
     color: #0f172a;
     line-height: 1.25;
     letter-spacing: -0.005em;
+    max-width: 170px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    /* opacity delayed on expand so text fades in once there is room */
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), transform 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.25s ease 0.15s;
 }
 
 /* ---------- Upload (primary action) ---------- */
@@ -78,7 +148,7 @@
     display: flex;
     align-items: center;
     cursor: pointer;
-    transition: background-color 0.25s ease, transform 0.18s ease, box-shadow 0.25s ease;
+    transition: background-color 0.25s ease, transform 0.18s ease, box-shadow 0.25s ease, padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), gap 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
     text-decoration: none;
     color: #ffffff;
     position: relative;
@@ -120,6 +190,8 @@
     color: #94a3b8;
     padding: 8px 12px 4px;
     margin-top: 4px;
+    opacity: 1;
+    transition: opacity 0.2s ease 0.2s;
 }
 
 /* ---------- Bottom group ---------- */
@@ -141,7 +213,7 @@
     display: flex;
     align-items: center;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, transform 0.12s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.12s ease, padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), gap 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
     text-decoration: none;
     color: #475569;
     position: relative;
@@ -222,6 +294,11 @@ a.icon-wrapper.active .icon svg {
     font-size: 13.5px;
     white-space: nowrap;
     letter-spacing: -0.005em;
+    max-width: 170px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), transform 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.25s ease 0.15s;
 }
 
 /* ---------- User profile ---------- */
@@ -236,7 +313,7 @@ a.icon-wrapper.active .icon svg {
     border: 1px solid #eef0f3;
     position: relative;
     gap: 10px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), gap 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
 }
 
 .user-profile:hover {
@@ -269,6 +346,10 @@ a.icon-wrapper.active .icon svg {
     flex-direction: column;
     min-width: 0;
     flex: 1;
+    max-width: 150px;
+    overflow: hidden;
+    opacity: 1;
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.25s ease 0.15s;
 }
 
 .user-name {
@@ -297,6 +378,7 @@ a.icon-wrapper.active .icon svg {
     background-color: #22c55e;
     box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px rgba(34, 197, 94, 0.25);
     flex-shrink: 0;
+    transition: width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.15s ease;
 }
 
 /* Logout — soft red accent on hover */
@@ -315,8 +397,9 @@ a.icon-wrapper.active .icon svg {
 
 /* ---------- Content offset ---------- */
 .content {
-    margin-left: 250px;
+    margin-left: var(--sidebar-width, 250px);
     padding: 20px;
+    transition: margin-left 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
 }
 
 .top-group .icon-wrapper,
@@ -325,15 +408,132 @@ a.icon-wrapper.active .icon svg {
     margin: 0;
 }
 
+/* ---------- Collapsed state ----------
+   Labels shrink/fade (fast fade out, delayed fade in via the base rules)
+   and icons glide to center through animated padding — no display:none. */
+html.sidebar-collapsed .side-bar .icon-text {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), transform 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.35s ease;
+}
+
+/* The two-line logo text re-wraps as it narrows, so hide it fast */
+html.sidebar-collapsed .side-bar .logo-text {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), transform 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.12s ease;
+}
+
+html.sidebar-collapsed .side-bar .nav-section-label {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+html.sidebar-collapsed .side-bar .icon-container {
+    padding: 20px 10px;
+}
+
+html.sidebar-collapsed .side-bar .logo-icon {
+    padding: 4px 10px 14px;
+    gap: 0;
+}
+
+html.sidebar-collapsed .side-bar .upload-icon {
+    padding: 0 19px;
+    gap: 0;
+}
+
+html.sidebar-collapsed .side-bar .icon-wrapper {
+    padding: 0 15px;
+    gap: 0;
+}
+
+html.sidebar-collapsed .side-bar .icon-wrapper.active::before,
+html.sidebar-collapsed .side-bar a.icon-wrapper.active::before {
+    left: -10px;
+}
+
+html.sidebar-collapsed .side-bar .user-profile {
+    padding: 10px;
+    gap: 0;
+    background-color: transparent;
+    border-color: transparent;
+}
+
+html.sidebar-collapsed .side-bar .user-details {
+    max-width: 0;
+    opacity: 0;
+    transition: max-width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.35s ease;
+}
+
+html.sidebar-collapsed .side-bar .user-status {
+    width: 0;
+    opacity: 0;
+}
+
+/* Tooltips for icon-only nav items */
+html.sidebar-collapsed .side-bar [data-label]::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 14px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    z-index: 1200;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+html.sidebar-collapsed .side-bar [data-label]:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
-    .side-bar { width: 220px; }
-    .content { margin-left: 220px; }
+    :root { --sidebar-width: 220px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .side-bar,
+    .content,
+    .icon-container,
+    .logo-icon,
+    .logo-text,
     .upload-icon,
     .icon-wrapper,
     .icon-wrapper .icon,
+    .icon-text,
+    .nav-section-label,
+    .user-details,
+    .user-status,
     .user-profile { transition: none; }
+
+    .side-bar.jelly { animation: none; }
+}
+
+/* ---------- Load-time guard ----------
+   side_bar.js adds .sidebar-anim after the first painted frame; until then
+   the sidebar, header, and page containers snap into their persisted state
+   instead of animating on every page load. */
+html:not(.sidebar-anim) .side-bar,
+html:not(.sidebar-anim) .side-bar *,
+html:not(.sidebar-anim) .header,
+html:not(.sidebar-anim) .content,
+html:not(.sidebar-anim) .container,
+html:not(.sidebar-anim) .main-content,
+html:not(.sidebar-anim) .docs-container,
+html:not(.sidebar-anim) main.flex-1,
+html:not(.sidebar-anim) body > .max-w-5xl {
+    transition: none !important;
 }

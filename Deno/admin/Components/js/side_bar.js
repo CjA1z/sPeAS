@@ -1,6 +1,49 @@
+// Restore the persisted collapse state before first paint to avoid a flash
+try {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+    }
+} catch (_) { /* ignore storage errors */ }
+
+// Enable sidebar animations only after the first frame has painted, so a
+// page loading in the collapsed state doesn't animate into place
+requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.documentElement.classList.add('sidebar-anim');
+}));
+
+// Delegated listener so the toggle keeps working even when the sidebar
+// markup is re-injected via innerHTML (dashboard.html loads it twice).
+// Guarded so a double-included script doesn't toggle twice per click.
+if (!globalThis.__sidebarToggleWired) {
+    globalThis.__sidebarToggleWired = true;
+document.addEventListener('click', (event) => {
+    const toggle = event.target.closest('.sidebar-toggle');
+    if (!toggle) return;
+    const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+    try {
+        localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+    } catch (_) { /* ignore storage errors */ }
+
+    // Replay the jelly wobble on every toggle
+    const sideBar = toggle.closest('.side-bar');
+    if (sideBar) {
+        sideBar.classList.remove('jelly');
+        void sideBar.offsetWidth; // force reflow so the animation restarts
+        sideBar.classList.add('jelly');
+        const onEnd = (e) => {
+            // label animations also fire animationend; wait for the panel's own
+            if (e.target !== sideBar) return;
+            sideBar.classList.remove('jelly');
+            sideBar.removeEventListener('animationend', onEnd);
+        };
+        sideBar.addEventListener('animationend', onEnd);
+    }
+});
+}
+
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-        
+
     // Get the sidebar container
     const sidebarContainer = document.getElementById('sidebar-container');
     if (!sidebarContainer) {
