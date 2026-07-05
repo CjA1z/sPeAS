@@ -284,9 +284,21 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@playwright/test@^1.61.1",
+        "npm:@puckeditor/core@0.22",
+        "npm:@uppy/core@^5.2.0",
+        "npm:@uppy/dashboard@^5.1.1",
+        "npm:@uppy/xhr-upload@^5.2.0",
+        "npm:@vitejs/plugin-react@^6.0.3",
         "npm:autoprefixer@^10.4.21",
+        "npm:axe-core@^4.12.1",
         "npm:postcss@^8.5.3",
-        "npm:tailwindcss@^4.1.3"
+        "npm:react-dom@^19.2.7",
+        "npm:react@^19.2.7",
+        "npm:tailwindcss@^4.1.3",
+        "npm:typescript@^6.0.3",
+        "npm:vite@^8.1.3",
+        "npm:zod@^4.4.3"
       ]
     }
   }
