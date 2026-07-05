@@ -5,10 +5,12 @@
 #react-archive-admin-root,
 #react-permissions-admin-root {
   color: var(--foreground);
-  min-height: calc(100vh - var(--header-height, 73px));
+  min-height: 100vh;
 }
 
 .peas-admin-island,
+.peas-admin-shell,
+.peas-admin-shell *,
 .peas-admin-island *,
 .peas-ui-dialog-content,
 .peas-ui-dialog-content *,
@@ -28,6 +30,285 @@
 .peas-admin-island {
   margin: 84px 32px 48px calc(var(--sidebar-width, 250px) + 30px);
   transition: margin-left 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
+}
+
+body:has(#react-documents-admin-root),
+body:has(#react-upload-admin-root),
+body:has(#react-archive-admin-root),
+body:has(#react-permissions-admin-root) {
+  background: var(--background);
+  margin: 0;
+}
+
+.peas-admin-shell .peas-admin-island {
+  margin: 0;
+}
+
+.peas-admin-shell {
+  --admin-sidebar-width: 280px;
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+}
+
+.peas-admin-frame {
+  margin-left: var(--admin-sidebar-width);
+  min-height: 100vh;
+  transition: margin-left 0.18s ease;
+}
+
+.peas-admin-shell.is-collapsed {
+  --admin-sidebar-width: 92px;
+}
+
+.peas-admin-sidebar {
+  background: #ffffff;
+  border-right: 1px solid var(--border-soft);
+  bottom: 0;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  left: 0;
+  padding: 18px 16px;
+  position: fixed;
+  top: 0;
+  transition: width 0.18s ease, transform 0.18s ease;
+  width: var(--admin-sidebar-width);
+  z-index: 50;
+}
+
+.peas-admin-sidebar__brand {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 52px;
+}
+
+.peas-admin-sidebar__brand img {
+  height: 44px;
+  width: 44px;
+}
+
+.peas-admin-sidebar__brand span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.peas-admin-sidebar__brand strong {
+  color: var(--foreground);
+  font-size: 0.94rem;
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+.peas-admin-sidebar__brand small {
+  color: var(--academic-slate);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.peas-admin-sidebar__close,
+.peas-admin-mobile-menu {
+  display: none;
+}
+
+.peas-admin-upload-link,
+.peas-admin-nav a,
+.peas-admin-nav--utility .peas-ui-button {
+  align-items: center;
+  border-radius: var(--radius);
+  color: var(--academic-slate);
+  display: flex;
+  font-size: 0.92rem;
+  font-weight: 850;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  text-decoration: none;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.peas-admin-upload-link {
+  background: var(--brand-green);
+  color: #ffffff;
+  min-height: 48px;
+}
+
+.peas-admin-upload-link:hover {
+  background: var(--brand-green-dark);
+  color: #ffffff;
+}
+
+.peas-admin-upload-link svg,
+.peas-admin-nav a svg,
+.peas-admin-nav--utility .peas-ui-button svg {
+  flex: 0 0 auto;
+  height: 19px;
+  width: 19px;
+}
+
+.peas-admin-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.peas-admin-nav > small {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  padding: 0 12px 5px;
+  text-transform: uppercase;
+}
+
+.peas-admin-nav a:hover,
+.peas-admin-nav--utility .peas-ui-button:hover {
+  background: var(--brand-green-mist);
+  color: var(--brand-green);
+}
+
+.peas-admin-nav a.is-active {
+  background: var(--brand-green-soft);
+  box-shadow: inset 3px 0 0 var(--brand-green);
+  color: var(--brand-green-dark);
+}
+
+.peas-admin-nav--utility {
+  border-top: 1px solid var(--border-soft);
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.peas-admin-nav--utility .peas-ui-button {
+  border: 0;
+  box-shadow: none;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.peas-admin-shell.is-collapsed .peas-admin-sidebar {
+  align-items: center;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.peas-admin-shell.is-collapsed .peas-admin-sidebar__brand,
+.peas-admin-shell.is-collapsed .peas-admin-upload-link,
+.peas-admin-shell.is-collapsed .peas-admin-nav a,
+.peas-admin-shell.is-collapsed .peas-admin-nav--utility .peas-ui-button {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  width: 52px;
+}
+
+.peas-admin-shell.is-collapsed .peas-admin-sidebar__brand span,
+.peas-admin-shell.is-collapsed .peas-admin-upload-link span,
+.peas-admin-shell.is-collapsed .peas-admin-nav span,
+.peas-admin-shell.is-collapsed .peas-admin-nav > small,
+.peas-admin-shell.is-collapsed .peas-admin-nav--utility .peas-ui-button span {
+  display: none;
+}
+
+.peas-admin-topbar {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  height: 72px;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.peas-admin-topbar__left,
+.peas-admin-topbar__right,
+.peas-admin-user {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.peas-admin-collapse-btn,
+.peas-admin-icon-btn {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: var(--academic-slate);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 850;
+  justify-content: center;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.peas-admin-collapse-btn {
+  height: 38px;
+  padding: 0 12px;
+}
+
+.peas-admin-icon-btn {
+  height: 40px;
+  padding: 0;
+  width: 40px;
+}
+
+.peas-admin-icon-btn svg {
+  height: 19px;
+  width: 19px;
+}
+
+.peas-admin-collapse-btn:hover,
+.peas-admin-icon-btn:hover {
+  background: var(--brand-green-soft);
+  border-color: color-mix(in srgb, var(--brand-green) 24%, var(--border));
+  color: var(--brand-green);
+}
+
+.peas-admin-user {
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  min-height: 46px;
+  padding: 4px 10px 4px 4px;
+}
+
+.peas-admin-user span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.peas-admin-user strong {
+  color: var(--foreground);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.1;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peas-admin-user small {
+  color: var(--academic-slate);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.peas-admin-content {
+  padding: 26px 28px 44px;
 }
 
 .peas-documents-page {
@@ -1130,6 +1411,15 @@
   min-width: 0;
 }
 
+.peas-field > span:first-child {
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .peas-field__label {
   color: #334155;
   font-size: 0.9rem;
@@ -1154,6 +1444,20 @@
   font-size: 0.8rem;
   font-weight: 700;
   margin: 0;
+}
+
+.peas-edit-dialog {
+  max-width: min(92vw, 720px);
+}
+
+.peas-edit-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.peas-edit-form .peas-ui-dialog-footer {
+  margin-top: 4px;
 }
 
 .peas-file-dropzone {
@@ -2880,6 +3184,68 @@ body:has(#react-public-search-root) {
     margin: 84px 16px 32px;
   }
 
+  .peas-admin-frame {
+    margin-left: 0;
+  }
+
+  .peas-admin-sidebar {
+    transform: translateX(-105%);
+    width: min(88vw, 320px);
+  }
+
+  .peas-admin-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .peas-admin-sidebar__close,
+  .peas-admin-mobile-menu {
+    display: inline-flex;
+  }
+
+  .peas-admin-collapse-btn {
+    display: none;
+  }
+
+  .peas-admin-shell.is-collapsed .peas-admin-sidebar {
+    align-items: stretch;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .peas-admin-shell.is-collapsed .peas-admin-sidebar__brand,
+  .peas-admin-shell.is-collapsed .peas-admin-upload-link,
+  .peas-admin-shell.is-collapsed .peas-admin-nav a,
+  .peas-admin-shell.is-collapsed .peas-admin-nav--utility .peas-ui-button {
+    justify-content: flex-start;
+    padding-left: 12px;
+    padding-right: 12px;
+    width: 100%;
+  }
+
+  .peas-admin-shell.is-collapsed .peas-admin-sidebar__brand span,
+  .peas-admin-shell.is-collapsed .peas-admin-upload-link span,
+  .peas-admin-shell.is-collapsed .peas-admin-nav span,
+  .peas-admin-shell.is-collapsed .peas-admin-nav > small,
+  .peas-admin-shell.is-collapsed .peas-admin-nav--utility .peas-ui-button span {
+    display: grid;
+  }
+
+  .peas-admin-sidebar-backdrop {
+    background: rgba(15, 23, 42, 0.46);
+    border: 0;
+    inset: 0;
+    position: fixed;
+    z-index: 45;
+  }
+
+  .peas-admin-topbar {
+    padding: 0 16px;
+  }
+
+  .peas-admin-content {
+    padding: 18px 16px 34px;
+  }
+
   .peas-upload-shell {
     grid-template-columns: 1fr;
   }
@@ -3036,6 +3402,18 @@ body:has(#react-public-search-root) {
 
   .peas-row-actions {
     justify-content: flex-start;
+  }
+
+  .peas-admin-user span {
+    display: none;
+  }
+
+  .peas-admin-user {
+    padding-right: 4px;
+  }
+
+  .peas-edit-dialog .peas-form-grid--two {
+    grid-template-columns: 1fr;
   }
 
   .peas-public-navbar {

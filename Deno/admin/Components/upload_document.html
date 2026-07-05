@@ -1,40 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Upload - PEAS</title>
-    <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
-    <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
-    <link rel="stylesheet" href="/admin/react-ui/style.css">
-    <script src="/admin/Components/js/side_bar.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Document | PeAS Admin</title>
+  <link rel="icon" href="/admin/Components/img/logo_2.png" type="image/png">
+  <link rel="stylesheet" href="/admin/react-ui/style.css">
 </head>
-
 <body>
-    <div id="side-bar"></div>
-    <div id="navbar-header"></div>
-
-    <div id="react-upload-admin-root" aria-label="Upload document"></div>
-
-    <script type="module" src="/admin/react-ui/main-admin.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebarContainer = document.getElementById('side-bar');
-            fetch('/admin/Components/side_bar.html')
-                .then(response => response.text())
-                .then(html => {
-                    sidebarContainer.innerHTML = html;
-                });
-
-            const navbarContainer = document.getElementById('navbar-header');
-            fetch('/admin/Components/navbar_header.html')
-                .then(response => response.text())
-                .then(html => {
-                    navbarContainer.innerHTML = html;
-                });
-        });
-    </script>
+  <div id="react-upload-admin-root" aria-label="Upload document"></div>
+  <script type="module" src="/admin/react-ui/main-admin.js"></script>
 </body>
-
 </html>

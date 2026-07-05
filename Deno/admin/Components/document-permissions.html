@@ -3,33 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document Permissions</title>
+  <title>Document Permissions | PeAS Admin</title>
   <link rel="icon" href="/admin/Components/img/logo_2.png" type="image/png">
-  <link rel="stylesheet" href="/admin/Components/css/side_bar.css">
-  <link rel="stylesheet" href="/admin/Components/css/navbar_header.css">
   <link rel="stylesheet" href="/admin/react-ui/style.css">
-  <script src="/admin/Components/js/side_bar.js"></script>
 </head>
 <body>
-  <div id="side-bar"></div>
-  <div id="navbar-header"></div>
-  <div id="react-permissions-admin-root"></div>
-
+  <div id="react-permissions-admin-root" aria-label="Document permissions"></div>
   <script type="module" src="/admin/react-ui/main-admin.js"></script>
-  <script>
-    fetch('/admin/Components/side_bar.html')
-      .then((response) => response.text())
-      .then((html) => {
-        document.getElementById('side-bar').innerHTML = html;
-      })
-      .catch((error) => console.error('Error loading sidebar:', error));
-
-    fetch('/admin/Components/navbar_header.html')
-      .then((response) => response.text())
-      .then((html) => {
-        document.getElementById('navbar-header').innerHTML = html;
-      })
-      .catch((error) => console.error('Error loading navbar:', error));
-  </script>
 </body>
 </html>
