@@ -26,6 +26,7 @@ interface FetchDocumentsParams {
   sort: "latest" | "earliest";
   category: DocumentCategory;
   search?: string;
+  keyword?: string;
 }
 
 export async function fetchCategories(): Promise<CategoryCount[]> {
@@ -50,6 +51,7 @@ export async function fetchDocuments(params: FetchDocumentsParams): Promise<Docu
 
   if (params.category !== "All") searchParams.set("category", params.category);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.keyword?.trim()) searchParams.set("keyword", params.keyword.trim());
 
   const payload = await apiFetch<RawDocumentsResponse>(`/api/documents?${searchParams.toString()}`);
   const documents = (payload.documents ?? []).map(normalizeDocumentRecord);
