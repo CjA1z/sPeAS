@@ -18,8 +18,10 @@ deno-dir
 .tmp
 test-results
 
-# Built by Docker's experience-builder stage
+# Built by Docker's ui-builder stage
 Deno/admin/experience-studio
+Deno/admin/react-ui
+Deno/Public/react-ui
 
 # Runtime data should live in Docker volumes
 storage

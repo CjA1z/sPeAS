@@ -40,6 +40,8 @@ coverage/
 .tmp/
 test-results/
 Deno/admin/experience-studio/
+Deno/admin/react-ui/
+Deno/Public/react-ui/
 
 # Uploads, Data & Logs
 storage/
