@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { BookOpen, Clock, LogOut, Menu, Search, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
+import { GlassBackdrop } from "../ui/glass-surface";
 import { fetchOptionalSession, searchResultsUrl } from "../../lib/api/public";
 import type { SessionResponse } from "../../lib/api/auth";
 
@@ -39,11 +40,12 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
 
   return (
     <header className="peas-public-navbar">
+      <GlassBackdrop />
       <a className="peas-public-brand" href="/index.html" aria-label="PeAS home">
-        <img src="/Components/images/spud-logo.png" alt="" />
+        <img src="/Components/images/spud_logo_s.png" alt="" />
         <span>
-          <strong>PeAS</strong>
-          <small>Research & Publications</small>
+          <strong>Office of Research & Publications</strong>
+          <small>St. Paul University – Dumaguete</small>
         </span>
       </a>
 
@@ -103,6 +105,7 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
       {open ? (
         <div className="peas-public-mobile-menu">
           <div className="peas-public-mobile-panel">
+            <GlassBackdrop backgroundOpacity={0.85} />
             <div className="peas-public-mobile-head">
               <span>PeAS</span>
               <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)}>

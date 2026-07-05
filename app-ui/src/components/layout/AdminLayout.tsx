@@ -19,6 +19,7 @@ import {
 import { fetchSession, fetchUserProfile, logout, type SessionResponse, type UserProfile } from "../../lib/api/auth";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { GlassBackdrop } from "../ui/glass-surface";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -96,6 +97,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       <div className="peas-admin-frame">
         <header className="peas-admin-topbar">
+          <GlassBackdrop />
           <div className="peas-admin-topbar__left">
             <button className="peas-admin-icon-btn peas-admin-mobile-menu" type="button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
               <Menu aria-hidden="true" />
@@ -145,6 +147,7 @@ function AdminSidebar({
     <>
       {mobileOpen ? <button className="peas-admin-sidebar-backdrop" type="button" aria-label="Close navigation" onClick={onCloseMobile} /> : null}
       <aside className={`peas-admin-sidebar${mobileOpen ? " is-mobile-open" : ""}`} aria-label="Admin navigation">
+        <GlassBackdrop />
         <div className="peas-admin-sidebar__brand">
           <img src="/admin/Components/img/logo_2.png" alt="" />
           <span>
