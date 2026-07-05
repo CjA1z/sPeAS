@@ -841,7 +841,7 @@ sPeAS - Library Document Management System
           } catch (error) {
       // Use a fallback template if the file can't be read
       emailTemplate = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<div style="font-family: Inter; max-width: 600px; margin: 0 auto;">
   <h2 style="color: #047857; border-bottom: 2px solid #d1fae5; padding-bottom: 10px;">Document Access Approved</h2>
   
   <p>Hello ${fullName},</p>
@@ -1094,7 +1094,7 @@ export async function sendRejectedRequestEmail(
     <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        body { font-family: Inter; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #dc2626; color: white; padding: 10px 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }
@@ -1171,7 +1171,7 @@ export async function sendRejectedRequestEmail(
 <html>
 <head>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    body { font-family: Inter; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background-color: #dc2626; color: white; padding: 10px 20px; text-align: center; }
     .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }
@@ -1315,7 +1315,7 @@ export async function sendRequestConfirmationEmail(
     <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        body { font-family: Inter; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #008000; color: white; padding: 10px 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }

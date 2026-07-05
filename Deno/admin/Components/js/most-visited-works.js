@@ -1069,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         /* Compiled Document Modal Styles */
         .compiled-doc-modal {
-            font-family: 'Inter', sans-serif;
+            font-family: Inter;
         }
         .compiled-doc-modal h3 {
             color: var(--theme-green-darker-text, #00523D);

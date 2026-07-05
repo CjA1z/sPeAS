@@ -294,7 +294,7 @@ function handleLogout(event) {
   const loadingText = document.createElement('p');
   loadingText.textContent = 'Logging out...';
   loadingText.style.margin = '0';
-  loadingText.style.fontFamily = 'Inter, sans-serif';
+  loadingText.style.fontFamily = 'Inter';
   loadingText.style.color = '#4b5563';
   
   loadingContent.appendChild(spinner);

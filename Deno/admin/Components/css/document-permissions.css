@@ -20,7 +20,7 @@
 body {
     background-color: var(--bg-page);
     color: var(--text-primary);
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: Inter;
 }
 
 /* ---------- Layout: clear the fixed 250px sidebar + fixed header ---------- */

@@ -108,7 +108,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
     surfaceColor: "#FFFFFF",
     textColor: "#1F2937",
     mutedTextColor: "#6B7280",
-    fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "Inter",
     radius: "soft",
     motion: "standard",
   },

@@ -1,7 +1,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  font-family: sans-serif;
+  font-family: Inter;
 }
 
 body {
@@ -224,7 +224,7 @@ body {
   background-color: #fff;
   min-height: 100%;
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: Inter;
   font-size: 14px;
   line-height: 20px;
 }
@@ -1037,7 +1037,7 @@ textarea.w-input, textarea.w-select {
 .w-widget-twitter-count-shim .w-widget-twitter-count-inner {
   text-align: center;
   color: #999;
-  font-family: serif;
+  font-family: Inter;
   font-size: 15px;
   line-height: 12px;
   position: relative;
@@ -1422,7 +1422,7 @@ textarea.w-input, textarea.w-select {
   -webkit-tap-highlight-color: transparent;
   background: #000000e6;
   outline: 0;
-  font-family: Helvetica Neue, Helvetica, Ubuntu, Segoe UI, Verdana, sans-serif;
+  font-family: Inter;
   font-size: 17px;
   font-style: normal;
   font-weight: 300;
@@ -2252,7 +2252,7 @@ textarea.w-input, textarea.w-select {
 body {
   background-color: var(--white);
   color: var(--black);
-  font-family: Inter, sans-serif;
+  font-family: Inter;
   font-size: 16px;
   line-height: 20px;
 }

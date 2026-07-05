@@ -1,9 +1,48 @@
-import { resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+function forceInterCss(source: string) {
+  return source.replace(
+    /font-family:-apple-system,system-ui,BlinkMacSystemFont,Segoe UI,Segoe UI Symbol,Segoe UI Emoji,Apple Color Emoji,Roboto,Helvetica,Arial,sans-serif/g,
+    "font-family:Inter",
+  );
+}
+
+function forceInterFontFamily(): Plugin {
+  return {
+    name: "force-inter-font-family",
+    generateBundle(_options, bundle) {
+      for (const asset of Object.values(bundle)) {
+        if (asset.type !== "asset" || !asset.fileName.endsWith(".css")) {
+          continue;
+        }
+
+        const source = typeof asset.source === "string"
+          ? asset.source
+          : new TextDecoder().decode(asset.source);
+
+        asset.source = forceInterCss(source);
+      }
+    },
+    writeBundle(options, bundle) {
+      if (!options.dir) return;
+
+      for (const asset of Object.values(bundle)) {
+        if (asset.type !== "asset" || !asset.fileName.endsWith(".css")) {
+          continue;
+        }
+
+        const filePath = join(options.dir, asset.fileName);
+        writeFileSync(filePath, forceInterCss(readFileSync(filePath, "utf8")));
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), forceInterFontFamily()],
   build: {
     outDir: resolve(__dirname, "../Deno/admin/experience-studio"),
     emptyOutDir: true,

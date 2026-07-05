@@ -1,6 +1,6 @@
 /* General Styling */
 body {
-    font-family: sans-serif;
+    font-family: Inter;
     min-height: 100vh;
     margin: 0;
     background-color: #4b4a4a42;
@@ -111,7 +111,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    font-family: Arial, sans-serif;
+    font-family: Inter;
     color: #333;
     overflow: auto;
 }
