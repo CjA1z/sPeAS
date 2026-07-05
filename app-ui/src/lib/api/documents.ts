@@ -89,6 +89,13 @@ export async function archiveDocument(request: ArchiveRequest) {
   });
 }
 
+export function updateDocumentMetadata(id: number, payload: Record<string, unknown>) {
+  return apiFetch<DocumentRecord | Record<string, unknown>>(`/api/documents/${id}/metadata`, {
+    method: "PUT",
+    json: payload,
+  });
+}
+
 function normalizeDocumentRecord(raw: Record<string, unknown>): DocumentRecord {
   const id = Number(raw.id ?? raw.doc_id ?? raw.document_id);
   const rawCategory = String(raw.document_type ?? raw.doc_type ?? raw.category ?? "");
