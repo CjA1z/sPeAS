@@ -1,7 +1,20 @@
+import { createRoot } from "react-dom/client";
+import type { ReactElement } from "react";
 import "./styles/globals.css";
 
-const publicRoot = document.querySelector<HTMLElement>("[data-peas-public-root]");
+void mountPublicIsland("react-public-home-root", async () => {
+  const { PublicHomePage } = await import("./features/public/PublicHomePage");
+  return <PublicHomePage />;
+});
 
-if (publicRoot) {
-  publicRoot.dataset.reactUiReady = "true";
+void mountPublicIsland("react-public-search-root", async () => {
+  const { PublicSearchPage } = await import("./features/public/PublicSearchPage");
+  return <PublicSearchPage />;
+});
+
+async function mountPublicIsland(rootId: string, load: () => Promise<ReactElement>) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+
+  createRoot(root).render(await load());
 }
