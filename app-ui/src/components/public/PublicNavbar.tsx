@@ -105,7 +105,7 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
       {open ? (
         <div className="peas-public-mobile-menu">
           <div className="peas-public-mobile-panel">
-            <GlassBackdrop backgroundOpacity={0.85} />
+            <GlassBackdrop />
             <div className="peas-public-mobile-head">
               <span>PeAS</span>
               <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)}>

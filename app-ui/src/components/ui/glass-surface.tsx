@@ -21,6 +21,10 @@ export interface GlassSurfaceProps {
   blueOffset?: number;
   xChannel?: "R" | "G" | "B";
   yChannel?: "R" | "G" | "B";
+  /** Override OS color-scheme detection; PeAS is light-only so surfaces pin this. */
+  dark?: boolean;
+  /** Render nothing when the SVG displacement filter isn't supported (Safari/Firefox). */
+  svgOnly?: boolean;
   mixBlendMode?:
     | "normal"
     | "multiply"
@@ -79,6 +83,8 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
   blueOffset = 20,
   xChannel = "R",
   yChannel = "G",
+  dark,
+  svgOnly = false,
   mixBlendMode = "difference",
   className = "",
   style = {},
@@ -97,7 +103,8 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
   const blueChannelRef = useRef<SVGFEDisplacementMapElement>(null);
   const gaussianBlurRef = useRef<SVGFEGaussianBlurElement>(null);
 
-  const isDarkMode = useDarkMode();
+  const systemDark = useDarkMode();
+  const isDarkMode = dark ?? systemDark;
 
   const generateDisplacementMap = () => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -162,6 +169,9 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
     xChannel,
     yChannel,
     mixBlendMode,
+    // svgOnly renders null until support is confirmed, so the refs are empty
+    // on the first pass — re-apply the attributes once the DOM exists.
+    svgSupported,
   ]);
 
   useEffect(() => {
@@ -180,7 +190,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [svgSupported]);
 
   useEffect(() => {
     setTimeout(updateDisplacementMap, 0);
@@ -220,6 +230,10 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
     } as React.CSSProperties;
 
     const backdropFilterSupported = supportsBackdropFilter();
+    // The registry version hardcodes the fallback alphas and only honors
+    // backgroundOpacity on the SVG path, leaving Safari/Firefox far more
+    // transparent than Chrome for the same props.
+    const fallbackAlpha = (defaultAlpha: number) => (backgroundOpacity > 0 ? backgroundOpacity : defaultAlpha);
 
     if (svgSupported) {
       return {
@@ -249,7 +263,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         if (!backdropFilterSupported) {
           return {
             ...baseStyles,
-            background: "rgba(0, 0, 0, 0.4)",
+            background: `rgba(0, 0, 0, ${fallbackAlpha(0.4)})`,
             border: "1px solid rgba(255, 255, 255, 0.2)",
             boxShadow: `inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
                         inset 0 -1px 0 0 rgba(255, 255, 255, 0.1)`,
@@ -257,7 +271,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         } else {
           return {
             ...baseStyles,
-            background: "rgba(255, 255, 255, 0.1)",
+            background: `rgba(0, 0, 0, ${fallbackAlpha(0.1)})`,
             backdropFilter: "blur(12px) saturate(1.8) brightness(1.2)",
             WebkitBackdropFilter: "blur(12px) saturate(1.8) brightness(1.2)",
             border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -269,7 +283,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         if (!backdropFilterSupported) {
           return {
             ...baseStyles,
-            background: "rgba(255, 255, 255, 0.4)",
+            background: `rgba(255, 255, 255, ${fallbackAlpha(0.4)})`,
             border: "1px solid rgba(255, 255, 255, 0.3)",
             boxShadow: `inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
                         inset 0 -1px 0 0 rgba(255, 255, 255, 0.3)`,
@@ -277,7 +291,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         } else {
           return {
             ...baseStyles,
-            background: "rgba(255, 255, 255, 0.25)",
+            background: `rgba(255, 255, 255, ${fallbackAlpha(0.25)})`,
             backdropFilter: "blur(12px) saturate(1.8) brightness(1.1)",
             WebkitBackdropFilter: "blur(12px) saturate(1.8) brightness(1.1)",
             border: "1px solid rgba(255, 255, 255, 0.3)",
@@ -297,6 +311,8 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
   const focusVisibleClasses = isDarkMode
     ? "focus-visible:outline-2 focus-visible:outline-[#0A84FF] focus-visible:outline-offset-2"
     : "focus-visible:outline-2 focus-visible:outline-[#007AFF] focus-visible:outline-offset-2";
+
+  if (svgOnly && !svgSupported) return null;
 
   return (
     <div
@@ -366,31 +382,40 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
 };
 
 /**
- * Fill-parent frost layer. Drop inside any positioned container (fixed,
- * sticky, relative) as a sibling of the real content; it paints the glass
- * behind everything else without affecting layout. The container's own
- * background should be transparent so the effect shows through.
+ * Fill-parent distortion layer for Chrome. The actual frost (white tint +
+ * backdrop blur) lives as plain CSS on the host container — Safari can only
+ * blur through-content when backdrop-filter sits directly on the sticky/fixed
+ * element, so an absolute child can't provide it there (it samples an empty
+ * backdrop and the page shows through crisp). This layer only adds the
+ * react-bits displacement sheen where SVG backdrop filters work, and renders
+ * nothing elsewhere. Content siblings need `position: relative; z-index: 1`
+ * (see the .peas-glass-backdrop rules in globals.css).
  */
-export function GlassBackdrop({ style, ...props }: GlassSurfaceProps) {
+export function GlassBackdrop({ style, className = "", ...props }: GlassSurfaceProps) {
   return (
     <GlassSurface
+      svgOnly
       width="100%"
       height="100%"
       borderRadius={0}
-      backgroundOpacity={0.55}
+      backgroundOpacity={0}
       saturation={1.4}
       // The stock -180 scale / 0.93 map opacity are tuned for small pills;
       // on full-width bars they smear ghosted text across the surface.
-      // displace adds the actual frost blur — the SVG filter path has no
-      // gaussian blur otherwise, only displacement.
       distortionScale={-60}
       opacity={0.97}
+      // This layer's url() filter becomes the backdrop root within its
+      // bounds, replacing the host's CSS blur — so it must blur itself.
       displace={12}
+      // The site has no dark theme; without this, macOS dark mode flips the
+      // glass to its dark variant over light pages.
+      dark={false}
       {...props}
+      className={`peas-glass-backdrop ${className}`}
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: -1,
+        zIndex: 0,
         pointerEvents: "none",
         ...style,
       }}
