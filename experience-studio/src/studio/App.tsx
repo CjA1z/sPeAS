@@ -59,6 +59,31 @@ const cloneConfig = (config: ExperienceConfig): ExperienceConfig =>
 
 const componentMap = experiencePuckConfig.components as Record<string, any>;
 
+const pageNames: Record<PageKey, string> = {
+  landing: "Home page",
+  login: "Sign-in page",
+};
+
+// Plain-language names and one-line explanations for every section type,
+// shown in the section list and the "Add a section" menu.
+const sectionMeta: Record<string, { name: string; description: string }> = {
+  AnnouncementBanner: { name: "Announcement Bar", description: "A thin colored strip at the top for short news." },
+  HeroBlock: { name: "Welcome Banner", description: "The big opening area with a title, photos, and buttons." },
+  GalleryBlock: { name: "Photo Gallery", description: "A row of pictures with a short introduction." },
+  QuickLinksBlock: { name: "Quick Links", description: "Cards that take visitors to other pages or sections." },
+  RichTextBlock: { name: "Text Section", description: "A heading with paragraphs of plain text." },
+  ImageFeatureBlock: { name: "Picture + Text", description: "One large picture with a written description." },
+  ResearchAgendaBlock: { name: "Research Agenda", description: "The numbered list of research priorities." },
+  CtaBlock: { name: "Call to Action", description: "A banner inviting visitors to do something, like contacting you." },
+  FooterLinksBlock: { name: "Footer", description: "The logo, copyright line, and links at the very bottom." },
+  LoginShellBlock: { name: "Sign-in Box", description: "The form where users enter their School ID and password." },
+  BrandPanelBlock: { name: "Side Brand Panel", description: "A decorative panel shown beside the sign-in box." },
+  HelpPanelBlock: { name: "Help Panel", description: "Help text and links for users who can't sign in." },
+};
+
+const sectionName = (type: string) =>
+  sectionMeta[type]?.name || (componentMap[type]?.label as string) || type;
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     credentials: "include",
@@ -102,35 +127,59 @@ const errorMessage = (error: unknown) =>
 
 // Friendlier names for fields whose auto-generated label reads as jargon.
 const fieldLabels: Record<string, string> = {
-  eyebrow: "Eyebrow (small text above title)",
-  body: "Body text",
-  href: "Link URL",
+  eyebrow: "Small line above the title",
+  body: "Text",
+  text: "Text",
+  href: "Where the link goes",
   linkLabel: "Link text",
   label: "Button text",
-  primaryLabel: "Primary button text",
-  primaryHref: "Primary button link",
-  secondaryLabel: "Secondary button text",
-  secondaryHref: "Secondary button link",
+  primaryLabel: "Main button text",
+  primaryHref: "Where the main button goes",
+  secondaryLabel: "Second button text",
+  secondaryHref: "Where the second button goes",
   logoUrl: "Logo image",
-  imageUrl: "Image",
-  url: "Image",
-  backgroundImageUrl: "Background image",
+  imageUrl: "Picture",
+  url: "Picture",
+  backgroundImageUrl: "Background picture",
   graphicLogoUrl: "Side panel logo",
-  alt: "Alt text",
-  imageAlt: "Alt text",
+  alt: "Picture description",
+  imageAlt: "Picture description",
   variant: "Layout style",
-  tone: "Color tone",
-  copyrightLabel: "Copyright text",
+  layout: "Layout style",
+  tone: "Color",
+  copyrightLabel: "Copyright line",
+  caption: "Caption under the picture",
+  images: "Pictures",
+  links: "Links",
+  items: "List items",
+  subtitle: "Subtitle",
+  description: "Short description",
+  brandText: "Brand name shown on the form",
+  schoolIdLabel: "School ID box label",
+  schoolIdPlaceholder: "School ID example text",
+  passwordLabel: "Password box label",
+  passwordPlaceholder: "Password example text",
+  submitLabel: "Sign-in button text",
+  forgotPasswordLabel: "“Forgot password” link text",
+  forgotPasswordTitle: "Forgot-password window title",
+  forgotPasswordSubtitle: "Forgot-password window message",
+  footerText: "Small print at the bottom",
 };
 
 const fieldHelp: Record<string, string> = {
-  eyebrow: "Optional small line shown above the title. Leave blank to hide it.",
-  href: "Use a page path like /contact.html, a #section-id, or a full https:// address.",
-  primaryHref: "Where the primary button goes, e.g. /contact.html or #research-agenda.",
-  secondaryHref: "Where the secondary button goes.",
-  alt: "Short description of the image, read aloud by screen readers.",
-  imageAlt: "Short description of the image, read aloud by screen readers.",
-  id: "Used for #section links. Only change this if you know a link points here.",
+  eyebrow: "Optional. Leave blank to hide it.",
+  body: "Plain text. Press Enter twice to start a new paragraph.",
+  href: "A page like /contact.html, a section like #research-agenda, or a full https:// address.",
+  primaryHref: "Where visitors go when they press the main button.",
+  secondaryHref: "Where visitors go when they press the second button.",
+  linkLabel: "The clickable words. Leave blank to show no link.",
+  alt: "A few words describing the picture, read aloud for blind visitors.",
+  imageAlt: "A few words describing the picture, read aloud for blind visitors.",
+  variant: "How this section is arranged. Try each one and watch the preview.",
+  layout: "How this section is arranged. Try each one and watch the preview.",
+  tone: "The color style of this strip.",
+  caption: "Optional small text under the picture. Leave blank to hide.",
+  id: "Only change this if you know a link points here.",
 };
 
 const fieldPlaceholders: Record<string, string> = {
@@ -215,15 +264,15 @@ function getGuardrails(config: ExperienceConfig, page: PageKey): string[] {
   data.content.forEach((block) => {
     const props = block.props || {};
     if ("imageUrl" in props && props.imageUrl && !props.imageAlt) {
-      warnings.push(`${niceLabel(block.type)} has an image without alt text.`);
+      warnings.push(`${sectionName(block.type)}: the picture has no description for blind visitors.`);
     }
     if ("images" in props && Array.isArray(props.images)) {
       props.images.forEach((image: any, index: number) => {
-        if (image?.url && !image?.alt) warnings.push(`${niceLabel(block.type)} image ${index + 1} is missing alt text.`);
+        if (image?.url && !image?.alt) warnings.push(`${sectionName(block.type)}: picture ${index + 1} has no description for blind visitors.`);
       });
     }
     if (typeof props.title === "string" && props.title.length > 110) {
-      warnings.push(`${niceLabel(block.type)} title may overflow on mobile.`);
+      warnings.push(`${sectionName(block.type)}: the title is very long and may not fit on phones.`);
     }
   });
 
@@ -231,11 +280,11 @@ function getGuardrails(config: ExperienceConfig, page: PageKey): string[] {
     const href = match.replace(/^"href"\s*:\s*"/, "").replace(/"$/, "");
     const safe = href.startsWith("/") || href.startsWith("#") || href.startsWith("mailto:") ||
       href.startsWith("https://") || href.startsWith("http://");
-    if (!safe) warnings.push(`Unsafe or invalid link: ${href}`);
+    if (!safe) warnings.push(`A link points to “${href}”, which doesn't look like a valid address.`);
   });
 
   if (config.theme.primaryColor.toLowerCase() === config.theme.surfaceColor.toLowerCase()) {
-    warnings.push("Primary and surface colors are identical; contrast will be poor.");
+    warnings.push("The main color and the background color are the same, so buttons will be hard to see.");
   }
 
   return warnings.length ? warnings : ["No issues found for this page."];
@@ -466,7 +515,7 @@ function BlockInspector(props: {
   return (
     <div className="xp-field-stack">
       <div className="xp-inspector-title">
-        <span>{niceLabel(props.block.type)}</span>
+        <span>{sectionName(props.block.type)}</span>
       </div>
       {fields.map(([name, field]: [string, any]) => (
         <FieldEditor
@@ -544,7 +593,7 @@ function AssetUploader() {
           ))}
         </div>
       ) : (
-        <p className="xp-help-text">Uploaded image URLs will appear here so you can copy them into image fields.</p>
+        <p className="xp-help-text">After you upload a picture, press Copy next to it, then paste into any picture box in the Edit tab.</p>
       )}
     </div>
   );
@@ -556,11 +605,62 @@ export default function App() {
   const [device, setDevice] = useState<DeviceKey>("desktop");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("content");
-  const [status, setStatus] = useState("Loading draft...");
+  const [status, setStatus] = useState("Loading your pages…");
   const [version, setVersion] = useState<number | undefined>();
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [busy, setBusy] = useState<"save" | "publish" | "preview" | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    body: React.ReactNode;
+    confirmLabel: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Undo/redo: bounded snapshots of the whole config. Typing bursts are
+  // coalesced so one undo step reverts a phrase, not a keystroke.
+  const historyRef = useRef<{ past: ExperienceConfig[]; future: ExperienceConfig[] }>({ past: [], future: [] });
+  const lastHistoryPushRef = useRef(0);
+  const [, setHistoryTick] = useState(0);
+
+  const pushHistory = (snapshot: ExperienceConfig, force = false) => {
+    historyRef.current.future = [];
+    const now = Date.now();
+    if (!force && now - lastHistoryPushRef.current < 700) {
+      setHistoryTick((tick) => tick + 1);
+      return;
+    }
+    lastHistoryPushRef.current = now;
+    historyRef.current.past.push(cloneConfig(snapshot));
+    if (historyRef.current.past.length > 60) historyRef.current.past.shift();
+    setHistoryTick((tick) => tick + 1);
+  };
+
+  const undo = () => {
+    const previous = historyRef.current.past.pop();
+    if (!previous) return;
+    historyRef.current.future.push(cloneConfig(config));
+    lastHistoryPushRef.current = 0;
+    setConfig(previous);
+    setDirty(true);
+    setStatus("Undone");
+    setHistoryTick((tick) => tick + 1);
+  };
+
+  const redo = () => {
+    const next = historyRef.current.future.pop();
+    if (!next) return;
+    historyRef.current.past.push(cloneConfig(config));
+    lastHistoryPushRef.current = 0;
+    setConfig(next);
+    setDirty(true);
+    setStatus("Redone");
+    setHistoryTick((tick) => tick + 1);
+  };
+
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
 
   const allowedBlocks = activePage === "landing" ? landingBlocks : loginBlocks;
   const page = config.pages[activePage];
@@ -578,11 +678,12 @@ export default function App() {
         const parsed = ExperienceConfigSchema.parse(payload.config);
         setConfig(parsed);
         setVersion(payload.version);
-        setStatus(payload.status || "draft");
+        setStatus("All changes saved");
         applyThemeVars(parsed.theme);
       })
       .catch((error) => {
-        setStatus(`Using fallback: ${error.message}`);
+        console.error("Failed to load draft:", error);
+        setStatus("Couldn't load your saved draft — you're seeing the standard page. Refresh to try again.");
         applyThemeVars(defaultExperienceConfig.theme);
       });
     loadVersions().catch(() => undefined);
@@ -613,10 +714,55 @@ export default function App() {
   }, [dirty]);
 
   const exitStudio = () => {
-    if (dirty && !window.confirm("You have unsaved changes. Exit the studio without saving?")) return;
-    leaveConfirmed.current = true;
-    window.location.assign("/admin/dashboard.html");
+    if (!dirty) {
+      window.location.assign("/admin/dashboard.html");
+      return;
+    }
+    setConfirmState({
+      title: "Leave without saving?",
+      body: <p>You have unsaved changes. If you leave now, they will be lost.</p>,
+      confirmLabel: "Leave studio",
+      danger: true,
+      onConfirm: () => {
+        leaveConfirmed.current = true;
+        window.location.assign("/admin/dashboard.html");
+      },
+    });
   };
+
+  // Cmd/Ctrl+Z to undo, Shift+Cmd/Ctrl+Z or Ctrl+Y to redo — except while
+  // typing in a field, where the browser's own text undo should win.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if ((key === "z" && event.shiftKey) || key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  // Autosave the draft half a minute after the last change
+  useEffect(() => {
+    if (!dirty || busy !== null) return;
+    const timer = setTimeout(() => {
+      persistDraft()
+        .then(() => setStatus("Saved automatically"))
+        .catch((error) => {
+          console.error("Autosave failed:", error);
+          setStatus("Couldn't save automatically — click Save draft");
+        });
+    }, 25000);
+    return () => clearTimeout(timer);
+  }, [dirty, busy, config]);
 
   const guardrails = useMemo(() => getGuardrails(config, activePage), [config, activePage]);
 
@@ -647,7 +793,8 @@ export default function App() {
     return () => window.removeEventListener("message", onMessage);
   });
 
-  const setNextConfig = (next: ExperienceConfig, nextStatus = "Unsaved changes") => {
+  const setNextConfig = (next: ExperienceConfig, nextStatus = "You have unsaved changes") => {
+    pushHistory(config);
     next.updatedAt = new Date().toISOString();
     setConfig(next);
     setStatus(nextStatus);
@@ -706,9 +853,16 @@ export default function App() {
   const deleteBlock = (index: number) => {
     const block = pageBlocks[index];
     if (!block) return;
-    if (!window.confirm(`Delete the "${niceLabel(block.type)}" section? This cannot be undone.`)) return;
-    updatePageBlocks(pageBlocks.filter((_, itemIndex) => itemIndex !== index));
-    setSelectedIndex(Math.max(0, index - 1));
+    setConfirmState({
+      title: `Delete “${sectionName(block.type)}”?`,
+      body: <p>The section is removed from this page. If you change your mind, press Undo.</p>,
+      confirmLabel: "Delete section",
+      danger: true,
+      onConfirm: () => {
+        updatePageBlocks(pageBlocks.filter((_, itemIndex) => itemIndex !== index));
+        setSelectedIndex(Math.max(0, index - 1));
+      },
+    });
   };
 
   const persistDraft = async () => {
@@ -725,74 +879,129 @@ export default function App() {
 
   const saveDraft = async () => {
     setBusy("save");
-    setStatus("Saving draft...");
+    setStatus("Saving…");
     try {
       await persistDraft();
-      setStatus("Draft saved");
+      setStatus("All changes saved");
     } catch (error) {
-      setStatus(`Save failed: ${errorMessage(error)}`);
+      console.error("Save failed:", error);
+      setStatus("Couldn't save — check your connection and try again");
     } finally {
       setBusy(null);
     }
   };
 
-  const publish = async () => {
-    if (!window.confirm("Publish these changes? They will appear on the public site right away.")) return;
-    setBusy("publish");
-    setStatus("Publishing...");
-    try {
-      await persistDraft();
-      const result = await fetchJson<{ version: number }>("/api/admin/experience/publish", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      setVersion(result.version);
-      setStatus("Published — changes are live");
-      await loadVersions();
-    } catch (error) {
-      setStatus(`Publish failed: ${errorMessage(error)}`);
-    } finally {
-      setBusy(null);
-    }
+  const publish = () => {
+    const pageWarnings = (page: PageKey) =>
+      getGuardrails(config, page).filter((warning) => !warning.startsWith("No issues"));
+    const allWarnings = [...pageWarnings("landing"), ...pageWarnings("login")];
+
+    setConfirmState({
+      title: "Publish to the live site?",
+      body: (
+        <>
+          <p>Your draft replaces the current public pages, and every visitor sees it right away.</p>
+          {allWarnings.length ? (
+            <>
+              <p>You may want to fix these first:</p>
+              <ul>
+                {allWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+            </>
+          ) : (
+            <p>Checks found no issues.</p>
+          )}
+        </>
+      ),
+      confirmLabel: allWarnings.length ? "Publish anyway" : "Publish now",
+      onConfirm: async () => {
+        setBusy("publish");
+        setStatus("Publishing…");
+        try {
+          await persistDraft();
+          const result = await fetchJson<{ version: number }>("/api/admin/experience/publish", {
+            method: "POST",
+            body: JSON.stringify({}),
+          });
+          setVersion(result.version);
+          setStatus("Published — the live site is updated");
+          await loadVersions();
+        } catch (error) {
+          console.error("Publish failed:", error);
+          setStatus("Couldn't publish — please try again");
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
   };
 
   const previewDraft = async () => {
     setBusy("preview");
-    setStatus("Saving draft for preview...");
+    setStatus("Saving your draft…");
     try {
       await persistDraft();
-      setStatus("Draft saved");
+      setStatus("All changes saved");
       const target = activePage === "login" ? "/log-in.html" : "/index.html";
       window.open(`${target}?experiencePreview=draft`, "_blank");
     } catch (error) {
-      setStatus(`Preview failed: ${errorMessage(error)}`);
+      console.error("Preview failed:", error);
+      setStatus("Couldn't open the preview — please try again");
     } finally {
       setBusy(null);
     }
   };
 
-  const rollback = async (item: VersionSummary) => {
-    if (!window.confirm(`Restore version ${item.version}? Your current draft will be replaced.`)) return;
-    try {
-      const result = await fetchJson<{ config: ExperienceConfig; version: number; sourceVersion: number }>("/api/admin/experience/rollback", {
-        method: "POST",
-        body: JSON.stringify({ versionId: item.id }),
-      });
-      const parsed = ExperienceConfigSchema.parse(result.config);
-      setConfig(parsed);
-      setVersion(result.version);
-      setDirty(false);
-      setStatus(`Restored version ${result.sourceVersion}`);
-      await loadVersions();
-    } catch (error) {
-      setStatus(`Restore failed: ${errorMessage(error)}`);
-    }
+  const formatWhen = (iso?: string | null) => {
+    if (!iso) return "";
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime())
+      ? ""
+      : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  };
+
+  const rollback = (item: VersionSummary) => {
+    const when = formatWhen(item.updatedAt);
+    setConfirmState({
+      title: "Restore this version?",
+      body: (
+        <p>
+          Your draft becomes the version saved {when || "earlier"}. Nothing goes live until you
+          publish, and you can undo this.
+        </p>
+      ),
+      confirmLabel: "Restore version",
+      onConfirm: async () => {
+        try {
+          const result = await fetchJson<{ config: ExperienceConfig; version: number; sourceVersion: number }>("/api/admin/experience/rollback", {
+            method: "POST",
+            body: JSON.stringify({ versionId: item.id }),
+          });
+          const parsed = ExperienceConfigSchema.parse(result.config);
+          pushHistory(config, true);
+          setConfig(parsed);
+          setVersion(result.version);
+          setDirty(false);
+          setStatus("Version restored — click Publish to make it live");
+          await loadVersions();
+        } catch (error) {
+          console.error("Restore failed:", error);
+          setStatus("Couldn't restore that version — please try again");
+        }
+      },
+    });
   };
 
   const applyRecipe = (recipe: string) => {
-    if (!window.confirm(`Apply the "${recipe}" starter? It will replace your current page layout.`)) return;
-    const next = recipe === "Current PeAS" ? cloneConfig(defaultExperienceConfig) : buildRecipe(recipe, config);
-    setNextConfig(next, `${recipe} applied`);
+    setConfirmState({
+      title: `Use the “${recipe}” starter?`,
+      body: <p>It replaces the sections on your pages with the starter layout. If you change your mind, press Undo.</p>,
+      confirmLabel: "Use starter",
+      onConfirm: () => {
+        const next = recipe === "Current PeAS" ? cloneConfig(defaultExperienceConfig) : buildRecipe(recipe, config);
+        setNextConfig(next, "Starter applied — press Undo to go back");
+      },
+    });
   };
 
   return (
@@ -814,33 +1023,39 @@ export default function App() {
           <strong>PeAS Experience Studio</strong>
           <span>
             {dirty ? <em className="xp-dirty-dot" aria-hidden="true" /> : null}
-            {status}{version ? ` · v${version}` : ""}
+            {status}
           </span>
         </div>
 
         <div className="xp-studio-center-actions">
           <div className="xp-studio-segment" aria-label="Page">
-            <button className={activePage === "landing" ? "is-active" : ""} onClick={() => setActivePage("landing")}>Landing</button>
-            <button className={activePage === "login" ? "is-active" : ""} onClick={() => setActivePage("login")}>Login</button>
+            <button className={activePage === "landing" ? "is-active" : ""} onClick={() => setActivePage("landing")}>{pageNames.landing}</button>
+            <button className={activePage === "login" ? "is-active" : ""} onClick={() => setActivePage("login")}>{pageNames.login}</button>
           </div>
           <div className="xp-studio-segment" aria-label="Device preview">
             {(["desktop", "tablet", "mobile"] as DeviceKey[]).map((item) => (
-              <button key={item} className={device === item ? "is-active" : ""} onClick={() => setDevice(item)}>
-                {item}
+              <button key={item} className={device === item ? "is-active" : ""} onClick={() => setDevice(item)} title={`See how the page looks on a ${item === "desktop" ? "computer" : item}`}>
+                {item.charAt(0).toUpperCase() + item.slice(1)}
               </button>
             ))}
           </div>
         </div>
 
         <div className="xp-studio-actions">
+          <button className="xp-studio-button" onClick={undo} disabled={!canUndo} title="Undo the last change (Cmd/Ctrl+Z)">
+            Undo
+          </button>
+          <button className="xp-studio-button" onClick={redo} disabled={!canRedo} title="Redo the change you undid">
+            Redo
+          </button>
           <button className="xp-studio-button" onClick={previewDraft} disabled={busy !== null} title="Saves your draft and opens it in a new tab">
-            {busy === "preview" ? "Opening..." : "Preview draft"}
+            {busy === "preview" ? "Opening…" : "Preview draft"}
           </button>
           <button className="xp-studio-button primary" onClick={saveDraft} disabled={busy !== null}>
-            {busy === "save" ? "Saving..." : "Save draft"}
+            {busy === "save" ? "Saving…" : "Save draft"}
           </button>
-          <button className="xp-studio-button gold" onClick={publish} disabled={busy !== null} title="Makes the draft live on the public site">
-            {busy === "publish" ? "Publishing..." : "Publish"}
+          <button className="xp-studio-button gold" onClick={publish} disabled={busy !== null} title="Puts your draft on the public site">
+            {busy === "publish" ? "Publishing…" : "Publish"}
           </button>
         </div>
       </header>
@@ -848,8 +1063,8 @@ export default function App() {
       <div className="xp-simple-studio">
         <aside className="xp-section-list" aria-label="Page sections">
           <div className="xp-panel-heading">
-            <span>{activePage === "landing" ? "Landing sections" : "Login sections"}</span>
-            <small>{pageBlocks.length} blocks</small>
+            <span>{pageNames[activePage]} sections</span>
+            <small>{pageBlocks.length} {pageBlocks.length === 1 ? "section" : "sections"}</small>
           </div>
 
           <div className="xp-block-stack">
@@ -863,29 +1078,34 @@ export default function App() {
                   setInspectorTab("content");
                 }}
               >
-                <span>{niceLabel(block.type)}</span>
-                <small>{block.props?.title || block.props?.text || block.props?.brandText || "Edit"}</small>
+                <span>{sectionName(block.type)}</span>
+                <small>{block.props?.title || block.props?.text || block.props?.brandText || "Click to edit"}</small>
               </button>
             ))}
           </div>
 
-          <label className="xp-add-block">
-            <span>Add section</span>
-            <select defaultValue="" onChange={(event) => {
-              if (event.target.value) {
-                addBlock(event.target.value);
-                event.target.value = "";
-              }
-            }}>
-              <option value="" disabled>Choose a block</option>
+          <details className="xp-add-menu">
+            <summary>+ Add a section</summary>
+            <div className="xp-add-list">
               {allowedBlocks.map((type) => (
-                <option key={type} value={type}>{niceLabel(type)}</option>
+                <button
+                  key={type}
+                  type="button"
+                  onClick={(event) => {
+                    addBlock(type);
+                    const menu = event.currentTarget.closest("details");
+                    if (menu) menu.open = false;
+                  }}
+                >
+                  <strong>{sectionName(type)}</strong>
+                  <small>{sectionMeta[type]?.description || ""}</small>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          </details>
 
           <details className="xp-sidebar-details">
-            <summary>Starter recipes</summary>
+            <summary>Starter layouts</summary>
             <div className="xp-mini-list">
               {["Current PeAS", "Minimal Academic", "Visual Research Portal", "Announcement Campaign", "Focused Login"].map((recipe) => (
                 <button key={recipe} type="button" onClick={() => applyRecipe(recipe)}>{recipe}</button>
@@ -894,11 +1114,15 @@ export default function App() {
           </details>
 
           <details className="xp-sidebar-details">
-            <summary>Version history</summary>
+            <summary>Version history{version ? ` (v${version})` : ""}</summary>
             <div className="xp-mini-list">
               {versions.map((item) => (
                 <button key={item.id} type="button" onClick={() => rollback(item)} disabled={item.status === "published"}>
-                  v{item.version} · {item.status === "published" ? "Live" : "Restore"}
+                  <strong>{item.status === "published" ? "Currently live" : "Restore this version"}</strong>
+                  <small>
+                    {formatWhen(item.publishedAt || item.updatedAt) || `Version ${item.version}`}
+                    {(item.publishedBy || item.updatedBy) ? ` · by ${item.publishedBy || item.updatedBy}` : ""}
+                  </small>
                 </button>
               ))}
             </div>
@@ -909,7 +1133,7 @@ export default function App() {
           <div className="xp-preview-toolbar">
             <div>
               <strong>{page.title}</strong>
-              <span>{activePage === "landing" ? "Public landing page" : "Public login page"}</span>
+              <span>{activePage === "landing" ? "This is your public home page" : "This is your public sign-in page"}</span>
             </div>
             {selectedBlock ? (
               <div className="xp-block-actions">
@@ -934,9 +1158,9 @@ export default function App() {
           <div className="xp-inspector-tabs">
             {([
               ["content", "Edit"],
-              ["theme", "Theme"],
+              ["theme", "Style"],
               ["checks", "Checks"],
-              ["assets", "Assets"],
+              ["assets", "Images"],
             ] as Array<[InspectorTab, string]>).map(([key, label]) => (
               <button key={key} className={inspectorTab === key ? "is-active" : ""} type="button" onClick={() => setInspectorTab(key)}>
                 {label}
@@ -954,6 +1178,31 @@ export default function App() {
           {inspectorTab === "assets" ? <AssetUploader /> : null}
         </aside>
       </div>
+
+      {confirmState ? (
+        <div className="xp-modal-overlay" role="dialog" aria-modal="true" aria-label={confirmState.title}>
+          <div className="xp-modal">
+            <h2>{confirmState.title}</h2>
+            <div className="xp-modal-body">{confirmState.body}</div>
+            <div className="xp-modal-actions">
+              <button type="button" className="xp-studio-button" onClick={() => setConfirmState(null)}>
+                Go back
+              </button>
+              <button
+                type="button"
+                className={`xp-studio-button ${confirmState.danger ? "danger" : "primary"}`}
+                onClick={() => {
+                  const action = confirmState.onConfirm;
+                  setConfirmState(null);
+                  action();
+                }}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1107,3 +1107,152 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Plain-language pass (Phase 1) ---------- */
+
+/* Text boxes should not look like code */
+.xp-field-stack input,
+.xp-field-stack textarea,
+.xp-field-stack select,
+.xp-copy-row input {
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+/* Add-a-section menu with descriptions */
+.xp-add-menu {
+  margin: 1rem 0;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.xp-add-menu summary {
+  padding: 0.8rem;
+  color: #006A4E;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.xp-add-list {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0 0.6rem 0.6rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.xp-add-list button {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.xp-add-list button:hover {
+  border-color: #006A4E;
+  background: #eef8f3;
+}
+
+.xp-add-list button strong {
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.xp-add-list button small {
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+/* Version history entries: action + date on two lines */
+.xp-mini-list button {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  margin-bottom: 0.4rem;
+}
+
+.xp-mini-list button small {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.xp-mini-list button:disabled {
+  background: #eef8f3;
+  border-color: #b7dbc9;
+  color: #00543e;
+  cursor: default;
+}
+
+/* Confirmation dialogs (Phase 2) */
+.xp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.xp-modal {
+  width: min(440px, 100%);
+  padding: 1.2rem 1.3rem;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.xp-modal h2 {
+  margin: 0 0 0.6rem;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.xp-modal-body {
+  color: #334155;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.xp-modal-body p {
+  margin: 0 0 0.6rem;
+}
+
+.xp-modal-body ul {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+}
+
+.xp-modal-body li {
+  margin-bottom: 0.25rem;
+}
+
+.xp-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.xp-modal-actions .xp-studio-button {
+  padding: 0 0.85rem;
+}
+
+.xp-studio-button.danger {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+/* Undo/Redo buttons shouldn't scream when unavailable */
+.xp-studio-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
