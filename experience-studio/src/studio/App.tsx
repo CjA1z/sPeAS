@@ -597,15 +597,26 @@ export default function App() {
     setInspectorTab("content");
   }, [activePage]);
 
+  // Set when the user has already confirmed leaving via the Exit button, so
+  // the browser's own beforeunload dialog doesn't ask a second time.
+  const leaveConfirmed = useRef(false);
+
   useEffect(() => {
     if (!dirty) return;
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (leaveConfirmed.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
   }, [dirty]);
+
+  const exitStudio = () => {
+    if (dirty && !window.confirm("You have unsaved changes. Exit the studio without saving?")) return;
+    leaveConfirmed.current = true;
+    window.location.assign("/admin/dashboard.html");
+  };
 
   const guardrails = useMemo(() => getGuardrails(config, activePage), [config, activePage]);
 
@@ -787,6 +798,18 @@ export default function App() {
   return (
     <div className="xp-studio-shell">
       <header className="xp-studio-topbar">
+        <button
+          type="button"
+          className="xp-studio-exit"
+          onClick={exitStudio}
+          title="Back to admin dashboard"
+          aria-label="Exit to admin dashboard"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 6l-6 6l6 6" />
+          </svg>
+          <span>Exit</span>
+        </button>
         <div className="xp-studio-brand">
           <strong>PeAS Experience Studio</strong>
           <span>

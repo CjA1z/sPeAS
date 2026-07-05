@@ -533,6 +533,32 @@
   backdrop-filter: blur(10px);
 }
 
+.xp-studio-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 38px;
+  padding: 0 0.85rem 0 0.6rem;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.xp-studio-exit svg {
+  width: 16px;
+  height: 16px;
+}
+
+.xp-studio-exit:hover {
+  border-color: #006A4E;
+  background: #e6f2ee;
+  color: #00543e;
+}
+
 .xp-studio-brand {
   display: flex;
   flex-direction: column;

@@ -58,11 +58,18 @@ function applyThemeVars(theme: ExperienceConfig["theme"]) {
 }
 
 let draftPreviewActive = false;
+const searchParams = new URLSearchParams(location.search);
 
 // Canvas mode: the page is embedded in the Experience Studio's preview iframe
 // and renders whatever config the studio streams in via postMessage.
 const canvasMode = window.parent !== window &&
-  new URLSearchParams(location.search).get("experienceCanvas") === "1";
+  searchParams.get("experienceCanvas") === "1";
+const runtimeRequested = canvasMode ||
+  searchParams.get("experienceRuntime") === "1" ||
+  searchParams.get("experienceRuntime") === "true" ||
+  searchParams.get("experiencePreview") === "draft" ||
+  searchParams.get("experiencePreview") === "live" ||
+  document.documentElement.dataset.experienceRuntime === "enabled";
 
 if (canvasMode) {
   // Keep the preview stable: links must not navigate the canvas away and
@@ -104,7 +111,7 @@ function CanvasHost({ page }: { page: "landing" | "login" }) {
 async function loadExperience(): Promise<ExperienceConfig | null> {
   // ?experiencePreview=draft lets admins preview the unpublished draft; the
   // endpoint is admin-gated, so everyone else falls through to the live config.
-  if (new URLSearchParams(location.search).get("experiencePreview") === "draft") {
+  if (searchParams.get("experiencePreview") === "draft") {
     try {
       const response = await fetch("/api/admin/experience/draft", {
         credentials: "include",
@@ -379,10 +386,14 @@ async function mountLogin() {
   showDraftPreviewBadge();
 }
 
-const page = document.documentElement.dataset.experiencePage ||
-  (location.pathname.includes("log-in") ? "login" : location.pathname.endsWith("/") || location.pathname.includes("index") ? "landing" : "");
+const explicitPage = document.documentElement.dataset.experiencePage;
+// Keep the public landing page static by default. The Experience renderer only
+// owns landing when the editor canvas, draft preview, or an explicit runtime
+// opt-in asks for it.
+const page = explicitPage ||
+  (location.pathname.includes("log-in") ? "login" : runtimeRequested && (location.pathname.endsWith("/") || location.pathname.includes("index")) ? "landing" : "");
 
-if (page === "landing") {
+if (page === "landing" && runtimeRequested) {
   mountLanding();
 } else if (page === "login") {
   mountLogin();
