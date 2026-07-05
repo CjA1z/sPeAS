@@ -54,14 +54,17 @@ function createDocumentCard(doc) {
             ${topicColors}
         </div>
         <div class="document-actions">
-            <button class="action-btn view-btn" data-document-id="${doc.id}">
+            <button class="action-btn view-btn has-tooltip" data-document-id="${doc.id}" aria-label="View document">
                 <i class="fas fa-eye"></i> 
+                <span class="action-tooltip" aria-hidden="true">View document</span>
             </button>
-            <button class="action-btn edit-btn" data-document-id="${doc.id}">
+            <button class="action-btn edit-btn has-tooltip" data-document-id="${doc.id}" aria-label="Edit document">
                 <i class="fas fa-edit"></i> 
+                <span class="action-tooltip" aria-hidden="true">Edit document</span>
             </button>
-            <button class="action-btn delete-btn" data-document-id="${doc.id}">
+            <button class="action-btn delete-btn has-tooltip" data-document-id="${doc.id}" aria-label="Archive document">
                 <i class="fas fa-trash"></i> 
+                <span class="action-tooltip" aria-hidden="true">Archive document</span>
             </button>
         </div>
     `;
@@ -176,14 +179,17 @@ function createCompiledDocumentCard(doc, expandedDocIds = []) {
             </div>
         </div>
         <div class="document-actions">
-            <button class="action-btn expand-btn" title="Show contained documents">
+            <button class="action-btn expand-btn has-tooltip" aria-label="Show contained documents">
                 <i class="fas fa-list"></i>
+                <span class="action-tooltip" aria-hidden="true">Show contained documents</span>
             </button>
-            <button class="action-btn edit-btn" title="Edit compilation">
+            <button class="action-btn edit-btn has-tooltip" aria-label="Edit compilation">
                 <i class="fas fa-edit"></i>
+                <span class="action-tooltip" aria-hidden="true">Edit compilation</span>
             </button>
-            <button class="action-btn delete-btn" title="Archive compilation">
+            <button class="action-btn delete-btn has-tooltip" aria-label="Archive compilation">
                 <i class="fas fa-trash"></i>
+                <span class="action-tooltip" aria-hidden="true">Archive compilation</span>
             </button>
         </div>
     `;
@@ -791,4 +797,4 @@ function fetchAndRenderChildDocuments(compiledDocId, container) {
             errorElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error loading documents: ${error.message}`;
             container.appendChild(errorElement);
         });
-} 
+}

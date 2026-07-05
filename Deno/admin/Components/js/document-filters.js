@@ -120,7 +120,7 @@ function updateCategoryCounts(categories) {
     // Update the "All" category count
     const allCountElement = document.querySelector('.category-card[data-category="All"] .category-count');
     if (allCountElement) {
-        allCountElement.textContent = `${totalDocs} ${totalDocs === 1 ? 'file' : 'files'}`;
+        allCountElement.textContent = `${totalDocs} ${totalDocs === 1 ? 'entry' : 'entries'}`;
             } else {
     }
     
@@ -146,7 +146,7 @@ function updateCategoryCounts(categories) {
         }
         
         if (countElement) {
-            countElement.textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
+            countElement.textContent = `${count} ${count === 1 ? 'entry' : 'entries'}`;
                     } else {
         }
     });
@@ -293,7 +293,7 @@ function updatePagination(totalPages) {
 function updateEntriesInfo() {
     const entriesInfo = document.getElementById('entries-info');
     if (entriesInfo) {
-        entriesInfo.textContent = `Showing ${visibleEntriesCount} document(s)`;
+        entriesInfo.textContent = `Showing ${visibleEntriesCount} ${visibleEntriesCount === 1 ? 'entry' : 'entries'}`;
     }
 }
 
@@ -506,4 +506,4 @@ if (!window.documentFilters) {
         updateFilterIndicator,
         resetFilters
     };
-} 
+}

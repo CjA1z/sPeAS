@@ -206,6 +206,7 @@ async function updateVisitorChart(period = 'daily') {
                 },
                 options: {
                     responsive: true,
+                    resizeDelay: 250,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
@@ -291,6 +292,7 @@ async function updateVisitorChart(period = 'daily') {
             },
             options: {
                 responsive: true,
+                    resizeDelay: 250,
                 maintainAspectRatio: false,
                 devicePixelRatio: window.devicePixelRatio,
                 interaction: { mode: 'index', intersect: false },
@@ -395,6 +397,7 @@ async function updateVisitorChart(period = 'daily') {
                 },
                 options: {
                     responsive: true,
+                    resizeDelay: 250,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {

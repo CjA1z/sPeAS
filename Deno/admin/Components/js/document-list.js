@@ -779,15 +779,18 @@ function renderBasicDocumentCard(doc) {
         </div>
         <div class="document-actions">
             ${isCompiled ? '' : 
-            `<button class="action-btn view-btn" data-document-id="${doc.id}">
+            `<button class="action-btn view-btn has-tooltip" data-document-id="${doc.id}" aria-label="View document">
                 <i class="fas fa-eye"></i> 
+                <span class="action-tooltip" aria-hidden="true">View document</span>
             </button>`}
-            <button class="action-btn edit-btn" data-document-id="${doc.id}">
+            <button class="action-btn edit-btn has-tooltip" data-document-id="${doc.id}" aria-label="Edit document">
                 <i class="fas fa-edit"></i> 
+                <span class="action-tooltip" aria-hidden="true">Edit document</span>
             </button>
             ${doc.parent_compiled_id ? '' : 
-            `<button class="action-btn delete-btn" data-document-id="${doc.id}">
+            `<button class="action-btn delete-btn has-tooltip" data-document-id="${doc.id}" aria-label="Archive document">
                 <i class="fas fa-trash"></i> 
+                <span class="action-tooltip" aria-hidden="true">Archive document</span>
             </button>`}
         </div>
     `;
@@ -1071,8 +1074,9 @@ function createChildDocumentCard(child) {
             </div>
         </div>
         <div class="document-actions">
-            <button class="action-btn view-btn" data-document-id="${child.id}" title="View Document">
+            <button class="action-btn view-btn has-tooltip" data-document-id="${child.id}" aria-label="View document">
                 <i class="fas fa-eye"></i>
+                <span class="action-tooltip" aria-hidden="true">View document</span>
             </button>
             <!-- Delete button removed for child documents -->
         </div>
