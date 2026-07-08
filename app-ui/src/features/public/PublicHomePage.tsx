@@ -5,8 +5,8 @@ import { CategoryIcon } from "../../components/documents/CategoryIcon";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
 import { PublicFooter } from "../../components/public/PublicFooter";
 import { PublicNavbar } from "../../components/public/PublicNavbar";
+import { OrgChart } from "../../components/public/OrgChart";
 import { PrismDiagram } from "../../components/public/PrismDiagram";
-import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { fetchPublicHomeData, keywordSearchUrl, searchResultsUrl, type PublicHomeData } from "../../lib/api/public";
 import type { SessionResponse } from "../../lib/api/auth";
@@ -82,7 +82,12 @@ export function PublicHomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: "easeOut" }}
           >
-            <Badge tone="gold">St. Paul University Dumaguete</Badge>
+            <div className="peas-public-hero-kicker">
+              <span className="peas-public-hero-logo-group">
+                <img className="peas-public-hero-logo-mark" src="/Components/images/spud_logo_s.png" alt="St. Paul University Dumaguete logo" />
+                <img className="peas-public-hero-logo-mark" src="/Components/images/peas.png" alt="PeAS system logo" />
+              </span>
+            </div>
             <h1 id="public-home-title">Office of Research & Publications</h1>
             <p>
               Explore PeAS, the university repository for research activities, initiatives, theses,
@@ -125,17 +130,15 @@ export function PublicHomePage() {
           </motion.div>
         </section>
 
-        <section className="peas-public-stats" aria-label="Repository summary">
-          <StatItem label="Repository Works" value={loading ? "--" : String(totalWorks)} />
-          <StatItem label="Authors" value={loading ? "--" : String(data?.stats.totalAuthors ?? 0)} />
-          <StatItem label="Home Visits" value={loading ? "--" : String(data?.stats.totalVisits ?? 0)} />
-        </section>
-
         <section className="peas-public-band" aria-labelledby="discover-title">
           <div className="peas-public-section-head">
             <span>Discover</span>
             <h2 id="discover-title">Browse the repository by collection</h2>
             <p>Jump into theses, dissertations, Confluence volumes, and Synergy collections.</p>
+          </div>
+          <div className="peas-public-stats" aria-label="Repository summary">
+            <StatItem label="Repository Works" value={loading ? "--" : String(totalWorks)} />
+            <StatItem label="Authors" value={loading ? "--" : String(data?.stats.totalAuthors ?? 0)} />
           </div>
           <div className="peas-public-category-grid">
             {CATEGORY_ORDER.filter((item) => item !== "All").map((item, index) => {
@@ -211,9 +214,7 @@ export function PublicHomePage() {
             <h2 id="org-title">Research and publications team</h2>
             <p>The unit coordinating research activity, publication support, and institutional scholarly output.</p>
           </div>
-          <a href="/Components/images/org-chart.png" className="peas-public-image-link">
-            <img src="/Components/images/org-chart.png" alt="Organizational chart for the Office of Research and Publications" />
-          </a>
+          <OrgChart />
         </section>
 
         <section className="peas-public-band" id="research-agenda" aria-labelledby="agenda-title">
