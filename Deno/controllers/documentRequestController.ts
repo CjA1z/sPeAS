@@ -1,8 +1,42 @@
 import { RouterContext } from "../deps.ts";
 import { DocumentRequestModel, DocumentRequest } from "../models/documentRequestModel.ts";
 import { DocumentModel } from "../models/documentModel.ts";
+import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { sendRequestConfirmationEmail, sendApprovedRequestEmail, sendRejectedRequestEmail } from "../services/emailService.ts";
 import { client } from "../db/denopost_conn.ts";
+
+function getAccessTokenExpiry(): Date {
+    const configuredHours = Number(Deno.env.get("DOCUMENT_ACCESS_TOKEN_TTL_HOURS") || "168");
+    const ttlHours = Number.isFinite(configuredHours) && configuredHours > 0
+        ? Math.min(configuredHours, 24 * 30)
+        : 168;
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + ttlHours);
+    return expiresAt;
+}
+
+function getContentType(fileName: string): string {
+    const fileExt = fileName.split(".").pop()?.toLowerCase() || "";
+    if (fileExt === "pdf") return "application/pdf";
+    if (["doc", "docx"].includes(fileExt)) {
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    }
+    if (["xls", "xlsx"].includes(fileExt)) {
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    }
+    if (["jpg", "jpeg"].includes(fileExt)) return "image/jpeg";
+    if (fileExt === "png") return "image/png";
+    return "application/octet-stream";
+}
+
+function sanitizeDownloadFileName(fileName: string): string {
+    return fileName.replace(/[\r\n"]/g, "_") || "document";
+}
+
+function getPublicOrigin(ctx: RouterContext<any, any, any>): string {
+    const configuredOrigin = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_BASE_URL") || "";
+    return configuredOrigin ? configuredOrigin.replace(/\/+$/, "") : ctx.request.url.origin;
+}
 
 export class DocumentRequestController {
     private documentRequestModel: DocumentRequestModel;
@@ -293,37 +327,18 @@ export class DocumentRequestController {
                         return;
                     }
                     
-                    // Verify if the document file actually exists before trying to send it
+                    // Verify if the document file actually exists before issuing access.
                     let fileExists = false;
                     const filePath = document.file_path;
-                    
-                    if (filePath) {
-                        const pathsToCheck = [
-                            filePath,
-                            `./Public/documents/${filePath}`,
-                            `./documents/${filePath}`,
-                            `./storage/${filePath}`,
-                            `${Deno.cwd()}/Public/documents/${filePath}`,
-                            `${Deno.cwd()}/documents/${filePath}`,
-                            `${Deno.cwd()}/storage/${filePath}`
-                        ];
-                        
-                                                                        
-                        for (const path of pathsToCheck) {
-                            try {
-                                const fileInfo = await Deno.stat(path);
-                                if (fileInfo.isFile) {
-                                    fileExists = true;
-                                                                        break;
-                                }
-                            } catch (error) {
-                                // File doesn't exist at this path, try next one
-                            }
+
+                    try {
+                        const resolvedPath = await DocumentModel.getDocumentPath(documentId);
+                        if (resolvedPath) {
+                            const fileInfo = await Deno.stat(resolvedPath);
+                            fileExists = fileInfo.isFile;
                         }
-                        
-                        if (!fileExists) {
-                        }
-                    } else {
+                    } catch (_fileError) {
+                        fileExists = false;
                     }
                     
                     // Proceed with sending the email
@@ -334,6 +349,17 @@ export class DocumentRequestController {
                     const keywordsStr = document.keywords ? 
                         (Array.isArray(document.keywords) ? document.keywords.join(', ') : document.keywords) : 
                         null;
+
+                    const expiresAt = getAccessTokenExpiry();
+                    await this.documentRequestModel.revokeAccessTokensForRequest(requestIdNum);
+                    const accessGrant = await this.documentRequestModel.createAccessToken(
+                        requestIdNum,
+                        String(documentId),
+                        request.email,
+                        expiresAt,
+                    );
+                    const secureDownloadUrl =
+                        `${getPublicOrigin(ctx)}/api/document-requests/${requestIdNum}/download?token=${encodeURIComponent(accessGrant.rawToken)}`;
                     
                     await sendApprovedRequestEmail(
                         request.email,
@@ -343,13 +369,20 @@ export class DocumentRequestController {
                         requestIdString,
                         document.author,
                         document.category,
-                        keywordsStr
+                        keywordsStr,
+                        undefined,
+                        {
+                            secureDownloadUrl,
+                            expiresAt,
+                            attachDocument: false,
+                        }
                     );
 
                     ctx.response.status = 200;
                     ctx.response.body = { 
                         success: true,
-                        fileFound: fileExists
+                        fileFound: fileExists,
+                        accessExpiresAt: expiresAt.toISOString()
                     };
                 } catch (error: any) {
                     ctx.response.status = 200; // Still return 200 as the status update was successful
@@ -360,6 +393,8 @@ export class DocumentRequestController {
                 }
             } else if (status === 'rejected') {
                 try {
+                    await this.documentRequestModel.revokeAccessTokensForRequest(requestIdNum);
+
                     // Fetch the associated document to get the title
                     // Ensure document_id is a number - convert if it's not, or use 0 as a safe default
                     let documentId = 0;
@@ -410,7 +445,14 @@ export class DocumentRequestController {
     async deleteRequest(ctx: RouterContext<any, any, any>) {
         try {
             const requestId = ctx.params?.id;
-            const success = await this.documentRequestModel.delete(requestId);
+            const requestIdNum = parseInt(String(requestId), 10);
+            if (isNaN(requestIdNum)) {
+                ctx.response.status = 400;
+                ctx.response.body = { error: 'Invalid request ID' };
+                return;
+            }
+
+            const success = await this.documentRequestModel.delete(requestIdNum);
 
             if (!success) {
                 ctx.response.status = 404;
@@ -422,6 +464,98 @@ export class DocumentRequestController {
         } catch (error) {
             ctx.response.status = 500;
             ctx.response.body = { error: 'Internal server error' };
+        }
+    }
+
+    async downloadApprovedDocument(ctx: RouterContext<any, any, any>) {
+        try {
+            const requestId = parseInt(String(ctx.params?.id || ""), 10);
+            const token = ctx.request.url.searchParams.get("token");
+
+            if (isNaN(requestId) || !token) {
+                ctx.response.status = 400;
+                ctx.response.body = { error: "A valid request ID and access token are required" };
+                return;
+            }
+
+            const access = await this.documentRequestModel.getValidAccessToken(token);
+            if (!access || access.request_id !== requestId) {
+                ctx.response.status = 403;
+                ctx.response.body = { error: "Access link is invalid, expired, or revoked" };
+                return;
+            }
+
+            const documentId = parseInt(String(access.document_id), 10);
+            if (isNaN(documentId)) {
+                ctx.response.status = 400;
+                ctx.response.body = { error: "Invalid document reference" };
+                return;
+            }
+
+            const document = await DocumentModel.getDocumentById(documentId);
+            if (!document) {
+                ctx.response.status = 404;
+                ctx.response.body = { error: "Document not found" };
+                return;
+            }
+
+            const filePath = await DocumentModel.getDocumentPath(documentId);
+            if (!filePath) {
+                ctx.response.status = 404;
+                ctx.response.body = { error: "Document file not found" };
+                return;
+            }
+
+            try {
+                const fileInfo = await Deno.stat(filePath);
+                if (!fileInfo.isFile) {
+                    throw new Error("Resolved path is not a file");
+                }
+            } catch (_fileError) {
+                ctx.response.status = 404;
+                ctx.response.body = { error: "Document file not found" };
+                return;
+            }
+
+            await this.documentRequestModel.markAccessTokenUsed(access.id);
+
+            const fileName = sanitizeDownloadFileName(
+                filePath.split("/").pop()?.split("\\").pop() || `document-${documentId}`,
+            );
+
+            try {
+                await SystemLogsModel.createLog({
+                    log_type: "download",
+                    user_id: null,
+                    username: access.email,
+                    action: "Approved outsider document download",
+                    details: {
+                        request_id: requestId,
+                        document_id: documentId,
+                        document_title: document.title || `Document ${documentId}`,
+                        access_token_id: access.id,
+                        expires_at: access.expires_at,
+                        timestamp: new Date().toISOString(),
+                        file_name: fileName,
+                    },
+                    ip_address: ctx.request.ip || "Unknown",
+                    status: "success",
+                    related_id: String(documentId),
+                });
+            } catch (_logError) {
+                // Download access should not fail only because audit logging failed.
+            }
+
+            ctx.response.headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+            ctx.response.headers.set("Content-Type", getContentType(fileName));
+            ctx.response.headers.set("Cache-Control", "no-store");
+            ctx.response.body = await Deno.readFile(filePath);
+        } catch (error) {
+            ctx.response.status = 500;
+            ctx.response.body = {
+                error: "Failed to download approved document",
+                details: error instanceof Error ? error.message : String(error),
+            };
         }
     }
 
@@ -484,4 +618,4 @@ export class DocumentRequestController {
             ctx.response.body = { error: 'Internal server error' };
         }
     }
-} 
+}

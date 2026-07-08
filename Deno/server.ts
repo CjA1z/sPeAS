@@ -971,6 +971,7 @@ async function startServer() {
     // Ensure the visit counter tables exist
     await ensureVisitCounterTablesExist();
     await ensureExperienceTablesExist();
+    await DocumentRequestModel.ensureAccessTokenTableExists();
     
     // Note: `router` is already registered on the app (routes added to it
     // after registration still dispatch, since Oak matches at request time).

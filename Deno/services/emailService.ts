@@ -647,7 +647,8 @@ export async function sendEmailWithAttachment(
 }
 
 /**
- * Sends an email notification when a document request is approved with the document attached
+ * Sends an email notification when a document request is approved.
+ * Approval can include a secure download URL or, for legacy flows, attachments.
  * @param email Recipient email
  * @param fullName Recipient's name
  * @param documentTitle Title of the document
@@ -668,7 +669,12 @@ export async function sendApprovedRequestEmail(
   documentAuthor?: string | null,
   documentCategory?: string | null,
   documentKeywords?: string | null,
-  childDocumentPaths?: string[]
+  childDocumentPaths?: string[],
+  options: {
+    secureDownloadUrl?: string;
+    expiresAt?: Date | string;
+    attachDocument?: boolean;
+  } = {}
 ): Promise<boolean | {
   success: boolean;
   documentPath: string;
@@ -690,6 +696,7 @@ export async function sendApprovedRequestEmail(
   const subject = `Your request for "${documentTitle}" has been approved`;
   let fileSize = 0;
   let fileExists = false;
+  const shouldAttachDocument = options.attachDocument ?? !options.secureDownloadUrl;
 
   try {
     // CRITICAL FIX: Add direct PDF handling right at the start
@@ -698,7 +705,7 @@ export async function sendApprovedRequestEmail(
     let successfulAttachments = 0;
     
     // Try multiple paths for the main document
-    if (documentFilePath) {
+    if (shouldAttachDocument && documentFilePath) {
     const pathsToTry = [
       documentFilePath,
         `./Public/documents/${documentFilePath}`,
@@ -743,7 +750,7 @@ export async function sendApprovedRequestEmail(
     }
     
     // Try reading child documents
-    if (childDocumentPaths && childDocumentPaths.length > 0) {
+    if (shouldAttachDocument && childDocumentPaths && childDocumentPaths.length > 0) {
             
       for (const childPath of childDocumentPaths) {
         // Try multiple paths for each child document
@@ -773,7 +780,7 @@ export async function sendApprovedRequestEmail(
           }
     
     // If we couldn't read from the file system directly, fallback to loading from database
-    if (!fileExists && documentFilePath) {
+    if (shouldAttachDocument && !fileExists && documentFilePath) {
       try {
                 const { client } = await import("../db/denopost_conn.ts");
         const query = `
@@ -816,6 +823,20 @@ export async function sendApprovedRequestEmail(
     const attachmentCountText = isCollection 
       ? `the compiled document and ${successfulAttachments} child document${successfulAttachments !== 1 ? 's' : ''}`
       : 'the document';
+    const expiresAtText = options.expiresAt
+      ? new Date(options.expiresAt).toLocaleString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "the stated expiration time";
+    const accessInstruction = options.secureDownloadUrl
+      ? `Use this secure access link to download the document: ${options.secureDownloadUrl}\n\nThis link expires on ${expiresAtText}. Please do not forward it.`
+      : fileExists
+        ? `We have attached ${attachmentCountText} to this email.`
+        : `Unfortunately, we could not locate the document file. Please contact our administrator for assistance.`;
 
     // Plain text version
     const text = `
@@ -823,10 +844,7 @@ Dear ${fullName},
 
 We are pleased to inform you that your request to access "${documentTitle}" has been approved.
 
-${fileExists 
-  ? `We have attached ${attachmentCountText} to this email.` 
-  : `Unfortunately, we could not locate the document file. Please contact our administrator for assistance.`
-}
+${accessInstruction}
 
 Thank you for using our document management system.
 
@@ -848,9 +866,13 @@ sPeAS - Library Document Management System
   
   <p>Your request for access to <strong>"${documentTitle}"</strong> has been approved.</p>
   
-  ${fileExists 
-    ? `<p><strong>✓</strong> We have attached ${attachmentCountText} to this email.</p>` 
-    : `<p><strong style="color:#dc2626;">⚠</strong> The document could not be found in our system. Please contact the administrator for assistance.</p>`
+  ${options.secureDownloadUrl
+    ? `<p><strong>✓</strong> Use the secure access link below to download the approved document.</p>
+       <p><a href="${options.secureDownloadUrl}" style="display:inline-block;background:#006400;color:#fff;padding:12px 18px;border-radius:5px;text-decoration:none;">Download Approved Document</a></p>
+       <p>This link expires on ${expiresAtText}. Please do not forward it.</p>`
+    : fileExists
+      ? `<p><strong>✓</strong> We have attached ${attachmentCountText} to this email.</p>`
+      : `<p><strong style="color:#dc2626;">⚠</strong> The document could not be found in our system. Please contact the administrator for assistance.</p>`
   }
   
   <p style="margin-top: 30px;">Thank you for using our document management system.</p>
@@ -890,6 +912,17 @@ sPeAS - Library Document Management System
       }
     }
 
+    if (options.secureDownloadUrl) {
+      html = html.replace(
+        /<p style="margin-bottom: 20px;">The PDF file is <strong>attached<\/strong> to this email for your convenience\.<\/p>/,
+        `<p style="margin-bottom: 20px;">Use the secure access link below to download the approved document. This link expires on ${expiresAtText}.</p>`
+      );
+      html = html.replace(
+        /<a href="http:\/\/paulinian-electronic-archiving-system\/request\/[^"]*" target="_blank" class="button-link">\s*Contact Us\s*<\/a>/,
+        `<a href="${options.secureDownloadUrl}" target="_blank" class="button-link">Download Approved Document</a>`
+      );
+    }
+
     // Directly create the message with the PDF content if we have it
     const message: any = {
       from: getFormattedFromAddress(),
@@ -901,7 +934,7 @@ sPeAS - Library Document Management System
     };
 
     // Only try to add attachments if we have found files
-    if (mainPdfContent && mainPdfContent.length > 0) {
+    if (shouldAttachDocument && mainPdfContent && mainPdfContent.length > 0) {
             try {
         // Create a filename for the attachment - use the document title or ID
         const safeTitle = documentTitle.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
@@ -921,7 +954,7 @@ sPeAS - Library Document Management System
     }
     
     // Add child documents if any were found
-    if (childPdfContents && childPdfContents.length > 0) {
+    if (shouldAttachDocument && childPdfContents && childPdfContents.length > 0) {
             
       childPdfContents.forEach((childDoc, index) => {
         try {
@@ -971,7 +1004,7 @@ sPeAS - Library Document Management System
         documentPath: documentFilePath,
         fileExists: fileExists,
         fileSize: fileSize,
-        attachment_success: fileExists
+        attachment_success: shouldAttachDocument && fileExists
       };
     } catch (sendError) {
       // Handle specific error types
@@ -1005,7 +1038,7 @@ sPeAS - Library Document Management System
         documentPath: documentFilePath,
         fileExists: fileExists,
         fileSize: fileSize,
-        attachment_success: fileExists
+        attachment_success: shouldAttachDocument && fileExists
       };
     }
   } catch (error) {
@@ -1022,7 +1055,7 @@ sPeAS - Library Document Management System
       documentPath: documentFilePath,
       fileExists: fileExists,
       fileSize: fileSize,
-      attachment_success: fileExists
+      attachment_success: shouldAttachDocument && fileExists
     };
   }
 }

@@ -8,6 +8,7 @@ export function createDocumentRequestRoutes(controller: DocumentRequestControlle
     // Public routes
     router.post("/api/document-requests", controller.createRequest.bind(controller));
     router.get("/api/documents/:documentId/access", controller.checkDocumentAccess.bind(controller));
+    router.get("/api/document-requests/:id/download", controller.downloadApprovedDocument.bind(controller));
 
     // Admin routes
     router.get("/api/document-requests", isAuthenticated, isAdmin, controller.getAllRequests.bind(controller));
@@ -17,4 +18,4 @@ export function createDocumentRequestRoutes(controller: DocumentRequestControlle
     router.delete("/api/document-requests/:id", isAuthenticated, isAdmin, controller.deleteRequest.bind(controller));
 
     return router;
-} 
+}

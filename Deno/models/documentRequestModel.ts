@@ -24,8 +24,73 @@ export interface DocumentRequest {
     volume?: string;
 }
 
+export interface DocumentAccessToken {
+    id: number;
+    request_id: number;
+    document_id: string;
+    email: string;
+    token_hash: string;
+    expires_at: Date;
+    created_at: Date;
+    used_at?: Date | null;
+    access_count: number;
+    revoked_at?: Date | null;
+}
+
+export interface DocumentAccessTokenGrant {
+    rawToken: string;
+    expiresAt: Date;
+    token: DocumentAccessToken;
+}
+
+export interface ValidDocumentAccessToken extends DocumentAccessToken {
+    request_status: DocumentRequest['status'];
+    full_name: string;
+}
+
 export class DocumentRequestModel {
     constructor() {}
+
+    static async ensureAccessTokenTableExists(): Promise<void> {
+        await client.queryObject(`
+            CREATE TABLE IF NOT EXISTS document_access_tokens (
+                id SERIAL PRIMARY KEY,
+                request_id INTEGER NOT NULL REFERENCES document_requests(id) ON DELETE CASCADE,
+                document_id TEXT NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                used_at TIMESTAMPTZ,
+                access_count INTEGER DEFAULT 0,
+                revoked_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_document_access_tokens_request_id
+                ON document_access_tokens(request_id);
+            CREATE INDEX IF NOT EXISTS idx_document_access_tokens_document_id
+                ON document_access_tokens(document_id);
+            CREATE INDEX IF NOT EXISTS idx_document_access_tokens_expires_at
+                ON document_access_tokens(expires_at);
+        `);
+    }
+
+    private static createRawAccessToken(): string {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        const random = Array.from(bytes)
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("");
+        return `${crypto.randomUUID()}-${random}`;
+    }
+
+    private static async hashAccessToken(token: string): Promise<string> {
+        const data = new TextEncoder().encode(token);
+        const digest = await crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(digest))
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("");
+    }
 
     // Create a new document request
     async create(request: Omit<DocumentRequest, 'id' | 'status' | 'created_at' | 'updated_at'>): Promise<DocumentRequest> {
@@ -166,8 +231,80 @@ export class DocumentRequestModel {
         return (result.rowCount ?? 0) > 0;
     }
 
+    async createAccessToken(
+        requestId: number,
+        documentId: string,
+        email: string,
+        expiresAt: Date,
+    ): Promise<DocumentAccessTokenGrant> {
+        await DocumentRequestModel.ensureAccessTokenTableExists();
+
+        const rawToken = DocumentRequestModel.createRawAccessToken();
+        const tokenHash = await DocumentRequestModel.hashAccessToken(rawToken);
+
+        const result = await client.queryObject<DocumentAccessToken>(
+            `INSERT INTO document_access_tokens
+                (request_id, document_id, email, token_hash, expires_at)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [requestId, documentId, email, tokenHash, expiresAt],
+        );
+
+        return {
+            rawToken,
+            expiresAt,
+            token: result.rows[0],
+        };
+    }
+
+    async getValidAccessToken(rawToken: string): Promise<ValidDocumentAccessToken | null> {
+        await DocumentRequestModel.ensureAccessTokenTableExists();
+
+        const tokenHash = await DocumentRequestModel.hashAccessToken(rawToken);
+        const result = await client.queryObject<ValidDocumentAccessToken>(
+            `SELECT
+                dat.*,
+                dr.status AS request_status,
+                dr.full_name
+             FROM document_access_tokens dat
+             JOIN document_requests dr ON dr.id = dat.request_id
+             WHERE dat.token_hash = $1
+               AND dat.revoked_at IS NULL
+               AND dat.expires_at > NOW()
+               AND dr.status = 'approved'
+             LIMIT 1`,
+            [tokenHash],
+        );
+
+        return result.rows[0] || null;
+    }
+
+    async markAccessTokenUsed(tokenId: number): Promise<void> {
+        await client.queryObject(
+            `UPDATE document_access_tokens
+             SET used_at = NOW(),
+                 access_count = COALESCE(access_count, 0) + 1
+             WHERE id = $1`,
+            [tokenId],
+        );
+    }
+
+    async revokeAccessTokensForRequest(requestId: number): Promise<void> {
+        await DocumentRequestModel.ensureAccessTokenTableExists();
+
+        await client.queryObject(
+            `UPDATE document_access_tokens
+             SET revoked_at = COALESCE(revoked_at, NOW())
+             WHERE request_id = $1
+               AND revoked_at IS NULL`,
+            [requestId],
+        );
+    }
+
     // Delete a request
     async delete(id: number): Promise<boolean> {
+        await this.revokeAccessTokensForRequest(id);
+
         const result = await client.queryObject(
             `DELETE FROM document_requests WHERE id = $1`,
             [id]
@@ -222,4 +359,4 @@ export class DocumentRequestModel {
         );
         return (result.rowCount ?? 0) > 0;
     }
-} 
+}
