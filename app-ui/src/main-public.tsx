@@ -12,6 +12,11 @@ void mountPublicIsland("react-public-search-root", async () => {
   return <PublicSearchPage />;
 });
 
+void mountPublicIsland("react-public-news-root", async () => {
+  const { PublicNewsPage } = await import("./features/public/PublicNewsPage");
+  return <PublicNewsPage />;
+});
+
 async function mountPublicIsland(rootId: string, load: () => Promise<ReactElement>) {
   const root = document.getElementById(rootId);
   if (!root) return;
