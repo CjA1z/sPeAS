@@ -3,10 +3,13 @@ export function PublicFooter() {
     <footer className="peas-public-footer">
       <div>
         <a className="peas-public-footer-brand" href="/index.html">
-          <img src="/Components/images/spud-logo.png" alt="" />
-          <span>PeAS</span>
+          <img src="/Components/images/spud_logo_s.png" alt="" />
+          <span>
+            <strong>Office of Research & Publications</strong>
+            <small>St. Paul University – Dumaguete</small>
+          </span>
         </a>
-        <p>Office of Research & Publications, St. Paul University Dumaguete</p>
+        <p>&copy; {new Date().getFullYear()} PeAS. All Rights Reserved.</p>
       </div>
       <nav aria-label="Footer navigation">
         <a href="/index.html">Home</a>

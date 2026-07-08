@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
-import { BookOpen, Clock, LogOut, Menu, Search, UserRound, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BookOpen, Clock, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { GlassBackdrop } from "../ui/glass-surface";
-import { fetchOptionalSession, searchResultsUrl } from "../../lib/api/public";
+import { fetchOptionalSession } from "../../lib/api/public";
 import type { SessionResponse } from "../../lib/api/auth";
 
 interface PublicNavbarProps {
@@ -12,20 +12,26 @@ interface PublicNavbarProps {
 
 const links = [
   { label: "Home", href: "/index.html" },
-  { label: "Search", href: "/pages/searchResultsPage.html" },
   { label: "News", href: "/news.html" },
   { label: "Contact", href: "/contact.html" },
 ];
 
 export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [scrolled, setScrolled] = useState(false);
   const authenticated = Boolean(session?.authenticated ?? session?.isAuthenticated);
   const userName = String(session?.user?.name ?? session?.username ?? session?.userId ?? "User");
 
-  const submitSearch = useCallback(() => {
-    window.location.href = searchResultsUrl(search);
-  }, [search]);
+  useEffect(() => {
+    const updateScrolled = () => {
+      const nextScrolled = window.scrollY > 16;
+      setScrolled((current) => (current === nextScrolled ? current : nextScrolled));
+    };
+
+    updateScrolled();
+    window.addEventListener("scroll", updateScrolled, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrolled);
+  }, []);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -39,7 +45,7 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
   }, [onSessionChange]);
 
   return (
-    <header className="peas-public-navbar">
+    <header className={`peas-public-navbar${scrolled ? " is-scrolled" : ""}`}>
       <GlassBackdrop />
       <a className="peas-public-brand" href="/index.html" aria-label="PeAS home">
         <img src="/Components/images/spud_logo_s.png" alt="" />
@@ -56,22 +62,6 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
           </a>
         ))}
       </nav>
-
-      <form
-        className="peas-public-navsearch"
-        onSubmit={(event) => {
-          event.preventDefault();
-          submitSearch();
-        }}
-      >
-        <Search aria-hidden="true" />
-        <input
-          aria-label="Search repository"
-          placeholder="Search research..."
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-        />
-      </form>
 
       <div className="peas-public-nav-actions">
         {authenticated ? (
@@ -112,21 +102,6 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
                 <X aria-hidden="true" />
               </button>
             </div>
-            <form
-              className="peas-public-mobile-search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitSearch();
-              }}
-            >
-              <Search aria-hidden="true" />
-              <input
-                aria-label="Search repository"
-                placeholder="Search research..."
-                value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
-              />
-            </form>
             {links.map((link) => (
               <a href={link.href} key={link.href} onClick={() => setOpen(false)}>
                 {link.label}
