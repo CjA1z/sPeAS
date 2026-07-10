@@ -302,79 +302,28 @@ function handleLogout(event) {
   loadingPopup.appendChild(loadingContent);
   document.body.appendChild(loadingPopup);
   
-  // More thorough client-side storage clearing
+  // Clear the display-only cache; the HttpOnly session cookie can only be
+  // cleared by the server (Better Auth sign-out below).
   try {
-    // Clear localStorage - first specific keys then everything
-    const localStorageKeys = ['userInfo', 'session_token', 'accessToken', 'user', 'userData', 'auth', 'role'];
-    localStorageKeys.forEach(key => localStorage.removeItem(key));
-    localStorage.clear(); // Clear all localStorage items
-    
-    // Clear sessionStorage - first specific keys then everything
-    const sessionStorageKeys = ['userInfo', 'session_token', 'accessToken', 'user', 'userData', 'auth', 'role'];
-    sessionStorageKeys.forEach(key => sessionStorage.removeItem(key));
-    sessionStorage.clear(); // Clear all sessionStorage items
-    
-    // Clear specific cookies
-    const cookiesToClear = ['session_token', 'accessToken', 'user', 'auth', 'role'];
-    cookiesToClear.forEach(cookieName => {
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      // Also try to clear cookies with different paths
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/admin/;`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api/;`;
+    const storageKeys = ['userInfo', 'session_token', 'accessToken', 'user', 'userData', 'auth', 'role'];
+    storageKeys.forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     });
-    
-    // Clear all cookies (more aggressive approach)
-    document.cookie.split(";").forEach(function(c) {
-      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/admin/");
-      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/api/");
-    });
-    
-    
-    // Check if we're still on admin dashboard after storage clearing
-    if (window.location.pathname.includes('/admin/')) {
-          }
+    localStorage.clear();
+    sessionStorage.clear();
   } catch (e) {
   }
-  
-  // Try multiple logout endpoints to ensure we hit the right one
-  Promise.any([
-    fetch('/logout', {
-      method: 'POST',
-      credentials: 'include',
-      redirect: 'follow' // Allow the server's redirect to be followed
-    }),
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-      redirect: 'follow' // Allow the server's redirect to be followed
-    }),
-    fetch('/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-      redirect: 'follow' // Allow the server's redirect to be followed
-    })
-  ])
-  .then(response => {
-        
-    // Check if redirect location contains the string 'dashboard'
-    const hasRedirectHeader = response.headers && response.headers.get('Location');
-    if (hasRedirectHeader) {
-      const location = response.headers.get('Location');
-            
-      if (location && location.includes('dashboard')) {
-                window.location.href = '/index.html?nocache=' + Date.now();
-        return;
-      }
-    }
-    
-        
-    if (response.redirected) {
-      window.location.href = response.url;
-    } else {
-      // Fallback if the server didn't redirect
-      window.location.href = '/index.html?nocache=' + Date.now();
-    }
+
+  // Revoke the session through Better Auth
+  fetch('/api/auth/sign-out', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  })
+  .then(() => {
+    window.location.href = '/index.html?nocache=' + Date.now();
   })
   .catch(error => {
     // Fallback on error

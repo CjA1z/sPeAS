@@ -714,7 +714,7 @@
         const API_ENDPOINTS = {
             profile: '/api/user/profile',
             updateProfile: '/api/user/profile/update',
-            updatePassword: '/api/user/profile/password',
+            updatePassword: '/api/auth/change-password',
             uploadProfilePicture: '/api/user/profile/picture'
         };
 
@@ -809,7 +809,7 @@
         function checkAuthentication() {
             const token = getAuthToken();
             if (!token) {
-                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+                window.location.href = '/log-in.html?redirect=' + encodeURIComponent(window.location.pathname);
                 return false;
             }
             return true;
@@ -899,19 +899,23 @@
 
             try {
                 setLoading(true);
-                // The server scopes the update to the authenticated session user
+                // Better Auth change-password; scoped to the session user.
+                // Other sessions are revoked so a stolen session can't survive
+                // a password change.
                 const response = await fetch(API_ENDPOINTS.updatePassword, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     credentials: 'include',
                     body: JSON.stringify({
                         currentPassword,
-                        newPassword
+                        newPassword,
+                        revokeOtherSessions: true
                     })
                 });
-                
+
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.message || `Failed to update password: ${response.status}`);
@@ -1330,7 +1334,7 @@
             try {
                 sessionUserInfo = JSON.parse(sessionStorage.getItem('userInfo'));
                 if (!sessionUserInfo || !sessionUserInfo.isLoggedIn) {
-                    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+                    window.location.href = '/log-in.html?redirect=' + encodeURIComponent(window.location.pathname);
                     return;
                 }
                 
@@ -1352,7 +1356,7 @@
                 const name = sessionUserInfo.first_name || sessionUserInfo.username || 'User';
                 profilePicturePreview.src = generatePlaceholderAvatar();
                             } catch (error) {
-                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+                window.location.href = '/log-in.html?redirect=' + encodeURIComponent(window.location.pathname);
                 return;
             }
             

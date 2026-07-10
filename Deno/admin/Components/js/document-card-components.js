@@ -300,33 +300,7 @@ function createChildDocumentCard(child) {
             })
             .then(document => {
                 if (document && document.file_path) {
-                    // Open the PDF in a new tab or viewer
-                    // Ensure we have a fully qualified URL by adding protocol and host if missing
-                    let pdfPath = document.file_path;
-                    
-                    // Remove absolute path if present (starting with drive letter like C:/)
-                    if (pdfPath.match(/^[A-Za-z]:\//)) {
-                        // Extract just the part after the workspace root
-                        const parts = pdfPath.split('/');
-                        const storageIndex = parts.findIndex(part => part === 'storage');
-                        
-                        if (storageIndex !== -1) {
-                            // Reconstruct the path starting from 'storage'
-                            pdfPath = '/' + parts.slice(storageIndex).join('/');
-                        } else {
-                        }
-                    }
-                    
-                    // If the path doesn't start with http or /, add the leading /
-                    if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                        pdfPath = '/' + pdfPath;
-                    }
-                    
-                    // If the path is relative (starts with /), prepend the current origin
-                    if (pdfPath.startsWith('/')) {
-                        pdfPath = window.location.origin + pdfPath;
-                    }
-                    
+                    const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(document.id || child.id)}/download?disposition=inline`;
                                         
                     // Use PDF viewer modal if available
                     if (typeof showPdfViewer === 'function') {
@@ -479,33 +453,8 @@ function setupDocumentCardEventListeners(card, doc) {
             })
             .then(document => {
                 if (document && document.file_path) {
-                    // Open the PDF in a new tab
-                    let pdfPath = document.file_path;
-                    
-                    // Remove absolute path if present (starting with drive letter like C:/)
-                    if (pdfPath.match(/^[A-Za-z]:\//)) {
-                        // Extract just the part after the workspace root
-                        const parts = pdfPath.split('/');
-                        const storageIndex = parts.findIndex(part => part === 'storage');
-                        
-                        if (storageIndex !== -1) {
-                            // Reconstruct the path starting from 'storage'
-                            pdfPath = '/' + parts.slice(storageIndex).join('/');
-                        } else {
-                        }
-                    }
-                    
-                    // If the path doesn't start with http or /, add the leading /
-                    if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                        pdfPath = '/' + pdfPath;
-                    }
-                    
-                    // If the path is relative (starts with /), prepend the current origin
-                    if (pdfPath.startsWith('/')) {
-                        pdfPath = window.location.origin + pdfPath;
-                    }
-                    
-                                        window.open(pdfPath, '_blank');
+                    const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(document.id || doc.id)}/download?disposition=inline`;
+                    window.open(pdfPath, '_blank');
                 } else {
                     alert('PDF path not found for this document');
                 }

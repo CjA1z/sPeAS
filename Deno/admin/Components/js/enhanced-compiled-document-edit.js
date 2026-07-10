@@ -3232,7 +3232,7 @@ window.enhancedCompiledDocumentEdit = {
                                 <div class="file-name">${fileName}</div>
                                 <div class="file-actions">
                                 ${hasFile ? 
-                                        `<button type="button" class="btn-sm view-file-btn" data-path="${child.file_path || child.pdf_path}">
+                                        `<button type="button" class="btn-sm view-file-btn" data-id="${child.id}">
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                         <button type="button" class="btn-sm replace-file-btn" data-id="${child.id}">
@@ -3264,7 +3264,7 @@ window.enhancedCompiledDocumentEdit = {
             if (viewBtn) {
                 viewBtn.addEventListener('click', () => {
                     if (child.file_path || child.pdf_path) {
-                        window.open(child.file_path || child.pdf_path, '_blank');
+                        window.open(`/api/documents/${encodeURIComponent(child.id)}/download?disposition=inline`, '_blank');
                     } else {
                         alert('No file attached to this document.');
                     }
@@ -3275,9 +3275,9 @@ window.enhancedCompiledDocumentEdit = {
             const viewFileBtn = childElement.querySelector('.view-file-btn');
             if (viewFileBtn) {
                 viewFileBtn.addEventListener('click', () => {
-                    const filePath = viewFileBtn.getAttribute('data-path');
-                    if (filePath) {
-                        window.open(filePath, '_blank');
+                    const docId = viewFileBtn.getAttribute('data-id');
+                    if (docId) {
+                        window.open(`/api/documents/${encodeURIComponent(docId)}/download?disposition=inline`, '_blank');
                     }
                 });
             }
@@ -4346,21 +4346,14 @@ function renderChildDocuments(children, container) {
             viewButton.style.cssText = 'font-size: 12px; padding: 3px 8px; background: #4e73df; color: white; border: none; border-radius: 3px; cursor: pointer;';
             viewButton.dataset.id = doc.id;
             
-            // Store file path in data attribute for easier access
-            if (doc.file_path || doc.path) {
-                viewButton.dataset.file = doc.file_path || doc.path;
-            }
-            
             // Add event listener for view button
             viewButton.addEventListener('click', () => {
                 const docId = viewButton.dataset.id;
-                const filePath = viewButton.dataset.file;
                 
                                 
                 // Try multiple methods to view the document
-                    if (filePath) {
-                    // If we have the file path, open directly
-                        window.open(filePath, '_blank');
+                if (doc.file_path || doc.path) {
+                    window.open(`/api/documents/${encodeURIComponent(docId)}/download?disposition=inline`, '_blank');
                     } else {
                     // Otherwise use the document preview functionality
                     if (window.documentPreview && typeof window.documentPreview.openDocument === 'function') {
@@ -4369,7 +4362,7 @@ function renderChildDocuments(children, container) {
                         openPdfViewer(docId);
                     } else {
                         // Fallback to direct navigation
-                        window.open(`/api/documents/${docId}/view`, '_blank');
+                        window.open(`/api/documents/${encodeURIComponent(docId)}/download?disposition=inline`, '_blank');
                     }
                 }
             });

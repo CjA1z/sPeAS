@@ -122,20 +122,8 @@ async function showPreviewModal(documentId) {
             readDocumentBtn.onclick = function() {
                 // Use docData if it has file_path, otherwise fetch document details again
                 if (docData && docData.file_path) {
-                    // Ensure we have a fully qualified URL by adding protocol and host if missing
-                    let pdfPath = docData.file_path;
-                    
-                    // If the path doesn't start with http or /, add the leading /
-                    if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                        pdfPath = '/' + pdfPath;
-                    }
-                    
-                    // If the path is relative (starts with /), prepend the current origin
-                    if (pdfPath.startsWith('/')) {
-                        pdfPath = window.location.origin + pdfPath;
-                    }
-                    
-                                        window.open(pdfPath, '_blank');
+                    const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(documentId)}/download?disposition=inline`;
+                    window.open(pdfPath, '_blank');
                 } else {
                     // Fetch document details if file_path is not available
                     fetch(`/api/documents/${documentId}`)
@@ -147,21 +135,8 @@ async function showPreviewModal(documentId) {
                         })
                         .then(document => {
                             if (document && document.file_path) {
-                                // Open the PDF in a new tab
-                                // Ensure we have a fully qualified URL by adding protocol and host if missing
-                                let pdfPath = document.file_path;
-                                
-                                // If the path doesn't start with http or /, add the leading /
-                                if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                                    pdfPath = '/' + pdfPath;
-                                }
-                                
-                                // If the path is relative (starts with /), prepend the current origin
-                                if (pdfPath.startsWith('/')) {
-                                    pdfPath = window.location.origin + pdfPath;
-                                }
-                                
-                                                                window.open(pdfPath, '_blank');
+                                const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(document.id || documentId)}/download?disposition=inline`;
+                                window.open(pdfPath, '_blank');
                             } else {
                                 alert('PDF path not found for this document');
                             }
@@ -211,29 +186,17 @@ function openPdfViewer(documentId) {
                     throw new Error('Document not found');
                 }
                 
-                // If we have a direct file path, use it instead of the PDF endpoint
+                // If we have a document file, use the authenticated inline route.
                 if (doc.file_path) {
-                    // Ensure we have a fully qualified URL
-                    let pdfPath = doc.file_path;
-                    
-                    // If the path doesn't start with http or /, add the leading /
-                    if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                        pdfPath = '/' + pdfPath;
-                    }
-                    
-                    // If the path is relative (starts with /), prepend the current origin
-                    if (pdfPath.startsWith('/')) {
-                        pdfPath = window.location.origin + pdfPath;
-                    }
-                    
-                                        window.open(pdfPath, '_blank');
+                    const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(doc.id || documentId)}/download?disposition=inline`;
+                    window.open(pdfPath, '_blank');
                     return;
                 }
                 
                 // If no direct file path, use the PDF endpoint in the viewer
                 const pdfViewer = document.getElementById('pdf-viewer');
                 if (pdfViewer) {
-                    const pdfUrl = `/api/documents/${documentId}/pdf`;
+                    const pdfUrl = `/api/documents/${encodeURIComponent(documentId)}/download?disposition=inline`;
                                         pdfViewer.src = pdfUrl;
                     
                     // Set modal title
@@ -252,12 +215,12 @@ function openPdfViewer(documentId) {
                         window.open(pdfUrl, '_blank');
                     }
                 } else {
-                    window.open(`/api/documents/${documentId}/pdf`, '_blank');
+                    window.open(`/api/documents/${encodeURIComponent(documentId)}/download?disposition=inline`, '_blank');
                 }
             })
             .catch(error => {
                 // Fallback: Try to open the document directly
-                const fallbackUrl = `/api/documents/${documentId}/pdf`;
+                const fallbackUrl = `/api/documents/${encodeURIComponent(documentId)}/download?disposition=inline`;
                                 window.open(fallbackUrl, '_blank');
             });
     } catch (error) {

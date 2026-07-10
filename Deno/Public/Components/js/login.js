@@ -1,13 +1,27 @@
+// Login handling for the legacy pages, backed by Better Auth
+// (/api/auth/sign-in/username). The session cookie is HttpOnly and managed
+// by the server; only display info is cached in web storage.
+
+function ensurePeasAuth() {
+    return new Promise((resolve) => {
+        if (window.PeasAuth) return resolve(window.PeasAuth);
+        const script = document.createElement('script');
+        script.src = '/Components/js/auth-client.js';
+        script.onload = () => resolve(window.PeasAuth);
+        script.onerror = () => resolve(null);
+        document.head.appendChild(script);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    
+
     setTimeout(() => {
         const loginForm = document.getElementById("login-form");
         if (!loginForm) {
             return;
         }
 
-        
-        let isSubmitting = false; 
+        let isSubmitting = false;
 
         loginForm.addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -15,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (isSubmitting) {
                 return;
             }
-            isSubmitting = true; 
+            isSubmitting = true;
 
             const ID = document.getElementById("wf-log-in-id")?.value.trim();
             const Password = document.getElementById("wf-log-in-password")?.value.trim();
@@ -26,83 +40,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const loginData = { ID, Password };
-            
             try {
-                                const response = await fetch("/login", { 
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify(loginData),
-                    credentials: "include" // Important for cookies
-                });
-
-                                                
-                let data;
-                const responseText = await response.text();
-                                
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    alert("Server returned an invalid response format. Please try again.");
-                    isSubmitting = false;
+                const auth = await ensurePeasAuth();
+                if (!auth) {
+                    alert("Login is temporarily unavailable. Please reload the page.");
                     return;
                 }
 
-                
-                if (response.ok) {
-                    // The session token is set by the server as an HttpOnly cookie —
-                    // it is never exposed to JavaScript. Only display info is stored.
-                    const serverTime = data.serverTime || Date.now();
+                const session = await auth.signInUsername(ID, Password);
 
-                    // Store user information including role and server timestamp
-                    const userInfo = {
-                        isLoggedIn: true,
-                        id: data.userId || ID,
-                        role: data.role || 'User',
-                        username: data.username || ID,
-                        serverTime: serverTime,
-                        loginTime: Date.now()
-                    };
+                // Display-only cache; the HttpOnly cookie is the credential.
+                const userInfo = auth.storeUserInfo(session);
 
-                    // Store in sessionStorage instead of localStorage so it's cleared when browser closes
-                    sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+                // Update header UI
+                updateHeaderUI(userInfo);
 
-                    // Also update localStorage to trigger storage event for other tabs
-                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
-
-                    // Dispatch storage event to notify current tab
-                    window.dispatchEvent(new StorageEvent('storage', {
-                        key: 'userInfo',
-                        newValue: JSON.stringify(userInfo),
-                        storageArea: localStorage
-                    }));
-
-                    // Update header UI
-                    updateHeaderUI(userInfo);
-
-
-                    // Determine redirect based on role
-                    const userRole = data.role ? data.role.toLowerCase() : 'user';
-                    let redirectUrl = '/index.html';  // Default redirect for users
-                    
-                    if (userRole === 'admin') {
-                        redirectUrl = '/admin/dashboard.html';
-                    } else if (userRole === 'user') {
-                        // User role - redirect to index page which will load the user navbar
-                        redirectUrl = '/index.html';
-                    }
-                    
-                                        window.location.href = redirectUrl;
-                } else {
-                    alert(data.message || "Login failed. Please check your credentials.");
-                }
+                auth.redirectByRole(session.role);
             } catch (error) {
-                alert("Internal Server Error. Please try again later.");
+                alert(error && error.message ? error.message : "Login failed. Please check your credentials.");
             } finally {
-                isSubmitting = false; 
+                isSubmitting = false;
             }
         });
     }, 100);
@@ -111,28 +68,28 @@ document.addEventListener("DOMContentLoaded", () => {
 // Function to update header UI after login
 function updateHeaderUI(userInfo) {
     if (!userInfo) return;
-    
+
     // Try to refresh using navbar module if available
     if (window.NavbarModule && typeof window.NavbarModule.refresh === 'function') {
                 window.NavbarModule.refresh();
         return;
     }
-    
+
     // Fallback to old method if NavbarModule not available
-        
+
     // Try to get the header elements
     const loginContainer = document.getElementById('loginContainer');
     const userDropdownContainer = document.getElementById('userDropdownContainer');
     const userName = document.getElementById('userName');
-    
+
     // If header elements exist on the current page
     if (loginContainer && userDropdownContainer && userName) {
         loginContainer.style.display = 'none';
         userDropdownContainer.style.display = 'block';
-        
+
         // Set user name
         userName.textContent = userInfo.username || userInfo.id || 'User';
-        
+
         // Add role if not a regular user
         if (userInfo.role && userInfo.role.toLowerCase() !== 'user') {
             userName.textContent += ` (${userInfo.role})`;
@@ -143,34 +100,24 @@ function updateHeaderUI(userInfo) {
 // Add a global logout function that can be called from anywhere
 window.logout = async function() {
     try {
-        // Call the logout endpoint
-        const response = await fetch('/logout', {
-            method: 'POST',
-            credentials: 'include'
-        });
-        
-        // Clear both localStorage and sessionStorage
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('session_token');
-        sessionStorage.removeItem('userInfo');
-        sessionStorage.removeItem('session_token');
-        
-        // Clear cookies
-        document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        
+        const auth = await ensurePeasAuth();
+        if (auth) {
+            await auth.signOut();
+        }
+
         // Update UI if on a page with the header
         const loginContainer = document.getElementById('loginContainer');
         const userDropdownContainer = document.getElementById('userDropdownContainer');
-        
+
         if (loginContainer && userDropdownContainer) {
             loginContainer.style.display = 'block';
             userDropdownContainer.style.display = 'none';
         }
-        
+
         // If on an admin page, redirect to login
         if (window.location.pathname.includes('/admin/')) {
             window.location.href = '/log-in.html';
-        } else if (window.location.pathname.includes('/profile') || 
+        } else if (window.location.pathname.includes('/profile') ||
             window.location.pathname.includes('/settings')) {
             window.location.href = '/log-in.html';
         } else {

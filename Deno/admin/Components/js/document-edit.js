@@ -954,20 +954,8 @@ window.documentEdit = {
                         })
                         .then(document => {
                             if (document && document.file_path) {
-                                // Format the file path for direct access
-                                let pdfPath = document.file_path;
-                                
-                                // If the path doesn't start with http or /, add the leading /
-                                if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                                    pdfPath = '/' + pdfPath;
-                                }
-                                
-                                // If the path is relative (starts with /), prepend the current origin
-                                if (pdfPath.startsWith('/')) {
-                                    pdfPath = window.location.origin + pdfPath;
-                                }
-                                
-                                                                window.open(pdfPath, '_blank');
+                                const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(document.id || docId)}/download?disposition=inline`;
+                                window.open(pdfPath, '_blank');
                             } else {
                                 alert('Document file not found.');
                             }
@@ -1102,30 +1090,19 @@ window.documentEdit = {
                             return response.json();
                         })
                         .then(document => {
-                            let filePath = null;
+                            let fileUrl = null;
                             
                             // Check for foreword first (compiled document case)
                             if (document && document.foreword) {
-                                                                filePath = document.foreword;
+                                fileUrl = `/api/compiled-documents/${encodeURIComponent(document.id || docId)}/foreword`;
                             } 
                             // Otherwise check for regular file path
                             else if (document && document.file_path) {
-                                                                filePath = document.file_path;
+                                fileUrl = `/api/documents/${encodeURIComponent(document.id || docId)}/download?disposition=inline`;
                             }
                             
-                            if (filePath) {
-                                // Format the file path for direct access
-                                // If the path doesn't start with http or /, add the leading /
-                                if (!filePath.startsWith('http') && !filePath.startsWith('/')) {
-                                    filePath = '/' + filePath;
-                                }
-                                
-                                // If the path is relative (starts with /), prepend the current origin
-                                if (filePath.startsWith('/')) {
-                                    filePath = window.location.origin + filePath;
-                                }
-                                
-                                                                window.open(filePath, '_blank');
+                            if (fileUrl) {
+                                window.open(fileUrl, '_blank');
                             } else {
                                 alert('Document file not found. Please ensure the document has a file attached.');
                             }
@@ -2218,20 +2195,8 @@ window.documentEdit = {
             })
             .then(document => {
                 if (document && document.file_path) {
-                    // Format the file path for direct access
-                    let pdfPath = document.file_path;
-                    
-                    // If the path doesn't start with http or /, add the leading /
-                    if (!pdfPath.startsWith('http') && !pdfPath.startsWith('/')) {
-                        pdfPath = '/' + pdfPath;
-                    }
-                    
-                    // If the path is relative (starts with /), prepend the current origin
-                    if (pdfPath.startsWith('/')) {
-                        pdfPath = window.location.origin + pdfPath;
-                    }
-                    
-                                        window.open(pdfPath, '_blank');
+                    const pdfPath = `${window.location.origin}/api/documents/${encodeURIComponent(document.id || documentId)}/download?disposition=inline`;
+                    window.open(pdfPath, '_blank');
                 } else {
                     alert('Document file not found.');
                 }

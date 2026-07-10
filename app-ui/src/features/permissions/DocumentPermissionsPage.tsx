@@ -117,7 +117,7 @@ export function DocumentPermissionsPage() {
 
   const reviewedByLoader = useCallback(async () => {
     const session = await fetchSession();
-    return String(session.user?.id ?? session.userId ?? session.username ?? "admin");
+    return String(session?.user?.id ?? session?.userId ?? session?.username ?? "admin");
   }, []);
 
   const handleApprove = useCallback(async () => {

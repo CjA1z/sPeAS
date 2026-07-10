@@ -431,6 +431,8 @@
                     if (mainDocData.foreword_file_path) {
                                             } else if (mainDocData.foreword_path) {
                         mainDocData.foreword_file_path = mainDocData.foreword_path;
+                                            } else if (mainDocData.foreword) {
+                        mainDocData.foreword_file_path = `/api/compiled-documents/${encodeURIComponent(docId)}/foreword`;
                                             } else if (mainDocData.foreword_attachment) {
                         mainDocData.foreword_file_path = mainDocData.foreword_attachment;
                                             } else if (mainDocData.attachment && typeof mainDocData.attachment === 'string' && 
@@ -817,7 +819,7 @@
                                 
                                 <div class="document-actions">
                                     <a href="/pages/user-single.html?id=${child.id}" class="btn btn-secondary btn-sm">View Details</a>
-                                    ${child.file_path ? `<a href="${child.file_path}" class="btn btn-primary btn-sm" target="_blank">Read Document</a>` : ''}
+                                    ${child.file_path && child.id ? `<a href="/api/documents/${encodeURIComponent(child.id)}/download?disposition=inline" class="btn btn-primary btn-sm" target="_blank" rel="noopener">Read Document</a>` : ''}
                                 </div>
                             </article>
                         `;
@@ -849,18 +851,19 @@
                 if (readBtn) {
                     // Check for foreword attachment first, then fall back to main file path
                     if (mainDoc.foreword_file_path) {
-                        readBtn.href = mainDoc.foreword_file_path;
+                        readBtn.href = `/api/compiled-documents/${encodeURIComponent(mainDoc.id || documentId)}/foreword`;
                         readBtn.title = "View Foreword Document";
                         readBtn.querySelector('i').className = "fas fa-file-alt"; // Change icon to indicate foreword
                         readBtn.innerHTML = `<i class="fas fa-file-alt"></i> Read Foreword`;
                     } else if (mainDoc.file_path) {
-                    readBtn.href = mainDoc.file_path;
+                        readBtn.href = `/api/documents/${encodeURIComponent(mainDoc.id || documentId)}/download?disposition=inline`;
                         readBtn.title = "View Full Document";
                     } else {
                         readBtn.href = "#";
                         readBtn.title = "Document file not available";
                     }
                     readBtn.target = "_blank"; // Open in new tab
+                    readBtn.rel = "noopener";
                 }
             }
 
@@ -1196,6 +1199,23 @@
                             // Reset button state
                             this.innerHTML = `<i class="fas fa-book-open"></i> Read Full Document`;
                             this.disabled = false;
+
+                            const openFileThroughBackend = (file) => {
+                                if (file.isBlob) {
+                                    const blobUrl = file.path;
+                                    window.open(blobUrl, '_blank');
+                                    return;
+                                }
+
+                                if (file.isForeword) {
+                                    window.open(`/api/compiled-documents/${encodeURIComponent(documentId)}/foreword`, '_blank');
+                                    return;
+                                }
+
+                                const sourceDocMatch = String(file.source || '').match(/child_(\d+)/);
+                                const targetDocumentId = file.documentId || (sourceDocMatch ? sourceDocMatch[1] : documentId);
+                                window.open(`/api/documents/${encodeURIComponent(targetDocumentId)}/download?disposition=inline`, '_blank');
+                            };
                             
                             // If we found file paths, let user choose or use the first one
                             if (filePaths && filePaths.length > 0) {
@@ -1206,17 +1226,7 @@
                                                                         // Use the first foreword file if only one exists
                                     if (forewordFiles.length === 1) {
                                         const file = forewordFiles[0];
-                                                                                // Handle direct URLs (like API endpoints) differently
-                                        if (file.isDirectUrl) {
-                                            window.open(file.path, '_blank');
-                                        } else if (file.isBlob) {
-                                            window.open(file.path, '_blank');
-                                        } else {
-                                            // For server paths, add a timestamp to prevent caching issues
-                                            const url = `${file.path}?t=${Date.now()}`;
-                                            // Open in new window to ensure browser handles as PDF
-                                            window.open(url, '_blank');
-                                        }
+                                        openFileThroughBackend(file);
                     return;
                                     } else {
                                         // If multiple foreword files, ask user which to open
@@ -1230,14 +1240,7 @@
                                             const index = parseInt(choice) - 1;
                                             if (forewordFiles[index]) {
                                                                                                 const file = forewordFiles[index];
-                                                if (file.isDirectUrl) {
-                                                    window.open(file.path, '_blank');
-                                                } else if (file.isBlob) {
-                                                    window.open(file.path, '_blank');
-                                                } else {
-                                                    const url = `${file.path}?t=${Date.now()}`;
-                                                    window.open(url, '_blank');
-                                                }
+                                                openFileThroughBackend(file);
                                                 return;
                                             }
                                         }
@@ -1247,14 +1250,7 @@
                                 if (filePaths.length === 1) {
                                     // Just one file, open it directly
                                     const file = filePaths[0];
-                                                                        if (file.isDirectUrl) {
-                                        window.open(file.path, '_blank');
-                                    } else if (file.isBlob) {
-                                        window.open(file.path, '_blank');
-                                    } else {
-                                        const url = `${file.path}?t=${Date.now()}`;
-                                        window.open(url, '_blank');
-                                    }
+                                    openFileThroughBackend(file);
                                 } else {
                                     // Multiple files, ask user which one to open
                                     let message = "Multiple document files found. Please choose one to open:\n\n";
@@ -1270,14 +1266,7 @@
                                         const index = parseInt(choice) - 1;
                                         if (filePaths[index]) {
                                                                                         const file = filePaths[index];
-                                            if (file.isDirectUrl) {
-                                                window.open(file.path, '_blank');
-                                            } else if (file.isBlob) {
-                                                window.open(file.path, '_blank');
-                                            } else {
-                                                const url = `${file.path}?t=${Date.now()}`;
-                                                window.open(url, '_blank');
-                                            }
+                                            openFileThroughBackend(file);
                                         }
                                     }
                                 }
@@ -1288,44 +1277,12 @@
                                     // UI says foreword is available but we couldn't find it
                                     const retryForForeword = confirm(
                                         "A foreword document is listed as available but couldn't be found automatically. " +
-                                        "Would you like to try using direct foreword URL patterns?"
+                                        "Would you like to retry the foreword endpoint?"
                                     );
                                     
                                     if (retryForForeword) {
-                                        // Try some common URL patterns for forewords
-                                        const baseUrl = window.location.origin;
-                                        const possibleUrls = [
-                                            `${baseUrl}/files/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/uploads/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/compiled/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/compiled/forewords/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/storage/confluence/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/confluence/forewords/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/storage/thesis/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/thesis/forewords/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/storage/dissertation/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/dissertation/forewords/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/storage/synergy/forewords/${documentId}.pdf`,
-                                            `${baseUrl}/storage/synergy/forewords/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/documents/foreword_${documentId}.pdf`,
-                                            `${baseUrl}/api/forewords/${documentId}`,
-                                            `${baseUrl}/api/compiled-documents/${documentId}/foreword-file`
-                                        ];
-                                        
-                                        // Present these options to the user
-                                        let urlPromptMessage = "Select a foreword URL pattern to try:\n\n";
-                                        possibleUrls.forEach((url, i) => {
-                                            urlPromptMessage += `${i+1}: ${url}\n`;
-                                        });
-                                        
-                                        const urlChoice = prompt(urlPromptMessage, "1");
-                                        if (urlChoice && !isNaN(urlChoice)) {
-                                            const urlIndex = parseInt(urlChoice) - 1;
-                                            if (possibleUrls[urlIndex]) {
-                                                                                                window.open(possibleUrls[urlIndex], '_blank');
-                                                return;
-                                            }
-                                        }
+                                        window.open(`/api/compiled-documents/${encodeURIComponent(documentId)}/foreword`, '_blank');
+                                        return;
                                     }
                                 }
                                 
@@ -1382,47 +1339,9 @@
                     
                     // Direct URL to foreword endpoint
                     const forewordUrl = `/api/compiled-documents/${documentId}/foreword`;
-                    
-                    // First check if direct access works
-                    fetch(forewordUrl, { method: 'HEAD' })
-                        .then(response => {
-                            if (response.ok) {
-                                // Direct foreword access works, open in new tab
-                                window.open(forewordUrl, '_blank');
-                                
-                                // Reset button
-                                this.innerHTML = `<i class="fas fa-file-alt"></i> View Foreword`;
-                                this.disabled = false;
-                            } else {
-                                throw new Error('Direct foreword access failed');
-                            }
-                        })
-                        .catch(err => {
-                                                        
-                            // Try with format=json parameter as fallback
-                            fetch(`${forewordUrl}?format=json`)
-                                .then(response => response.ok ? response.json() : Promise.reject('Cannot fetch foreword data'))
-                                .then(data => {
-                                    if (data.foreword_path) {
-                                        // If we have a path, try to open it
-                                        window.open(data.foreword_path, '_blank');
-                                    } else {
-                                        // Show error message
-                                        alert('Could not load foreword document. The file may be missing or inaccessible.');
-                                    }
-                                    
-                                    // Reset button
-                                    this.innerHTML = `<i class="fas fa-file-alt"></i> View Foreword`;
-                                    this.disabled = false;
-                                })
-                                .catch(err => {
-                                    alert('Could not access foreword document. Please try again later.');
-                                    
-                                    // Reset button
-                                    this.innerHTML = `<i class="fas fa-file-alt"></i> View Foreword`;
-                                    this.disabled = false;
-                                });
-                        });
+                    window.open(forewordUrl, '_blank');
+                    this.innerHTML = `<i class="fas fa-file-alt"></i> View Foreword`;
+                    this.disabled = false;
                 });
             }
         });

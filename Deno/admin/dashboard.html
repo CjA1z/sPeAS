@@ -11,16 +11,17 @@
         window.location.replace('/index.html?redirected=true&t=' + Date.now());
       };
 
-      fetch('/api/auth/session', {
+      fetch('/api/auth/get-session', {
         method: 'GET',
         credentials: 'include',
         cache: 'no-store',
         headers: { 'Accept': 'application/json' }
       })
       .then(response => response.ok ? response.json() : null)
-      .then(session => {
-        const role = String(session && session.role ? session.role : '').toLowerCase();
-        if (!session || !session.authenticated || role !== 'admin') {
+      .then(data => {
+        const user = data && data.user;
+        const role = String(user && user.role ? user.role : '').toLowerCase();
+        if (!user || role !== 'admin') {
           redirectHome();
         }
       })
@@ -286,18 +287,15 @@
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
 
-      // Use the server's logout endpoint and allow redirect to be followed
-      fetch('/logout', {
+      // Revoke the session through Better Auth
+      fetch('/api/auth/sign-out', {
         method: 'POST',
         credentials: 'include',
-        redirect: 'follow'
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
       })
-      .then(response => {
-        if (response.redirected) {
-          window.location.href = response.url;
-        } else {
-          window.location.href = '/index.html?nocache=' + new Date().getTime();
-        }
+      .then(() => {
+        window.location.href = '/index.html?nocache=' + new Date().getTime();
       })
       .catch(() => {
         window.location.href = '/index.html?nocache=' + new Date().getTime();

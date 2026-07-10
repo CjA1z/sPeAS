@@ -1196,7 +1196,7 @@
 
                     // First attempt to fetch from compiled-documents API
                     try {
-                        const mainDocResponse = await fetch(`/api/compiled-documents/${docId}`);
+                        const mainDocResponse = await fetch(`/api/guest/compiled-documents/${docId}`);
                         
                         if (mainDocResponse.ok) {
                             mainDocumentData = await mainDocResponse.json();
@@ -1209,7 +1209,7 @@
                     // If not found in compiled documents, try regular documents endpoint
                     if (!foundInCompiledDocuments) {
                         try {
-                            const fallbackResponse = await fetch(`/api/documents/${docId}`);
+                            const fallbackResponse = await fetch(`/api/documents/${docId}?guest=true`);
                             if (fallbackResponse.ok) {
                                 mainDocumentData = await fallbackResponse.json();
                                                             } else {
@@ -1242,7 +1242,7 @@
                         // Try compiled-documents children endpoint first if we found the main doc there
                         if (foundInCompiledDocuments) {
                             try {
-                                                                const childrenResponse = await fetch(`/api/compiled-documents/${docId}/children`);
+                                                                const childrenResponse = await fetch(`/api/guest/compiled-documents/${docId}/children`);
                                 if (childrenResponse.ok) {
                                     const childrenData = await childrenResponse.json();
                                                                         
@@ -1873,7 +1873,7 @@
                                         
                     // Try to fetch from compiled-documents first since that seems to be working
                     try {
-                        const compiledDocResponse = await fetch(`/api/compiled-documents/${docId}`);
+                        const compiledDocResponse = await fetch(`/api/guest/compiled-documents/${docId}`);
                         if (compiledDocResponse.ok) {
                             const compiledData = await compiledDocResponse.json();
                                                         
@@ -1906,7 +1906,7 @@
                     
                     // If both of the above fail, try the documents API
                     try {
-                        const docResponse = await fetch(`/api/documents/${docId}`);
+                        const docResponse = await fetch(`/api/documents/${docId}?guest=true`);
                         
                         if (docResponse.ok) {
                             const docData = await docResponse.json();

@@ -213,15 +213,15 @@ window.NavbarModule = (function() {
         // re-render as guest. Covers logout paths that miss cleanup and
         // server-side session expiry.
         if (isLoggedIn) {
-            fetch('/api/auth/session', {
+            fetch('/api/auth/get-session', {
                 method: 'GET',
                 credentials: 'include',
                 cache: 'no-store',
                 headers: { 'Accept': 'application/json' }
             })
             .then(response => (response.ok ? response.json() : null))
-            .then(session => {
-                if (!session || !session.authenticated) {
+            .then(data => {
+                if (!data || !data.user) {
                     sessionStorage.removeItem('userInfo');
                     localStorage.removeItem('userInfo');
                     window.location.reload();
@@ -1372,7 +1372,7 @@ window.NavbarModule = (function() {
                         
         // Create visible log message
                 
-        // 1. Clear all user data from client storage
+        // 1. Clear the display-only cache from client storage
         try {
             sessionStorage.removeItem('userInfo');
             sessionStorage.removeItem('session_token');
@@ -1381,34 +1381,17 @@ window.NavbarModule = (function() {
             localStorage.removeItem('session_token');
                     } catch (e) {
         }
-        
-        // 2. Clear cookies
-        document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        
-        // 3. Call multiple server logout endpoints for maximum compatibility
-        Promise.all([
-            // Try direct POST to /logout endpoint
-            fetch('/logout', {
-                method: 'POST',
-                credentials: 'include'
-            }).catch(e => console.warn('POST to /logout failed:', e)),
-            
-            // Try direct GET to /logout endpoint
-            fetch('/logout', {
-                method: 'GET',
-                credentials: 'include'
-            }).catch(e => console.warn('GET to /logout failed:', e)),
-            
-            // Try auth endpoints
-            fetch('/auth/logout', {
-                method: 'POST',
-                credentials: 'include'
-            }).catch(e => console.warn('POST to /auth/logout failed:', e))
-        ]).finally(() => {
-                        
-            // 4. Redirect to home page - use timeout to ensure other operations complete
+
+        // 2. Revoke the session through Better Auth (the HttpOnly cookie can
+        // only be cleared by the server)
+        fetch('/api/auth/sign-out', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).catch(e => console.warn('Sign-out failed:', e)).then(() => {
+
+            // 3. Redirect to home page - use timeout to ensure other operations complete
             setTimeout(() => {
                 // Add timestamp for cache busting
                 window.location.href = `/index.html?logout=true&t=${Date.now()}`;

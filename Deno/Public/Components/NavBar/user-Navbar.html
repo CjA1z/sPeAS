@@ -2145,16 +2145,21 @@
             const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
             if (userInfo && userInfo.isLoggedIn) {
                 // Auth rides the HttpOnly session cookie automatically
-                const response = await fetch('/api/user/auth-check', {
-                    credentials: 'include'
+                const response = await fetch('/api/auth/get-session', {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
                 });
-                
+
                 if (!response.ok) {
                     return {isAuthenticated: false, user: null};
                 }
-                
+
                 const data = await response.json();
-                return data;
+                if (!data || !data.user) {
+                    return {isAuthenticated: false, user: null};
+                }
+                return {isAuthenticated: true, user: data.user};
             }
             return {isAuthenticated: false, user: null};
         } catch (error) {
@@ -3086,13 +3091,13 @@
             } else {
                 // Redirect to login if loaded directly (not via navbar-loader)
                 if (!isLoadedViaNavbarLoader) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/log-in.html';
                 }
             } 
         } catch (error) { 
             // If loaded directly, redirect to login
             if (!(window.NavbarModule && window.NavbarModule.userInfo)) {
-                window.location.href = '/login.html';
+                window.location.href = '/log-in.html';
             }
         }
     }
@@ -3192,7 +3197,7 @@
 
     function updateUIAfterLogout() {
         // Redirect to login page after logout
-        window.location.href = '/login.html';
+        window.location.href = '/log-in.html';
     }
 
     // --- Conveyor Belt Functions ---

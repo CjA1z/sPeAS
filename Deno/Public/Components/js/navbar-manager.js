@@ -202,20 +202,19 @@ function initializeUserNavbar() {
                 window.logout();
             } else {
                 // Fallback if global function isn't available
-                // Call the logout endpoint directly
-                fetch('/logout', {
+                // Revoke the session through Better Auth directly
+                fetch('/api/auth/sign-out', {
                     method: 'POST',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
                 }).then(() => {
-                    // Clear user data
+                    // Clear the display-only cache
                     sessionStorage.removeItem('userInfo');
                     localStorage.removeItem('userInfo');
                     sessionStorage.removeItem('session_token');
                     localStorage.removeItem('session_token');
-                    
-                    // Clear cookie
-                    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    
+
                     // Redirect to login page
                     window.location.href = '/log-in.html';
                 }).catch(error => {

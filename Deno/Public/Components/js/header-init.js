@@ -134,15 +134,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fallback logout function
     function performLogout() {
-        // Call the logout endpoint
-        fetch('/logout', {
+        // Revoke the session through Better Auth
+        fetch('/api/auth/sign-out', {
             method: 'POST',
-            credentials: 'include'
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
         }).then(function(response) {
-            // Clear sessionStorage and cookies
+            // Clear the display-only cache
             sessionStorage.removeItem('userInfo');
-            document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-            
+
             // Update UI
             const loginContainer = document.getElementById('loginContainer');
             const userDropdownContainer = document.getElementById('userDropdownContainer');

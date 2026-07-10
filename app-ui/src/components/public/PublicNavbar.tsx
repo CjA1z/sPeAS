@@ -3,7 +3,7 @@ import { BookOpen, Clock, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { GlassBackdrop } from "../ui/glass-surface";
 import { fetchOptionalSession } from "../../lib/api/public";
-import type { SessionResponse } from "../../lib/api/auth";
+import { logout, type SessionResponse } from "../../lib/api/auth";
 
 interface PublicNavbarProps {
   session: SessionResponse | null;
@@ -19,7 +19,7 @@ const links = [
 export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const authenticated = Boolean(session?.authenticated ?? session?.isAuthenticated);
+  const authenticated = Boolean(session?.authenticated);
   const userName = String(session?.user?.name ?? session?.username ?? session?.userId ?? "User");
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
 
   const handleLogout = useCallback(async () => {
     try {
-      await fetch("/logout", { method: "POST", credentials: "include", redirect: "follow" });
+      await logout();
     } finally {
       localStorage.removeItem("userInfo");
       sessionStorage.removeItem("userInfo");

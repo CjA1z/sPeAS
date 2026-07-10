@@ -5,11 +5,18 @@ export interface SessionUser {
   name?: string;
   email?: string;
   role?: string;
+  username?: string | null;
+  displayUsername?: string | null;
+  image?: string | null;
+  [key: string]: unknown;
 }
 
+/**
+ * Normalized session shape derived from Better Auth's GET /api/auth/get-session
+ * response ({ session, user } or null). `role` is lowercase ("admin" | "user").
+ */
 export interface SessionResponse {
-  authenticated?: boolean;
-  isAuthenticated?: boolean;
+  authenticated: boolean;
   user?: SessionUser;
   userId?: number | string;
   username?: string;
@@ -17,8 +24,23 @@ export interface SessionResponse {
   [key: string]: unknown;
 }
 
-export async function fetchSession() {
-  return apiFetch<SessionResponse>("/api/auth/session");
+interface BetterAuthGetSession {
+  session?: Record<string, unknown>;
+  user?: SessionUser;
+}
+
+export async function fetchSession(): Promise<SessionResponse | null> {
+  const payload = await apiFetch<BetterAuthGetSession | null>("/api/auth/get-session");
+  const user = payload?.user;
+  if (!user) return null;
+
+  return {
+    authenticated: true,
+    user,
+    userId: user.id,
+    username: String(user.displayUsername ?? user.username ?? user.name ?? user.id ?? ""),
+    role: String(user.role ?? "user").toLowerCase(),
+  };
 }
 
 export interface UserProfile {
@@ -37,9 +59,12 @@ export async function fetchUserProfile() {
 }
 
 export async function logout() {
-  await fetch("/logout", {
+  // Plain fetch: sign-out responds 400 when there is no session, and logout
+  // flows must not throw for that.
+  await fetch("/api/auth/sign-out", {
     method: "POST",
     credentials: "include",
-    redirect: "follow",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
   });
 }

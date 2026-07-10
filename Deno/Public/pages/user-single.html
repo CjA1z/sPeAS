@@ -1137,8 +1137,8 @@
                         </article>
                         
                         <div id="floating-buttons" class="floating-action-container">
-                            ${data.file_path ? `
-                            <a id="read-doc-btn" href="${data.file_path}" class="btn btn-primary" target="_blank">
+                            ${data.file_path && (data.id || data.doc_id) ? `
+                            <a id="read-doc-btn" href="/api/documents/${encodeURIComponent(data.id || data.doc_id)}/download?disposition=inline" class="btn btn-primary" target="_blank" rel="noopener">
                                 <i class="fas fa-eye" aria-hidden="true"></i>
                                 Read Document
                             </a>
@@ -1273,8 +1273,8 @@
                     </article>
                     
                     <div id="floating-buttons" class="floating-action-container">
-                        ${data.file_path ? `
-                        <a id="read-doc-btn" href="${data.file_path}" class="btn btn-primary" target="_blank">
+                        ${data.file_path && (data.id || data.doc_id) ? `
+                        <a id="read-doc-btn" href="/api/documents/${encodeURIComponent(data.id || data.doc_id)}/download?disposition=inline" class="btn btn-primary" target="_blank" rel="noopener">
                             <i class="fas fa-eye" aria-hidden="true"></i>
                             Read Document
                         </a>
@@ -1351,4 +1351,3 @@
 
 </body>
 </html>
-

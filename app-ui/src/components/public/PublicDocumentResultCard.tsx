@@ -17,7 +17,7 @@ export function PublicDocumentResultCard({
   showDescription = false,
 }: PublicDocumentResultCardProps) {
   const category = getCategoryMeta(document.category);
-  const authenticated = Boolean(session?.authenticated ?? session?.isAuthenticated);
+  const authenticated = Boolean(session?.authenticated);
   const basePath = document.isCompiled
     ? authenticated ? "/pages/user-compiled.html" : "/pages/guest-compiled.html"
     : authenticated ? "/pages/user-single.html" : "/pages/guest-single.html";
