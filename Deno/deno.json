@@ -7,6 +7,11 @@
     "check": "deno check server.ts"
   },
   "imports": {
-    "zod": "npm:zod@4.4.3"
-  }
+    "zod": "npm:zod@4.4.3",
+    "better-auth": "npm:better-auth@1.6.23",
+    "better-auth/plugins": "npm:better-auth@1.6.23/plugins",
+    "better-auth/api": "npm:better-auth@1.6.23/api",
+    "pg": "npm:pg@8.22.0"
+  },
+  "nodeModulesDir": "auto"
 }

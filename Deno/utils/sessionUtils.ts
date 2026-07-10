@@ -1,13 +1,13 @@
 /**
  * Session utils — kept for backward compatibility.
  *
- * The actual verification logic lives in services/sessionService.ts
- * (the single source of truth). `verifySessionToken` is an alias for
- * `verifySession`; roles are lowercase (e.g. "admin", "user").
+ * The actual session lookup lives in services/sessionService.ts, which is
+ * a facade over Better Auth (config/auth.ts). Roles are lowercase
+ * (e.g. "admin", "user").
  */
 
 export {
+  getSessionFromHeaders,
+  getSessionFromRequest,
   type SessionData,
-  verifySession,
-  verifySession as verifySessionToken,
 } from "../services/sessionService.ts";

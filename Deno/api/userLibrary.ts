@@ -6,8 +6,7 @@ import {
 } from "../controllers/userLibraryController.ts";
 import { DocumentModel } from "../models/documentModel.ts";
 import { UserLibraryModel } from "../models/userLibraryModel.ts";
-import { verifySessionToken } from "../utils/sessionUtils.ts";
-import { getTokenFromRequest } from "../services/sessionService.ts";
+import { getSessionFromRequest } from "../services/sessionService.ts";
 
 /**
  * Handle library requests based on method
@@ -49,22 +48,15 @@ export async function handleLibraryRequest(req: Request): Promise<Response> {
 export async function getSavedDocuments(req: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const token = getTokenFromRequest(req);
+    const sessionData = await getSessionFromRequest(req);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Use the user ID from the token for security
     const userId = sessionData.id;

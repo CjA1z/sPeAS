@@ -31,7 +31,7 @@ import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
 import { ResearchAgendaModel } from "./models/researchAgendaModel.ts";
 import { unifiedArchiveRoutes, unifiedArchiveAllowedMethods } from "./routes/unifiedArchiveRoutes.ts";
-import { authRoutes, setServerStartTime } from "./routes/authRoutes.ts"; // Import auth routes
+import { authRoutes } from "./routes/authRoutes.ts"; // Transitional logout shims
 import { createDocumentRequestRoutes } from "./routes/documentRequestRoutes.ts";
 import { DocumentRequestModel } from "./models/documentRequestModel.ts";
 import { DocumentRequestController } from "./controllers/documentRequestController.ts";
@@ -43,9 +43,10 @@ import keywordsRoutes from "./routes/keywordsRoutes.ts"; // Import keywords rout
 import { getCompiledDocument } from "./api/compiledDocument.ts";
 import { handleGetUserProfileForNavbar } from "./api/user.ts"; // Import user profile handler
 import { handleLibraryRequest } from "./api/userLibrary.ts"; // Import user library handler
-import { handleUserPasswordUpdate } from "./api/userPassword.ts"; // Import user password handler
 import { handleUserProfilePictureUpload } from "./api/userProfilePicture.ts"; // Import user profile picture handler
 import { isAuthenticated, isAdmin } from "./middleware/authMiddleware.ts"; // Authn/authz middleware
+import { auth } from "./config/auth.ts"; // Better Auth instance
+import { webHandler } from "./utils/oakAdapter.ts"; // web Request/Response -> oak bridge
 import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
 import experienceRoutes from "./routes/experienceRoutes.ts";
 import { ensureExperienceTablesExist } from "./services/experienceService.ts";
@@ -60,6 +61,36 @@ import { ensureExperienceTablesExist } from "./services/experienceService.ts";
 // SECTION: Configuration
 // -----------------------------
 const PORT = Deno.env.get("PORT") || 8000;
+const PROTECTED_DOCUMENT_FILE_PREFIXES = [
+  "/storage/thesis/",
+  "/storage/dissertation/",
+  "/storage/confluence/",
+  "/storage/synergy/",
+  "/storage/hello/",
+  "/storage/compiled/",
+  "/storage/documents/",
+  "/storage/files/",
+  "/storage/uploads/",
+  "/files/",
+  "/uploads/",
+];
+
+function isProtectedDocumentFilePath(pathname: string): boolean {
+  let normalized = pathname.replace(/\\/g, "/");
+
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    // Keep the original path if decoding fails.
+  }
+
+  normalized = normalized.replace(/\/{2,}/g, "/").toLowerCase();
+  if (!normalized.startsWith("/")) {
+    normalized = `/${normalized}`;
+  }
+
+  return PROTECTED_DOCUMENT_FILE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
 
 // -----------------------------
 // SECTION: Server Setup
@@ -118,9 +149,6 @@ async function ensureVisitCounterTablesExist() {
     console.error("Failed to ensure visit counter tables exist:", error);
   }
 }
-
-// Let authRoutes know when the server started (used for session invalidation)
-setServerStartTime(SERVER_START_TIME);
 
 // -----------------------------
 // SECTION: Middleware (Optional)
@@ -210,6 +238,14 @@ app.use(async (ctx, next) => {
 app.use(async (ctx, next) => {
   // Check if the request is for a file in the storage directory
   if (ctx.request.url.pathname.startsWith('/storage/')) {
+    if (isProtectedDocumentFilePath(ctx.request.url.pathname)) {
+      ctx.response.status = 403;
+      ctx.response.body = {
+        error: "Protected document files must be accessed through an approved download route",
+      };
+      return;
+    }
+
     try {
       // Get the workspace root directory (parent of Deno directory)
       const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
@@ -237,6 +273,11 @@ app.use(async (ctx, next) => {
 // -----------------------------
 // SECTION: Routes Setup
 // -----------------------------
+
+// Better Auth owns everything under /api/auth/* (sign-in/username,
+// sign-in/social, callback/microsoft, get-session, sign-out, password
+// reset...). Registered first so nothing can shadow it.
+router.all("/api/auth/(.*)", webHandler((req) => auth.handler(req)));
 
 // Register all routes with the router, including any per-route middleware
 // (e.g. isAuthenticated / isAdmin declared on the Route object)
@@ -1163,7 +1204,7 @@ router.get("/api/email-logs", isAuthenticated, isAdmin, async (ctx) => {
 });
 
 // Add a route for getting detailed compiled document information with visit statistics
-router.get("/api/compiled-documents/:id/details", async (ctx) => {
+router.get("/api/compiled-documents/:id/details", isAuthenticated, async (ctx) => {
   try {
     const id = parseInt(ctx.params.id);
     if (isNaN(id)) {
@@ -1299,61 +1340,7 @@ router.get("/api/user/profile", isAuthenticated, async (ctx) => {
   
   });
 
-// Register user password update endpoint
-router.put("/api/user/profile/password", isAuthenticated, async (ctx) => {
-  try {
-
-    // Convert Oak request to standard Request
-    const headers = new Headers(ctx.request.headers);
-
-    // Create body from the request
-    let body = null;
-    if (ctx.request.hasBody) {
-      const reqBody = ctx.request.body({ type: "json" });
-      body = await reqBody.value;
-    }
-
-    // Owner-scope the update: the target user is always the authenticated
-    // session user — never a caller-supplied userId query param.
-    const scopedUrl = new URL(ctx.request.url.toString());
-    scopedUrl.searchParams.set("userId", ctx.state.user.id);
-
-    // Create a Request object
-    const request = new Request(scopedUrl.toString(), {
-      method: "PUT",
-      headers: headers,
-      body: body ? JSON.stringify(body) : undefined
-    });
-    
-    // Process through the API handler
-    const response = await handleUserPasswordUpdate(request);
-    
-    // Set status and headers
-    ctx.response.status = response.status;
-    for (const [key, value] of response.headers.entries()) {
-      ctx.response.headers.set(key, value);
-    }
-    
-    // Set body
-    if (response.status !== 204) {
-      const responseBody = await response.text();
-      try {
-        // Try to parse as JSON first
-        const jsonBody = JSON.parse(responseBody);
-        ctx.response.body = jsonBody;
-      } catch {
-        // If not JSON, use as is
-        ctx.response.body = responseBody;
-      }
-    }
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Internal server error processing password update",
-      details: error instanceof Error ? error.message : String(error)
-    };
-  }
-});
+// Password changes go through Better Auth: POST /api/auth/change-password.
 
 // Register profile picture upload endpoint
 router.post("/api/user/profile/picture", isAuthenticated, async (ctx) => {
@@ -1425,7 +1412,7 @@ router.get("/api/document-views/stats", async (ctx) => {
 });
 
 // Add endpoint to fetch the foreword specifically for a category type of compiled document
-router.get("/api/compiled-documents/:id/foreword", async (ctx) => {
+router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) => {
   const id = ctx.params.id;
   
   if (!id) {
@@ -1885,7 +1872,7 @@ router.get("/api/user/history", async (ctx) => {
 });
 
 // Add route for getting multiple documents by IDs
-router.post("/api/documents/by-ids", async (ctx) => {
+router.post("/api/documents/by-ids", isAuthenticated, async (ctx) => {
   try {
     if (!ctx.request.hasBody) {
       ctx.response.status = 400;
@@ -1905,8 +1892,9 @@ router.post("/api/documents/by-ids", async (ctx) => {
         
     // Query the database for the documents
     const query = `
-      SELECT id, title, document_type, abstract, publication_date, 
-             file_path, is_public, created_at, updated_at
+      SELECT id, title, document_type, abstract, publication_date,
+             (file_path IS NOT NULL AND file_path <> '') AS has_file,
+             is_public, created_at, updated_at
       FROM documents
       WHERE id = ANY($1::int[])
       AND deleted_at IS NULL
@@ -1922,7 +1910,8 @@ router.post("/api/documents/by-ids", async (ctx) => {
       document_type: row.document_type || 'single',
       abstract: row.abstract,
       publication_date: row.publication_date,
-      file_path: row.file_path,
+      has_file: row.has_file,
+      download_url: row.has_file ? `/api/documents/${row.id}/download` : null,
       is_public: row.is_public,
       created_at: row.created_at,
       updated_at: row.updated_at
@@ -1943,6 +1932,14 @@ router.post("/api/documents/by-ids", async (ctx) => {
 router.get(/\.(pdf)$/i as unknown as string, async (ctx: RouterContext<string>) => {
   try {
     const urlPath = ctx.request.url.pathname;
+
+    if (isProtectedDocumentFilePath(urlPath)) {
+      ctx.response.status = 403;
+      ctx.response.body = {
+        error: "Protected document files must be accessed through an approved download route",
+      };
+      return;
+    }
         
     // Map URL path to file system path
     let filePath = urlPath;

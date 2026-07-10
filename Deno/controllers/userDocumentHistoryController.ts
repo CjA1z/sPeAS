@@ -1,6 +1,5 @@
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
-import { verifySessionToken } from "../utils/sessionUtils.ts";
-import { getTokenFromRequest } from "../services/sessionService.ts";
+import { getSessionFromRequest } from "../services/sessionService.ts";
 
 /**
  * Record a document view action
@@ -10,23 +9,15 @@ import { getTokenFromRequest } from "../services/sessionService.ts";
 export async function recordDocumentView(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    // Verify the token and get user info
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Get document ID from request body
     const requestData = await request.json();
@@ -76,23 +67,15 @@ export async function recordDocumentView(request: Request): Promise<Response> {
 export async function recordDocumentDownload(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    // Verify the token and get user info
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Get document ID from request body
     const requestData = await request.json();
@@ -142,23 +125,15 @@ export async function recordDocumentDownload(request: Request): Promise<Response
 export async function getUserHistory(request: Request): Promise<Response> {
   try {
     // Get authorization token
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    // Verify the token and get user info
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Extract query parameters for filtering
     const url = new URL(request.url);

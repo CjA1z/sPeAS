@@ -1,6 +1,5 @@
 import { UserLibraryModel } from "../models/userLibraryModel.ts";
-import { verifySessionToken } from "../utils/sessionUtils.ts";
-import { getTokenFromRequest } from "../services/sessionService.ts";
+import { getSessionFromRequest } from "../services/sessionService.ts";
 
 /**
  * Add a document to user's library
@@ -10,22 +9,15 @@ import { getTokenFromRequest } from "../services/sessionService.ts";
 export async function addToLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Get request body
     const body = await request.json();
@@ -97,22 +89,15 @@ export async function addToLibrary(request: Request): Promise<Response> {
 export async function checkLibraryStatus(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Get URL parameters
     const url = new URL(request.url);
@@ -158,22 +143,15 @@ export async function checkLibraryStatus(request: Request): Promise<Response> {
 export async function getUserLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Use the user ID from the token for security
     const userId = sessionData.id;
@@ -209,22 +187,15 @@ export async function getUserLibrary(request: Request): Promise<Response> {
 export async function removeFromLibrary(request: Request): Promise<Response> {
   try {
     // Verify user authentication
-    const token = getTokenFromRequest(request);
+    const sessionData = await getSessionFromRequest(request);
     
-    if (!token) {
+    if (!sessionData) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
     
-    const sessionData = await verifySessionToken(token);
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
     
     // Get URL parameters or request body
     let documentId: number;

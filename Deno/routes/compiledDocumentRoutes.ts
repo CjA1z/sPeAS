@@ -9,6 +9,27 @@ import {
 } from "../api/compiledDocument.ts";
 import { client } from "../db/denopost_conn.ts"; // Import the client directly
 import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
+
+function removeCompiledFileFields(value: any): any {
+    if (!value || typeof value !== "object") {
+        return value;
+    }
+
+    const sanitized = { ...value };
+    const rawForeword = sanitized.foreword;
+    delete sanitized.foreword;
+    delete sanitized.foreword_path;
+    delete sanitized.foreword_file_path;
+    delete sanitized.foreword_attachment;
+    delete sanitized.attachment;
+
+    if (sanitized.abstract && rawForeword && sanitized.abstract === rawForeword) {
+        sanitized.abstract = sanitized.abstract_foreword || "";
+    }
+
+    return sanitized;
+}
 
 // Compiled Document route handlers
 const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
@@ -32,6 +53,18 @@ const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
 
 const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     const id = ctx.params.id;
+    const isLimitedRoute = ctx.request.url.pathname.includes("/guest/") ||
+        ctx.request.url.pathname.includes("/public/");
+
+    if (!isLimitedRoute) {
+        const sessionData = await getSessionFromHeaders(ctx.request.headers);
+
+        if (!sessionData) {
+            ctx.response.status = 401;
+            ctx.response.body = { error: "Unauthorized" };
+            return;
+        }
+    }
     
     // Convert context to Request
     const request = new Request(`${ctx.request.url.origin}/api/compiled-documents/${id}`, {
@@ -44,7 +77,8 @@ const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     // Convert Response back to context
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const responseBody = await response.json();
+    ctx.response.body = isLimitedRoute ? removeCompiledFileFields(responseBody) : responseBody;
 };
 
 const addDocumentsToCompilation = async (ctx: RouterContext<any, any, any>) => {
@@ -337,4 +371,4 @@ export const compiledDocumentRoutes: Route[] = [
     { method: "GET", path: "/public/compiled-documents/:id/children", handler: getCompiledDocumentChildren },
     { method: "GET", path: "/guest/compiled-documents/:id/items", handler: getCompiledDocumentItems },
     { method: "GET", path: "/public/compiled-documents/:id/items", handler: getCompiledDocumentItems },
-]; 
+];

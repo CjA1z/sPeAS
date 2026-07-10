@@ -10,10 +10,44 @@ import {
 } from "../api/document.ts";
 import { DocumentModel } from "../models/documentModel.ts";
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
-import { verifySessionToken } from "../utils/sessionUtils.ts";
+import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
 import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
+
+const DOCUMENT_FILE_FIELD_NAMES = new Set([
+    "file_path",
+    "pdf_path",
+    "download_url",
+    "file_url",
+    "document_path",
+    "document_file_path",
+    "foreword_path",
+    "foreword_file_path",
+    "foreword_file",
+    "foreword_attachment",
+    "attachment",
+]);
+
+function removeDocumentFileFields(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map(removeDocumentFileFields);
+    }
+
+    if (!value || typeof value !== "object") {
+        return value;
+    }
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, childValue] of Object.entries(value)) {
+        if (DOCUMENT_FILE_FIELD_NAMES.has(key)) {
+            continue;
+        }
+        sanitized[key] = removeDocumentFileFields(childValue);
+    }
+
+    return sanitized;
+}
 
 // Document route handlers
 const getDocuments = async (ctx: RouterContext<any, any, any>) => {
@@ -33,9 +67,18 @@ const getDocuments = async (ctx: RouterContext<any, any, any>) => {
 
 const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     const id = ctx.params.id;
+    const isGuestRequest = ctx.request.url.searchParams.get("guest") === "true";
+
+    const sessionData = await getSessionFromHeaders(ctx.request.headers);
+
+    if (!isGuestRequest && !sessionData) {
+        ctx.response.status = 401;
+        ctx.response.body = { error: "Unauthorized" };
+        return;
+    }
     
     // Convert context to Request
-    const request = new Request(`${ctx.request.url.origin}/api/documents/${id}`, {
+    const request = new Request(`${ctx.request.url.origin}/api/documents/${id}${ctx.request.url.search}`, {
         method: "GET",
         headers: ctx.request.headers
     });
@@ -45,7 +88,10 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     // Convert Response back to context
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const responseBody = await response.json();
+    ctx.response.body = sessionData && !isGuestRequest
+        ? responseBody
+        : removeDocumentFileFields(responseBody);
 };
 
 // Guest document handler - serves limited document information for guest pages
@@ -608,24 +654,13 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
         
-        // Verify user authentication. The token comes from the HttpOnly
-        // session cookie (or a Bearer header) — never from the URL, where
-        // it would leak into logs and browser history.
-        const authHeader = ctx.request.headers.get("Authorization");
-        const token = (await ctx.cookies.get("session_token")) ??
-            (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null);
-
-        if (!token) {
-            ctx.response.status = 401;
-            ctx.response.body = { error: "Authentication token required" };
-            return;
-        }
-        
-        // Verify the token and get user info
-        const sessionData = await verifySessionToken(token);
+        // Verify user authentication. The session comes from the HttpOnly
+        // Better Auth cookie — never from the URL, where it would leak into
+        // logs and browser history.
+        const sessionData = await getSessionFromHeaders(ctx.request.headers);
         if (!sessionData) {
             ctx.response.status = 401;
-            ctx.response.body = { error: "Invalid or expired token" };
+            ctx.response.body = { error: "Invalid or expired session" };
             return;
         }
         
@@ -730,9 +765,14 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
             contentType = 'image/png';
         }
         
-        // Set headers for file download
-        ctx.response.headers.set("Content-Disposition", `attachment; filename="${fileName}"`);
+        const dispositionParam = ctx.request.url.searchParams.get("disposition");
+        const inlineParam = ctx.request.url.searchParams.get("inline");
+        const disposition = dispositionParam === "inline" || inlineParam === "true" ? "inline" : "attachment";
+
+        // Set headers for file download or authenticated inline viewing
+        ctx.response.headers.set("Content-Disposition", `${disposition}; filename="${fileName}"`);
         ctx.response.headers.set("Content-Type", contentType);
+        ctx.response.headers.set("Cache-Control", "no-store");
         
         // Stream the file
         const fileContent = await Deno.readFile(filePath);
