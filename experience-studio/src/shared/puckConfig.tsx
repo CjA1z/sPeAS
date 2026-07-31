@@ -16,6 +16,12 @@ type AgendaItem = {
   text?: string;
 };
 
+type OrganizationRoleItem = {
+  title?: string;
+  label?: string;
+  name?: string;
+};
+
 const safeHref = (href?: string) => {
   const value = String(href || "").trim();
   if (!value) return "#";
@@ -82,6 +88,30 @@ const agendaArrayField = {
   defaultItemProps: { text: "New agenda item" },
   getItemSummary: (item: AgendaItem, index?: number) =>
     item.text ? `${(index || 0) + 1}. ${item.text.slice(0, 40)}` : "Agenda item",
+} as const;
+
+const organizationRoleArrayField = {
+  type: "array",
+  arrayFields: {
+    title: { type: "text" },
+    label: { type: "text" },
+    caption: { type: "text" },
+    name: { type: "text" },
+    photo: { type: "text" },
+    photoAlt: { type: "text" },
+    summary: { type: "textarea" },
+  },
+  defaultItemProps: {
+    title: "",
+    label: "",
+    caption: "",
+    name: "",
+    photo: "",
+    photoAlt: "",
+    summary: "",
+  },
+  getItemSummary: (item: OrganizationRoleItem, index?: number) =>
+    item.name || item.title || item.label || `Role ${(index || 0) + 1}`,
 } as const;
 
 export const experiencePuckConfig: Config = {
@@ -289,6 +319,7 @@ export const experiencePuckConfig: Config = {
         imageUrl: { type: "text" },
         imageAlt: { type: "text" },
         caption: { type: "text" },
+        roles: organizationRoleArrayField,
       },
       defaultProps: {
         id: "image-feature",
@@ -298,6 +329,7 @@ export const experiencePuckConfig: Config = {
         imageUrl: "/Components/images/image-placeholder.svg",
         imageAlt: "Feature image",
         caption: "",
+        roles: [],
       },
       render: ({ id, eyebrow, title, body, imageUrl, imageAlt, caption }) => (
         <section id={id} className="xp-section">

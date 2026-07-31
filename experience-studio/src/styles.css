@@ -2,7 +2,7 @@
   --xp-primary: #006A4E;
   --xp-primary-dark: #00523D;
   --xp-accent: #FDB813;
-  --xp-surface: #ffffff;
+  --xp-surface: #E6E6E6;
   --xp-text: #1f2937;
   --xp-muted: #6b7280;
   --xp-border: #e5e7eb;
@@ -183,7 +183,7 @@
 
 .xp-button-primary {
   background: var(--xp-primary);
-  color: white;
+  color: #E6E6E6;
   box-shadow: 0 12px 26px rgba(0, 106, 78, 0.24);
 }
 
@@ -436,7 +436,7 @@
   padding: 0.72rem 0.85rem;
   border: 1px solid var(--xp-border);
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
 }
 
 .xp-auth-form input:focus {
@@ -450,7 +450,7 @@
   border: 0;
   border-radius: 8px;
   background: var(--xp-primary);
-  color: #fff;
+  color: #E6E6E6;
   font-weight: 900;
   cursor: pointer;
 }
@@ -467,6 +467,37 @@
   font-weight: 800;
   text-align: left;
   cursor: pointer;
+}
+
+.xp-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--xp-muted);
+  font-size: 0.85rem;
+}
+
+.xp-auth-divider::before,
+.xp-auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--xp-border);
+}
+
+.xp-auth-form .xp-microsoft-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: #E6E6E6;
+  border: 1px solid var(--xp-border);
+  color: var(--xp-text);
+  font-weight: 700;
+}
+
+.xp-auth-form .xp-microsoft-btn:disabled {
+  cursor: default;
 }
 
 .xp-login-graphic {
@@ -546,7 +577,7 @@
   padding: 0 0.85rem 0 0.6rem;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   color: #0f172a;
   font-weight: 800;
   cursor: pointer;
@@ -601,7 +632,7 @@
   min-height: 38px;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   color: #0f172a;
   font-weight: 800;
   cursor: pointer;
@@ -614,7 +645,7 @@
 .xp-studio-button.primary {
   border-color: #006A4E;
   background: #006A4E;
-  color: white;
+  color: #E6E6E6;
 }
 
 .xp-studio-button.gold {
@@ -641,7 +672,7 @@
 
 .xp-section-list,
 .xp-inspector {
-  background: #fff;
+  background: #E6E6E6;
   padding: 1.1rem;
   overflow: auto;
 }
@@ -687,7 +718,7 @@
   min-height: 58px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   padding: 0.7rem 0.8rem;
   text-align: left;
   cursor: pointer;
@@ -732,7 +763,7 @@
   padding: 0.6rem 0.7rem;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   color: #0f172a;
 }
 
@@ -787,7 +818,7 @@
   margin: 0 auto;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
   overflow: hidden;
 }
@@ -797,7 +828,7 @@
   width: 100%;
   height: 100%;
   border: 0;
-  background: #fff;
+  background: #E6E6E6;
 }
 
 .xp-preview-frame.tablet {
@@ -821,7 +852,7 @@
   border: 1px solid #e5e7eb;
   border-left: 4px solid #f59e0b;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   color: #334155;
   font-size: 0.88rem;
   line-height: 1.4;
@@ -829,7 +860,7 @@
 
 .xp-inspector-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.35rem;
   margin-bottom: 1rem;
   padding: 0.25rem;
@@ -848,7 +879,7 @@
 }
 
 .xp-inspector-tabs button.is-active {
-  background: #fff;
+  background: #E6E6E6;
   color: #00543e;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
@@ -913,6 +944,164 @@
   background: #f8fafc;
 }
 
+.xp-org-role-editor,
+.xp-org-role-list,
+.xp-org-role-fields {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.xp-org-role-editor {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #dbe3ea;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.xp-org-role-note {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #b7dbc9;
+  border-radius: 8px;
+  background: #eef8f3;
+  color: #365247;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.xp-org-role-card {
+  border: 1px solid #dbe3ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.xp-org-role-card[open] {
+  border-color: #9bcbb5;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+}
+
+.xp-org-role-card > summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 58px;
+  padding: 0.65rem 0.75rem;
+  color: #0f172a;
+  cursor: pointer;
+  list-style: none;
+}
+
+.xp-org-role-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.xp-org-role-card > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 160ms ease;
+}
+
+.xp-org-role-card[open] > summary::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.xp-org-role-card > summary:hover {
+  background: #eef8f3;
+}
+
+.xp-org-role-card > summary:focus-visible {
+  outline: 3px solid rgba(0, 106, 78, 0.22);
+  outline-offset: -3px;
+}
+
+.xp-org-role-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #006A4E;
+  color: #fff;
+  font-size: 0.73rem;
+}
+
+.xp-org-role-summary {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.xp-org-role-summary strong,
+.xp-org-role-summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xp-org-role-summary strong {
+  font-size: 0.84rem;
+}
+
+.xp-org-role-summary small {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.xp-org-role-fields {
+  padding: 0.25rem 0.75rem 0.85rem;
+  border-top: 1px solid #dbe3ea;
+}
+
+.xp-org-role-card .xp-image-preview {
+  width: 96px;
+  height: 96px;
+  margin: 0.2rem auto;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.xp-org-role-card .xp-copy-row button {
+  min-width: 72px;
+  padding-inline: 0.65rem;
+}
+
+.xp-org-role-card .xp-copy-row {
+  flex-wrap: wrap;
+}
+
+.xp-org-role-card .xp-copy-row input {
+  flex: 1 1 190px;
+  min-width: 0;
+}
+
+.xp-image-clear {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 0.7rem;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.xp-image-clear:hover {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
 .xp-array-field button,
 .xp-array-item-top button,
 .xp-block-actions button,
@@ -921,7 +1110,7 @@
   min-height: 32px;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
   color: #0f172a;
   font-weight: 800;
   cursor: pointer;
@@ -1018,7 +1207,7 @@
   padding: 0.55rem 1rem;
   border-radius: 999px;
   background: #B4975A;
-  color: #fff;
+  color: #E6E6E6;
   font-size: 0.85rem;
   font-weight: 800;
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.3);
@@ -1101,6 +1290,25 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .xp-org-role-card > summary {
+    padding-inline: 0.6rem;
+  }
+
+  .xp-org-role-fields {
+    padding-inline: 0.6rem;
+  }
+
+  .xp-org-role-card .xp-copy-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .xp-org-role-card .xp-copy-row button,
+  .xp-image-clear {
+    width: 100%;
+    min-height: 42px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1129,7 +1337,7 @@
   margin: 1rem 0;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: #fff;
+  background: #E6E6E6;
 }
 
 .xp-add-menu summary {
@@ -1210,7 +1418,7 @@
   width: min(440px, 100%);
   padding: 1.2rem 1.3rem;
   border-radius: 14px;
-  background: #fff;
+  background: #E6E6E6;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
 }
 
@@ -1253,7 +1461,7 @@
 .xp-studio-button.danger {
   border-color: #dc2626;
   background: #dc2626;
-  color: #fff;
+  color: #E6E6E6;
 }
 
 /* Undo/Redo buttons shouldn't scream when unavailable */

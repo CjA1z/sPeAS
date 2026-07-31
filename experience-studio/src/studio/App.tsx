@@ -4,6 +4,7 @@ import XHRUpload from "@uppy/xhr-upload";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultExperienceConfig,
+  EXPERIENCE_FIXED_THEME,
   ExperienceConfig,
   ExperienceConfigSchema,
 } from "../../../Deno/shared/experienceConfig";
@@ -11,7 +12,7 @@ import { experiencePuckConfig } from "../shared/puckConfig";
 
 type PageKey = "landing" | "login";
 type DeviceKey = "desktop" | "tablet" | "mobile";
-type InspectorTab = "content" | "theme" | "checks" | "assets";
+type InspectorTab = "content" | "checks" | "assets";
 
 type DraftPayload = {
   config: ExperienceConfig;
@@ -38,6 +39,18 @@ type UploadedAsset = {
 type BlockData = {
   type: string;
   props: Record<string, any>;
+};
+
+type OrganizationRole = {
+  id?: string;
+  title?: string;
+  label?: string;
+  caption?: string;
+  name?: string;
+  photo?: string;
+  photoAlt?: string;
+  group?: boolean;
+  summary?: string;
 };
 
 const landingBlocks = [
@@ -72,7 +85,7 @@ const sectionMeta: Record<string, { name: string; description: string }> = {
   GalleryBlock: { name: "Photo Gallery", description: "A row of pictures with a short introduction." },
   QuickLinksBlock: { name: "Quick Links", description: "Cards that take visitors to other pages or sections." },
   RichTextBlock: { name: "Text Section", description: "A heading with paragraphs of plain text." },
-  ImageFeatureBlock: { name: "Picture + Text", description: "One large picture with a written description." },
+  ImageFeatureBlock: { name: "Organizational Chart", description: "The people, boards, and responsibilities in the office structure." },
   ResearchAgendaBlock: { name: "Research Agenda", description: "The numbered list of research priorities." },
   CtaBlock: { name: "Call to Action", description: "A banner inviting visitors to do something, like contacting you." },
   FooterLinksBlock: { name: "Footer", description: "The logo, copyright line, and links at the very bottom." },
@@ -83,6 +96,16 @@ const sectionMeta: Record<string, { name: string; description: string }> = {
 
 const sectionName = (type: string) =>
   sectionMeta[type]?.name || (componentMap[type]?.label as string) || type;
+
+const editableFields: Record<string, readonly string[]> = {
+  HeroBlock: ["eyebrow", "title", "body", "images", "primaryLabel", "secondaryLabel"],
+  QuickLinksBlock: ["title", "links"],
+  RichTextBlock: ["eyebrow", "title", "body"],
+  ImageFeatureBlock: ["eyebrow", "title", "body", "roles"],
+  ResearchAgendaBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt", "items"],
+  CtaBlock: ["title", "body", "label"],
+  LoginShellBlock: ["brandText", "title", "subtitle", "forgotPasswordTitle", "forgotPasswordSubtitle", "footerText", "backgroundImageUrl", "graphicLogoUrl", "logoUrl"],
+};
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -102,7 +125,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-function applyThemeVars(theme: ExperienceConfig["theme"]) {
+function applyThemeVars(theme: typeof EXPERIENCE_FIXED_THEME) {
   const root = document.documentElement;
   root.style.setProperty("--xp-primary", theme.primaryColor);
   root.style.setProperty("--xp-primary-dark", theme.primaryDarkColor);
@@ -144,6 +167,8 @@ const fieldLabels: Record<string, string> = {
   graphicLogoUrl: "Side panel logo",
   alt: "Picture description",
   imageAlt: "Picture description",
+  photo: "Profile photo",
+  photoAlt: "Photo description",
   variant: "Layout style",
   layout: "Layout style",
   tone: "Color",
@@ -152,6 +177,7 @@ const fieldLabels: Record<string, string> = {
   images: "Pictures",
   links: "Links",
   items: "List items",
+  roles: "Organizational chart roles",
   subtitle: "Subtitle",
   description: "Short description",
   brandText: "Brand name shown on the form",
@@ -175,6 +201,7 @@ const fieldHelp: Record<string, string> = {
   linkLabel: "The clickable words. Leave blank to show no link.",
   alt: "A few words describing the picture, read aloud for blind visitors.",
   imageAlt: "A few words describing the picture, read aloud for blind visitors.",
+  photoAlt: "Describe the person or group shown. This is read aloud when the photo cannot be seen.",
   variant: "How this section is arranged. Try each one and watch the preview.",
   layout: "How this section is arranged. Try each one and watch the preview.",
   tone: "The color style of this strip.",
@@ -188,6 +215,7 @@ const fieldPlaceholders: Record<string, string> = {
   secondaryHref: "/contact.html or #section-id",
   alt: "e.g. Students collaborating in the library",
   imageAlt: "e.g. Students collaborating in the library",
+  photoAlt: "e.g. Portrait of Juan Dela Cruz",
 };
 
 const friendlyLabel = (name: string) => fieldLabels[name] || niceLabel(name);
@@ -197,8 +225,6 @@ function buildRecipe(name: string, base: ExperienceConfig): ExperienceConfig {
 
   if (name === "Minimal Academic") {
     next.title = "Minimal Academic";
-    next.theme.pageBackground = "#f8fafc";
-    next.theme.radius = "compact";
     next.pages.landing.data.content = next.pages.landing.data.content.filter((block) =>
       ["HeroBlock", "QuickLinksBlock", "RichTextBlock", "ResearchAgendaBlock", "FooterLinksBlock"].includes(block.type)
     );
@@ -206,8 +232,6 @@ function buildRecipe(name: string, base: ExperienceConfig): ExperienceConfig {
 
   if (name === "Visual Research Portal") {
     next.title = "Visual Research Portal";
-    next.theme.pageBackground = "linear-gradient(135deg, #f8fafc, #ecfdf5)";
-    next.theme.accentColor = "#2563EB";
     next.pages.landing.data.content.splice(1, 0, {
       type: "GalleryBlock",
       props: {
@@ -271,6 +295,28 @@ function getGuardrails(config: ExperienceConfig, page: PageKey): string[] {
         if (image?.url && !image?.alt) warnings.push(`${sectionName(block.type)}: picture ${index + 1} has no description for blind visitors.`);
       });
     }
+    if ("roles" in props && Array.isArray(props.roles)) {
+      props.roles.forEach((role: OrganizationRole, index: number) => {
+        const roleName = role.name || role.title || role.label || `Role ${index + 1}`;
+        if (role.photo && !role.photoAlt?.trim()) {
+          warnings.push(`${roleName}: the profile photo has no description for blind visitors.`);
+        }
+        const requiredRoleFields: Array<[keyof OrganizationRole, string]> = [
+          ["title", "position or board name"],
+          ["label", "short chart label"],
+          ["caption", "office, unit, or responsibility"],
+          ["summary", "description"],
+        ];
+        requiredRoleFields.forEach(([field, fieldLabel]) => {
+          if (!String(role[field] || "").trim()) {
+            warnings.push(`${roleName}: ${fieldLabel} is required.`);
+          }
+        });
+        if (role.title && role.title.length > 100) {
+          warnings.push(`${roleName}: the position is very long and may not fit on phones.`);
+        }
+      });
+    }
     if (typeof props.title === "string" && props.title.length > 110) {
       warnings.push(`${sectionName(block.type)}: the title is very long and may not fit on phones.`);
     }
@@ -283,63 +329,17 @@ function getGuardrails(config: ExperienceConfig, page: PageKey): string[] {
     if (!safe) warnings.push(`A link points to “${href}”, which doesn't look like a valid address.`);
   });
 
-  if (config.theme.primaryColor.toLowerCase() === config.theme.surfaceColor.toLowerCase()) {
-    warnings.push("The main color and the background color are the same, so buttons will be hard to see.");
-  }
-
   return warnings.length ? warnings : ["No issues found for this page."];
-}
-
-function ThemeEditor(props: {
-  config: ExperienceConfig;
-  onChange: (config: ExperienceConfig) => void;
-}) {
-  const updateTheme = (key: keyof ExperienceConfig["theme"], value: string) => {
-    const next = cloneConfig(props.config);
-    (next.theme[key] as string) = value;
-    props.onChange(next);
-  };
-
-  return (
-    <div className="xp-field-stack">
-      <label>
-        <span>Brand name</span>
-        <input value={props.config.theme.brandName} onChange={(event) => updateTheme("brandName", event.target.value)} />
-      </label>
-      <label>
-        <span>Logo URL</span>
-        <input value={props.config.theme.logoUrl} onChange={(event) => updateTheme("logoUrl", event.target.value)} />
-      </label>
-      <div className="xp-color-row">
-        <label>
-          <span>Primary</span>
-          <input type="color" value={props.config.theme.primaryColor} onChange={(event) => updateTheme("primaryColor", event.target.value)} />
-        </label>
-        <label>
-          <span>Accent</span>
-          <input type="color" value={props.config.theme.accentColor} onChange={(event) => updateTheme("accentColor", event.target.value)} />
-        </label>
-      </div>
-      <label>
-        <span>Background</span>
-        <input value={props.config.theme.pageBackground} onChange={(event) => updateTheme("pageBackground", event.target.value)} />
-      </label>
-      <label>
-        <span>Corner style</span>
-        <select value={props.config.theme.radius} onChange={(event) => updateTheme("radius", event.target.value)}>
-          <option value="compact">Compact</option>
-          <option value="soft">Soft</option>
-          <option value="rounded">Rounded</option>
-        </select>
-      </label>
-    </div>
-  );
 }
 
 function ImageUrlField(props: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  uploadKind?: string;
+  altText?: string;
+  clearLabel?: string;
+  onClear?: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -351,7 +351,8 @@ function ImageUrlField(props: {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("kind", "branding");
+      formData.append("kind", props.uploadKind || "branding");
+      if (props.altText?.trim()) formData.append("altText", props.altText.trim());
       const response = await fetch("/api/admin/experience/assets", {
         method: "POST",
         credentials: "include",
@@ -382,7 +383,7 @@ function ImageUrlField(props: {
       <div className="xp-copy-row">
         <input
           value={props.value || ""}
-          placeholder="Upload an image or paste a URL"
+          placeholder="Upload or use an existing PeAS image path"
           onChange={(event) => props.onChange(event.target.value)}
         />
         <button
@@ -396,7 +397,7 @@ function ImageUrlField(props: {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         style={{ display: "none" }}
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -404,10 +405,157 @@ function ImageUrlField(props: {
           event.target.value = "";
         }}
       />
+      {props.value && props.clearLabel ? (
+        <button
+          className="xp-image-clear"
+          type="button"
+          onClick={() => {
+            setUploadError("");
+            (props.onClear || (() => props.onChange("")))();
+          }}
+        >
+          {props.clearLabel}
+        </button>
+      ) : null}
       {uploadError
         ? <small className="xp-field-error">{uploadError}</small>
-        : <small className="xp-field-help">JPG, PNG, WEBP, GIF, or SVG up to 8MB.</small>}
+        : <small className="xp-field-help">JPG, PNG, or WEBP up to 8MB.</small>}
     </div>
+  );
+}
+
+function OrganizationRoleDetails(props: {
+  children: React.ReactNode;
+  initiallyOpen: boolean;
+}) {
+  const [open, setOpen] = useState(props.initiallyOpen);
+
+  return (
+    <details
+      className="xp-org-role-card"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      {props.children}
+    </details>
+  );
+}
+
+function OrganizationRolesField(props: {
+  value: unknown;
+  onChange: (value: OrganizationRole[]) => void;
+}) {
+  const roles = Array.isArray(props.value) ? props.value as OrganizationRole[] : [];
+  const updateRole = (index: number, key: keyof OrganizationRole, value: string) => {
+    props.onChange(roles.map((role, roleIndex) =>
+      roleIndex === index ? { ...role, [key]: value } : role
+    ));
+  };
+
+  return (
+    <section className="xp-org-role-editor" aria-labelledby="xp-org-roles-title">
+      <div className="xp-array-heading">
+        <span id="xp-org-roles-title">Organizational chart roles</span>
+        <small>{roles.length} fixed roles</small>
+      </div>
+      <p className="xp-org-role-note">
+        Names, positions, descriptions, and photos can be updated. Placement and reporting lines stay locked so the chart remains consistent on every device.
+      </p>
+      <div className="xp-org-role-list">
+        {roles.map((role, index) => {
+          const summary = role.name?.trim() || role.title?.trim() || role.label?.trim() || `Role ${index + 1}`;
+          const group = role.group ? "Board / committee" : "Individual role";
+          return (
+            <OrganizationRoleDetails key={role.id || index} initiallyOpen={index === 0}>
+              <summary>
+                <span className="xp-org-role-number" aria-hidden="true">{index + 1}</span>
+                <span className="xp-org-role-summary">
+                  <strong>{summary}</strong>
+                  <small>{group} · Placement locked</small>
+                </span>
+              </summary>
+              <div className="xp-org-role-fields">
+                <ImageUrlField
+                  label="Profile photo"
+                  value={role.photo || ""}
+                  uploadKind="org-chart"
+                  altText={role.photoAlt}
+                  clearLabel="Remove photo"
+                  onClear={() => props.onChange(roles.map((item, roleIndex) =>
+                    roleIndex === index ? { ...item, photo: "", photoAlt: "" } : item
+                  ))}
+                  onChange={(value) => updateRole(index, "photo", value)}
+                />
+                <label>
+                  <span>Photo description</span>
+                  <input
+                    value={role.photoAlt || ""}
+                    placeholder={fieldPlaceholders.photoAlt}
+                    maxLength={255}
+                    onChange={(event) => updateRole(index, "photoAlt", event.target.value)}
+                  />
+                  <small className="xp-field-help">Required when a photo is used. Describe what the photo shows.</small>
+                </label>
+                <label>
+                  <span>Person's name</span>
+                  <input
+                    value={role.name || ""}
+                    placeholder="e.g. Dr. Juan Dela Cruz"
+                    maxLength={160}
+                    onChange={(event) => updateRole(index, "name", event.target.value)}
+                  />
+                  <small className="xp-field-help">Leave blank for a committee or board without one named person.</small>
+                </label>
+                <label>
+                  <span>Position or board name (required)</span>
+                  <input
+                    value={role.title || ""}
+                    placeholder="e.g. Director of Research and Publications"
+                    maxLength={160}
+                    required
+                    onChange={(event) => updateRole(index, "title", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Short chart label (required)</span>
+                  <input
+                    value={role.label || ""}
+                    placeholder="e.g. Director"
+                    maxLength={120}
+                    required
+                    onChange={(event) => updateRole(index, "label", event.target.value)}
+                  />
+                  <small className="xp-field-help">A compact label used where the full position would not fit.</small>
+                </label>
+                <label>
+                  <span>Office, unit, or responsibility (required)</span>
+                  <input
+                    value={role.caption || ""}
+                    placeholder="e.g. Research & Publications"
+                    maxLength={120}
+                    required
+                    onChange={(event) => updateRole(index, "caption", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Description (required)</span>
+                  <textarea
+                    value={role.summary || ""}
+                    placeholder="Briefly explain this role's responsibilities."
+                    maxLength={1000}
+                    required
+                    onChange={(event) => updateRole(index, "summary", event.target.value)}
+                  />
+                </label>
+              </div>
+            </OrganizationRoleDetails>
+          );
+        })}
+      </div>
+      {!roles.length ? (
+        <p className="xp-field-error">The organizational chart roles could not be loaded. Refresh the studio before editing this section.</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -422,8 +570,12 @@ function FieldEditor(props: {
   const help = fieldHelp[name];
   const helpLine = help ? <small className="xp-field-help">{help}</small> : null;
 
-  if (field.type === "text" && (name === "url" || name.endsWith("Url"))) {
-    return <ImageUrlField label={label} value={value || ""} onChange={onChange} />;
+  if (field.type === "text" && (name === "url" || name === "photo" || name.endsWith("Url"))) {
+    return <ImageUrlField label={label} value={value || ""} uploadKind={name === "photo" ? "org-chart" : undefined} onChange={onChange} />;
+  }
+
+  if (field.type === "array" && name === "roles") {
+    return <OrganizationRolesField value={value} onChange={onChange} />;
   }
 
   if (field.type === "textarea") {
@@ -452,7 +604,8 @@ function FieldEditor(props: {
 
   if (field.type === "array") {
     const items = Array.isArray(value) ? value : [];
-    const addItem = () => onChange([...items, field.defaultItemProps || {}]);
+    const canChangeLength = name === "images";
+    const addItem = () => onChange([...items, field.defaultItemProps || {}].slice(0, 4));
     const updateItem = (index: number, key: string, itemValue: any) => {
       onChange(items.map((item: any, itemIndex: number) =>
         itemIndex === index ? { ...item, [key]: itemValue } : item
@@ -464,15 +617,12 @@ function FieldEditor(props: {
       <div className="xp-array-field">
         <div className="xp-array-heading">
           <span>{label}</span>
-          <button type="button" onClick={addItem}>Add</button>
+          {canChangeLength ? <button type="button" onClick={addItem} disabled={items.length >= 4}>Add photo</button> : <small>Fixed list</small>}
         </div>
         {items.map((item: any, index: number) => (
           <div className="xp-array-item" key={index}>
-            <div className="xp-array-item-top">
-              <strong>{field.getItemSummary ? field.getItemSummary(item, index) : `${label} ${index + 1}`}</strong>
-              <button type="button" onClick={() => removeItem(index)}>Remove</button>
-            </div>
-            {Object.entries(field.arrayFields || {}).map(([itemKey, itemField]: [string, any]) => (
+            <div className="xp-array-item-top"><strong>{field.getItemSummary ? field.getItemSummary(item, index) : `${label} ${index + 1}`}</strong>{canChangeLength ? <button type="button" onClick={() => removeItem(index)}>Remove</button> : null}</div>
+            {Object.entries(field.arrayFields || {}).filter(([itemKey]) => itemKey !== "href").map(([itemKey, itemField]: [string, any]) => (
               <FieldEditor
                 key={itemKey}
                 name={itemKey}
@@ -509,8 +659,8 @@ function BlockInspector(props: {
   }
 
   const component = componentMap[props.block.type] || {};
-  const fields = Object.entries(component.fields || {}).filter(([name]) => name !== "id");
-  const idField = component.fields?.id;
+  const allowed = editableFields[props.block.type] ?? [];
+  const fields = Object.entries(component.fields || {}).filter(([name]) => allowed.includes(name));
 
   return (
     <div className="xp-field-stack">
@@ -526,17 +676,7 @@ function BlockInspector(props: {
           onChange={(value) => props.onChange({ ...(props.block?.props || {}), [name]: value })}
         />
       ))}
-      {idField ? (
-        <details className="xp-advanced-details">
-          <summary>Advanced</summary>
-          <FieldEditor
-            name="id"
-            field={idField}
-            value={props.block.props?.id}
-            onChange={(value) => props.onChange({ ...(props.block?.props || {}), id: value })}
-          />
-        </details>
-      ) : null}
+      {!fields.length ? <p className="xp-help-text">This system section is locked and has no editable content.</p> : null}
     </div>
   );
 }
@@ -548,7 +688,7 @@ function AssetUploader() {
     const uppy = new Uppy({
       restrictions: {
         maxFileSize: 8 * 1024 * 1024,
-        allowedFileTypes: ["image/*"],
+        allowedFileTypes: ["image/jpeg", "image/png", "image/webp"],
       },
       meta: {
         kind: "branding",
@@ -559,7 +699,7 @@ function AssetUploader() {
         inline: true,
         height: 220,
         proudlyDisplayPoweredByUppy: false,
-        note: "JPG, PNG, WEBP, GIF, or SVG up to 8MB.",
+        note: "JPG, PNG, or WEBP up to 8MB.",
       })
       .use(XHRUpload, {
         endpoint: "/api/admin/experience/assets",
@@ -679,19 +819,17 @@ export default function App() {
         setConfig(parsed);
         setVersion(payload.version);
         setStatus("All changes saved");
-        applyThemeVars(parsed.theme);
+        applyThemeVars(EXPERIENCE_FIXED_THEME);
       })
       .catch((error) => {
         console.error("Failed to load draft:", error);
         setStatus("Couldn't load your saved draft — you're seeing the standard page. Refresh to try again.");
-        applyThemeVars(defaultExperienceConfig.theme);
+        applyThemeVars(EXPERIENCE_FIXED_THEME);
       });
     loadVersions().catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    applyThemeVars(config.theme);
-  }, [config.theme]);
+  useEffect(() => { applyThemeVars(EXPERIENCE_FIXED_THEME); }, []);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -867,10 +1005,11 @@ export default function App() {
 
   const persistDraft = async () => {
     const parsed = ExperienceConfigSchema.parse(config);
-    const result = await fetchJson<{ version: number }>("/api/admin/experience/draft", {
+    const result = await fetchJson<{ config: ExperienceConfig; version: number }>("/api/admin/experience/draft", {
       method: "PUT",
       body: JSON.stringify({ config: parsed }),
     });
+    setConfig(ExperienceConfigSchema.parse(result.config));
     setVersion(result.version);
     setDirty(false);
     await loadVersions();
@@ -1084,34 +1223,7 @@ export default function App() {
             ))}
           </div>
 
-          <details className="xp-add-menu">
-            <summary>+ Add a section</summary>
-            <div className="xp-add-list">
-              {allowedBlocks.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={(event) => {
-                    addBlock(type);
-                    const menu = event.currentTarget.closest("details");
-                    if (menu) menu.open = false;
-                  }}
-                >
-                  <strong>{sectionName(type)}</strong>
-                  <small>{sectionMeta[type]?.description || ""}</small>
-                </button>
-              ))}
-            </div>
-          </details>
-
-          <details className="xp-sidebar-details">
-            <summary>Starter layouts</summary>
-            <div className="xp-mini-list">
-              {["Current PeAS", "Minimal Academic", "Visual Research Portal", "Announcement Campaign", "Focused Login"].map((recipe) => (
-                <button key={recipe} type="button" onClick={() => applyRecipe(recipe)}>{recipe}</button>
-              ))}
-            </div>
-          </details>
+          <p className="xp-locked-layout-note">Layout and section order are managed by the PeAS application. Select a section to edit its approved text and photos.</p>
 
           <details className="xp-sidebar-details">
             <summary>Version history{version ? ` (v${version})` : ""}</summary>
@@ -1135,14 +1247,7 @@ export default function App() {
               <strong>{page.title}</strong>
               <span>{activePage === "landing" ? "This is your public home page" : "This is your public sign-in page"}</span>
             </div>
-            {selectedBlock ? (
-              <div className="xp-block-actions">
-                <button type="button" onClick={() => moveBlock(selectedIndex, -1)} disabled={selectedIndex === 0}>Move up</button>
-                <button type="button" onClick={() => moveBlock(selectedIndex, 1)} disabled={selectedIndex === pageBlocks.length - 1}>Move down</button>
-                <button type="button" onClick={() => duplicateBlock(selectedIndex)}>Duplicate</button>
-                <button type="button" className="danger" onClick={() => deleteBlock(selectedIndex)}>Delete</button>
-              </div>
-            ) : null}
+            <span className="xp-layout-locked-badge">Layout locked</span>
           </div>
           <div className={`xp-preview-frame ${device} is-${activePage}`}>
             <iframe
@@ -1158,7 +1263,6 @@ export default function App() {
           <div className="xp-inspector-tabs">
             {([
               ["content", "Edit"],
-              ["theme", "Style"],
               ["checks", "Checks"],
               ["assets", "Images"],
             ] as Array<[InspectorTab, string]>).map(([key, label]) => (
@@ -1169,7 +1273,6 @@ export default function App() {
           </div>
 
           {inspectorTab === "content" ? <BlockInspector block={selectedBlock} onChange={updateSelectedBlock} /> : null}
-          {inspectorTab === "theme" ? <ThemeEditor config={config} onChange={(next) => setNextConfig(next)} /> : null}
           {inspectorTab === "checks" ? (
             <ul className="xp-guardrail-list">
               {guardrails.map((warning) => <li key={warning}>{warning}</li>)}

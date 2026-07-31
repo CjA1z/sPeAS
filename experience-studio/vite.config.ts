@@ -50,7 +50,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         studio: resolve(__dirname, "src/studio/main.tsx"),
-        publicRuntime: resolve(__dirname, "src/public-runtime/main.tsx"),
       },
       output: {
         entryFileNames: "[name].js",

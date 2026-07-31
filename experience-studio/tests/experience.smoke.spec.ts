@@ -19,14 +19,15 @@ test("public experience API and runtime pages load", async ({ page, request, bas
   await expect(await publicResponse.json()).toEqual(expect.objectContaining({ source: expect.any(String) }));
 
   await page.goto("/index.html");
-  await expect(page.locator("#xp-public-landing")).toBeVisible();
-  await expect(page.locator(".xp-page")).toBeVisible();
+  await expect(page.locator("#react-public-root")).toBeVisible();
+  await expect(page.locator(".peas-public-navbar")).toBeVisible();
+  await expect(page.locator("#public-home-title")).toBeVisible();
   await expectNoCriticalA11yViolations(page);
 
   await page.goto("/log-in.html");
-  await expect(page.locator("#xp-public-login")).toBeVisible();
-  await expect(page.locator("#xp-school-id")).toBeVisible();
-  await expect(page.locator("#xp-password")).toBeVisible();
+  await expect(page.locator("#react-public-root")).toBeVisible();
+  await expect(page.locator("#school-id")).toBeVisible();
+  await expect(page.locator("#password")).toBeVisible();
   await expectNoCriticalA11yViolations(page);
 });
 
