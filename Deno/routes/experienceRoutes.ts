@@ -10,6 +10,7 @@ import {
   saveDraftExperienceConfig,
   saveSiteAsset,
   saveUserExperiencePreferences,
+  SiteAssetValidationError,
 } from "../services/experienceService.ts";
 
 const router = new Router();
@@ -130,11 +131,20 @@ router.post("/api/admin/experience/assets", isAuthenticated, isAdmin, async (ctx
       return;
     }
 
-    const form = await ctx.request.body({ type: "form-data" }).value;
-    const data = await form.read({
-      maxFileSize: 8 * 1024 * 1024,
-      maxSize: 10 * 1024 * 1024,
-    });
+    let data;
+    try {
+      const form = await ctx.request.body({ type: "form-data" }).value;
+      data = await form.read({
+        maxFileSize: 8 * 1024 * 1024,
+        maxSize: 10 * 1024 * 1024,
+      });
+    } catch (_error) {
+      json(ctx, 400, {
+        error: "Failed to upload asset",
+        details: "Upload valid multipart form data with one image no larger than 8MB",
+      });
+      return;
+    }
     const file = data.files?.[0];
 
     if (!file) {
@@ -160,10 +170,16 @@ router.post("/api/admin/experience/assets", isAuthenticated, isAdmin, async (ctx
       asset,
     });
   } catch (error) {
-    json(ctx, 400, {
-      error: "Failed to upload asset",
-      details: error instanceof Error ? error.message : String(error),
-    });
+    if (error instanceof SiteAssetValidationError) {
+      json(ctx, 400, {
+        error: "Failed to upload asset",
+        details: error.message,
+      });
+      return;
+    }
+
+    console.error("Failed to persist an Experience Studio asset:", error);
+    json(ctx, 500, { error: "Failed to upload asset" });
   }
 });
 

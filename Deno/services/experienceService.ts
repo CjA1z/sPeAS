@@ -1,9 +1,10 @@
-import { ensureDir, extname, join } from "../deps.ts";
-import { client } from "../db/denopost_conn.ts";
+import { ensureDir, join } from "../deps.ts";
+import { client, withTransaction } from "../db/denopost_conn.ts";
 import { WORKSPACE_ROOT } from "../config/storage.ts";
 import {
   defaultExperienceConfig,
   ExperienceConfig,
+  getExperiencePublishErrors,
   parseExperienceConfig,
   parseUserExperiencePreferences,
   UserExperiencePreferences,
@@ -22,7 +23,7 @@ type ExperienceRow = {
   published_at?: Date | string | null;
 };
 
-type AssetRow = {
+export type SiteAssetRow = {
   id: number;
   file_path: string;
   kind: string;
@@ -35,13 +36,80 @@ type AssetRow = {
 
 const SITE_BRANDING_STORAGE = join(WORKSPACE_ROOT, "storage", "site-branding");
 const MAX_ASSET_SIZE = 8 * 1024 * 1024;
+export const SITE_ASSET_KIND_MAX_LENGTH = 80;
+export const SITE_ASSET_ALT_TEXT_MAX_LENGTH = 255;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/gif",
-  "image/svg+xml",
 ]);
+
+type SiteAssetInsert = {
+  filePath: string;
+  kind: string;
+  altText: string | null;
+  mimeType: string;
+  sizeBytes: number;
+  userId: string;
+};
+
+type SiteAssetDependencies = {
+  ensureDirectory: (path: string) => Promise<void>;
+  writeFile: (path: string, bytes: Uint8Array) => Promise<void>;
+  removeFile: (path: string) => Promise<void>;
+  insertAsset: (asset: SiteAssetInsert) => Promise<SiteAssetRow>;
+  createFileName: (extension: string) => string;
+};
+
+export class SiteAssetValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteAssetValidationError";
+  }
+}
+
+export function normalizeSiteAssetKind(value: string): string {
+  const sanitized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, SITE_ASSET_KIND_MAX_LENGTH)
+    .replace(/-+$/g, "");
+
+  return sanitized || "asset";
+}
+
+export function normalizeSiteAssetAltText(value?: string): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return Array.from(trimmed).slice(0, SITE_ASSET_ALT_TEXT_MAX_LENGTH).join("");
+}
+
+const DEFAULT_SITE_ASSET_DEPENDENCIES: SiteAssetDependencies = {
+  ensureDirectory: (path) => ensureDir(path),
+  writeFile: (path, bytes) => Deno.writeFile(path, bytes),
+  removeFile: (path) => Deno.remove(path),
+  insertAsset: async (asset) => {
+    const result = await client.queryObject<SiteAssetRow>(
+      `INSERT INTO site_assets
+        (file_path, kind, alt_text, mime_type, size_bytes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        asset.filePath,
+        asset.kind,
+        asset.altText,
+        asset.mimeType,
+        asset.sizeBytes,
+        asset.userId,
+      ],
+    );
+    return result.rows[0];
+  },
+  createFileName: (extension) => `${Date.now()}-${crypto.randomUUID()}${extension}`,
+};
 
 function withTimestamp(config: ExperienceConfig): ExperienceConfig {
   return {
@@ -50,7 +118,9 @@ function withTimestamp(config: ExperienceConfig): ExperienceConfig {
   };
 }
 
-function parseConfigFromRow(row: ExperienceRow | undefined): ExperienceConfig | null {
+function parseConfigFromRow(
+  row: ExperienceRow | undefined,
+): ExperienceConfig | null {
   if (!row) return null;
   const rawConfig = typeof row.config === "string" ? JSON.parse(row.config) : row.config;
   return parseExperienceConfig(rawConfig);
@@ -132,7 +202,8 @@ export async function getPublicExperienceConfig(): Promise<ExperienceConfig> {
      LIMIT 1`,
   );
 
-  return parseConfigFromRow(result.rows[0]) ?? withTimestamp(defaultExperienceConfig);
+  return parseConfigFromRow(result.rows[0]) ??
+    withTimestamp(defaultExperienceConfig);
 }
 
 export async function getDraftExperienceConfig(): Promise<{
@@ -150,7 +221,8 @@ export async function getDraftExperienceConfig(): Promise<{
   const draft = result.rows[0];
   if (draft) {
     return {
-      config: parseConfigFromRow(draft) ?? withTimestamp(defaultExperienceConfig),
+      config: parseConfigFromRow(draft) ??
+        withTimestamp(defaultExperienceConfig),
       version: Number(draft.version),
       status: "draft",
     };
@@ -191,22 +263,28 @@ export async function publishDraftExperienceConfig(
      LIMIT 1`,
   );
 
-  const config = parseConfigFromRow(draftResult.rows[0]) ?? await getPublicExperienceConfig();
+  const config = parseConfigFromRow(draftResult.rows[0]) ??
+    await getPublicExperienceConfig();
+  const publishErrors = getExperiencePublishErrors(config);
+  if (publishErrors.length) {
+    throw new Error(publishErrors.join(" "));
+  }
   const version = await nextExperienceVersion();
   const publishedConfig = withTimestamp(config);
 
-  await client.queryObject(
-    `UPDATE site_experience_versions
-     SET status = 'archived', updated_at = CURRENT_TIMESTAMP
-     WHERE status = 'published'`,
-  );
-
-  await client.queryObject(
-    `INSERT INTO site_experience_versions
-      (status, version, config, created_by, updated_by, published_by, published_at)
-     VALUES ('published', $1, $2::jsonb, $3, $3, $3, CURRENT_TIMESTAMP)`,
-    [version, JSON.stringify(publishedConfig), userId],
-  );
+  await withTransaction(async (connection) => {
+    await connection.queryArray(
+      `UPDATE site_experience_versions
+       SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+       WHERE status IN ('published', 'draft')`,
+    );
+    await connection.queryArray(
+      `INSERT INTO site_experience_versions
+        (status, version, config, created_by, updated_by, published_by, published_at)
+       VALUES ('published', $1, $2::jsonb, $3, $3, $3, CURRENT_TIMESTAMP)`,
+      [version, JSON.stringify(publishedConfig), userId],
+    );
+  });
 
   return { config: publishedConfig, version };
 }
@@ -214,7 +292,9 @@ export async function publishDraftExperienceConfig(
 export async function rollbackExperienceVersion(
   versionId: number,
   userId: string,
-): Promise<{ config: ExperienceConfig; version: number; sourceVersion: number }> {
+): Promise<
+  { config: ExperienceConfig; version: number; sourceVersion: number }
+> {
   const sourceResult = await client.queryObject<ExperienceRow>(
     `SELECT * FROM site_experience_versions
      WHERE id = $1
@@ -227,19 +307,15 @@ export async function rollbackExperienceVersion(
     throw new Error("Experience version not found");
   }
 
-  const restoredConfig = withTimestamp(parseConfigFromRow(source) ?? defaultExperienceConfig);
+  const restoredConfig = withTimestamp(
+    parseConfigFromRow(source) ?? defaultExperienceConfig,
+  );
   const version = await nextExperienceVersion();
 
   await client.queryObject(
-    `UPDATE site_experience_versions
-     SET status = 'archived', updated_at = CURRENT_TIMESTAMP
-     WHERE status = 'published'`,
-  );
-
-  await client.queryObject(
     `INSERT INTO site_experience_versions
-      (status, version, config, created_by, updated_by, published_by, published_at)
-     VALUES ('published', $1, $2::jsonb, $3, $3, $3, CURRENT_TIMESTAMP)`,
+      (status, version, config, created_by, updated_by)
+     VALUES ('draft', $1, $2::jsonb, $3, $3)`,
     [version, JSON.stringify(restoredConfig), userId],
   );
 
@@ -250,17 +326,19 @@ export async function rollbackExperienceVersion(
   };
 }
 
-export async function getExperienceVersions(limit = 20): Promise<Array<{
-  id: number;
-  status: string;
-  version: number;
-  createdBy?: string | null;
-  updatedBy?: string | null;
-  publishedBy?: string | null;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-  publishedAt?: Date | string | null;
-}>> {
+export async function getExperienceVersions(limit = 20): Promise<
+  Array<{
+    id: number;
+    status: string;
+    version: number;
+    createdBy?: string | null;
+    updatedBy?: string | null;
+    publishedBy?: string | null;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+    publishedAt?: Date | string | null;
+  }>
+> {
   const result = await client.queryObject<ExperienceRow>(
     `SELECT id, status, version, created_by, updated_by, published_by,
             created_at, updated_at, published_at, config
@@ -283,23 +361,31 @@ export async function getExperienceVersions(limit = 20): Promise<Array<{
   }));
 }
 
-export async function saveSiteAsset(options: {
-  file: {
-    filename?: string;
-    name?: string;
-    type?: string;
-    content?: Uint8Array;
-    path?: string;
+export async function saveSiteAsset(
+  options: {
+    file: {
+      filename?: string;
+      name?: string;
+      type?: string;
+      content?: Uint8Array;
+      path?: string;
+    };
+    kind: string;
+    altText?: string;
+    userId: string;
+  },
+  dependencyOverrides: Partial<SiteAssetDependencies> = {},
+): Promise<SiteAssetRow> {
+  const dependencies = {
+    ...DEFAULT_SITE_ASSET_DEPENDENCIES,
+    ...dependencyOverrides,
   };
-  kind: string;
-  altText?: string;
-  userId: string;
-}): Promise<AssetRow> {
-  const originalName = options.file.filename || options.file.name || "asset";
   const mimeType = options.file.type || "application/octet-stream";
 
   if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
-    throw new Error("Only JPG, PNG, WEBP, GIF, and SVG image assets are allowed");
+    throw new SiteAssetValidationError(
+      "Only JPG, PNG, and WEBP image assets are allowed",
+    );
   }
 
   let bytes: Uint8Array;
@@ -308,41 +394,69 @@ export async function saveSiteAsset(options: {
   } else if (options.file.path) {
     bytes = await Deno.readFile(options.file.path);
   } else {
-    throw new Error("Upload payload did not include file content");
+    throw new SiteAssetValidationError(
+      "Upload payload did not include file content",
+    );
   }
 
   if (bytes.byteLength > MAX_ASSET_SIZE) {
-    throw new Error("Image assets must be 8MB or smaller");
+    throw new SiteAssetValidationError("Image assets must be 8MB or smaller");
   }
 
-  await ensureDir(SITE_BRANDING_STORAGE);
-  const extension = extname(originalName).toLowerCase() ||
-    (mimeType === "image/svg+xml" ? ".svg" : ".png");
-  const safeKind = options.kind.toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "asset";
-  const fileName = `${Date.now()}-${crypto.randomUUID()}${extension}`;
+  if (!matchesImageSignature(bytes, mimeType)) {
+    throw new SiteAssetValidationError(
+      "The uploaded file contents do not match the declared image type",
+    );
+  }
+
+  const safeKind = normalizeSiteAssetKind(options.kind);
+  const safeAltText = normalizeSiteAssetAltText(options.altText);
+  const extension = mimeType === "image/jpeg" ? ".jpg" : mimeType === "image/png" ? ".png" : ".webp";
+  const fileName = dependencies.createFileName(extension);
   const relativePath = `storage/site-branding/${safeKind}/${fileName}`;
   const fullDir = join(SITE_BRANDING_STORAGE, safeKind);
   const fullPath = join(WORKSPACE_ROOT, relativePath);
 
-  await ensureDir(fullDir);
-  await Deno.writeFile(fullPath, bytes);
+  await dependencies.ensureDirectory(fullDir);
+  await dependencies.writeFile(fullPath, bytes);
 
-  const result = await client.queryObject<AssetRow>(
-    `INSERT INTO site_assets
-      (file_path, kind, alt_text, mime_type, size_bytes, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [
-      `/${relativePath}`,
-      safeKind,
-      options.altText || null,
+  try {
+    return await dependencies.insertAsset({
+      filePath: `/${relativePath}`,
+      kind: safeKind,
+      altText: safeAltText,
       mimeType,
-      bytes.byteLength,
-      options.userId,
-    ],
-  );
+      sizeBytes: bytes.byteLength,
+      userId: options.userId,
+    });
+  } catch (error) {
+    try {
+      await dependencies.removeFile(fullPath);
+    } catch (cleanupError) {
+      console.error(
+        "Failed to remove an untracked site asset after a database error:",
+        cleanupError,
+      );
+    }
+    throw error;
+  }
+}
 
-  return result.rows[0];
+function matchesImageSignature(bytes: Uint8Array, mimeType: string): boolean {
+  if (mimeType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 &&
+      bytes[2] === 0xff;
+  }
+  if (mimeType === "image/png") {
+    return bytes.length >= 8 &&
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => bytes[index] === value);
+  }
+  if (mimeType === "image/webp") {
+    return bytes.length >= 12 &&
+      new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" &&
+      new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
+  }
+  return false;
 }
 
 export async function getUserExperiencePreferences(

@@ -168,13 +168,14 @@ Split by wizard concern: form state/validation, file handling, author selection 
 shared modules exist. Verification: upload single doc, upload compiled doc with children,
 validation errors, duplicate-file warning.
 
-## Phase 9 — Frontend: navbar-loader.js (1,391)
+## Phase 9 — Superseded: public React application
 
-One IIFE owning four unrelated jobs. Split into: `navbar-core.js` (fetch + inject navbar HTML),
-`auth-menu.js` (login/logout, profile badge, mobile profile), `search-overlay.js` (openSearch/
-closeSearch/filters — the largest chunk), and fold `recordPageVisit` into the existing
-`document-visit-tracker.js`. Loaded on 12 public pages — keep the existing `window.*` globals
-as thin aliases until every page's script tags are updated, then remove them.
+The former recommendation to split and retain `navbar-loader.js` is superseded. Active public,
+account, author, legal, authentication, and document-detail routes now use the shared React
+public entry, `PublicSessionProvider`, `PublicPageShell`, `PublicNavbar`, and `PublicFooter`.
+The loader and standalone navbar documents have no active consumers and are retained only for
+the planned two-release legacy-request soak. After that soak confirms no traffic, delete them
+instead of refactoring them.
 
 ## Explicitly NOT refactoring (audited, fine as-is)
 
@@ -196,4 +197,4 @@ as thin aliases until every page's script tags are updated, then remove them.
 | 6 | document-edit merge + de-monkey-patch | **high** | manual edit flows, network tab |
 | 7 | list/archive unification | med | manual list/archive/restore flows |
 | 8 | upload_document split | med | manual upload flows |
-| 9 | navbar-loader split | med | all 12 public pages load, login/logout/search |
+| 9 | shared public React application | med | all active public routes load; no active request for legacy navbar assets |

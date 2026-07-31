@@ -139,7 +139,7 @@ export const auth = betterAuth({
       const html = `<p>Hi ${user.name},</p>` +
         `<p>A password reset was requested for your sPeAS account. ` +
         `Click the button below to choose a new password. The link expires in 1 hour.</p>` +
-        `<p><a href="${url}" style="display:inline-block;padding:10px 18px;background:#046937;color:#ffffff;text-decoration:none;border-radius:6px;">Reset password</a></p>` +
+        `<p><a href="${url}" style="display:inline-block;padding:10px 18px;background:#046937;color:#E6E6E6;text-decoration:none;border-radius:6px;">Reset password</a></p>` +
         `<p>If you did not request this, you can ignore this email.</p>`;
       await sendEmailWithAttachment(user.email, subject, text, html);
     },

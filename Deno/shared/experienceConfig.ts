@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const EXPERIENCE_SCHEMA_VERSION = 1;
+export const EXPERIENCE_SCHEMA_VERSION = 2;
 
 export const EXPERIENCE_COMPONENT_TYPES = [
   "AnnouncementBanner",
@@ -18,6 +18,172 @@ export const EXPERIENCE_COMPONENT_TYPES = [
 ] as const;
 
 export const ExperienceComponentTypeSchema = z.enum(EXPERIENCE_COMPONENT_TYPES);
+
+export const EXPERIENCE_ORGANIZATION_ROLE_IDS = [
+  "president",
+  "vp-student-affairs",
+  "director-orp",
+  "associate-assistant",
+  "editorial-board",
+  "technical-board",
+  "research-ethics-board",
+] as const;
+
+export const ExperienceOrganizationRoleIdSchema = z.enum(
+  EXPERIENCE_ORGANIZATION_ROLE_IDS,
+);
+
+export const ExperienceOrganizationRoleSchema = z.object({
+  id: ExperienceOrganizationRoleIdSchema,
+  title: z.string().trim().min(1).max(160),
+  label: z.string().trim().min(1).max(120),
+  caption: z.string().trim().min(1).max(120),
+  name: z.string().trim().max(160),
+  photo: z.string().trim().max(2048).refine((value) => !value || isApprovedImageUrl(value), {
+    message: "Organization role photos must use an approved local raster image path",
+  }),
+  photoAlt: z.string().trim().max(255),
+  group: z.boolean(),
+  summary: z.string().trim().min(1).max(1000),
+}).strict();
+
+const EXPERIENCE_ORGANIZATION_ROLE_GROUPS: Readonly<
+  Record<
+    z.infer<typeof ExperienceOrganizationRoleIdSchema>,
+    boolean
+  >
+> = {
+  president: false,
+  "vp-student-affairs": false,
+  "director-orp": false,
+  "associate-assistant": false,
+  "editorial-board": true,
+  "technical-board": true,
+  "research-ethics-board": true,
+};
+
+/**
+ * Validates the complete, code-owned chart shape. Role IDs, order, and group
+ * classification are structural and cannot be changed by Experience Studio.
+ */
+export const ExperienceOrganizationRolesSchema = z.array(
+  ExperienceOrganizationRoleSchema,
+)
+  .length(EXPERIENCE_ORGANIZATION_ROLE_IDS.length)
+  .superRefine((roles, context) => {
+    roles.forEach((role, index) => {
+      const expectedId = EXPERIENCE_ORGANIZATION_ROLE_IDS[index];
+      if (role.id !== expectedId) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: `Expected organization role ${expectedId} at position ${
+            index + 1
+          }`,
+        });
+      }
+      if (role.group !== EXPERIENCE_ORGANIZATION_ROLE_GROUPS[expectedId]) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "group"],
+          message:
+            `Organization role ${expectedId} has a fixed group classification`,
+        });
+      }
+    });
+  });
+
+export type ExperienceOrganizationRole = z.infer<
+  typeof ExperienceOrganizationRoleSchema
+>;
+
+export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
+  ExperienceOrganizationRole[] = ExperienceOrganizationRolesSchema.parse([
+    {
+      id: "president",
+      title: "University President",
+      label: "University President",
+      caption: "Administration",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: false,
+      summary:
+        "Provides overall institutional leadership and sets the strategic direction that the university's research and publication programs support.",
+    },
+    {
+      id: "vp-student-affairs",
+      title: "Vice President, Student Affairs",
+      label: "Vice President",
+      caption: "Student Affairs",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: false,
+      summary:
+        "Oversees the student affairs cluster and ensures the research and publications agenda stays aligned with university priorities.",
+    },
+    {
+      id: "director-orp",
+      title: "Director, Office of Research and Publications",
+      label: "Director",
+      caption: "Research & Publications",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: false,
+      summary:
+        "Leads the Office of Research and Publications — coordinating research activity, publication support, and institutional scholarly output.",
+    },
+    {
+      id: "associate-assistant",
+      title: "Associate Assistant",
+      label: "Associate Assistant",
+      caption: "Office Support",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: false,
+      summary:
+        "Supports the director in day-to-day operations, records management, and coordination with researchers and university units.",
+    },
+    {
+      id: "editorial-board",
+      title: "Editorial Board",
+      label: "Editorial Board",
+      caption: "Publications",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: true,
+      summary:
+        "Reviews manuscripts and safeguards the editorial quality of the university's journals and scholarly publications.",
+    },
+    {
+      id: "technical-board",
+      title: "Technical Board",
+      label: "Technical Board",
+      caption: "Research Review",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: true,
+      summary:
+        "Evaluates research design and methodology, providing technical guidance to student and faculty researchers.",
+    },
+    {
+      id: "research-ethics-board",
+      title: "Research Ethics Board",
+      label: "Research Ethics Board",
+      caption: "Ethics Review",
+      name: "",
+      photo: "",
+      photoAlt: "",
+      group: true,
+      summary:
+        "Reviews research protocols to protect the rights and welfare of participants and uphold ethical standards in every study.",
+    },
+  ]);
 
 export const PuckComponentDataSchema = z.object({
   type: ExperienceComponentTypeSchema,
@@ -47,6 +213,22 @@ export const ExperienceThemeSchema = z.object({
   motion: z.enum(["none", "reduced", "standard"]),
 });
 
+export const EXPERIENCE_FIXED_THEME = ExperienceThemeSchema.parse({
+  brandName: "Paulinian electronic Archiving System",
+  logoUrl: "/Components/images/peas.png",
+  faviconUrl: "/Components/images/peas-ico.png",
+  primaryColor: "#006A4E",
+  primaryDarkColor: "#00523D",
+  accentColor: "#FDB813",
+  pageBackground: "linear-gradient(to bottom right, #fdfae8, #e6f4ea)",
+  surfaceColor: "#FFFFFF",
+  textColor: "#1F2937",
+  mutedTextColor: "#6B7280",
+  fontFamily: "Inter",
+  radius: "soft",
+  motion: "standard",
+});
+
 export const ExperiencePageSchema = z.object({
   title: z.string().min(1).max(160),
   description: z.string().max(300).optional(),
@@ -69,12 +251,10 @@ export const ExperienceConfigSchema = z.object({
   schemaVersion: z.literal(EXPERIENCE_SCHEMA_VERSION),
   title: z.string().min(1).max(160),
   updatedAt: z.string().optional(),
-  theme: ExperienceThemeSchema,
   pages: z.object({
     landing: ExperiencePageSchema,
     login: ExperiencePageSchema,
   }),
-  personalization: ExperiencePersonalizationSchema,
 });
 
 export const UserExperiencePreferencesSchema = z.object({
@@ -87,7 +267,7 @@ export type ExperienceConfig = z.infer<typeof ExperienceConfigSchema>;
 export type UserExperiencePreferences = z.infer<typeof UserExperiencePreferencesSchema>;
 
 export function parseExperienceConfig(input: unknown): ExperienceConfig {
-  return ExperienceConfigSchema.parse(input);
+  return ExperienceConfigSchema.parse(migrateExperienceConfigV1ToV2(input));
 }
 
 export function parseUserExperiencePreferences(input: unknown): UserExperiencePreferences {
@@ -97,21 +277,6 @@ export function parseUserExperiencePreferences(input: unknown): UserExperiencePr
 export const defaultExperienceConfig: ExperienceConfig = {
   schemaVersion: EXPERIENCE_SCHEMA_VERSION,
   title: "PeAS Experience",
-  theme: {
-    brandName: "Paulinian electronic Archiving System",
-    logoUrl: "/Components/images/peas.png",
-    faviconUrl: "/Components/images/peas-ico.png",
-    primaryColor: "#006A4E",
-    primaryDarkColor: "#00523D",
-    accentColor: "#FDB813",
-    pageBackground: "linear-gradient(to bottom right, #fdfae8, #e6f4ea)",
-    surfaceColor: "#FFFFFF",
-    textColor: "#1F2937",
-    mutedTextColor: "#6B7280",
-    fontFamily: "Inter",
-    radius: "soft",
-    motion: "standard",
-  },
   pages: {
     landing: {
       title: "Office of Research & Publications",
@@ -183,6 +348,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
               imageUrl: "/Components/images/org-chart.png",
               imageAlt: "Organizational chart for the Office of Research and Publications",
               caption: "Click to view the full organizational chart.",
+              roles: clone(EXPERIENCE_DEFAULT_ORGANIZATION_ROLES),
             },
           },
           {
@@ -267,8 +433,8 @@ export const defaultExperienceConfig: ExperienceConfig = {
               forgotPasswordLabel: "Forgot Password?",
               forgotPasswordTitle: "Forgot Password?",
               forgotPasswordSubtitle: "No worries, we'll send you reset instructions.",
-              backgroundImageUrl: "https://storage.googleapis.com/oa_disk001/spudlms/84/school_logo/1627354824-105.jpeg",
-              graphicLogoUrl: "https://www.spud.edu.ph/assets/logo/spud_logo_s.png",
+              backgroundImageUrl: "/Components/images/1.jpg",
+              graphicLogoUrl: "/Components/images/spud_logo_s.png",
               footerText: "PeAS. All Rights Reserved. L. Rovira Rd, Bantayan, Dumaguete, Negros Oriental.",
               layout: "split",
             },
@@ -277,10 +443,183 @@ export const defaultExperienceConfig: ExperienceConfig = {
       },
     },
   },
-  personalization: {
-    enabled: true,
-    greetingTemplate: "Welcome back, {{first_name}}",
-    guestGreeting: "Welcome to PeAS",
-    modules: ["roleQuickLinks", "savedDocuments", "recentActivity"],
-  },
 };
+
+const EDITABLE_STRING_FIELDS: Record<string, readonly string[]> = {
+  HeroBlock: ["eyebrow", "title", "body", "primaryLabel", "secondaryLabel"],
+  QuickLinksBlock: ["title"],
+  RichTextBlock: ["eyebrow", "title", "body"],
+  ImageFeatureBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt", "caption"],
+  ResearchAgendaBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt"],
+  CtaBlock: ["title", "body", "label"],
+  LoginShellBlock: [
+    "brandText", "title", "subtitle", "forgotPasswordTitle", "forgotPasswordSubtitle",
+    "footerText", "backgroundImageUrl", "graphicLogoUrl", "logoUrl",
+  ],
+};
+
+/**
+ * Canonicalizes both legacy v1 page-builder documents and v2 drafts into the
+ * locked v2 layout. Only approved copy and image fields survive. Component
+ * order, component types, link destinations, form semantics, theme, and
+ * personalization are not stored in the v2 content document.
+ */
+export function migrateExperienceConfigV1ToV2(input: unknown): ExperienceConfig {
+  const source = asRecord(input);
+  if (typeof source.schemaVersion === "number" && source.schemaVersion !== 1 && source.schemaVersion !== 2) {
+    throw new Error(`Unsupported Experience schema version: ${source.schemaVersion}`);
+  }
+  const output = clone(defaultExperienceConfig);
+  output.schemaVersion = EXPERIENCE_SCHEMA_VERSION;
+  output.title = typeof source.title === "string" && source.title.trim()
+    ? source.title.trim().slice(0, 160)
+    : defaultExperienceConfig.title;
+  if (typeof source.updatedAt === "string") output.updatedAt = source.updatedAt;
+
+  for (const pageKey of ["landing", "login"] as const) {
+    const sourcePage = asRecord(asRecord(asRecord(source.pages)[pageKey]));
+    const sourceData = asRecord(sourcePage.data);
+    const sourceBlocks = Array.isArray(sourceData.content) ? sourceData.content.map(asRecord) : [];
+    output.pages[pageKey].data.content = output.pages[pageKey].data.content.map((defaultBlock) => {
+      const defaultProps = asRecord(defaultBlock.props);
+      const matching = sourceBlocks.find((block) => {
+        const props = asRecord(block.props);
+        return block.type === defaultBlock.type && props.id === defaultProps.id;
+      }) ?? sourceBlocks.find((block) => block.type === defaultBlock.type);
+      if (!matching) return defaultBlock;
+      return {
+        ...defaultBlock,
+        props: migrateBlockProps(defaultBlock.type, defaultProps, asRecord(matching.props)),
+      };
+    });
+  }
+  return output;
+}
+
+export function getExperiencePublishErrors(config: ExperienceConfig): string[] {
+  const errors: string[] = [];
+  for (const page of [config.pages.landing, config.pages.login]) {
+    for (const block of page.data.content) {
+      const props = asRecord(block.props);
+      if (typeof props.imageUrl === "string" && props.imageUrl.trim() && !String(props.imageAlt ?? "").trim()) {
+        errors.push(`${block.type} image requires alternative text.`);
+      }
+      if (Array.isArray(props.images)) {
+        props.images.forEach((item, index) => {
+          const image = asRecord(item);
+          if (String(image.url ?? "").trim() && !String(image.alt ?? "").trim()) {
+            errors.push(`${block.type} image ${index + 1} requires alternative text.`);
+          }
+        });
+      }
+      if (Array.isArray(props.roles)) {
+        props.roles.forEach((item, index) => {
+          const role = asRecord(item);
+          if (String(role.photo ?? "").trim() && !String(role.photoAlt ?? "").trim()) {
+            const roleLabel = String(role.title ?? role.label ?? "").trim() || `role ${index + 1}`;
+            errors.push(`${roleLabel} photo requires alternative text.`);
+          }
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+function migrateBlockProps(type: string, defaults: Record<string, unknown>, source: Record<string, unknown>) {
+  const result = clone(defaults);
+  for (const field of EDITABLE_STRING_FIELDS[type] ?? []) {
+    if (typeof source[field] === "string") result[field] = source[field];
+  }
+
+  if (type === "HeroBlock" && Array.isArray(source.images)) {
+    const fallback = Array.isArray(defaults.images) ? defaults.images.map(asRecord) : [];
+    result.images = source.images.slice(0, 4).map((item, index) => {
+      const image = asRecord(item);
+      const defaultImage = fallback[index] ?? fallback[0] ?? {};
+      return {
+        url: approvedImageUrl(image.url, String(defaultImage.url ?? "")),
+        alt: typeof image.alt === "string" ? image.alt.slice(0, 255) : String(defaultImage.alt ?? ""),
+      };
+    });
+  }
+
+  if (type === "QuickLinksBlock" && Array.isArray(source.links) && Array.isArray(defaults.links)) {
+    const sourceLinks = source.links;
+    result.links = defaults.links.map((defaultItem, index) => {
+      const locked = asRecord(defaultItem);
+      const incoming = asRecord(sourceLinks[index]);
+      return {
+        ...locked,
+        label: typeof incoming.label === "string" ? incoming.label.slice(0, 120) : locked.label,
+        description: typeof incoming.description === "string" ? incoming.description.slice(0, 300) : locked.description,
+      };
+    });
+  }
+
+  if (type === "ResearchAgendaBlock" && Array.isArray(source.items) && Array.isArray(defaults.items)) {
+    const sourceItems = source.items;
+    result.items = defaults.items.map((defaultItem, index) => {
+      const incoming = asRecord(sourceItems[index]);
+      return { text: typeof incoming.text === "string" ? incoming.text.slice(0, 500) : asRecord(defaultItem).text };
+    });
+  }
+
+  if (type === "ImageFeatureBlock" && defaults.id === "org-chart" && Array.isArray(defaults.roles)) {
+    const sourceRoles = Array.isArray(source.roles) ? source.roles.map(asRecord) : [];
+    result.roles = ExperienceOrganizationRolesSchema.parse(defaults.roles.map((defaultItem) => {
+      const locked = asRecord(defaultItem);
+      const incoming = sourceRoles.find((role) => role.id === locked.id) ?? {};
+      return {
+        id: locked.id,
+        title: boundedRequiredString(incoming.title, String(locked.title ?? ""), 160),
+        label: boundedRequiredString(incoming.label, String(locked.label ?? ""), 120),
+        caption: boundedRequiredString(incoming.caption, String(locked.caption ?? ""), 120),
+        name: boundedOptionalString(incoming.name, String(locked.name ?? ""), 160),
+        photo: approvedOptionalImageUrl(incoming.photo, String(locked.photo ?? "")),
+        photoAlt: boundedOptionalString(incoming.photoAlt, String(locked.photoAlt ?? ""), 255),
+        group: locked.group,
+        summary: boundedRequiredString(incoming.summary, String(locked.summary ?? ""), 1000),
+      };
+    }));
+  }
+
+  for (const field of ["imageUrl", "backgroundImageUrl", "graphicLogoUrl", "logoUrl"]) {
+    if (field in result && typeof source[field] === "string") {
+      result[field] = approvedImageUrl(source[field], String(defaults[field] ?? ""));
+    }
+  }
+  return result;
+}
+
+function boundedRequiredString(value: unknown, fallback: string, maxLength: number) {
+  if (typeof value !== "string") return fallback;
+  return value.trim().slice(0, maxLength) || fallback;
+}
+
+function boundedOptionalString(value: unknown, fallback: string, maxLength: number) {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : fallback;
+}
+
+function approvedOptionalImageUrl(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  if (!value.trim()) return "";
+  return approvedImageUrl(value, fallback);
+}
+
+function approvedImageUrl(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  const url = value.trim();
+  return isApprovedImageUrl(url) ? url : fallback;
+}
+
+function isApprovedImageUrl(url: string) {
+  const supportedRaster = /\.(?:jpe?g|png|webp)(?:\?.*)?$/i.test(url);
+  return supportedRaster && (url.startsWith("/Components/images/") || url.startsWith("/storage/site-branding/"));
+}
+
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
+}
+
+function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }

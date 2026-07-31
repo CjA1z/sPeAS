@@ -8,6 +8,7 @@ import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
 import { join } from "../deps.ts";
 import { FileCheckService } from './fileCheckService.ts';
 import { encode as encodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
+import { escapeContactHtml } from "../shared/contactInquiry.ts";
 
 // Load .env from the Deno project root (path pinned to this module so it
 // works regardless of the process working directory). Idempotent with the
@@ -117,7 +118,8 @@ function initializeClient() {
           }
         },
         // Add debug option with correct type
-        debug: { log: true },
+        // SMTP protocol logging can expose message bodies and recipient data.
+        debug: { log: false },
       });
             emailServiceAvailable = true;
       return smtpClient;
@@ -128,6 +130,44 @@ function initializeClient() {
   }
   
   return smtpClient;
+}
+
+export async function sendContactInquiryEmail(input: {
+  recipient: string;
+  referenceCode: string;
+  visitorEmail: string;
+  visitorName: string;
+  subject: string;
+  message: string;
+}): Promise<void> {
+  const client = initializeClient();
+  if (!client) throw new Error("SMTP_UNAVAILABLE");
+
+  const emailSubject = `[PeAS Contact][${input.referenceCode}] ${input.subject}`;
+  const text = [
+    `Reference: ${input.referenceCode}`,
+    `From: ${input.visitorName} <${input.visitorEmail}>`,
+    `Subject: ${input.subject}`,
+    "",
+    input.message,
+  ].join("\n");
+  const html = `
+    <h1>PeAS Contact Inquiry</h1>
+    <p><strong>Reference:</strong> ${escapeContactHtml(input.referenceCode)}</p>
+    <p><strong>From:</strong> ${escapeContactHtml(input.visitorName)} &lt;${escapeContactHtml(input.visitorEmail)}&gt;</p>
+    <p><strong>Subject:</strong> ${escapeContactHtml(input.subject)}</p>
+    <hr>
+    <p>${escapeContactHtml(input.message).replaceAll("\n", "<br>")}</p>
+  `;
+
+  await client.send({
+    from: getFormattedFromAddress(),
+    to: input.recipient,
+    replyTo: input.visitorEmail,
+    subject: emailSubject,
+    content: text,
+    html,
+  });
 }
 
 /**
@@ -868,7 +908,7 @@ sPeAS - Library Document Management System
   
   ${options.secureDownloadUrl
     ? `<p><strong>✓</strong> Use the secure access link below to download the approved document.</p>
-       <p><a href="${options.secureDownloadUrl}" style="display:inline-block;background:#006400;color:#fff;padding:12px 18px;border-radius:5px;text-decoration:none;">Download Approved Document</a></p>
+       <p><a href="${options.secureDownloadUrl}" style="display:inline-block;background:#006400;color:#E6E6E6;padding:12px 18px;border-radius:5px;text-decoration:none;">Download Approved Document</a></p>
        <p>This link expires on ${expiresAtText}. Please do not forward it.</p>`
     : fileExists
       ? `<p><strong>✓</strong> We have attached ${attachmentCountText} to this email.</p>`
@@ -1129,7 +1169,7 @@ export async function sendRejectedRequestEmail(
       <style>
         body { font-family: Inter; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #dc2626; color: white; padding: 10px 20px; text-align: center; }
+        .header { background-color: #dc2626; color: #E6E6E6; padding: 10px 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }
         .reason { background-color: #fee2e2; padding: 15px; border-left: 4px solid #dc2626; margin: 15px 0; }
         .footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
@@ -1206,7 +1246,7 @@ export async function sendRejectedRequestEmail(
   <style>
     body { font-family: Inter; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #dc2626; color: white; padding: 10px 20px; text-align: center; }
+    .header { background-color: #dc2626; color: #E6E6E6; padding: 10px 20px; text-align: center; }
     .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }
     .reason { background-color: #fee2e2; padding: 15px; border-left: 4px solid #dc2626; margin: 15px 0; }
     .footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
@@ -1350,7 +1390,7 @@ export async function sendRequestConfirmationEmail(
       <style>
         body { font-family: Inter; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #008000; color: white; padding: 10px 20px; text-align: center; }
+        .header { background-color: #008000; color: #E6E6E6; padding: 10px 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; }
         .highlight { background-color: #f0e68c; padding: 15px; border-left: 4px solid #daa520; margin: 15px 0; }
         .details { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px; }

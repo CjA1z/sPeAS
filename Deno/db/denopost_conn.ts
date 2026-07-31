@@ -27,6 +27,23 @@ export const client = {
   },
 };
 
+export async function withTransaction<T>(
+  operation: (connection: Awaited<ReturnType<typeof pool.connect>>) => Promise<T>,
+): Promise<T> {
+  const connection = await pool.connect();
+  try {
+    await connection.queryArray("BEGIN");
+    const result = await operation(connection);
+    await connection.queryArray("COMMIT");
+    return result;
+  } catch (error) {
+    await connection.queryArray("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 /**
  * Connects to the PostgreSQL database and confirms connection
  * @returns {Promise<void>}

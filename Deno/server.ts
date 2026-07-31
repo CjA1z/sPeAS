@@ -50,6 +50,10 @@ import { webHandler } from "./utils/oakAdapter.ts"; // web Request/Response -> o
 import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
 import experienceRoutes from "./routes/experienceRoutes.ts";
 import { ensureExperienceTablesExist } from "./services/experienceService.ts";
+import newsRoutes from "./routes/newsRoutes.ts";
+import { ensureNewsTableExists } from "./services/newsService.ts";
+import contactInquiryRoutes from "./routes/contactInquiryRoutes.ts";
+import { ensureContactInquiryTablesExist, startContactNotificationWorker } from "./services/contactInquiryService.ts";
 // Import the document view controller
 // TODO: Fix DocumentViewController implementation
 // import { DocumentViewController } from "./controllers/documentViewController.ts";
@@ -165,6 +169,21 @@ app.use(async (ctx, next) => {
   }
 });
 
+const publicAliases: Record<string, string> = {
+  "/contact": "/contact.html",
+  "/terms": "/pages/miscellaneous/T&A-Public.html",
+  "/privacy": "/pages/miscellaneous/Privacy.html",
+  "/login": "/log-in.html",
+};
+
+app.use(async (ctx, next) => {
+  if (ctx.request.method !== "GET" && ctx.request.method !== "HEAD") return await next();
+  const destination = publicAliases[ctx.request.url.pathname];
+  if (!destination) return await next();
+  ctx.response.status = 308;
+  ctx.response.headers.set("Location", destination + ctx.request.url.search);
+});
+
 // Add static file serving middleware
 app.use(async (ctx, next) => {
   try {
@@ -174,6 +193,11 @@ app.use(async (ctx, next) => {
       path: publicPath,
       index: "index.html",
     });
+    if (publicPath.endsWith(".html") || publicPath === "/" || /\/react-ui\/(public\.js|app-ui\.css)$/.test(publicPath)) {
+      ctx.response.headers.set("Cache-Control", "no-cache, must-revalidate");
+    } else if (publicPath.startsWith("/react-ui/chunks/") || publicPath.startsWith("/react-ui/assets/") || /[-.][a-f0-9]{8,}\./i.test(publicPath)) {
+      ctx.response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    }
   } catch {
     await next();
   }
@@ -805,6 +829,14 @@ app.use(uploadRoutesAllowedMethods);
 app.use(experienceRoutes.routes());
 app.use(experienceRoutes.allowedMethods());
 
+// Register Research and Publications news routes
+app.use(newsRoutes.routes());
+app.use(newsRoutes.allowedMethods());
+
+// Register durable public Contact and administrator triage routes
+app.use(contactInquiryRoutes.routes());
+app.use(contactInquiryRoutes.allowedMethods());
+
 // Add router to app
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -1012,6 +1044,9 @@ async function startServer() {
     // Ensure the visit counter tables exist
     await ensureVisitCounterTablesExist();
     await ensureExperienceTablesExist();
+    await ensureNewsTableExists();
+    await ensureContactInquiryTablesExist();
+    await startContactNotificationWorker();
     await DocumentRequestModel.ensureAccessTokenTableExists();
     
     // Note: `router` is already registered on the app (routes added to it
