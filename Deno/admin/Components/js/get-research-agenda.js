@@ -154,7 +154,7 @@ function displayResearchAgendaResults(data, inputElement, suggestionsElement, se
             // Add some styling to make sure it's visible
             topicItem.style.padding = "8px 12px";
             topicItem.style.cursor = "pointer";
-            topicItem.style.backgroundColor = "#fff";
+            topicItem.style.backgroundColor = "#E6E6E6";
             topicItem.style.color = "#333";
             
             topicItem.addEventListener("click", () => {

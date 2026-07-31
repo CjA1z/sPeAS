@@ -909,7 +909,7 @@ window.debugCompiledDocumentForm = function() {
         }
         
         .success-popup {
-            background-color: white;
+            background-color: #E6E6E6;
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
             padding: 25px 30px;
@@ -944,7 +944,7 @@ window.debugCompiledDocumentForm = function() {
         
         .success-popup-button {
             background-color: #2e7d32;
-            color: white;
+            color: #E6E6E6;
             border: none;
             padding: 8px 20px;
             border-radius: 4px;
@@ -960,7 +960,7 @@ window.debugCompiledDocumentForm = function() {
         /* Dropdown Styles (matching document-edit.js) */
         .dropdown-list {
             position: absolute;
-            background-color: white;
+            background-color: #E6E6E6;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -2839,7 +2839,7 @@ window.enhancedCompiledDocumentEdit = {
                     position: fixed;
                     top: -1000px;
                     left: -1000px;
-                    background: #fff;
+                    background: #E6E6E6;
                     padding: 10px;
                     border-radius: 6px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -4214,7 +4214,7 @@ function renderChildDocuments(children, container) {
                 border-radius: 5px;
                 padding: 12px;
                 margin-bottom: 10px;
-                background: #fff;
+                background: #E6E6E6;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 position: relative;
             `;
@@ -4343,7 +4343,7 @@ function renderChildDocuments(children, container) {
             const viewButton = document.createElement('button');
             viewButton.className = 'btn btn-sm btn-primary view-child-btn';
             viewButton.innerHTML = '<i class="fas fa-eye"></i> View';
-            viewButton.style.cssText = 'font-size: 12px; padding: 3px 8px; background: #4e73df; color: white; border: none; border-radius: 3px; cursor: pointer;';
+            viewButton.style.cssText = 'font-size: 12px; padding: 3px 8px; background: #4e73df; color: #E6E6E6; border: none; border-radius: 3px; cursor: pointer;';
             viewButton.dataset.id = doc.id;
             
             // Add event listener for view button

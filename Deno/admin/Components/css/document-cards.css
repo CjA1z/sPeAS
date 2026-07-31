@@ -11,7 +11,7 @@
     margin-right: auto;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    background-color: white;
+    background-color: #E6E6E6;
     padding: 15px;
     box-sizing: border-box;
     overflow: visible;
@@ -20,7 +20,7 @@
 }
 
 .document-card {
-    background-color: #fff;
+    background-color: #E6E6E6;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 12px;
@@ -147,7 +147,7 @@
 
 .expand-btn {
     background-color: #4285f4;
-    color: white;
+    color: #E6E6E6;
 }
 
 .expand-btn:hover {
@@ -156,7 +156,7 @@
 
 .view-btn {
     background-color: #4285f4;
-    color: white;
+    color: #E6E6E6;
 }
 
 .view-btn:hover {
@@ -165,7 +165,7 @@
 
 .edit-btn {
     background-color: #34a853;
-    color: white;
+    color: #E6E6E6;
 }
 
 .edit-btn:hover {
@@ -174,7 +174,7 @@
 
 .delete-btn {
     background-color: #ea4335;
-    color: white;
+    color: #E6E6E6;
 }
 
 .delete-btn:hover {
@@ -183,7 +183,7 @@
 
 .download-btn {
     background-color: #8950fc;
-    color: white;
+    color: #E6E6E6;
 }
 
 .download-btn:hover {
@@ -213,7 +213,7 @@
     padding: 15px;
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    background-color: white;
+    background-color: #E6E6E6;
     border-left: 2px solid #4285f4;
     position: relative;
     z-index: 10;
@@ -332,7 +332,7 @@
     align-items: center;
     padding: 16px;
     border-radius: 4px;
-    background: white;
+    background: #E6E6E6;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     margin-bottom: 10px;
 }

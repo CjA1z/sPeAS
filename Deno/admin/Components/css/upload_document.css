@@ -28,7 +28,7 @@ body {
 /* Tab styles */
 .tab-active {
     background-color: var(--brand-green);
-    color: white;
+    color: #E6E6E6;
 }
 
 .tab-inactive {

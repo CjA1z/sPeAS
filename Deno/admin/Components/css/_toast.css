@@ -16,7 +16,7 @@
 
 .toast {
     animation: toast-in 0.24s var(--ease-out-expo) both;
-    background: #ffffff;
+    background: #E6E6E6;
     border: 1px solid var(--border-soft);
     border-left: 4px solid var(--brand-green);
     border-radius: var(--radius-md);

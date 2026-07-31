@@ -665,7 +665,7 @@ async function showCompiledDocumentBreakdown(compiledDoc) {
     // Create modal content
     const modalContent = document.createElement('div');
     modalContent.className = 'compiled-doc-modal';
-    modalContent.style.backgroundColor = '#fff';
+    modalContent.style.backgroundColor = '#E6E6E6';
     modalContent.style.borderRadius = '8px';
     modalContent.style.padding = '20px';
     modalContent.style.width = '600px';

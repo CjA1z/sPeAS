@@ -34,7 +34,7 @@ body {
 
 /* Modal Dialog */
 .modal-dialog {
-    background-color: rgb(255, 255, 255);
+    background-color: #E6E6E6;
     border-radius: 8px;
     max-width: 800px;
     width: 100%;
@@ -55,7 +55,7 @@ body {
     border: none;
     border-radius: 4px;
     background-color: #007bff;
-    color: white;
+    color: #E6E6E6;
     text-align: center;
     transition: background-color 0.3s ease;
 }

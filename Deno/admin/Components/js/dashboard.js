@@ -356,7 +356,7 @@ function updateAuthorAvatarStack(topAuthors, totalAuthors) {
             ];
             const idx = hashPalette(author.author_id || author.full_name);
             a.style.backgroundImage = palettes[idx];
-            a.style.color = '#ffffff';
+            a.style.color = '#E6E6E6';
         }
         stack.appendChild(a);
     });
@@ -409,7 +409,7 @@ function updateTopAuthorsUI(data, allAuthors, totalAuthorsHint) {
         tooltip.style.position = 'absolute';
         tooltip.style.display = 'none';
         tooltip.style.backgroundColor = 'rgba(15, 23, 42, 0.92)';
-        tooltip.style.color = 'white';
+        tooltip.style.color = '#E6E6E6';
         tooltip.style.padding = '0.75rem';
         tooltip.style.borderRadius = '8px';
         tooltip.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.2)';

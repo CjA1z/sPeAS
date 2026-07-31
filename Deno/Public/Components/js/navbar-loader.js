@@ -598,10 +598,10 @@ window.NavbarModule = (function() {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.id = 'profile-badge-button';
-                    button.className = 'flex items-center justify-center w-10 h-10 bg-green-600 rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-green-600 profile-initials text-lg select-none';
+                    button.className = 'flex items-center justify-center w-10 h-10 bg-green-600 rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#E6E6E6] focus:ring-green-600 profile-initials text-lg select-none';
                     button.setAttribute('aria-expanded', 'false');
                     button.setAttribute('aria-haspopup', 'true');
-                    button.innerHTML = `<span class="text-white font-medium">${initials.toUpperCase()}</span>`;
+                    button.innerHTML = `<span class="text-[#E6E6E6] font-medium">${initials.toUpperCase()}</span>`;
                     
                     // Add click listener directly to button
                     button.addEventListener('click', function(event) {
@@ -629,7 +629,7 @@ window.NavbarModule = (function() {
                     // Create dropdown menu
                     const dropdownMenu = document.createElement('div');
                     dropdownMenu.id = 'dropdown-menu';
-                    dropdownMenu.className = 'dropdown-menu origin-top-right absolute right-0 mt-2 w-60 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 transform scale-95 pointer-events-none z-50 select-none';
+                    dropdownMenu.className = 'dropdown-menu origin-top-right absolute right-0 mt-2 w-60 rounded-md shadow-lg bg-[#E6E6E6] ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 transform scale-95 pointer-events-none z-50 select-none';
                     dropdownMenu.setAttribute('role', 'menu');
                     dropdownMenu.setAttribute('aria-orientation', 'vertical');
                     dropdownMenu.setAttribute('aria-labelledby', 'profile-badge-button');
@@ -738,7 +738,7 @@ window.NavbarModule = (function() {
                         <div class="flex items-center px-5">
                             <div class="flex-shrink-0">
                                 <div class="flex items-center justify-center w-10 h-10 bg-green-600 rounded-full profile-initials text-lg select-none">
-                                    <span class="text-white font-medium">${initials.toUpperCase()}</span>
+                                    <span class="text-[#E6E6E6] font-medium">${initials.toUpperCase()}</span>
                                 </div>
                             </div>
                             <div class="ml-3">
@@ -927,7 +927,7 @@ window.NavbarModule = (function() {
                         
                         // Create initials element
                         const initialsSpan = document.createElement('span');
-                        initialsSpan.className = 'text-white font-medium';
+                        initialsSpan.className = 'text-[#E6E6E6] font-medium';
                         initialsSpan.textContent = initials;
                         profileBadgeButton.appendChild(initialsSpan);
                         
@@ -1346,7 +1346,7 @@ window.NavbarModule = (function() {
                     <div>
                         <a href="/" style="margin-right: 1rem; text-decoration: none; color: #006A4E;">Home</a>
                         <a href="/pages/doc-search.html" style="margin-right: 1rem; text-decoration: none; color: #006A4E;">Search</a>
-                        <a href="/log-in.html" style="padding: 0.5rem 1rem; background-color: #FDB813; color: white; text-decoration: none; border-radius: 0.25rem; font-weight: 500;">Log In</a>
+                        <a href="/log-in.html" style="padding: 0.5rem 1rem; background-color: #FDB813; color: #E6E6E6; text-decoration: none; border-radius: 0.25rem; font-weight: 500;">Log In</a>
                     </div>
                 </nav>
             `;

@@ -18,7 +18,7 @@
 .modal-content {
     width: 100%;
     max-width: 1000px;
-    background-color: white;
+    background-color: #E6E6E6;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     overflow: hidden;
@@ -47,7 +47,7 @@
 }
 
 .close-btn:hover {
-    color: #000;
+    color: #060606;
 }
 
 /* ---------- Form Elements ---------- */
@@ -105,7 +105,7 @@
 
 .btn-primary {
     background-color: #00B050;
-    color: white;
+    color: #E6E6E6;
 }
 
 .btn-primary:hover {
@@ -125,7 +125,7 @@
     display: block;
     width: 100%;
     background-color: #00B050;
-    color: white;
+    color: #E6E6E6;
     border: none;
     border-radius: 4px;
     padding: 12px;
@@ -208,7 +208,7 @@
     height: 50px;
     border-radius: 50%;
     background-color: #00B050;
-    color: white;
+    color: #E6E6E6;
     display: flex;
     justify-content: center;
     align-items: center;

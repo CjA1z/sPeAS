@@ -27,7 +27,7 @@ html.sidebar-collapsed {
     flex-direction: column;
     padding: 0;
     z-index: 1000;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border-right: 1px solid #eef0f3;
     box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
     transform-origin: left center;
@@ -58,7 +58,7 @@ html.sidebar-collapsed {
     height: 26px;
     border-radius: 50%;
     border: 1px solid #e2e8f0;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     color: #475569;
     display: flex;
     align-items: center;
@@ -92,7 +92,7 @@ html.sidebar-collapsed .sidebar-toggle svg {
     align-items: stretch;
     height: 100%;
     padding: 20px 14px;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     transition: padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
 }
 
@@ -150,7 +150,7 @@ html.sidebar-collapsed .sidebar-toggle svg {
     cursor: pointer;
     transition: background-color 0.25s ease, transform 0.18s ease, box-shadow 0.25s ease, padding 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), gap 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35);
     text-decoration: none;
-    color: #ffffff;
+    color: #E6E6E6;
     position: relative;
     padding: 0 14px;
     background: #006A4E;
@@ -162,7 +162,7 @@ html.sidebar-collapsed .sidebar-toggle svg {
 
 .upload-icon:hover {
     background: #00543e;
-    color: #ffffff;
+    color: #E6E6E6;
     transform: translateY(-1px);
     box-shadow: 0 12px 28px rgba(0, 106, 78, 0.30);
 }
@@ -232,7 +232,7 @@ html.sidebar-collapsed .sidebar-toggle svg {
 }
 
 .icon-wrapper:hover .icon {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
 }
 
 /* Icon background — subtle container that lights up on hover/active */
@@ -278,7 +278,7 @@ a.icon-wrapper.active::before {
 
 .icon-wrapper.active .icon,
 a.icon-wrapper.active .icon {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
 }
 
 .icon-wrapper.active .icon svg,
@@ -287,7 +287,7 @@ a.icon-wrapper.active .icon svg {
 }
 
 /* Upload uses currentColor for its icon */
-.upload-icon .icon svg { stroke: #ffffff; width: 20px; height: 20px; }
+.upload-icon .icon svg { stroke: #E6E6E6; width: 20px; height: 20px; }
 .upload-icon .icon { background-color: transparent; }
 
 .icon-text {
@@ -326,7 +326,7 @@ a.icon-wrapper.active .icon svg {
     height: 38px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid #ffffff;
+    border: 2px solid #E6E6E6;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
     display: flex;
     align-items: center;
@@ -376,7 +376,7 @@ a.icon-wrapper.active .icon svg {
     height: 8px;
     border-radius: 50%;
     background-color: #22c55e;
-    box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px rgba(34, 197, 94, 0.25);
+    box-shadow: 0 0 0 2px #E6E6E6, 0 0 0 3px rgba(34, 197, 94, 0.25);
     flex-shrink: 0;
     transition: width 0.5s cubic-bezier(0.65, -0.35, 0.3, 1.35), opacity 0.15s ease;
 }
@@ -388,7 +388,7 @@ a.icon-wrapper.active .icon svg {
 }
 
 .logout-btn:hover .icon {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
 }
 
 .logout-btn:hover .icon svg {

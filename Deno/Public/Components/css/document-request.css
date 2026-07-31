@@ -15,7 +15,7 @@
 }
 
 .modal-content {
-  background-color: #fff;
+  background-color: #E6E6E6;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   width: 100%;
@@ -28,7 +28,7 @@
 
 .modal-header {
   background-color: #31923d;
-  color: white;
+  color: #E6E6E6;
   padding: 15px 20px;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
@@ -46,7 +46,7 @@
 .modal-close-btn {
   background: none;
   border: none;
-  color: white;
+  color: #E6E6E6;
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
@@ -128,7 +128,7 @@
 
 .btn-primary {
   background-color: #31923d;
-  color: white;
+  color: #E6E6E6;
 }
 
 .btn-primary:hover {

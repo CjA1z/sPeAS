@@ -57,7 +57,7 @@ function initAuthorSearch(inputElement, options = {}) {
             .author-suggestions {
                 position: absolute;
                 z-index: 1000;
-                background-color: white;
+                background-color: #E6E6E6;
                 border: 1px solid #e2e8f0;
                 border-radius: 6px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);

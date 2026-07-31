@@ -136,7 +136,7 @@
         }
         
         .success-popup {
-            background-color: white;
+            background-color: #E6E6E6;
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
             padding: 25px 30px;
@@ -171,7 +171,7 @@
         
         .success-popup-button {
             background-color: #2e7d32;
-            color: white;
+            color: #E6E6E6;
             border: none;
             padding: 8px 20px;
             border-radius: 4px;
@@ -187,7 +187,7 @@
         /* Dropdown Styles */
         .dropdown-list {
             position: absolute;
-            background-color: white;
+            background-color: #E6E6E6;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);

@@ -19,7 +19,7 @@ dialogStyles.textContent = `
     }
 
     .confirmation-dialog {
-        background-color: white;
+        background-color: #E6E6E6;
         border-radius: 8px;
         padding: 20px;
         max-width: 400px;
@@ -69,12 +69,12 @@ dialogStyles.textContent = `
 
     .dialog-buttons .btn-secondary {
         background-color: #6c757d;
-        color: white;
+        color: #E6E6E6;
     }
 
     .dialog-buttons .btn-primary {
         background-color: #007bff;
-        color: white;
+        color: #E6E6E6;
     }
 
     .dialog-buttons button:hover {
@@ -96,7 +96,7 @@ styles.textContent = `
     }
 
     .toast {
-        background: white;
+        background: #E6E6E6;
         border-radius: 4px;
         padding: 12px 20px;
         margin-bottom: 10px;
@@ -176,12 +176,12 @@ styles.textContent = `
 
     .dialog-buttons .btn-secondary {
         background-color: #6c757d;
-        color: white;
+        color: #E6E6E6;
     }
 
     .dialog-buttons .btn-danger {
         background-color: #dc3545;
-        color: white;
+        color: #E6E6E6;
         position: relative;
         overflow: hidden;
     }
@@ -235,7 +235,7 @@ styles.textContent = `
 
     .document-actions .hard-delete-btn {
         background-color: #dc3545;
-        color: white;
+        color: #E6E6E6;
         padding: 8px;
         border-radius: 4px;
         border: none;
@@ -938,7 +938,7 @@ window.documentArchive = (function() {
                 display: flex;
                 align-items: center;
                 padding: 10px 15px;
-                background-color: white;
+                background-color: #E6E6E6;
                 border-radius: 4px;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                 transition: all 0.2s ease;
@@ -1041,7 +1041,7 @@ window.documentArchive = (function() {
                 height: 32px;
                 border-radius: 4px;
                 background-color: #28a745;
-                color: white;
+                color: #E6E6E6;
                 border: none;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -1069,7 +1069,7 @@ window.documentArchive = (function() {
             
             .archive-mode .child-document-card {
                 margin-bottom: 8px;
-                background-color: white;
+                background-color: #E6E6E6;
                 border-radius: 4px;
                 box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                 transition: all 0.2s ease;
@@ -1177,7 +1177,7 @@ window.documentArchive = (function() {
             
             .archive-mode .retry-btn {
                 background-color: #e53e3e;
-                color: white;
+                color: #E6E6E6;
                 border: none;
                 border-radius: 4px;
                 padding: 5px 10px;

@@ -27,7 +27,7 @@ body {
 .main-container {
     background:
         var(--gradient-banner),
-        #ffffff;
+        #E6E6E6;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
@@ -45,7 +45,7 @@ body {
 .view-switcher button.active {
     background-color: var(--brand-green);
     border-color: var(--brand-green);
-    color: #ffffff;
+    color: #E6E6E6;
 }
 
 /* ---------- Columns visibility dropdown (Flowbite dropdown look) ---------- */
@@ -59,7 +59,7 @@ body {
     min-width: 13rem;
     max-height: 260px;
     overflow-y: auto;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
     box-shadow: var(--shadow-lg);
@@ -112,7 +112,7 @@ body {
 
 .table-view thead th {
     background-color: var(--brand-green);
-    color: #ffffff;
+    color: #E6E6E6;
     position: sticky;
     top: 0;
     z-index: 1;
@@ -138,7 +138,7 @@ body {
 .table-view th.sortable:hover .sort-icon,
 .table-view th.sorted-asc .sort-icon,
 .table-view th.sorted-desc .sort-icon {
-    color: #ffffff;
+    color: #E6E6E6;
 }
 
 .table-view tbody td {
@@ -236,7 +236,7 @@ body {
 
 .list-action-dropdown option,
 .tile-action-dropdown option {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     color: var(--text-primary);
     text-align: left;
     font-weight: 500;
@@ -257,7 +257,7 @@ body {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--brand-green);
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid rgba(0, 106, 78, 0.32);
     border-radius: 0.5rem;
     text-decoration: none;
@@ -269,7 +269,7 @@ body {
 .view-doc-button:hover {
     background-color: var(--brand-green);
     border-color: var(--brand-green);
-    color: #ffffff;
+    color: #E6E6E6;
 }
 
 /* ---------- List view ---------- */
@@ -283,7 +283,7 @@ body {
 }
 
 .list-item {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid var(--border-soft);
     border-left: 4px solid var(--brand-green-soft);
     border-radius: 0.5rem;
@@ -410,7 +410,7 @@ body {
 }
 
 .tile-item {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-xs);
@@ -429,7 +429,7 @@ body {
 
 .tile-header {
     background: var(--gradient-hero);
-    color: #ffffff;
+    color: #E6E6E6;
     padding: 0.85rem 1.25rem;
 }
 
@@ -446,7 +446,7 @@ body {
 .tile-header .tile-title {
     font-size: 1.05rem;
     font-weight: 600;
-    color: #ffffff;
+    color: #E6E6E6;
     margin-bottom: 0.25rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -508,7 +508,7 @@ body {
     min-width: 2.25rem;
     height: 2.25rem;
     padding: 0 0.6rem;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
     color: var(--text-secondary);
@@ -533,7 +533,7 @@ body {
 .pagination-controls .page-number.active {
     background-color: var(--brand-green);
     border-color: var(--brand-green);
-    color: #ffffff;
+    color: #E6E6E6;
     font-weight: 600;
     cursor: default;
 }
@@ -569,7 +569,7 @@ body {
 }
 
 .modal-content {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     margin: auto;
@@ -612,7 +612,7 @@ textarea[readonly] {
 .approve-button {
     background-color: var(--brand-green);
     border-color: var(--brand-green);
-    color: #ffffff;
+    color: #E6E6E6;
 }
 
 .approve-button:hover {
@@ -623,7 +623,7 @@ textarea[readonly] {
 .reject-button {
     background-color: var(--danger-red);
     border-color: var(--danger-red);
-    color: #ffffff;
+    color: #E6E6E6;
 }
 
 .reject-button:hover {
@@ -636,7 +636,7 @@ textarea[readonly] {
 }
 
 .secondary-button {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border-color: var(--border);
     color: var(--text-secondary);
 }
@@ -662,7 +662,7 @@ textarea[readonly] {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     color: var(--text-secondary);
     user-select: none;
 }
@@ -722,7 +722,7 @@ textarea[readonly] {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    color: #ffffff;
+    color: #E6E6E6;
     padding: 0.8rem 1.5rem;
     border-radius: 0.5rem;
     box-shadow: var(--shadow-lg);
@@ -752,7 +752,7 @@ textarea[readonly] {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     padding: 1.5rem;

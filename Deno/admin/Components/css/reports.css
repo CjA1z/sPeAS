@@ -18,7 +18,7 @@ body > .max-w-5xl {
 body > .max-w-5xl > header {
     background:
         var(--gradient-banner),
-        #ffffff;
+        #E6E6E6;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
@@ -39,7 +39,7 @@ body > .max-w-5xl > header p {
 }
 
 #refresh-btn {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid rgba(0, 106, 78, 0.24);
     border-radius: var(--radius-sm);
     color: var(--brand-green);
@@ -91,7 +91,7 @@ body > .max-w-5xl > header p {
 
 #visualSummary,
 #exportOptions {
-    background: #ffffff;
+    background: #E6E6E6;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
@@ -137,7 +137,7 @@ body > .max-w-5xl > header p {
 .export-button,
 .export-pdf,
 .export-csv {
-    background-color: #ffffff;
+    background-color: #E6E6E6;
     border: 1px solid rgba(0, 106, 78, 0.24);
     border-radius: var(--radius-sm);
     color: var(--brand-green);

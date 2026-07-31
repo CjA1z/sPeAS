@@ -32,7 +32,7 @@ body {
 
 .container button {
     background-color: #4CAF50;
-    color: white;
+    color: #E6E6E6;
     padding: 10px 20px;
     border: none;
     border-radius: 4px;
@@ -63,7 +63,7 @@ body {
     width: 90%;
     height: 60%;
     margin: auto;
-    background-color: #fff;
+    background-color: #E6E6E6;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(138, 59, 59, 0.2);
@@ -119,7 +119,7 @@ body {
 .doc-title {
     font-weight: bold;
     font-size: 1.5rem;
-    color: #000;
+    color: #060606;
 }
 
 .author,
@@ -164,7 +164,7 @@ body {
 
 .modal-footer .btn-primary {
     background-color: #1dc517;
-    color: white;
+    color: #E6E6E6;
     border: none;
     transition: background-color 0.3s;
 }

@@ -30,7 +30,7 @@
                 display: flex;
                 align-items: center;
                 padding: 15px;
-                background-color: white;
+                background-color: #E6E6E6;
                 border-radius: 8px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 transition: all 0.2s ease;

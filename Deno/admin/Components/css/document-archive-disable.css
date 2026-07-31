@@ -27,7 +27,7 @@
 
 /* Document card styles */
 .document-card {
-    background-color: #fff;
+    background-color: #E6E6E6;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -192,38 +192,38 @@
 
 .toast.success {
     background-color: #4CAF50;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #388E3C;
 }
 
 .toast.error {
     background-color: #F44336;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #D32F2F;
 }
 
 .toast.warning {
     background-color: #FF9800;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #F57C00;
 }
 
 .toast.info {
     background-color: #2196F3;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #1976D2;
 }
 
 /* Special styling for document operations */
 .toast.document-archived {
     background-color: #FF9800;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #F57C00;
 }
 
 .toast.document-restored {
     background-color: #2196F3;
-    color: white;
+    color: #E6E6E6;
     border-left: 5px solid #1976D2;
 }
 
@@ -241,7 +241,7 @@
 .toast .close-btn {
     background: transparent;
     border: none;
-    color: white;
+    color: #E6E6E6;
     cursor: pointer;
     opacity: 0.8;
     transition: opacity 0.2s;
@@ -340,7 +340,7 @@
     width: 22px;
     left: 4px;
     bottom: 4px;
-    background-color: white;
+    background-color: #E6E6E6;
     transition: .4s;
     border-radius: 50%;
 }

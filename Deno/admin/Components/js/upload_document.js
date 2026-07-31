@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const readDocBtn = document.querySelector('#singleDocPreview button');
     if (readDocBtn) {
         // Ensure initial state is correct (not filled)
-        readDocBtn.classList.remove('text-white', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
-        readDocBtn.classList.add('text-primary-dark', 'bg-white', 'border-primary');
+        readDocBtn.classList.remove('text-[#E6E6E6]', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
+        readDocBtn.classList.add('text-primary-dark', 'bg-[#E6E6E6]', 'border-primary');
         readDocBtn.disabled = true;
         
         readDocBtn.addEventListener('click', function(e) {
@@ -1177,7 +1177,7 @@ function showLoading(message = 'Processing...') {
         loadingOverlay.id = 'loadingOverlay';
         loadingOverlay.className = 'fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50';
         loadingOverlay.innerHTML = `
-            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm mx-auto">
+            <div class="bg-[#E6E6E6] p-6 rounded-lg shadow-xl max-w-sm mx-auto">
                 <div class="flex items-center space-x-4">
                     <svg class="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1335,8 +1335,8 @@ function updateDocumentPreview(file) {
         previewSection.classList.add('active');
         
         // Update read document button style to indicate file is ready
-        readDocumentBtn.classList.remove('text-primary-dark', 'bg-white');
-        readDocumentBtn.classList.add('text-white', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
+        readDocumentBtn.classList.remove('text-primary-dark', 'bg-[#E6E6E6]');
+        readDocumentBtn.classList.add('text-[#E6E6E6]', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
         readDocumentBtn.disabled = false;
         
         // Set onclick handler to open the file in a new tab
@@ -1397,8 +1397,8 @@ function updateDocumentPreview(file) {
         }
     } else {
         // Reset read document button style
-        readDocumentBtn.classList.remove('text-white', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
-        readDocumentBtn.classList.add('text-primary-dark', 'bg-white');
+        readDocumentBtn.classList.remove('text-[#E6E6E6]', 'bg-primary', 'hover:bg-primary-dark', 'border-transparent');
+        readDocumentBtn.classList.add('text-primary-dark', 'bg-[#E6E6E6]');
         readDocumentBtn.disabled = true;
         readDocumentBtn.onclick = function(e) {
             e.preventDefault();
@@ -2082,7 +2082,7 @@ function addResearchSection() {
                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                         <div class="flex text-sm text-gray-600 justify-center">
-                            <label for="file-upload-${nextId}" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-dark">
+                            <label for="file-upload-${nextId}" class="relative cursor-pointer bg-[#E6E6E6] rounded-md font-medium text-primary hover:text-primary-dark">
                                 <span>Upload a file</span>
                                 <input id="file-upload-${nextId}" name="research[${nextId}][file]" type="file" 
                                     class="research-file hidden-file-input" required accept=".pdf" style="opacity: 0; position: absolute; z-index: -1;">

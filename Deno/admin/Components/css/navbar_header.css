@@ -135,7 +135,7 @@ body {
     height: 8px;
     border-radius: 50%;
     background-color: #e11d48;
-    border: 2px solid #ffffff;
+    border: 2px solid #E6E6E6;
 }
 
 .header-divider {
@@ -166,7 +166,7 @@ body {
     border-radius: 50%;
     overflow: hidden;
     background-color: #e6f2ee;
-    border: 2px solid #ffffff;
+    border: 2px solid #E6E6E6;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
     flex-shrink: 0;
 }

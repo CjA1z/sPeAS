@@ -13,7 +13,7 @@
     --accent-bronze: #b45309;
 
     --bg-page: #f6f7f9;
-    --bg-card: #ffffff;
+    --bg-card: #E6E6E6;
     --bg-muted: #f8fafc;
 
     --text-primary: #0f172a;
@@ -34,7 +34,7 @@
     --radius-xl: 20px;
 
     --gradient-hero: linear-gradient(135deg, #006A4E 0%, #00855f 55%, #12c539 110%);
-    --gradient-surface: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+    --gradient-surface: linear-gradient(180deg, #E6E6E6 0%, #fafbfc 100%);
     --gradient-mesh:
         radial-gradient(at 88% -10%, rgba(255, 255, 255, 0.22) 0%, transparent 55%),
         radial-gradient(at 0% 110%, rgba(0, 0, 0, 0.12) 0%, transparent 55%);

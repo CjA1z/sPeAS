@@ -272,7 +272,7 @@ async function updateVisitorChart(period = 'daily') {
                     tension: 0.35,
                     pointRadius: 0,
                     pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBackgroundColor: '#E6E6E6',
                     pointHoverBorderColor: BRAND_GREEN,
                     pointHoverBorderWidth: 2
                 }, {
@@ -285,7 +285,7 @@ async function updateVisitorChart(period = 'daily') {
                     tension: 0.35,
                     pointRadius: 0,
                     pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBackgroundColor: '#E6E6E6',
                     pointHoverBorderColor: ACCENT_BLUE,
                     pointHoverBorderWidth: 2
                 }]
@@ -330,7 +330,7 @@ async function updateVisitorChart(period = 'daily') {
                         mode: 'index',
                         intersect: false,
                         backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                        titleColor: '#ffffff',
+                        titleColor: '#E6E6E6',
                         bodyColor: '#e2e8f0',
                         titleFont: { family: 'Inter, sans-serif', weight: '600', size: 12 },
                         bodyFont: { family: 'Inter, sans-serif', size: 12 },

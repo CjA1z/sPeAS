@@ -13,7 +13,7 @@
             background-color: #f3f4f6; /* Light gray background */
         }
         .report-card {
-            background-color: white;
+            background-color: #E6E6E6;
             border-radius: 0.75rem; /* md:rounded-xl */
             padding: 1.5rem; /* p-6 */
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -36,14 +36,14 @@
         }
         .export-pdf {
             background-color: #ef4444; /* red-500 */
-            color: white;
+            color: #E6E6E6;
         }
         .export-pdf:hover {
             background-color: #dc2626; /* red-600 */
         }
         .export-csv {
             background-color: var(--brand-green);
-            color: white;
+            color: #E6E6E6;
         }
         .export-csv:hover {
             background-color: var(--brand-green-dark);
@@ -83,7 +83,7 @@
         <header class="mb-8 text-center">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Archive System Reports</h1>
             <p class="text-gray-600 mt-2">Overview of document statistics and status.</p>
-            <button id="refresh-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex mx-auto items-center">
+            <button id="refresh-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-[#E6E6E6] px-4 py-2 rounded-md flex mx-auto items-center">
                 <i class="fas fa-sync-alt mr-2"></i> Refresh Data
             </button>
         </header>
@@ -106,7 +106,7 @@
             </div>
         </section>
 
-        <section id="visualSummary" class="bg-white p-6 rounded-xl shadow-lg mb-10">
+        <section id="visualSummary" class="bg-[#E6E6E6] p-6 rounded-xl shadow-lg mb-10">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4 text-center">Document Status Summary</h2>
             <div id="statusChartContainer">
                 <canvas id="documentStatusChart"></canvas>
@@ -138,7 +138,7 @@
             </div>
         </section>
 
-        <div id="messageBox" class="fixed bottom-5 right-5 bg-gray-800 text-white p-4 rounded-lg shadow-md hidden transition-opacity duration-300">
+        <div id="messageBox" class="fixed bottom-5 right-5 bg-gray-800 text-[#E6E6E6] p-4 rounded-lg shadow-md hidden transition-opacity duration-300">
             <p id="messageText"></p>
         </div>
 
