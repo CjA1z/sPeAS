@@ -1,129 +1,148 @@
-import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, FileSearch } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, CalendarDays, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import { PeasErrorState } from "../../components/feedback/PeasStates";
-import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
-import { PublicFooter } from "../../components/public/PublicFooter";
-import { PublicNavbar } from "../../components/public/PublicNavbar";
+import { PeasPagination } from "../../components/data-display/PeasPagination";
+import { PublicPageShell } from "../../components/public/PublicPageShell";
 import { Skeleton } from "../../components/ui/skeleton";
-import { Button } from "../../components/ui/button";
-import { fetchDocuments } from "../../lib/api/documents";
 import { getErrorMessage } from "../../lib/api/http";
-import { fetchOptionalSession, searchResultsUrl } from "../../lib/api/public";
-import type { SessionResponse } from "../../lib/api/auth";
-import type { DocumentRecord } from "../../lib/api/types";
+import { fetchPublishedNews, fetchPublishedNewsPost, type NewsPost } from "../../lib/api/news";
 
-const LATEST_COUNT = 9;
+const PAGE_SIZE = 9;
 
 export function PublicNewsPage() {
-  const [session, setSession] = useState<SessionResponse | null>(null);
-  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const slug = useMemo(() => new URLSearchParams(window.location.search).get("slug")?.trim() || "", []);
+  const [posts, setPosts] = useState<NewsPost[]>([]);
+  const [article, setArticle] = useState<NewsPost | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadLatest = useCallback(() => {
+  const loadNews = useCallback(() => {
     setLoading(true);
     setError("");
-    fetchDocuments({ page: 1, size: LATEST_COUNT, sort: "latest", category: "All" })
-      .then((result) => setDocuments(result.documents))
-      .catch((loadError) => {
-        setError(getErrorMessage(loadError));
-        setDocuments([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    const request = slug
+      ? fetchPublishedNewsPost(slug).then((post) => setArticle(post))
+      : fetchPublishedNews(page, PAGE_SIZE).then((result) => {
+        setPosts(result.posts);
+        setTotalCount(result.totalCount);
+        setTotalPages(result.totalPages);
+      });
 
-  useEffect(() => {
-    let mounted = true;
+    request.catch((caughtError) => setError(getErrorMessage(caughtError))).finally(() => setLoading(false));
+  }, [page, slug]);
 
-    fetchOptionalSession().then((payload) => {
-      if (mounted) setSession(payload);
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    loadLatest();
-  }, [loadLatest]);
+  useEffect(() => { loadNews(); }, [loadNews]);
 
   return (
-    <div className="peas-public-page peas-public-search-page">
-      <PublicNavbar session={session} onSessionChange={setSession} />
+    <PublicPageShell mainClassName="peas-news-shell peas-news-page">
+        {loading ? <NewsSkeleton article={Boolean(slug)} /> : error ? (
+          <PeasErrorState title="Unable to load news" message={error} onRetry={loadNews} />
+        ) : article ? <NewsArticle post={article} /> : (
+          <NewsFeed posts={posts} page={page} totalCount={totalCount} totalPages={totalPages} onPageChange={setPage} />
+        )}
+    </PublicPageShell>
+  );
+}
 
-      <main className="peas-public-search-shell">
-        <section className="peas-public-search-hero" aria-labelledby="public-news-title">
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34, ease: "easeOut" }}
-          >
-            <span>News &amp; Updates</span>
-            <h1 id="public-news-title">What&apos;s new in the repository</h1>
-            <p>
-              The latest theses, dissertations, Confluence volumes, and Synergy records published
-              through the Office of Research &amp; Publications. For announcements, submissions, or
-              other inquiries, <a href="/contact.html">contact the office</a>.
-            </p>
-          </motion.div>
-        </section>
+function NewsFeed({ posts, page, totalCount, totalPages, onPageChange }: {
+  posts: NewsPost[];
+  page: number;
+  totalCount: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <>
+      <section className="peas-news-hero" aria-labelledby="news-title">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+          <span>Office of Research &amp; Publications</span>
+          <h1 id="news-title">News from Research &amp; Publications</h1>
+          <p>Department announcements, research activities, publication milestones, events, and opportunities for the Paulinian community.</p>
+        </motion.div>
+      </section>
 
-        <section className="peas-public-results" aria-labelledby="public-news-latest-title">
-          <div className="peas-public-results-head">
-            <div>
-              <span>{loading ? "Loading" : "Recently Added"}</span>
-              <h2 id="public-news-latest-title">Latest repository entries</h2>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => (window.location.href = searchResultsUrl(""))}>
-              Browse all entries
-              <ArrowRight aria-hidden="true" />
-            </Button>
+      <section className="peas-news-feed" aria-labelledby="latest-news-title">
+        <div className="peas-news-feed__heading">
+          <span>Department Updates</span>
+          <h2 id="latest-news-title">Latest news</h2>
+        </div>
+        {posts.length ? (
+          <div className="peas-news-grid">
+            {posts.map((post, index) => <NewsCard post={post} index={index} key={post.id} />)}
           </div>
+        ) : (
+          <div className="peas-news-empty">
+            <Newspaper aria-hidden="true" />
+            <h3>No published news yet</h3>
+            <p>Updates from the Office of Research &amp; Publications will appear here.</p>
+          </div>
+        )}
+        {posts.length ? <PeasPagination page={page} totalPages={totalPages} totalCount={totalCount} visibleCount={posts.length} label="News pages" onPageChange={onPageChange} /> : null}
+      </section>
+    </>
+  );
+}
 
-          {loading ? (
-            <NewsSkeleton />
-          ) : error ? (
-            <PeasErrorState title="Unable to load the latest entries" message={error} onRetry={loadLatest} />
-          ) : documents.length > 0 ? (
-            <div className="peas-public-search-results-list">
-              {documents.map((document) => (
-                <PublicDocumentResultCard
-                  document={document}
-                  session={session}
-                  showDescription
-                  key={`${document.id}-${document.isCompiled}`}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="peas-public-search-empty">
-              <FileSearch aria-hidden="true" />
-              <h3>No entries yet</h3>
-              <p>New repository records will appear here as soon as they are published.</p>
-            </div>
-          )}
-        </section>
-      </main>
+function NewsCard({ post, index }: { post: NewsPost; index: number }) {
+  return (
+    <motion.article className="peas-news-card" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+      <a className="peas-news-card__image" href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>
+        {post.coverImageUrl ? <img src={post.coverImageUrl} alt="" /> : <Newspaper aria-hidden="true" />}
+      </a>
+      <div className="peas-news-card__body">
+        <NewsMeta post={post} />
+        <h3><a href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>{post.title}</a></h3>
+        <p>{post.excerpt}</p>
+        <a className="peas-news-card__link" href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>
+          Read full story <ArrowRight aria-hidden="true" />
+        </a>
+      </div>
+    </motion.article>
+  );
+}
 
-      <PublicFooter />
+function NewsArticle({ post }: { post: NewsPost }) {
+  const paragraphs = post.body.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  return (
+    <article className="peas-news-article">
+      <a className="peas-news-back" href="/news.html"><ArrowLeft aria-hidden="true" /> All news</a>
+      <header>
+        <span>Office of Research &amp; Publications</span>
+        <h1>{post.title}</h1>
+        <NewsMeta post={post} />
+        <p>{post.excerpt}</p>
+      </header>
+      {post.coverImageUrl ? <img className="peas-news-article__cover" src={post.coverImageUrl} alt="" /> : null}
+      <div className="peas-news-article__content">
+        {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      </div>
+    </article>
+  );
+}
+
+function NewsMeta({ post }: { post: NewsPost }) {
+  return (
+    <div className="peas-news-meta">
+      <span><CalendarDays aria-hidden="true" /> {formatNewsDate(post.publishedAt)}</span>
+      <span>By {post.authorName}</span>
     </div>
   );
 }
 
-function NewsSkeleton() {
+function NewsSkeleton({ article }: { article: boolean }) {
   return (
-    <div className="peas-public-search-results-list" aria-label="Loading latest entries">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div className="peas-public-search-skeleton" key={index}>
-          <Skeleton className="peas-public-search-skeleton__icon" />
-          <div>
-            <Skeleton className="peas-skeleton-line peas-skeleton-line--wide" />
-            <Skeleton className="peas-skeleton-line" />
-          </div>
-        </div>
-      ))}
+    <div className={article ? "peas-news-article" : "peas-news-feed"} aria-label="Loading news">
+      <Skeleton className="peas-skeleton-line peas-skeleton-line--wide" />
+      <Skeleton className="peas-skeleton-line" />
+      <Skeleton className="peas-news-skeleton-block" />
     </div>
   );
+}
+
+function formatNewsDate(value: string | null) {
+  if (!value) return "Publication date unavailable";
+  return new Intl.DateTimeFormat("en-PH", { dateStyle: "long" }).format(new Date(value));
 }

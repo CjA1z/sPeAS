@@ -4,11 +4,10 @@ import { motion } from "motion/react";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
 import { PeasErrorState } from "../../components/feedback/PeasStates";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
-import { PublicFooter } from "../../components/public/PublicFooter";
-import { PublicNavbar } from "../../components/public/PublicNavbar";
+import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Button } from "../../components/ui/button";
-import { fetchSession, type SessionResponse } from "../../lib/api/auth";
 import { fetchCategories, fetchDocuments } from "../../lib/api/documents";
 import { getErrorMessage } from "../../lib/api/http";
 import type { CategoryCount, DocumentsPageResult } from "../../lib/api/types";
@@ -18,7 +17,7 @@ const PAGE_SIZE = 8;
 
 export function PublicSearchPage() {
   const initial = useMemo(() => readSearchParams(), []);
-  const [session, setSession] = useState<SessionResponse | null>(null);
+  const { session } = usePublicSession();
   const [query, setQuery] = useState(initial.query);
   const [submittedQuery, setSubmittedQuery] = useState(initial.query);
   const [queryMode, setQueryMode] = useState<"search" | "keyword">(initial.mode);
@@ -53,13 +52,6 @@ export function PublicSearchPage() {
 
   useEffect(() => {
     let mounted = true;
-
-    fetchSession().then((payload) => {
-      if (mounted) setSession(payload);
-    }).catch(() => {
-      if (mounted) setSession(null);
-    });
-
     fetchCategories().then((payload) => {
       if (mounted) setCategories(payload);
     }).catch(() => {
@@ -80,10 +72,7 @@ export function PublicSearchPage() {
   const resultLabel = submittedQuery ? `Results for "${submittedQuery}"` : "Browse all repository entries";
 
   return (
-    <div className="peas-public-page peas-public-search-page">
-      <PublicNavbar session={session} onSessionChange={setSession} />
-
-      <main className="peas-public-search-shell">
+    <PublicPageShell mainClassName="peas-public-search-shell peas-public-search-page">
         <section className="peas-public-search-hero" aria-labelledby="public-search-title">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
@@ -236,10 +225,7 @@ export function PublicSearchPage() {
             </div>
           )}
         </section>
-      </main>
-
-      <PublicFooter />
-    </div>
+    </PublicPageShell>
   );
 }
 

@@ -39,6 +39,24 @@ void mountAdminIsland("react-permissions-admin-root", async () => {
   );
 });
 
+void mountAdminIsland("react-news-admin-root", async () => {
+  const { AdminNewsPage } = await import("./features/news/AdminNewsPage");
+  return (
+    <AdminLayout>
+      <AdminNewsPage />
+    </AdminLayout>
+  );
+});
+
+void mountAdminIsland("react-contact-inquiries-admin-root", async () => {
+  const { AdminContactInquiriesPage } = await import("./features/contact/AdminContactInquiriesPage");
+  return (
+    <AdminLayout>
+      <AdminContactInquiriesPage />
+    </AdminLayout>
+  );
+});
+
 async function mountAdminIsland(rootId: string, load: () => Promise<ReactElement>) {
   const root = document.getElementById(rootId);
   if (!root) return;

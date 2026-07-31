@@ -30,7 +30,7 @@ interface BetterAuthGetSession {
 }
 
 export async function fetchSession(): Promise<SessionResponse | null> {
-  const payload = await apiFetch<BetterAuthGetSession | null>("/api/auth/get-session");
+  const payload = await apiFetch<BetterAuthGetSession | null>("/api/auth/get-session", { cache: "no-store" });
   const user = payload?.user;
   if (!user) return null;
 
@@ -67,4 +67,45 @@ export async function logout() {
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
+}
+
+export async function signInUsername(username: string, password: string) {
+  const response = await apiFetch<{ user?: SessionUser }>("/api/auth/sign-in/username", {
+    method: "POST",
+    json: { username: username.trim().toLowerCase(), password, rememberMe: true },
+  });
+  const user = response.user ?? {};
+  return {
+    authenticated: true,
+    user,
+    userId: user.id,
+    username: String(user.displayUsername ?? user.username ?? user.name ?? user.id ?? username),
+    role: String(user.role ?? "user").toLowerCase(),
+  } satisfies SessionResponse;
+}
+
+export async function signInMicrosoft() {
+  const response = await apiFetch<{ url: string }>("/api/auth/sign-in/social", {
+    method: "POST",
+    json: { provider: "microsoft", callbackURL: "/auth/landing.html", errorCallbackURL: "/log-in.html" },
+  });
+  window.location.assign(response.url);
+}
+
+export function requestPasswordReset(email: string) {
+  return apiFetch<unknown>("/api/auth/request-password-reset", {
+    method: "POST",
+    json: { email: email.trim(), redirectTo: "/reset-password.html" },
+  });
+}
+
+export function safeSameOriginRedirect(value: string | null, fallback: string) {
+  if (!value) return fallback;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith("/")) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
 }

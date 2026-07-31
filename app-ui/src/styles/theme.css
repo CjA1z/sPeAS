@@ -1,19 +1,24 @@
 :root {
   --background: #f6f7f9;
   --foreground: #0f172a;
-  --card: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --page-background: #f6f7f9;
+  --on-primary: #ffffff;
+  --on-destructive: #ffffff;
+  --card: var(--surface);
   --card-foreground: #0f172a;
   --primary: #006a4e;
-  --primary-foreground: #ffffff;
+  --primary-foreground: var(--on-primary);
   --secondary: #e6f2ee;
   --secondary-foreground: #00543e;
-  --muted: #f8fafc;
+  --muted: var(--surface-muted);
   --muted-foreground: #64748b;
   --border: #e5e7eb;
   --border-soft: #eef0f3;
   --ring: rgba(0, 106, 78, 0.18);
   --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: var(--on-destructive);
   --radius: 8px;
 
   --brand-green: #006a4e;
@@ -21,6 +26,7 @@
   --brand-green-soft: #e6f2ee;
   --brand-green-mist: #f3f9f6;
   --accent-gold: #d4a017;
+  --brand-gold: var(--accent-gold);
   --academic-navy: #0f172a;
   --academic-slate: #475569;
 

@@ -1,25 +1,40 @@
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { createRoot } from "react-dom/client";
-import type { ReactElement } from "react";
+import { PublicErrorBoundary } from "./components/public/PublicPageShell";
+import { PublicSessionProvider } from "./components/public/PublicSessionProvider";
 import "./styles/globals.css";
 
-void mountPublicIsland("react-public-home-root", async () => {
-  const { PublicHomePage } = await import("./features/public/PublicHomePage");
-  return <PublicHomePage />;
-});
+const routes: Array<{ paths: string[]; component: LazyExoticComponent<ComponentType> }> = [
+  { paths: ["/", "/index.html"], component: lazy(() => import("./features/public/PublicHomePage").then(({ PublicHomePage }) => ({ default: PublicHomePage }))) },
+  { paths: ["/news.html"], component: lazy(() => import("./features/public/PublicNewsPage").then(({ PublicNewsPage }) => ({ default: PublicNewsPage }))) },
+  { paths: ["/pages/searchResultsPage.html"], component: lazy(() => import("./features/public/PublicSearchPage").then(({ PublicSearchPage }) => ({ default: PublicSearchPage }))) },
+  { paths: ["/contact", "/contact.html"], component: lazy(() => import("./features/public/PublicContactPage").then(({ PublicContactPage }) => ({ default: PublicContactPage }))) },
+  { paths: ["/log-in.html"], component: lazy(() => import("./features/public/PublicLoginPage").then(({ PublicLoginPage }) => ({ default: PublicLoginPage }))) },
+  { paths: ["/reset-password.html"], component: lazy(() => import("./features/public/PublicResetPasswordPage").then(({ PublicResetPasswordPage }) => ({ default: PublicResetPasswordPage }))) },
+  { paths: ["/pages/miscellaneous/T&A-Public.html"], component: lazy(() => import("./features/public/PublicLegalPages").then(({ PublicTermsPage }) => ({ default: PublicTermsPage }))) },
+  { paths: ["/pages/miscellaneous/Privacy.html"], component: lazy(() => import("./features/public/PublicLegalPages").then(({ PublicPrivacyPage }) => ({ default: PublicPrivacyPage }))) },
+  { paths: ["/pages/miscellaneous/404.html"], component: lazy(() => import("./features/public/PublicNotFoundPage").then(({ PublicNotFoundPage }) => ({ default: PublicNotFoundPage }))) },
+  { paths: ["/pages/SavedDocument.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicSavedDocumentsPage }) => ({ default: PublicSavedDocumentsPage }))) },
+  { paths: ["/pages/UserHistory.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicHistoryPage }) => ({ default: PublicHistoryPage }))) },
+  { paths: ["/pages/UserProfile.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicProfilePage }) => ({ default: PublicProfilePage }))) },
+  { paths: ["/pages/authorprofile.html"], component: lazy(() => import("./features/public/PublicAuthorPage").then(({ PublicAuthorPage }) => ({ default: PublicAuthorPage }))) },
+  { paths: ["/pages/guest-single.html", "/pages/user-single.html", "/pages/guest-compiled.html", "/pages/user-compiled.html"], component: lazy(() => import("./features/public/PublicDocumentDetailPage").then(({ PublicDocumentDetailPage }) => ({ default: PublicDocumentDetailPage }))) },
+];
 
-void mountPublicIsland("react-public-search-root", async () => {
-  const { PublicSearchPage } = await import("./features/public/PublicSearchPage");
-  return <PublicSearchPage />;
-});
+const root = document.getElementById("react-public-root");
 
-void mountPublicIsland("react-public-news-root", async () => {
-  const { PublicNewsPage } = await import("./features/public/PublicNewsPage");
-  return <PublicNewsPage />;
-});
+if (root) {
+  const matchedRoute = routes.find((route) => route.paths.includes(window.location.pathname));
+  const fallbackRoute = { component: lazy(() => import("./features/public/PublicNotFoundPage").then(({ PublicNotFoundPage }) => ({ default: PublicNotFoundPage }))) };
+  const Page = (matchedRoute ?? fallbackRoute).component;
 
-async function mountPublicIsland(rootId: string, load: () => Promise<ReactElement>) {
-  const root = document.getElementById(rootId);
-  if (!root) return;
-
-  createRoot(root).render(await load());
+  createRoot(root).render(
+    <PublicSessionProvider>
+      <PublicErrorBoundary>
+        <Suspense fallback={<div className="peas-public-route-loading" role="status">Loading page…</div>}>
+          <Page />
+        </Suspense>
+      </PublicErrorBoundary>
+    </PublicSessionProvider>,
+  );
 }

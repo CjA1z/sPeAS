@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Clock, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
-import { GlassBackdrop } from "../ui/glass-surface";
-import { fetchOptionalSession } from "../../lib/api/public";
-import { logout, type SessionResponse } from "../../lib/api/auth";
-
-interface PublicNavbarProps {
-  session: SessionResponse | null;
-  onSessionChange: (session: SessionResponse | null) => void;
-}
+import { usePublicSession } from "./PublicSessionProvider";
 
 const links = [
   { label: "Home", href: "/index.html" },
@@ -16,9 +9,10 @@ const links = [
   { label: "Contact", href: "/contact.html" },
 ];
 
-export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
+export function PublicNavbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { session, signOut } = usePublicSession();
   const authenticated = Boolean(session?.authenticated);
   const userName = String(session?.user?.name ?? session?.username ?? session?.userId ?? "User");
 
@@ -34,19 +28,11 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-    } finally {
-      localStorage.removeItem("userInfo");
-      sessionStorage.removeItem("userInfo");
-      onSessionChange(await fetchOptionalSession());
-      window.location.href = `/index.html?logout=true&t=${Date.now()}`;
-    }
-  }, [onSessionChange]);
+    await signOut();
+  }, [signOut]);
 
   return (
     <header className={`peas-public-navbar${scrolled ? " is-scrolled" : ""}`}>
-      <GlassBackdrop />
       <a className="peas-public-brand" href="/index.html" aria-label="PeAS home">
         <img src="/Components/images/spud_logo_s.png" alt="" />
         <span>
@@ -57,7 +43,7 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
 
       <nav className="peas-public-navlinks" aria-label="Public navigation">
         {links.map((link) => (
-          <a href={link.href} key={link.href}>
+          <a href={link.href} key={link.href} aria-current={isActivePath(link.href) ? "page" : undefined}>
             {link.label}
           </a>
         ))}
@@ -95,7 +81,6 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
       {open ? (
         <div className="peas-public-mobile-menu">
           <div className="peas-public-mobile-panel">
-            <GlassBackdrop />
             <div className="peas-public-mobile-head">
               <span>PeAS</span>
               <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)}>
@@ -103,7 +88,12 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
               </button>
             </div>
             {links.map((link) => (
-              <a href={link.href} key={link.href} onClick={() => setOpen(false)}>
+              <a
+                href={link.href}
+                key={link.href}
+                aria-current={isActivePath(link.href) ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
                 {link.label}
               </a>
             ))}
@@ -124,4 +114,10 @@ export function PublicNavbar({ session, onSessionChange }: PublicNavbarProps) {
       ) : null}
     </header>
   );
+}
+
+function isActivePath(href: string) {
+  const current = window.location.pathname;
+  if (href === "/index.html") return current === "/" || current === "/index.html";
+  return current === href;
 }

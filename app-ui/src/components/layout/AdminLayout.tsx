@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Newspaper,
+  MailQuestion,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -20,6 +22,7 @@ import { fetchSession, fetchUserProfile, logout, type SessionResponse, type User
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { GlassBackdrop } from "../ui/glass-surface";
+import { fetchAdminContactSummary } from "../../lib/api/adminContact";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -33,6 +36,8 @@ const navItems = [
   { label: "Document Permissions", href: "/admin/Components/document-permissions.html", icon: ShieldCheck },
   { label: "Generate Reports", href: "/admin/Components/reports.html", icon: ClipboardList },
   { label: "Experience Studio", href: "/admin/Components/experience-studio.html", icon: FileArchive },
+  { label: "Department News", href: "/admin/Components/news.html", icon: Newspaper },
+  { label: "Contact Inquiries", href: "/admin/Components/contact-inquiries.html", icon: MailQuestion },
 ];
 
 const utilityItems = [
@@ -46,6 +51,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [collapsed, setCollapsed] = useStoredSidebarState();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [contactNewCount, setContactNewCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +66,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }).catch(() => {
       if (mounted) setProfile(null);
     });
+
+    fetchAdminContactSummary().then((payload) => {
+      if (mounted) setContactNewCount(payload.byStatus.new);
+    }).catch(() => undefined);
 
     return () => {
       mounted = false;
@@ -93,6 +103,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
         onLogout={handleLogout}
+        contactNewCount={contactNewCount}
       />
 
       <div className="peas-admin-frame">
@@ -137,11 +148,13 @@ function AdminSidebar({
   mobileOpen,
   onCloseMobile,
   onLogout,
+  contactNewCount,
 }: {
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onLogout: () => void;
+  contactNewCount: number;
 }) {
   return (
     <>
@@ -166,7 +179,7 @@ function AdminSidebar({
 
         <nav className="peas-admin-nav" aria-label="Workspace">
           <small>Workspace</small>
-          {navItems.map((item) => <AdminNavLink item={item} key={item.href} />)}
+          {navItems.map((item) => <AdminNavLink item={item} badge={item.label === "Contact Inquiries" ? contactNewCount : 0} key={item.href} />)}
         </nav>
 
         <nav className="peas-admin-nav peas-admin-nav--utility" aria-label="Utilities">
@@ -181,7 +194,7 @@ function AdminSidebar({
   );
 }
 
-function AdminNavLink({ item }: { item: (typeof navItems)[number] }) {
+function AdminNavLink({ item, badge = 0 }: { item: (typeof navItems)[number]; badge?: number }) {
   const Icon = item.icon;
   const active = normalizePath(window.location.pathname) === normalizePath(item.href);
 
@@ -189,6 +202,7 @@ function AdminNavLink({ item }: { item: (typeof navItems)[number] }) {
     <a className={active ? "is-active" : ""} href={item.href} aria-current={active ? "page" : undefined}>
       <Icon aria-hidden="true" />
       <span>{item.label}</span>
+      {badge > 0 ? <small className="peas-admin-nav-badge" aria-label={`${badge} new inquiries`}>{badge > 99 ? "99+" : badge}</small> : null}
     </a>
   );
 }

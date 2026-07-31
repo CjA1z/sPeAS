@@ -3,14 +3,14 @@ import { ArrowRight, Building2, FileSearch, GraduationCap, Search, Sparkles, Use
 import { motion } from "motion/react";
 import { CategoryIcon } from "../../components/documents/CategoryIcon";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
-import { PublicFooter } from "../../components/public/PublicFooter";
-import { PublicNavbar } from "../../components/public/PublicNavbar";
-import { OrgChart } from "../../components/public/OrgChart";
+import { OrgChart, type OrgChartRoleContent } from "../../components/public/OrgChart";
+import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { PrismDiagram } from "../../components/public/PrismDiagram";
 import { Button } from "../../components/ui/button";
 import { fetchPublicHomeData, keywordSearchUrl, searchResultsUrl, type PublicHomeData } from "../../lib/api/public";
-import type { SessionResponse } from "../../lib/api/auth";
 import { CATEGORY_ORDER, getCategoryMeta, type DocumentCategory } from "../../lib/constants/categories";
+import { experienceBlockProps, usePublicExperience } from "../../lib/api/experience";
 
 const agendaItems = [
   "Paulinian Spirituality/Identity and its impact to international community and global partnerships",
@@ -37,7 +37,8 @@ const agendaItems = [
 
 export function PublicHomePage() {
   const [data, setData] = useState<PublicHomeData | null>(null);
-  const [session, setSession] = useState<SessionResponse | null>(null);
+  const { session } = usePublicSession();
+  const { config } = usePublicExperience("landing");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("All");
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,6 @@ export function PublicHomePage() {
       .then((homeData) => {
         if (!mounted) return;
         setData(homeData);
-        setSession(homeData.session);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -63,18 +63,35 @@ export function PublicHomePage() {
   const totalWorks = useMemo(() => categoryCounts.reduce((sum, item) => sum + item.count, 0), [categoryCounts]);
   const latestDocuments = data?.latestDocuments ?? [];
   const trendingKeywords = data?.trendingKeywords ?? [];
+  const hero = experienceBlockProps(config, "landing", "HeroBlock");
+  const mission = experienceBlockProps(config, "landing", "RichTextBlock");
+  const quickLinks = experienceBlockProps(config, "landing", "QuickLinksBlock");
+  const organization = experienceBlockProps(config, "landing", "ImageFeatureBlock");
+  const agenda = experienceBlockProps(config, "landing", "ResearchAgendaBlock");
+  const contactCta = experienceBlockProps(config, "landing", "CtaBlock");
+  const heroImages = Array.isArray(hero.images) ? hero.images as Array<{ url?: string; alt?: string }> : [];
+  const agendaContent = Array.isArray(agenda.items)
+    ? (agenda.items as Array<{ text?: string }>).map((item) => String(item.text ?? "")).filter(Boolean)
+    : agendaItems;
+  const quickLinkItems = Array.isArray(quickLinks.links)
+    ? quickLinks.links as Array<{ label?: string; description?: string; href?: string }>
+    : [];
+  const organizationRoles = Array.isArray(organization.roles)
+    ? organization.roles as OrgChartRoleContent[]
+    : undefined;
 
   const submitSearch = useCallback(() => {
     window.location.href = searchResultsUrl(query, category);
   }, [category, query]);
 
   return (
-    <div className="peas-public-page">
-      <PublicNavbar session={session} onSessionChange={setSession} />
-
-      <main>
+    <PublicPageShell>
         <section className="peas-public-hero" aria-labelledby="public-home-title">
-          <img src="/Components/images/1.jpg" alt="" className="peas-public-hero__image" />
+          <div className="peas-public-hero__images" aria-label="Featured research photos">
+            {(heroImages.length ? heroImages : [{ url: "/Components/images/1.jpg", alt: "" }]).slice(0, 4).map((image, index) => (
+              <img src={image.url || "/Components/images/1.jpg"} alt={image.alt || ""} className="peas-public-hero__image" key={`${image.url}-${index}`} />
+            ))}
+          </div>
           <div className="peas-public-hero__overlay" />
           <motion.div
             className="peas-public-hero__content"
@@ -88,10 +105,9 @@ export function PublicHomePage() {
                 <img className="peas-public-hero-logo-mark" src="/Components/images/peas.png" alt="PeAS system logo" />
               </span>
             </div>
-            <h1 id="public-home-title">Office of Research & Publications</h1>
+            <h1 id="public-home-title">{String(hero.title || "Office of Research & Publications")}</h1>
             <p>
-              Explore PeAS, the university repository for research activities, initiatives, theses,
-              dissertations, journals, and scholarly work.
+              {String(hero.body || "Explore PeAS, the university repository for research activities, initiatives, theses, dissertations, journals, and scholarly work.")}
             </p>
             <form
               className="peas-public-hero-search"
@@ -124,8 +140,8 @@ export function PublicHomePage() {
               </Button>
             </form>
             <div className="peas-public-hero-actions">
-              <a href="#research-agenda">Research Agenda</a>
-              <a href="/contact.html">Contact the Office</a>
+              <a href="#research-agenda">{String(hero.primaryLabel || "Research Agenda")}</a>
+              <a href="/contact.html">{String(hero.secondaryLabel || "Contact the Office")}</a>
             </div>
           </motion.div>
         </section>
@@ -165,13 +181,14 @@ export function PublicHomePage() {
           </div>
         </section>
 
+        {quickLinkItems.length ? <section className="peas-public-quick-links" aria-labelledby="quick-links-title"><div className="peas-public-section-head"><span>Explore</span><h2 id="quick-links-title">{String(quickLinks.title || "Explore PeAS")}</h2></div><div>{quickLinkItems.map((item, index) => <a href={String(item.href || ["#mission", "#org-chart", "#research-agenda"][index] || "#")} key={`${item.label}-${index}`}><strong>{item.label}</strong><span>{item.description}</span></a>)}</div></section> : null}
+
         <section className="peas-public-split" id="mission" aria-labelledby="mission-title">
           <div className="peas-public-section-head">
             <span>Mission</span>
-            <h2 id="mission-title">Research in service of community</h2>
+            <h2 id="mission-title">{String(mission.title || "Research in service of community")}</h2>
             <p>
-              The office supports faculty and student research that advances knowledge, promotes
-              ethical inquiry, and responds to the needs of the populations we serve.
+              {String(mission.body || "The office supports faculty and student research that advances knowledge, promotes ethical inquiry, and responds to the needs of the populations we serve.")}
             </p>
           </div>
           <div className="peas-public-feature-list">
@@ -208,23 +225,24 @@ export function PublicHomePage() {
           </div>
         </section>
 
-        <section className="peas-public-media-section" aria-labelledby="org-title">
+        <section className="peas-public-media-section" id="org-chart" aria-labelledby="org-title">
           <div className="peas-public-section-head">
             <span>Office Structure</span>
-            <h2 id="org-title">Research and publications team</h2>
-            <p>The unit coordinating research activity, publication support, and institutional scholarly output.</p>
+            <h2 id="org-title">{String(organization.title || "Research and publications team")}</h2>
+            <p>{String(organization.body || "The unit coordinating research activity, publication support, and institutional scholarly output.")}</p>
           </div>
-          <OrgChart />
+          <OrgChart roles={organizationRoles} />
         </section>
 
         <section className="peas-public-band" id="research-agenda" aria-labelledby="agenda-title">
           <div className="peas-public-section-head">
             <span>Focus Areas</span>
-            <h2 id="agenda-title">Research Agenda</h2>
-            <p>Twenty priority areas guide faculty and student research across identity, education, technology, wellness, sustainability, and partnerships.</p>
+            <h2 id="agenda-title">{String(agenda.title || "Research Agenda")}</h2>
+            <p>{String(agenda.body || "Twenty priority areas guide faculty and student research across identity, education, technology, wellness, sustainability, and partnerships.")}</p>
           </div>
+          {agenda.imageUrl ? <img className="peas-public-agenda-image" src={String(agenda.imageUrl)} alt={String(agenda.imageAlt || "")} /> : null}
           <div className="peas-public-agenda">
-            {agendaItems.map((item, index) => (
+            {agendaContent.map((item, index) => (
               <motion.div
                 className="peas-public-agenda-item"
                 key={item}
@@ -255,10 +273,12 @@ export function PublicHomePage() {
             </div>
           </section>
         ) : null}
-      </main>
 
-      <PublicFooter />
-    </div>
+        <section className="peas-public-contact-cta" aria-labelledby="public-contact-cta-title">
+          <div><span>Connect</span><h2 id="public-contact-cta-title">{String(contactCta.title || "Contact the Office of Research & Publications")}</h2><p>{String(contactCta.body || "Questions about research, publications, or repository access? Send the office an inquiry.")}</p></div>
+          <a href="/contact.html">{String(contactCta.label || "Get in touch")}</a>
+        </section>
+    </PublicPageShell>
   );
 }
 

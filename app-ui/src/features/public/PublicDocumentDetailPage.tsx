@@ -1,0 +1,42 @@
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { BookOpen, CalendarDays, Download, FileText, LockKeyhole, UserRound, X } from "lucide-react";
+import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { usePublicSession } from "../../components/public/PublicSessionProvider";
+import { Button } from "../../components/ui/button";
+import { addSavedDocument, type LooseRecord } from "../../lib/api/account";
+import { getErrorMessage } from "../../lib/api/http";
+import { fetchPublicDocumentDetail, submitDocumentAccessRequest } from "../../lib/api/publicDocument";
+
+export function PublicDocumentDetailPage() {
+  const { session, loading: sessionLoading } = usePublicSession();
+  const id = new URLSearchParams(window.location.search).get("id") ?? new URLSearchParams(window.location.hash.replace(/^#/, "")).get("id") ?? "";
+  const routeCompiled = window.location.pathname.includes("compiled");
+  const [detail, setDetail] = useState<{ record: LooseRecord; children: LooseRecord[]; authors: LooseRecord[]; compiled: boolean } | null>(null);
+  const [error, setError] = useState("");
+  const [requestOpen, setRequestOpen] = useState(false);
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!id) { setError("No document was selected."); return; }
+    fetchPublicDocumentDetail(id, routeCompiled, Boolean(session?.authenticated)).then(setDetail).catch((caught) => setError(getErrorMessage(caught)));
+  }, [id, routeCompiled, session?.authenticated, sessionLoading]);
+
+  return <PublicPageShell mainClassName="peas-document-detail-page">{error ? <div className="peas-document-error"><FileText aria-hidden="true" /><h1>Unable to load document</h1><p>{error}</p><a href="/pages/searchResultsPage.html">Return to search</a></div> : detail ? <DocumentContent id={id} detail={detail} authenticated={Boolean(session?.authenticated)} onRequest={() => setRequestOpen(true)} /> : <p>Loading document details…</p>}{requestOpen && detail ? <AccessRequestDialog id={id} title={titleOf(detail.record)} onClose={() => setRequestOpen(false)} /> : null}</PublicPageShell>;
+}
+
+function DocumentContent({ id, detail, authenticated, onRequest }: { id: string; detail: { record: LooseRecord; children: LooseRecord[]; authors: LooseRecord[]; compiled: boolean }; authenticated: boolean; onRequest: () => void }) {
+  const item = detail.record;
+  const authors = detail.authors.length ? detail.authors.map((author) => String(author.full_name || author.name || author.author_name || "")).filter(Boolean) : authorNames(item);
+  const topics = arrayStrings(item.topics).concat(arrayStrings(item.keywords));
+  const readUrl = detail.compiled ? `/api/compiled-documents/${encodeURIComponent(id)}/foreword` : `/api/documents/${encodeURIComponent(id)}/download?disposition=inline`;
+  return <><header className="peas-document-hero"><span>{String(item.category || item.document_type || (detail.compiled ? "Compiled collection" : "Research document"))}</span><h1>{titleOf(item)}</h1><div>{authors.length ? <span><UserRound aria-hidden="true" /> {authors.join(", ")}</span> : null}{item.publication_date || item.year || item.start_year ? <span><CalendarDays aria-hidden="true" /> {String(item.year || item.start_year || new Date(String(item.publication_date)).getFullYear())}</span> : null}</div></header><div className="peas-document-layout"><article><section><h2>{detail.compiled ? "Collection overview" : "Abstract"}</h2><p>{String(item.abstract || item.abstract_foreword || item.foreword || item.description || "No abstract or overview is available for this record.")}</p></section>{topics.length ? <section><h2>Topics and keywords</h2><div className="peas-document-tags">{topics.map((topic) => <span key={topic}>{topic}</span>)}</div></section> : null}{detail.compiled ? <section><h2>Documents in this collection</h2>{detail.children.length ? <div className="peas-document-children">{detail.children.map((child, index) => { const childId = String(child.id || child.doc_id || index); return <article key={childId}><FileText aria-hidden="true" /><div><h3>{titleOf(child)}</h3><p>{authorNames(child).join(", ") || String(child.category || child.document_type || "Research document")}</p></div><a href={`/pages/${authenticated ? "user" : "guest"}-single.html?id=${encodeURIComponent(childId)}`}>Details</a></article>; })}</div> : <p>No child records were returned.</p>}</section> : null}</article><aside><div className="peas-document-action-card"><BookOpen aria-hidden="true" /><h2>Document access</h2>{authenticated ? <><a className="peas-document-primary-action" href={readUrl} target="_blank" rel="noopener"><Download aria-hidden="true" /> {detail.compiled ? "Read foreword" : "Read document"}</a><Button variant="outline" onClick={async () => { try { await addSavedDocument(id); } catch { /* existing saved item is harmless */ } }}>Save for later</Button></> : <><p>Protected files are delivered only through approved PeAS routes.</p><Button onClick={onRequest}><LockKeyhole aria-hidden="true" /> Request access</Button><a href={`/log-in.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`}>Already have an account? Sign in</a></>}</div></aside></div></>;
+}
+
+function AccessRequestDialog({ id, title, onClose }: { id: string; title: string; onClose: () => void }) {
+  const [form, setForm] = useState({ fullName: "", email: "", affiliation: "", reason: "Academic research", details: "" }); const [busy, setBusy] = useState(false); const [notice, setNotice] = useState("");
+  const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); setNotice(""); try { const result = await submitDocumentAccessRequest({ document_id: id, full_name: form.fullName.trim(), email: form.email.trim(), affiliation: form.affiliation.trim(), reason: form.reason, reason_details: form.details.trim() || `Request for access based on: ${form.reason}` }); setNotice(`Request received${result.id ? ` (REQ-${result.id})` : ""}. Check your email for updates.`); } catch (caught) { setNotice(getErrorMessage(caught)); } finally { setBusy(false); } };
+  return <div className="peas-request-backdrop"><section className="peas-request-dialog" role="dialog" aria-modal="true" aria-labelledby="request-title"><header><div><span>Request access</span><h2 id="request-title">{title}</h2></div><button type="button" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button></header>{notice ? <div role="status">{notice}</div> : null}<form onSubmit={submit}><label>Full name<input required maxLength={160} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.currentTarget.value })} /></label><label>Email<input required type="email" maxLength={254} value={form.email} onChange={(event) => setForm({ ...form, email: event.currentTarget.value })} /></label><label>Affiliation<input required maxLength={200} value={form.affiliation} onChange={(event) => setForm({ ...form, affiliation: event.currentTarget.value })} /></label><label>Reason<select value={form.reason} onChange={(event) => setForm({ ...form, reason: event.currentTarget.value })}><option>Academic research</option><option>Teaching or instruction</option><option>Personal study</option><option>Other</option></select></label><label>Details<textarea rows={4} value={form.details} onChange={(event) => setForm({ ...form, details: event.currentTarget.value })} /></label><label className="peas-request-consent"><input required type="checkbox" /> I agree to the PeAS Terms and Conditions.</label><Button disabled={busy}>{busy ? "Submitting…" : "Submit request"}</Button></form></section></div>;
+}
+
+function titleOf(item: LooseRecord) { return String(item.title || item.document_title || `${item.category || "Document"}${item.volume ? ` Volume ${item.volume}` : ""}`); }
+function authorNames(item: LooseRecord) { const direct = arrayStrings(item.author_names); if (direct.length) return direct; const nested = item.authors ?? item.enhancedAuthors ?? item.document_authors; return Array.isArray(nested) ? nested.map((author: any) => String(author.full_name || author.name || author.author_name || author.author?.full_name || "")).filter(Boolean) : []; }
+function arrayStrings(value: unknown): string[] { return Array.isArray(value) ? value.map((item: any) => typeof item === "string" ? item : String(item.name || item.keyword || item.text || "")).filter(Boolean) : []; }

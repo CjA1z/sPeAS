@@ -1,10 +1,8 @@
-import { fetchSession, type SessionResponse } from "./auth";
 import { apiFetch } from "./http";
 import { fetchCategories, fetchDocuments } from "./documents";
 import type { CategoryCount, DashboardStats, DocumentRecord } from "./types";
 
 export interface PublicHomeData {
-  session: SessionResponse | null;
   categories: CategoryCount[];
   latestDocuments: DocumentRecord[];
   trendingKeywords: string[];
@@ -12,8 +10,7 @@ export interface PublicHomeData {
 }
 
 export async function fetchPublicHomeData(): Promise<PublicHomeData> {
-  const [session, categories, latestDocuments, trendingKeywords, stats] = await Promise.all([
-    fetchOptionalSession(),
+  const [categories, latestDocuments, trendingKeywords, stats] = await Promise.all([
     fetchCategories().catch(() => []),
     fetchDocuments({ page: 1, size: 6, sort: "latest", category: "All" })
       .then((result) => result.documents)
@@ -30,20 +27,11 @@ export async function fetchPublicHomeData(): Promise<PublicHomeData> {
   ]);
 
   return {
-    session,
     categories,
     latestDocuments,
     trendingKeywords,
     stats,
   };
-}
-
-export async function fetchOptionalSession() {
-  try {
-    return await fetchSession();
-  } catch {
-    return null;
-  }
 }
 
 export async function fetchTrendingKeywords(): Promise<string[]> {
