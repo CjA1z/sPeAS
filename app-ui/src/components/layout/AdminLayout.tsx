@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileArchive,
   FileText,
+  Tags,
   Home,
   LayoutDashboard,
   LogOut,
@@ -57,6 +58,7 @@ const AdminIdentityContext = createContext<AdminIdentity | null>(null);
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard.html", icon: LayoutDashboard, roles: ["admin"] as WorkspaceRole[] },
   { label: "Documents", href: "/admin/Components/documents_list.html", icon: FileText, roles: ["admin"] as WorkspaceRole[] },
+  { label: "Classification", href: "/admin/Components/classification-management.html", icon: Tags, roles: ["admin"] as WorkspaceRole[] },
   { label: "Archived Documents", href: "/admin/Components/archive-documents.html", icon: Archive, roles: ["admin"] as WorkspaceRole[] },
   { label: "Authors", href: "/admin/Components/author-list.html", icon: UsersRound, roles: ["admin"] as WorkspaceRole[] },
   { label: "Document Permissions", href: "/admin/Components/document-permissions.html", icon: ShieldCheck, roles: ["admin"] as WorkspaceRole[] },

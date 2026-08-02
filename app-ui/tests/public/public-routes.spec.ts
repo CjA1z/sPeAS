@@ -130,7 +130,7 @@ test("public author profiles render publication analytics and filterable works",
   });
   expect(sectionOrder.worksBeforeHistory).toBe(true);
   expect(sectionOrder.barHeight).toBeLessThan(sectionOrder.chartHeight * 0.5);
-  await expect(page.getByRole("link", { name: "art" })).toHaveAttribute("href", "/pages/searchResultsPage.html?keyword=art");
+  await expect(page.getByRole("link", { name: "art" })).toHaveAttribute("href", "/pages/searchResultsPage.html?topic=1");
   await expect(page.getByRole("link", { name: "View document" }).first()).toHaveAttribute("href", "/pages/guest-single.html?id=136");
 
   await page.getByRole("button", { name: /Confluence 1/ }).click();
@@ -195,7 +195,22 @@ test("guest document details place the abstract after the title and expose autho
   await page.route("**/api/guest/documents/133", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ success: true, document: { id: 133, title: "A public author paper", document_type: "THESIS", abstract: "The abstract follows the title card.", topics: ["art", "education"] } }),
+    body: JSON.stringify({
+      success: true,
+      document: {
+        id: 133,
+        title: "A public author paper",
+        document_type: "THESIS",
+        abstract: "The abstract follows the title card.",
+        classification: {
+          researchAgendas: [],
+          topics: [{ id: 32, name: "art" }, { id: 33, name: "education" }],
+          keywords: [],
+          complete: true,
+          source: "document",
+        },
+      },
+    }),
   }));
   await page.route("**/api/guest/documents/133/authors", (route) => route.fulfill({
     status: 200,
@@ -218,7 +233,7 @@ test("guest document details place the abstract after the title and expose autho
     return Boolean(hero && abstract && layout && hero.compareDocumentPosition(abstract) & Node.DOCUMENT_POSITION_FOLLOWING && abstract.compareDocumentPosition(layout) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
   expect(order).toBe(true);
-  await expect(page.getByRole("link", { name: "art" })).toHaveAttribute("href", "/pages/searchResultsPage.html?keyword=art");
+  await expect(page.getByRole("link", { name: "art" })).toHaveAttribute("href", "/pages/searchResultsPage.html?topic=32");
 
   const authorLink = page.getByRole("link", { name: "Dr. Ana Researcher" });
   await expect(authorLink).toHaveAttribute("href", "/pages/authorprofile.html?id=author-1");
@@ -568,7 +583,7 @@ test("repository search presents focused filters and scannable results", async (
     },
   ];
 
-  await page.route("**/api/categories", (route) => route.fulfill({
+  await page.route("**/api/categories*", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify([

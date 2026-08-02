@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive, CheckCircle2, ExternalLink, FileWarning, RefreshCw, Save, X, XCircle } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { DocumentAuthorPicker } from "../../components/forms/DocumentAuthorPicker";
+import { DocumentClassificationEditor, type DocumentClassificationEditorValue } from "../../components/forms/DocumentClassificationEditor";
 import { archiveDocument, fetchCategories, fetchChildDocuments, fetchDocuments, reviewDocument, updateDocumentMetadata } from "../../lib/api/documents";
 import { fetchAuthors } from "../../lib/api/authors";
-import { fetchDocumentResearchAgenda, linkDocumentAuthors, linkResearchAgenda, searchResearchAgendaItems, type ResearchAgendaSuggestion } from "../../lib/api/upload";
+import { fetchDocumentClassification, fetchResearchAgendas, linkDocumentAuthors, updateDocumentClassification } from "../../lib/api/upload";
 import { updateCompiledDocument as updateCompiledDocumentRecord } from "../../lib/api/compiled-documents";
 import { getErrorMessage } from "../../lib/api/http";
 import type { AuthorRecord, CategoryCount, DocumentFilterState, DocumentRecord } from "../../lib/api/types";
@@ -219,7 +220,7 @@ export function DocumentsAdminPage() {
     }
   }, [archiveTarget]);
 
-  const handleSaveEdit = useCallback(async (payload: Record<string, unknown>, authors?: DocumentAuthorSelection[], tags?: string[]) => {
+  const handleSaveEdit = useCallback(async (payload: Record<string, unknown>, authors?: DocumentAuthorSelection[], classification?: DocumentClassificationEditorValue) => {
     if (!editTarget) return;
 
     setEditBusy(true);
@@ -227,7 +228,14 @@ export function DocumentsAdminPage() {
     try {
       if (!editTarget.isCompiled && authors) {
         await linkDocumentAuthors(editTarget.id, authors);
-        await linkResearchAgenda(editTarget.id, tags ?? []);
+        if (classification) {
+          await updateDocumentClassification(editTarget.id, {
+            researchAgendaIds: classification.researchAgendaIds,
+            primaryResearchAgendaId: classification.primaryResearchAgendaId,
+            topicIds: classification.topicIds,
+            keywords: classification.keywords,
+          });
+        }
       }
       if (editTarget.isCompiled) {
         await updateCompiledDocumentRecord(editTarget.id, payload);
@@ -435,7 +443,7 @@ function EditDocumentDialog({
   document: DocumentRecord | null;
   busy: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (payload: Record<string, unknown>, authors?: DocumentAuthorSelection[], tags?: string[]) => void;
+  onSave: (payload: Record<string, unknown>, authors?: DocumentAuthorSelection[], classification?: DocumentClassificationEditorValue) => void;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -446,8 +454,9 @@ function EditDocumentDialog({
   const [volume, setVolume] = useState("");
   const [issue, setIssue] = useState("");
   const [authors, setAuthors] = useState<DocumentAuthorSelection[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagsLoading, setTagsLoading] = useState(false);
+  const [classification, setClassification] = useState<DocumentClassificationEditorValue>({ researchAgendaIds: [], primaryResearchAgendaId: null, topicIds: [], topicNames: [], keywords: [] });
+  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; code?: string; name: string }>>([]);
+  const [classificationLoading, setClassificationLoading] = useState(false);
   const [authorDirectory, setAuthorDirectory] = useState<AuthorRecord[]>([]);
   const [authorDirectoryLoading, setAuthorDirectoryLoading] = useState(false);
   const [authorDirectoryError, setAuthorDirectoryError] = useState<string | null>(null);
@@ -457,9 +466,18 @@ function EditDocumentDialog({
   useEffect(() => {
     if (!document) {
       initialValuesRef.current = "";
-      setTagsLoading(false);
+      setClassificationLoading(false);
       return;
     }
+
+    const documentClassification = document.classification;
+    const nextClassification: DocumentClassificationEditorValue = {
+      researchAgendaIds: documentClassification?.researchAgendas.map((item) => item.id).filter((id) => id > 0) ?? [],
+      primaryResearchAgendaId: documentClassification?.researchAgendas.find((item) => item.primary)?.id ?? documentClassification?.researchAgendas[0]?.id ?? null,
+      topicIds: documentClassification?.topics.map((item) => item.id).filter((id) => id > 0) ?? [],
+      topicNames: documentClassification?.topics.map((item) => item.name).filter(Boolean) ?? [],
+      keywords: documentClassification?.keywords.map((item) => item.name).filter(Boolean) ?? [],
+    };
 
     const nextValues = {
       title: document.title,
@@ -473,7 +491,7 @@ function EditDocumentDialog({
           source: "existing" as const,
         }))
         .filter((author) => author.fullName.trim()),
-      tags: document.topics.map((topic) => topic.name?.trim() ?? "").filter(Boolean),
+      classification: nextClassification,
       startYear: document.startYear ? String(document.startYear) : "",
       endYear: document.endYear ? String(document.endYear) : "",
       volume: document.volume ? String(document.volume) : "",
@@ -485,7 +503,7 @@ function EditDocumentDialog({
     setPublicationDate(nextValues.publicationDate);
     setCategory(nextValues.category);
     setAuthors(nextValues.authors);
-    setTags(nextValues.tags);
+    setClassification(nextValues.classification);
     setStartYear(nextValues.startYear);
     setEndYear(nextValues.endYear);
     setVolume(nextValues.volume);
@@ -493,22 +511,26 @@ function EditDocumentDialog({
     initialValuesRef.current = JSON.stringify(nextValues);
 
     let active = true;
-    if (document.isCompiled) {
-      setTagsLoading(false);
-    } else {
-      setTagsLoading(true);
-      void fetchDocumentResearchAgenda(document.id)
-        .then((items) => {
+    if (!document.isCompiled) {
+      setClassificationLoading(true);
+      void Promise.all([fetchDocumentClassification(document.id), fetchResearchAgendas()])
+        .then(([detail, agendas]) => {
           if (!active) return;
-          const nextTags = items.map((item) => item.name).filter(Boolean);
-          setTags(nextTags);
-          initialValuesRef.current = JSON.stringify({ ...nextValues, tags: nextTags });
+          const raw = detail.classification;
+          const loadedClassification: DocumentClassificationEditorValue = {
+            researchAgendaIds: raw.researchAgendas.map((item) => item.id),
+            primaryResearchAgendaId: raw.researchAgendas.find((item) => item.primary)?.id ?? raw.researchAgendas[0]?.id ?? null,
+            topicIds: raw.topics.map((item) => item.id),
+            topicNames: raw.topics.map((item) => item.name),
+            keywords: raw.keywords.map((item) => item.name),
+          };
+          setClassification(loadedClassification);
+          setResearchAgendas(agendas);
+          initialValuesRef.current = JSON.stringify({ ...nextValues, classification: loadedClassification });
         })
-        .catch(() => {
-          // Keep the tags supplied with the document list when the detail lookup is unavailable.
-        })
+        .catch(() => undefined)
         .finally(() => {
-          if (active) setTagsLoading(false);
+          if (active) setClassificationLoading(false);
         });
     }
 
@@ -552,7 +574,7 @@ function EditDocumentDialog({
   }, [document]);
 
   const isCompiled = Boolean(document?.isCompiled);
-  const currentValues = JSON.stringify({ title, description, publicationDate, category, authors, tags, startYear, endYear, volume, issue });
+  const currentValues = JSON.stringify({ title, description, publicationDate, category, authors, classification, startYear, endYear, volume, issue });
   const isDirty = Boolean(document) && initialValuesRef.current !== currentValues;
 
   const handleOpenChange = (open: boolean) => {
@@ -598,7 +620,7 @@ function EditDocumentDialog({
               description: description.trim(),
               publication_date: publicationDate || null,
               document_type: category,
-            }, authors, tags);
+            }, authors, classification);
           }}
         >
           <div className="peas-document-edit-form__body">
@@ -677,11 +699,7 @@ function EditDocumentDialog({
                 {authorDirectoryError ? <small className="peas-document-author-picker__status is-error">The author directory could not be loaded. Existing author names can still be saved.</small> : null}
                 {!authors.length ? <small className="peas-document-author-picker__status is-error">Select at least one author.</small> : null}
               </div>
-              <div className="peas-field">
-                <span>Tags</span>
-                {tagsLoading ? <small className="peas-document-author-picker__status">Loading existing tags…</small> : null}
-                <DocumentTagEditor id="edit-document-tags" value={tags} disabled={busy || tagsLoading} onChange={setTags} />
-              </div>
+              {classificationLoading ? <small className="peas-document-author-picker__status">Loading classification…</small> : <DocumentClassificationEditor value={classification} agendas={researchAgendas} disabled={busy} idPrefix="edit-document-classification" onChange={setClassification} />}
               <label className="peas-field">
                 <span>Description</span>
                 <Textarea value={description} onChange={(event) => setDescription(event.currentTarget.value)} rows={4} />
@@ -703,92 +721,6 @@ function EditDocumentDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function DocumentTagEditor({ id, value, disabled = false, onChange }: { id: string; value: string[]; disabled?: boolean; onChange: (tags: string[]) => void }) {
-  const [draft, setDraft] = useState("");
-  const [suggestions, setSuggestions] = useState<ResearchAgendaSuggestion[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  useEffect(() => {
-    const query = draft.trim();
-    if (disabled || query.length < 2) {
-      setSuggestions([]);
-      setSearching(false);
-      return;
-    }
-
-    let active = true;
-    const timeout = window.setTimeout(() => {
-      setSearching(true);
-      void searchResearchAgendaItems(query)
-        .then((matches) => {
-          if (active) setSuggestions(matches);
-        })
-        .catch(() => {
-          if (active) setSuggestions([]);
-        })
-        .finally(() => {
-          if (active) setSearching(false);
-        });
-    }, 180);
-
-    return () => {
-      active = false;
-      window.clearTimeout(timeout);
-    };
-  }, [disabled, draft]);
-
-  function addTags(candidates: string[]) {
-    const next = [...value];
-    for (const candidate of candidates.map((tag) => tag.trim()).filter(Boolean)) {
-      if (!next.some((tag) => tag.localeCompare(candidate, undefined, { sensitivity: "accent" }) === 0)) next.push(candidate);
-    }
-    onChange(next);
-    setDraft("");
-    setSuggestions([]);
-  }
-
-  function addDraft() {
-    const candidates = draft.split(/[;,]/u).map((tag) => tag.trim()).filter(Boolean);
-    if (!candidates.length) {
-      setDraft("");
-      return;
-    }
-    addTags(candidates);
-  }
-
-  return <div className="peas-document-tag-editor">
-    {value.length ? <div className="peas-document-tag-editor__chips" role="list" aria-label="Selected tags">
-      {value.map((tag, index) => <span className="peas-document-tag-editor__chip" role="listitem" key={`${tag}-${index}`}>
-        {tag}
-        <button type="button" aria-label={`Remove tag ${tag}`} disabled={disabled} onClick={() => onChange(value.filter((_, tagIndex) => tagIndex !== index))}><X aria-hidden="true" /></button>
-      </span>)}
-    </div> : null}
-    <div className="peas-document-tag-editor__input">
-      <Input
-        id={id}
-        aria-label="Add tag"
-        value={draft}
-        disabled={disabled}
-        placeholder="Search or add a tag…"
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        onBlur={addDraft}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === "," || event.key === ";") {
-            event.preventDefault();
-            addDraft();
-          } else if (event.key === "Backspace" && !draft && value.length) {
-            onChange(value.slice(0, -1));
-          }
-        }}
-      />
-      {draft.trim().length >= 2 && (searching || suggestions.length) ? <div className="peas-document-tag-editor__suggestions" role="listbox" aria-label="Existing database tags">
-        {searching ? <span>Searching existing tags…</span> : suggestions.map((suggestion) => <button key={suggestion.id} type="button" role="option" onMouseDown={(event) => { event.preventDefault(); addTags([suggestion.name]); }}>{suggestion.name}</button>)}
-      </div> : null}
-    </div>
-    <small className="peas-document-tag-editor__hint">Press Enter, comma, or semicolon after each tag.</small>
-  </div>;
 }
 
 function PdfPreviewDialog({

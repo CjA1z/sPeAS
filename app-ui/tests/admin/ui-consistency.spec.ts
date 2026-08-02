@@ -4,6 +4,7 @@ import { source as axeSource } from "axe-core";
 const ADMIN_LINKS = [
   "Dashboard",
   "Documents",
+  "Classification",
   "Archived Documents",
   "Authors",
   "Document Permissions",

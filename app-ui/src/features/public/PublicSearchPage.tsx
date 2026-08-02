@@ -22,6 +22,8 @@ export function PublicSearchPage() {
   const [query, setQuery] = useState(initial.query);
   const [submittedQuery, setSubmittedQuery] = useState(initial.query);
   const [queryMode, setQueryMode] = useState<"search" | "keyword">(initial.mode);
+  const [agendaFilter, setAgendaFilter] = useState(initial.agenda);
+  const [topicFilter, setTopicFilter] = useState(initial.topic);
   const [category, setCategory] = useState<DocumentCategory>(initial.category);
   const [sort, setSort] = useState<"latest" | "earliest">(initial.sort);
   const [page, setPage] = useState(initial.page);
@@ -33,7 +35,7 @@ export function PublicSearchPage() {
   const loadResults = useCallback(() => {
     setLoading(true);
     setError("");
-    updateSearchUrl({ query: submittedQuery, mode: queryMode, category, sort, page });
+    updateSearchUrl({ query: submittedQuery, mode: queryMode, agenda: agendaFilter, topic: topicFilter, category, sort, page });
 
     fetchDocuments({
       page,
@@ -42,6 +44,8 @@ export function PublicSearchPage() {
       category,
       search: queryMode === "search" ? submittedQuery : undefined,
       keyword: queryMode === "keyword" ? submittedQuery : undefined,
+      agenda: agendaFilter || undefined,
+      topic: topicFilter || undefined,
     })
       .then(setResult)
       .catch((searchError) => {
@@ -49,7 +53,7 @@ export function PublicSearchPage() {
         setResult(null);
       })
       .finally(() => setLoading(false));
-  }, [category, page, queryMode, sort, submittedQuery]);
+  }, [agendaFilter, category, page, queryMode, sort, submittedQuery, topicFilter]);
 
   useEffect(() => {
     let mounted = true;
@@ -70,9 +74,13 @@ export function PublicSearchPage() {
 
   const totalCount = result?.totalCount ?? 0;
   const visibleCount = result?.documents.length ?? 0;
-  const hasFilters = Boolean(submittedQuery || category !== "All" || sort !== "latest");
+  const hasFilters = Boolean(submittedQuery || agendaFilter || topicFilter || category !== "All" || sort !== "latest");
   const resultLabel = submittedQuery
     ? `Results for “${submittedQuery}”`
+    : agendaFilter
+      ? `Research agenda ${agendaFilter}`
+      : topicFilter
+        ? `Topic ${topicFilter}`
     : category !== "All"
       ? `${getCategoryMeta(category).label} research`
       : "All repository entries";
@@ -80,6 +88,8 @@ export function PublicSearchPage() {
     setQuery("");
     setSubmittedQuery("");
     setQueryMode("search");
+    setAgendaFilter("");
+    setTopicFilter("");
     setCategory("All");
     setSort("latest");
     setPage(1);
@@ -293,28 +303,36 @@ function readSearchParams() {
   const keyword = params.get("keyword") ?? "";
   const query = (params.get("q") || keyword).trim();
   const mode: "search" | "keyword" = keyword && !params.get("q") ? "keyword" : "search";
+  const agenda = params.get("agenda") ?? "";
+  const topic = params.get("topic") ?? "";
   const category = normalizeCategory(params.get("category"));
   const sort: "latest" | "earliest" = params.get("sort") === "earliest" ? "earliest" : "latest";
   const page = Math.max(1, Number(params.get("page") || 1) || 1);
 
-  return { query, category, sort, page, mode };
+  return { query, category, sort, page, mode, agenda, topic };
 }
 
 function updateSearchUrl({
   query,
   mode,
+  agenda,
+  topic,
   category,
   sort,
   page,
 }: {
   query: string;
   mode: "search" | "keyword";
+  agenda: string;
+  topic: string;
   category: DocumentCategory;
   sort: "latest" | "earliest";
   page: number;
 }) {
   const params = new URLSearchParams();
   if (query.trim()) params.set(mode === "keyword" ? "keyword" : "q", query.trim());
+  if (agenda.trim()) params.set("agenda", agenda.trim());
+  if (topic.trim()) params.set("topic", topic.trim());
   if (category !== "All") params.set("category", category);
   if (sort !== "latest") params.set("sort", sort);
   if (page > 1) params.set("page", String(page));

@@ -1,6 +1,7 @@
 import { apiFetch } from "./http";
 import type { DocumentAuthorReference, DocumentAuthorSelection } from "../authorSelection";
 import type { UploadCompiledDocumentPayload, UploadSingleDocumentPayload } from "./types";
+import type { DocumentClassification } from "./types";
 
 export interface UploadedFileResult {
   message?: string;
@@ -87,6 +88,77 @@ export function createDocumentRecord(payload: Record<string, unknown>) {
   return apiFetch<CreatedDocumentResult>("/api/documents", {
     method: "POST",
     json: payload,
+  });
+}
+
+export function fetchResearchAgendas() {
+  return apiFetch<Array<{ id: number; code?: string; name: string }>>("/api/research-agendas");
+}
+
+export function fetchAdminResearchAgendas() {
+  return apiFetch<Array<{ id: number; code?: string; name: string; is_active?: boolean }>>("/api/research-agendas?include_inactive=true");
+}
+
+export function createAdminResearchAgenda(payload: Record<string, unknown>) {
+  return apiFetch<{ id: number; code?: string; name: string }>("/api/admin/research-agendas", { method: "POST", json: payload });
+}
+
+export function updateAdminResearchAgenda(id: number, payload: Record<string, unknown>) {
+  return apiFetch<{ id: number; code?: string; name: string }>(`/api/admin/research-agendas/${id}`, { method: "PUT", json: payload });
+}
+
+export function fetchAdminTopics(status = "all") {
+  return apiFetch<Array<{ id: number; name: string; status?: string }>>(`/api/admin/topics?status=${encodeURIComponent(status)}`);
+}
+
+export function createAdminTopic(name: string) {
+  return apiFetch<{ id: number; name: string; status?: string }>("/api/admin/topics", { method: "POST", json: { name } });
+}
+
+export function reviewAdminTopic(id: number, decision: "approve" | "reject") {
+  return apiFetch<{ id: number; name: string; status?: string }>(`/api/admin/topics/${id}/${decision}`, { method: "POST" });
+}
+
+export interface ClassificationMigrationReview {
+  document_id: number;
+  legacy_research_agenda_id: number;
+  legacy_value: string;
+  suggested_type?: string;
+  decision?: string;
+  target_id?: number;
+  status: string;
+  document_title?: string;
+}
+
+export function fetchClassificationMigrationReview(status = "pending") {
+  return apiFetch<ClassificationMigrationReview[]>(`/api/admin/classification/migration-review?status=${encodeURIComponent(status)}`);
+}
+
+export function resolveClassificationMigrationReview(documentId: number, legacyId: number, payload: { decision: string; targetId?: number; notes?: string }) {
+  return apiFetch<Record<string, unknown>>(`/api/admin/classification/migration-review/${documentId}/${legacyId}/resolve`, { method: "POST", json: payload });
+}
+
+export function searchTopics(query: string) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return Promise.resolve<Array<{ id: number; name: string }>>([]);
+  return apiFetch<Array<{ id: number; name: string; status?: string }>>(`/api/topics?q=${encodeURIComponent(trimmed)}`);
+}
+
+export function proposeTopic(name: string) {
+  return apiFetch<{ id: number; name: string; status?: string }>("/api/topics/proposals", {
+    method: "POST",
+    json: { name },
+  });
+}
+
+export function fetchDocumentClassification(documentId: number) {
+  return apiFetch<{ classification: DocumentClassification }>(`/api/documents/${documentId}/classification`);
+}
+
+export function updateDocumentClassification(documentId: number, classification: Record<string, unknown>) {
+  return apiFetch<{ classification: DocumentClassification }>(`/api/documents/${documentId}/classification`, {
+    method: "PUT",
+    json: { classification },
   });
 }
 

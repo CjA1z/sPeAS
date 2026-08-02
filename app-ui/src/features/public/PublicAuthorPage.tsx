@@ -119,7 +119,7 @@ function AuthorWorkCard({ work, authenticated }: { work: PublicAuthorProfile["wo
     <div className="peas-author-work-card__topline"><span>{work.category}</span>{formatWorkDate(work) ? <small><CalendarDays aria-hidden="true" /> {formatWorkDate(work)}</small> : null}</div>
     <h3>{work.title}</h3>
     {work.abstract ? <p>{work.abstract}</p> : <p className="is-muted">No abstract is available for this work.</p>}
-    {work.topics.length ? <div className="peas-author-work-topics" aria-label="Research topics">{work.topics.map((topic) => <a key={topic.id} href={`/pages/searchResultsPage.html?keyword=${encodeURIComponent(topic.name)}`}>{topic.name}</a>)}</div> : null}
+    {work.topics.length ? <div className="peas-author-work-topics" aria-label="Research topics">{work.topics.map((topic) => <a key={topic.id} href={`/pages/searchResultsPage.html?topic=${encodeURIComponent(String(topic.id))}`}>{topic.name}</a>)}</div> : null}
     <a className="peas-author-work-link" href={documentHref}>View document <ArrowUpRight aria-hidden="true" /></a>
   </article>;
 }

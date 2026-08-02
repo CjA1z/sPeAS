@@ -2,7 +2,6 @@ import { CATEGORY_META, normalizeCategory, type DocumentCategory } from "../cons
 import { apiFetch } from "./http";
 import type {
   ApiAuthor,
-  ApiTopic,
   ArchiveRequest,
   CategoryCount,
   DocumentRecord,
@@ -29,6 +28,8 @@ interface FetchDocumentsParams {
   status?: DocumentFilterState["status"];
   search?: string;
   keyword?: string;
+  agenda?: string;
+  topic?: string;
 }
 
 export async function fetchCategories(status: DocumentFilterState["status"] = "approved"): Promise<CategoryCount[]> {
@@ -57,6 +58,8 @@ export async function fetchDocuments(params: FetchDocumentsParams): Promise<Docu
   searchParams.set("include_review", "true");
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
   if (params.keyword?.trim()) searchParams.set("keyword", params.keyword.trim());
+  if (params.agenda?.trim()) searchParams.set("agenda", params.agenda.trim());
+  if (params.topic?.trim()) searchParams.set("topic", params.topic.trim());
 
   const payload = await apiFetch<RawDocumentsResponse>(`/api/documents?${searchParams.toString()}`);
   const documents = (payload.documents ?? []).map(normalizeDocumentRecord);
@@ -106,14 +109,8 @@ function normalizeDocumentRecord(raw: Record<string, unknown>): DocumentRecord {
   const rawCategory = String(raw.document_type ?? raw.doc_type ?? raw.category ?? "");
   const category = normalizeCategory(rawCategory);
   const authors = normalizeAuthors(raw.authors ?? raw.enhancedAuthors ?? raw.author);
-  const topics = normalizeTopics(
-    raw.topics,
-    raw.keywords,
-    raw.research_agenda,
-    raw.researchAgenda,
-    raw.agenda_items,
-    raw.tags,
-  );
+  const classification = normalizeClassification(raw);
+  const topics = classification.topics;
   const publicationDate = stringifyNullable(raw.publication_date ?? raw.publicationDate ?? raw.date_uploaded ?? raw.created_at);
 
   return {
@@ -126,6 +123,7 @@ function normalizeDocumentRecord(raw: Record<string, unknown>): DocumentRecord {
     authors,
     authorsText: authors.map((author) => author.full_name ?? author.name).filter(Boolean).join(", ") || "Unknown author",
     topics,
+    classification,
     isCompiled: Boolean(raw.is_compiled ?? raw.is_parent),
     childCount: Number(raw.child_count ?? raw.document_count ?? raw.children_count ?? 0),
     volume: stringifyNullable(raw.volume) ?? undefined,
@@ -169,34 +167,40 @@ function normalizeAuthors(value: unknown): ApiAuthor[] {
   return [];
 }
 
-function normalizeTopics(...values: unknown[]): ApiTopic[] {
-  const value = values.find((candidate) => Array.isArray(candidate) && candidate.length > 0)
-    ?? values.find((candidate) => typeof candidate === "string" && candidate.trim())
-    ?? values.find((candidate) => Array.isArray(candidate));
+function normalizeClassification(raw: Record<string, unknown>) {
+  const value = raw.classification && typeof raw.classification === "object"
+    ? raw.classification as Record<string, unknown>
+    : raw;
+  return {
+    researchAgendas: normalizeTerms(value.researchAgendas ?? value.research_agendas ?? value.agendas, "agenda"),
+    topics: normalizeTerms(value.topics, "topic"),
+    keywords: normalizeTerms(value.keywords, "keyword"),
+    complete: Boolean(value.complete),
+    source: value.source === "aggregated_children" ? "aggregated_children" as const : "document" as const,
+  };
+}
 
-  if (typeof value === "string") {
-    return value
-      .split(/[;,|]/u)
-      .map((name) => name.trim())
-      .filter(Boolean)
-      .map((name) => ({ name }));
+function normalizeTerms(value: unknown, kind: "agenda" | "topic" | "keyword") {
+  if (!Array.isArray(value)) {
+    if (kind === "keyword" && typeof value === "string") {
+      return value.split(/[;,|]/u).map((name) => name.trim()).filter(Boolean).map((name) => ({ id: 0, name }));
+    }
+    return [];
   }
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        if (typeof item === "string") return { name: item };
-        if (item && typeof item === "object") {
-          const record = item as Record<string, unknown>;
-          const name = String(record.name ?? record.tag ?? record.label ?? record.keyword ?? "").trim();
-          return name ? { ...record, name } as ApiTopic : null;
-        }
-        return null;
-      })
-      .filter((item): item is ApiTopic => Boolean(item));
-  }
-
-  return [];
+  return value.map((item) => {
+    if (typeof item === "string") return { id: 0, name: item };
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    const name = String(row.name ?? row.term ?? row.keyword ?? "").trim();
+    if (!name) return null;
+    return {
+      id: Number(row.id ?? 0),
+      name,
+      ...(row.code ? { code: String(row.code) } : {}),
+      ...(row.status ? { status: row.status as "pending" | "approved" | "retired" } : {}),
+      ...(row.primary !== undefined ? { primary: Boolean(row.primary) } : {}),
+    };
+  }).filter(Boolean) as Array<{ id: number; name: string; code?: string; status?: "pending" | "approved" | "retired"; primary?: boolean }>;
 }
 
 function stringifyNullable(value: unknown) {

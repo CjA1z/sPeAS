@@ -1,4 +1,14 @@
 import { apiFetch } from "./http";
+
+export interface PublicResearchAgenda {
+  id: number;
+  code?: string;
+  name: string;
+}
+
+export function fetchPublicResearchAgendas() {
+  return apiFetch<PublicResearchAgenda[]>("/api/research-agendas");
+}
 import { fetchCategories, fetchDocuments } from "./documents";
 import type { CategoryCount, DashboardStats, DocumentRecord } from "./types";
 

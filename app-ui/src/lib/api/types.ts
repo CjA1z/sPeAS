@@ -11,6 +11,22 @@ export interface ApiTopic {
   name?: string;
 }
 
+export interface ClassificationTerm {
+  id: number;
+  name: string;
+  code?: string;
+  status?: "pending" | "approved" | "retired";
+  primary?: boolean;
+}
+
+export interface DocumentClassification {
+  researchAgendas: ClassificationTerm[];
+  topics: ClassificationTerm[];
+  keywords: ClassificationTerm[];
+  complete: boolean;
+  source: "document" | "aggregated_children";
+}
+
 export interface DocumentRecord {
   id: number;
   title: string;
@@ -21,6 +37,7 @@ export interface DocumentRecord {
   authors: ApiAuthor[];
   authorsText: string;
   topics: ApiTopic[];
+  classification?: DocumentClassification;
   isCompiled: boolean;
   childCount: number;
   volume?: string;
@@ -66,7 +83,7 @@ export interface ArchiveRequest {
 export interface UploadSingleDocumentPayload {
   title: string;
   category: "THESIS" | "DISSERTATION";
-  publication_date?: string;
+  publication_date: string;
   author_ids?: Array<number | string>;
   research_agenda_ids?: Array<number | string>;
   file?: File;
@@ -77,8 +94,8 @@ export interface UploadCompiledDocumentPayload {
   category: "CONFLUENCE" | "SYNERGY";
   volume?: string;
   issue?: string;
-  start_year?: number;
-  end_year?: number;
+  start_year: number;
+  end_year: number;
   children?: UploadSingleDocumentPayload[];
 }
 

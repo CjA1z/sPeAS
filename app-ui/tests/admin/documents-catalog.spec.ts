@@ -49,7 +49,7 @@ test.beforeEach(async ({ page }) => {
 test("catalog rows use labeled actions and dashboard-aligned metadata", async ({ page }) => {
   await page.goto("/admin/Components/documents_list.html");
 
-  await expect(page.getByRole("heading", { name: "Documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Find documents" })).toBeVisible();
   await expect(page.getByText("Single Thesis Sample", { exact: true })).toBeVisible();
   await expect(page.getByText("Publication date: newest", { exact: true })).toBeVisible();
@@ -79,7 +79,7 @@ test("review status filter updates the request and URL", async ({ page }) => {
 
   await expect(page).toHaveURL(/status=pending_review/);
   await expect(page.getByText("Pending publisher submission", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pending review", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Document catalog results").getByText("Pending review", { exact: true })).toBeVisible();
 });
 
 test("action menus close before document dialogs open", async ({ page }) => {

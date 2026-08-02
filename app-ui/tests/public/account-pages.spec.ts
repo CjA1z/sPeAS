@@ -68,7 +68,7 @@ const libraryItems = [
   },
 ];
 
-test("saved documents renders document and compiled cards with optimistic undo", async ({ page }) => {
+test("saved documents renders document and compiled cards with optimistic undo", async ({ page }, testInfo) => {
   await mockSignedIn(page);
   await page.route("**/api/user/library**", async (route) => {
     if (route.request().method() === "DELETE" || route.request().method() === "POST") {
@@ -93,9 +93,19 @@ test("saved documents renders document and compiled cards with optimistic undo",
 
   await page.goto("/pages/SavedDocument.html");
   await expect(page.getByRole("heading", { name: "Saved Documents" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
-  await expect(page.getByRole("link", { name: "Saved documents", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
-  await expect(page.getByRole("link", { name: "User history" }).locator("svg.lucide-clock-3")).toBeVisible();
+  if (testInfo.project.name === "pixel-7") {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
+  } else {
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
+  }
+  if (testInfo.project.name === "pixel-7") {
+    await expect(page.getByRole("banner").getByRole("link", { name: "Saved Documents", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "History", exact: true }).locator("svg.lucide-clock-3")).toBeVisible();
+  } else {
+    await expect(page.getByRole("link", { name: "Saved documents", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
+    await expect(page.getByRole("link", { name: "User history" }).locator("svg.lucide-clock-3")).toBeVisible();
+  }
   await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "Saved Documents" }).locator("svg.lucide-book-marked")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "History" }).locator("svg.lucide-clock-3")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);

@@ -10,33 +10,10 @@ import { usePublicSession } from "../../components/public/PublicSessionProvider"
 import { PrismDiagram } from "../../components/public/PrismDiagram";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
-import { fetchPublicHomeData, keywordSearchUrl, searchResultsUrl, type PublicHomeData } from "../../lib/api/public";
+import { fetchPublicHomeData, fetchPublicResearchAgendas, keywordSearchUrl, searchResultsUrl, type PublicHomeData, type PublicResearchAgenda } from "../../lib/api/public";
 import { fetchPublishedNews, type NewsPost } from "../../lib/api/news";
 import { CATEGORY_ORDER, getCategoryMeta, type DocumentCategory } from "../../lib/constants/categories";
 import { experienceBlockProps, usePublicExperience } from "../../lib/api/experience";
-
-const agendaItems = [
-  "Paulinian Spirituality/Identity and its impact to international community and global partnerships",
-  "Paulinian Mission / Vision / Philosophy / Goals",
-  "Paulinian Roots and Formation",
-  "Advocacy: Peace, Pro-Life, Environment, Disaster & Risks Management",
-  "Global Mental Health and Wellness",
-  "Synodal Church: Communion, Participation, and Mission",
-  "Inclusivity and Equity in Education",
-  "Curriculum development and Innovation geared towards internationalization and global partnership",
-  "OBE - Instruction",
-  "Technology Integration",
-  "Faculty / Staff Development",
-  "Infrastructure / Software Development and Innovation",
-  "Financial Management, Sustainability, and Energy Security",
-  "Environmental Discipline and Stewardship",
-  "Ethical Leaders & Professionals",
-  "Resilient visionaries, innovators, mentors, implementers, supporters, and stewardship",
-  "Civic and Community Involvement",
-  "Equality and Diversity",
-  "Economic cooperation and integration",
-  "Student and Faculty Mobility",
-];
 
 export function PublicHomePage() {
   const [data, setData] = useState<PublicHomeData | null>(null);
@@ -47,6 +24,8 @@ export function PublicHomePage() {
   const [loading, setLoading] = useState(true);
   const [latestNews, setLatestNews] = useState<NewsPost[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [researchAgendas, setResearchAgendas] = useState<PublicResearchAgenda[]>([]);
+  const [researchAgendaError, setResearchAgendaError] = useState<string | null>(null);
   const [activeHeroImage, setActiveHeroImage] = useState(0);
   const [heroSlideshowPaused, setHeroSlideshowPaused] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -67,6 +46,20 @@ export function PublicHomePage() {
       mounted = false;
     };
   }, []);
+
+  const loadResearchAgendas = useCallback(() => {
+    setResearchAgendaError(null);
+    void fetchPublicResearchAgendas()
+      .then(setResearchAgendas)
+      .catch(() => {
+        setResearchAgendas([]);
+        setResearchAgendaError("Research agendas are temporarily unavailable.");
+      });
+  }, []);
+
+  useEffect(() => {
+    loadResearchAgendas();
+  }, [loadResearchAgendas]);
 
   useEffect(() => {
     let mounted = true;
@@ -101,9 +94,6 @@ export function PublicHomePage() {
     ? heroImages
     : [{ url: "/Components/images/1.jpg", alt: "" }]).slice(0, 4);
   const heroImageSignature = displayedHeroImages.map((image) => image.url || "").join("|");
-  const agendaContent = Array.isArray(agenda.items)
-    ? (agenda.items as Array<{ text?: string }>).map((item) => String(item.text ?? "")).filter(Boolean)
-    : agendaItems;
   const quickLinkItems = Array.isArray(quickLinks.links)
     ? quickLinks.links as Array<{ label?: string; description?: string; href?: string }>
     : [];
@@ -388,21 +378,21 @@ export function PublicHomePage() {
             <h2 id="agenda-title">{String(agenda.title || "Research Agenda")}</h2>
             <p>{String(agenda.body || "Twenty priority areas guide faculty and student research across identity, education, technology, wellness, sustainability, and partnerships.")}</p>
           </div>
-          <div className="peas-public-agenda">
-            {agendaContent.map((item, index) => (
+          {researchAgendaError ? <div className="peas-public-empty" role="alert"><FileSearch aria-hidden="true" /><div><strong>{researchAgendaError}</strong><p>The official list is managed in the database. Try again to reload it.</p><Button variant="outline" onClick={loadResearchAgendas}>Retry</Button></div></div> : researchAgendas.length === 0 ? <div className="peas-public-empty"><FileSearch aria-hidden="true" /><div><strong>No active research agendas</strong><p>Administrators have not published an active official list yet.</p></div></div> : <div className="peas-public-agenda">
+            {researchAgendas.map((item, index) => (
               <motion.div
                 className="peas-public-agenda-item"
-                key={item}
+                key={item.id}
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ delay: Math.min(index * 0.015, 0.18) }}
               >
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <p>{item}</p>
+                <p>{item.name}</p>
               </motion.div>
             ))}
-          </div>
+          </div>}
         </section>
 
         {trendingKeywords.length > 0 ? (

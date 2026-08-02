@@ -7,13 +7,11 @@ export interface ResearchAgendaItem {
 }
 
 export function fetchResearchAgenda(search?: string) {
-  const params = new URLSearchParams();
-  if (search?.trim()) params.set("search", search.trim());
-  const query = params.toString();
-
-  return apiFetch<ResearchAgendaItem[]>(`/api/research-agenda${query ? `?${query}` : ""}`);
+  return apiFetch<ResearchAgendaItem[]>("/api/research-agendas").then((items) => search?.trim()
+    ? items.filter((item) => item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+    : items);
 }
 
 export function fetchDocumentResearchAgenda(documentId: number) {
-  return apiFetch<ResearchAgendaItem[]>(`/api/documents/${documentId}/research-agenda`);
+  return apiFetch<{ classification?: { researchAgendas?: ResearchAgendaItem[] } }>(`/api/documents/${documentId}/classification`).then((payload) => payload.classification?.researchAgendas ?? []);
 }

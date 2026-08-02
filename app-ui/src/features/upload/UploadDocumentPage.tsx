@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, FilePlus2, ListPlus, Plus, Trash2, UploadCloud, X } from "lucide-react";
-import { getErrorMessage } from "../../lib/api/http";
+import { ApiError, getErrorMessage } from "../../lib/api/http";
 import { fetchAuthors } from "../../lib/api/authors";
 import type { AuthorRecord } from "../../lib/api/types";
 import type { DocumentAuthorSelection } from "../../lib/authorSelection";
 import {
   createCompiledDocumentRecord,
   createDocumentRecord,
-  linkDocumentAuthors,
   linkDocumentsToCompilation,
-  linkResearchAgenda,
+  fetchResearchAgendas,
+  searchTopics,
+  proposeTopic,
   uploadFile,
   type UploadedFileResult,
 } from "../../lib/api/upload";
@@ -29,7 +30,7 @@ import { Badge } from "../../components/ui/badge";
 import { PeasIconButton } from "../../components/ui/peas-button";
 
 type UploadMode = "single" | "compiled";
-type UploadStep = 1 | 2 | 3;
+type UploadStep = 1 | 2 | 3 | 4 | 5;
 type SingleCategory = "THESIS" | "DISSERTATION";
 type CompiledCategory = "CONFLUENCE" | "SYNERGY";
 type FieldErrors = Record<string, string>;
@@ -39,7 +40,11 @@ interface SingleFormState {
   authors: DocumentAuthorSelection[];
   pubMonth: string;
   pubYear: string;
-  keywords: string;
+  researchAgendaIds: number[];
+  primaryResearchAgendaId: number | null;
+  topicIds: number[];
+  topicNames: string[];
+  keywords: string[];
   category: SingleCategory;
   file: File | null;
 }
@@ -48,7 +53,11 @@ interface ResearchSection {
   id: string;
   title: string;
   authors: DocumentAuthorSelection[];
-  keywords: string;
+  researchAgendaIds: number[];
+  primaryResearchAgendaId: number | null;
+  topicIds: number[];
+  topicNames: string[];
+  keywords: string[];
   abstract: string;
   file: File | null;
 }
@@ -86,7 +95,8 @@ const DEPARTMENTS = [
 ];
 
 const initialSingleForm: SingleFormState = {
-  title: "", authors: [], pubMonth: "", pubYear: "", keywords: "", category: "THESIS", file: null,
+  title: "", authors: [], pubMonth: "", pubYear: "", researchAgendaIds: [], primaryResearchAgendaId: null,
+  topicIds: [], topicNames: [], keywords: [], category: "THESIS", file: null,
 };
 
 const initialCompiledForm: CompiledFormState = {
@@ -94,8 +104,9 @@ const initialCompiledForm: CompiledFormState = {
   sections: [createResearchSection()],
 };
 
-const singleSteps = ["Document details", "Publication & PDF", "Review"];
-const compiledSteps = ["Publication details", "Studies", "Review"];
+const singleSteps = ["Document details", "Publication date", "Classification", "Upload PDF", "Review"] as const;
+const compiledSteps = ["Publication details", "Study details", "Study classification", "Upload PDFs", "Review"] as const;
+const FINAL_UPLOAD_STEP: UploadStep = 5;
 
 export function UploadDocumentPage() {
   const { role } = useAdminIdentity();
@@ -107,14 +118,39 @@ export function UploadDocumentPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [busyStep, setBusyStep] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<UploadReceipt | null>(null);
   const [authors, setAuthors] = useState<AuthorRecord[]>([]);
+  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; code?: string; name: string }>>([]);
 
   useEffect(() => {
     void fetchAuthors().then(setAuthors).catch(() => setAuthors([]));
+    void fetchResearchAgendas().then(setResearchAgendas).catch(() => setResearchAgendas([]));
   }, []);
 
   const busy = Boolean(busyStep);
+  const steps = mode === "single" ? singleSteps : compiledSteps;
+  const dirty = useMemo(() => isSingleFormDirty(singleForm) || isCompiledFormDirty(compiledForm), [compiledForm, singleForm]);
+
+  useEffect(() => {
+    if (!pendingFocusKey) return;
+    const focusKey = pendingFocusKey;
+    setPendingFocusKey(null);
+    window.requestAnimationFrame(() => {
+      const element = document.querySelector<HTMLElement>(`[data-upload-field="${focusKey}"] input, [data-upload-field="${focusKey}"] textarea, [data-upload-field="${focusKey}"] button`);
+      element?.focus();
+    });
+  }, [pendingFocusKey, step]);
+
+  useEffect(() => {
+    if (!dirty || receipt) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, receipt]);
   const compiledTitle = useMemo(() => {
     const category = compiledForm.category === "CONFLUENCE" ? "Confluence" : "Synergy";
     const volume = compiledForm.volume ? ` Vol. ${compiledForm.volume}` : "";
@@ -134,19 +170,23 @@ export function UploadDocumentPage() {
 
   function continueWorkflow() {
     const nextErrors = mode === "single"
-      ? validateSingleForStep(singleForm, step)
-      : validateCompiledForStep(compiledForm, step);
+      ? validateSingleStep(singleForm, step, !isPublisher)
+      : validateCompiledStep(compiledForm, step, !isPublisher);
     setErrors(nextErrors);
     setSubmissionError(null);
     if (Object.keys(nextErrors).length > 0) {
-      focusFirstError(nextErrors);
+      setPendingFocusKey(Object.keys(nextErrors)[0] ?? null);
       return;
     }
-    setStep((current) => Math.min(3, current + 1) as UploadStep);
+    setStep((current) => Math.min(FINAL_UPLOAD_STEP, current + 1) as UploadStep);
+    setPendingFocusKey(null);
   }
 
   function goBack() {
-    if (!busy) setStep((current) => Math.max(1, current - 1) as UploadStep);
+    if (!busy) {
+      setStep((current) => Math.max(1, current - 1) as UploadStep);
+      setPendingFocusKey(null);
+    }
   }
 
   function editStep(target: UploadStep) {
@@ -154,6 +194,7 @@ export function UploadDocumentPage() {
       setStep(target);
       setErrors({});
       setSubmissionError(null);
+      setPendingFocusKey(null);
     }
   }
 
@@ -172,10 +213,12 @@ export function UploadDocumentPage() {
 
   async function handleSingleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors = validateSingleForStep(singleForm, 3);
+    const nextErrors = validateSingleAll(singleForm, !isPublisher);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      focusFirstError(nextErrors);
+      const firstError = Object.keys(nextErrors)[0] ?? null;
+      setStep(stepForSingleError(firstError));
+      setPendingFocusKey(firstError);
       return;
     }
     setReceipt(null);
@@ -191,19 +234,32 @@ export function UploadDocumentPage() {
         file_path: upload.filePath,
         is_public: true,
         document_type: singleForm.category,
-        research_agenda: singleForm.keywords.trim() || null,
         category_id: null,
         pages: upload.metadata?.pageCount ?? upload.metadata?.pages ?? 0,
+        authors: singleForm.authors.map((author) => ({ id: author.id, full_name: author.fullName })),
+        classification: {
+          researchAgendaIds: singleForm.researchAgendaIds,
+          primaryResearchAgendaId: singleForm.primaryResearchAgendaId,
+          topicIds: singleForm.topicIds,
+          keywords: singleForm.keywords,
+        },
       });
-      setBusyStep("Linking authors and keywords…");
-      await linkDocumentAuthors(document.id, singleForm.authors);
-      await linkResearchAgenda(document.id, parseList(singleForm.keywords, ","));
       await fetchAuthors().then(setAuthors).catch(() => undefined);
       const pendingReview = document.review_status === "pending_review";
       setReceipt({ type: "single", title: singleForm.title.trim(), documentId: document.id, pendingReview });
       setSingleForm(initialSingleForm);
       toast.success(pendingReview ? "Document submitted for administrator review." : "Document published successfully.");
     } catch (error) {
+      if (error instanceof ApiError && error.status === 422 && error.payload && typeof error.payload === "object") {
+        const fields = (error.payload as { fields?: Record<string, string> }).fields;
+        if (fields) {
+          const mappedErrors = mapApiFieldsToUploadErrors(fields, "single");
+          setErrors(mappedErrors);
+          const firstError = Object.keys(mappedErrors)[0] ?? null;
+          setStep(stepForSingleError(firstError));
+          setPendingFocusKey(firstError);
+        }
+      }
       const message = getErrorMessage(error);
       setSubmissionError(message);
       toast.error(message);
@@ -214,10 +270,12 @@ export function UploadDocumentPage() {
 
   async function handleCompiledSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors = validateCompiledForStep(compiledForm, 3);
+    const nextErrors = validateCompiledAll(compiledForm, !isPublisher);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      focusFirstError(nextErrors);
+      const firstError = Object.keys(nextErrors)[0] ?? null;
+      setStep(stepForCompiledError(firstError));
+      setPendingFocusKey(firstError);
       return;
     }
     setReceipt(null);
@@ -259,10 +317,15 @@ export function UploadDocumentPage() {
           pages: upload.metadata?.pageCount ?? upload.metadata?.pages ?? 0,
           is_public: true,
           compiled_parent_id: compiled.id,
+          authors: section.authors.map((author) => ({ id: author.id, full_name: author.fullName })),
+          classification: {
+            researchAgendaIds: section.researchAgendaIds,
+            primaryResearchAgendaId: section.primaryResearchAgendaId,
+            topicIds: section.topicIds,
+            keywords: section.keywords,
+          },
         });
         childDocumentIds.push(childDocument.id);
-        await linkDocumentAuthors(childDocument.id, section.authors);
-        await linkResearchAgenda(childDocument.id, parseList(section.keywords, ","));
       }
       await fetchAuthors().then(setAuthors).catch(() => undefined);
       setBusyStep("Linking studies to publication…");
@@ -272,6 +335,16 @@ export function UploadDocumentPage() {
       setCompiledForm({ ...initialCompiledForm, sections: [createResearchSection()] });
       toast.success(pendingReview ? "Publication submitted for administrator review." : "Publication published successfully.");
     } catch (error) {
+      if (error instanceof ApiError && error.status === 422 && error.payload && typeof error.payload === "object") {
+        const fields = (error.payload as { fields?: Record<string, string> }).fields;
+        if (fields) {
+          const mappedErrors = mapApiFieldsToUploadErrors(fields, "compiled");
+          setErrors(mappedErrors);
+          const firstError = Object.keys(mappedErrors)[0] ?? null;
+          setStep(stepForCompiledError(firstError));
+          setPendingFocusKey(firstError);
+        }
+      }
       const message = getErrorMessage(error);
       setSubmissionError(message);
       toast.error(message);
@@ -280,7 +353,6 @@ export function UploadDocumentPage() {
     }
   }
 
-  const steps = mode === "single" ? singleSteps : compiledSteps;
   const actionLabel = isPublisher
     ? (mode === "single" ? "Submit document for review" : "Submit publication for review")
     : (mode === "single" ? "Publish document" : "Publish publication");
@@ -317,7 +389,7 @@ export function UploadDocumentPage() {
                   <CompletionPanel receipt={receipt} isPublisher={isPublisher} onUploadAnother={() => { setReceipt(null); setStep(1); setErrors({}); setSubmissionError(null); }} />
                 ) : (
                   <>
-                    <SingleDocumentForm form={singleForm} step={step} errors={errors} busy={busy} authors={authors} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setSingleForm} onError={markError} />
+                    <SingleDocumentForm form={singleForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setSingleForm} onError={markError} />
                     {submissionError ? <SubmissionError message={submissionError} /> : null}
                     <UploadActions step={step} busy={busy} busyStep={busyStep} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
                   </>
@@ -331,7 +403,7 @@ export function UploadDocumentPage() {
                   <CompletionPanel receipt={receipt} isPublisher={isPublisher} onUploadAnother={() => { setReceipt(null); setStep(1); setErrors({}); setSubmissionError(null); }} />
                 ) : (
                   <>
-                    <CompiledDocumentForm form={compiledForm} step={step} errors={errors} busy={busy} authors={authors} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setCompiledForm} onError={markError} />
+                    <CompiledDocumentForm form={compiledForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setCompiledForm} onError={markError} />
                     {submissionError ? <SubmissionError message={submissionError} /> : null}
                     <UploadActions step={step} busy={busy} busyStep={busyStep} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
                   </>
@@ -347,7 +419,11 @@ export function UploadDocumentPage() {
   );
 }
 
-function UploadProgress({ mode, step, steps, busy, onStepChange }: { mode: UploadMode; step: UploadStep; steps: string[]; busy: boolean; onStepChange: (step: UploadStep) => void }) {
+function UploadProgress({ mode, step, steps, busy, onStepChange }: { mode: UploadMode; step: UploadStep; steps: readonly string[]; busy: boolean; onStepChange: (step: UploadStep) => void }) {
+  const currentStepRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    currentStepRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [step]);
   return (
     <nav className="peas-upload-progress" aria-label={`${mode === "single" ? "Single document" : "Compiled publication"} steps`}>
       <p>Step {step} of {steps.length}</p>
@@ -356,7 +432,7 @@ function UploadProgress({ mode, step, steps, busy, onStepChange }: { mode: Uploa
           const number = (index + 1) as UploadStep;
           const complete = number < step;
           return (
-            <li className={number === step ? "is-current" : complete ? "is-complete" : ""} key={label}>
+            <li ref={number === step ? currentStepRef : undefined} className={number === step ? "is-current" : complete ? "is-complete" : ""} key={label}>
               <button type="button" disabled={busy || number > step} aria-current={number === step ? "step" : undefined} onClick={() => onStepChange(number)}>
                 <span>{complete ? <Check aria-hidden="true" /> : number}</span>
                 <strong>{label}</strong>
@@ -369,7 +445,7 @@ function UploadProgress({ mode, step, steps, busy, onStepChange }: { mode: Uploa
   );
 }
 
-function SingleDocumentForm({ form, step, errors, busy, authors, onAuthorCreated, onChange, onError }: { form: SingleFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: SingleFormState) => void; onError: (key: string, error?: string) => void }) {
+function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas, onAuthorCreated, onChange, onError }: { form: SingleFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; code?: string; name: string }>; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: SingleFormState) => void; onError: (key: string, error?: string) => void }) {
   const field = (key: string) => fieldA11y(key, errors[key]);
   return (
     <div className="peas-upload-section">
@@ -393,31 +469,52 @@ function SingleDocumentForm({ form, step, errors, busy, authors, onAuthorCreated
       ) : null}
 
       {step === 2 ? (
-        <WorkflowPanel title="Publication & PDF" description="Add the publication date, search keywords, and the PDF readers will access.">
+        <WorkflowPanel title="Publication date" description="Enter the month and year in which this document was published.">
           <div className="peas-form-grid peas-form-grid--two">
-            <PeasField label="Publication month" fieldKey="single.pubMonth" optional>
-              <Select value={form.pubMonth || "none"} disabled={busy} onValueChange={(value) => onChange({ ...form, pubMonth: value === "none" ? "" : value })}>
-                <SelectTrigger aria-label="Publication month"><SelectValue placeholder="No month" /></SelectTrigger>
-                <SelectContent><SelectItem value="none">No month</SelectItem>{MONTHS.map(([value, label]) => <SelectItem value={value} key={value}>{label}</SelectItem>)}</SelectContent>
+            <PeasField label="Publication month" fieldKey="single.pubMonth" required error={errors["single.pubMonth"]} description="Choose the month from the publication record.">
+              <Select value={form.pubMonth || undefined} disabled={busy} onValueChange={(value) => onChange({ ...form, pubMonth: value })}>
+                <SelectTrigger aria-label="Publication month"><SelectValue placeholder="Choose month" /></SelectTrigger>
+                <SelectContent>{MONTHS.map(([value, label]) => <SelectItem value={value} key={value}>{label}</SelectItem>)}</SelectContent>
               </Select>
             </PeasField>
-            <PeasField label="Publication year" htmlFor="single-year" fieldKey="single.pubYear" optional error={errors["single.pubYear"]}>
+            <PeasField label="Publication year" htmlFor="single-year" fieldKey="single.pubYear" required error={errors["single.pubYear"]} description="Use four digits, for example 2026.">
               <Input id="single-year" {...field("single.pubYear")} type="number" min="1000" max="9999" value={form.pubYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("single.pubYear", validateYear(form.pubYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, pubYear: event.currentTarget.value })} />
             </PeasField>
           </div>
-          <PeasField label="Keywords" htmlFor="single-keywords" fieldKey="single.keywords" optional description="Separate keywords with semicolons.">
-            <KeywordBadgeInput id="single-keywords" value={form.keywords} disabled={busy} placeholder="community health; education; local governance" onChange={(keywords) => onChange({ ...form, keywords })} />
-          </PeasField>
+          <p className="peas-upload-inline-hint">PeAS stores the selected month and year as the first day of that month.</p>
+        </WorkflowPanel>
+      ) : null}
+
+      {step === 3 ? (
+        <WorkflowPanel title="Classification" description="Separate institutional priorities, approved subject headings, and specific search terms for this document.">
+          <ClassificationControls
+            prefix="single"
+            agendas={researchAgendas}
+            researchAgendaIds={form.researchAgendaIds}
+            primaryResearchAgendaId={form.primaryResearchAgendaId}
+            topicIds={form.topicIds}
+            topicNames={form.topicNames}
+            keywords={form.keywords}
+            errors={errors}
+            disabled={busy}
+            onChange={(updates) => onChange({ ...form, ...updates })}
+            onError={onError}
+          />
+        </WorkflowPanel>
+      ) : null}
+
+      {step === 4 ? (
+        <WorkflowPanel title="Upload PDF" description="Choose the PDF readers will access. The file will not be transferred until you confirm the Review step.">
           <PeasFileDropzone label="Document PDF" fieldKey="single.file" required file={form.file} error={errors["single.file"]} disabled={busy} description="PDF only. You can choose a file or drag it here." onFileChange={(file) => { onChange({ ...form, file }); onError("single.file", file ? (isPdf(file) ? undefined : "Choose a PDF file.") : "Attach the document PDF."); }} />
         </WorkflowPanel>
       ) : null}
 
-      {step === 3 ? <SingleReview form={form} errors={errors} /> : null}
+      {step === 5 ? <SingleReview form={form} errors={errors} /> : null}
     </div>
   );
 }
 
-function CompiledDocumentForm({ form, step, errors, busy, authors, onAuthorCreated, onChange, onError }: { form: CompiledFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: CompiledFormState) => void; onError: (key: string, error?: string) => void }) {
+function CompiledDocumentForm({ form, step, errors, busy, authors, researchAgendas, onAuthorCreated, onChange, onError }: { form: CompiledFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; code?: string; name: string }>; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: CompiledFormState) => void; onError: (key: string, error?: string) => void }) {
   const synergy = form.category === "SYNERGY";
   const field = (key: string) => fieldA11y(key, errors[key]);
   function updateSection(id: string, updates: Partial<ResearchSection>) {
@@ -426,29 +523,28 @@ function CompiledDocumentForm({ form, step, errors, busy, authors, onAuthorCreat
   return (
     <div className="peas-upload-section">
       {step === 1 ? (
-        <WorkflowPanel title="Publication details" description="Set the identity and date range for this compiled publication. Add a foreword only if one exists.">
+        <WorkflowPanel title="Publication details" description="Set the identity and required year range for this compiled publication.">
           <div className="peas-form-grid peas-form-grid--three">
             <PeasField label="Category" fieldKey="compiled.category" required>
               <Select value={form.category} disabled={busy} onValueChange={(value) => onChange({ ...form, category: value as CompiledCategory })}><SelectTrigger aria-label="Compiled document category"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="CONFLUENCE">Confluence</SelectItem><SelectItem value="SYNERGY">Synergy</SelectItem></SelectContent></Select>
             </PeasField>
-            <PeasField label="Start year" htmlFor="compiled-start-year" fieldKey="compiled.startYear" optional error={errors["compiled.startYear"]}><Input id="compiled-start-year" {...field("compiled.startYear")} type="number" min="1000" max="9999" value={form.startYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.startYear", validateYear(form.startYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, startYear: event.currentTarget.value })} /></PeasField>
-            <PeasField label="End year" htmlFor="compiled-end-year" fieldKey="compiled.endYear" optional error={errors["compiled.endYear"]}><Input id="compiled-end-year" {...field("compiled.endYear")} type="number" min="1000" max="9999" value={form.endYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.endYear", validateYear(form.endYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, endYear: event.currentTarget.value })} /></PeasField>
+            <PeasField label="Start year" htmlFor="compiled-start-year" fieldKey="compiled.startYear" required error={errors["compiled.startYear"]}><Input id="compiled-start-year" {...field("compiled.startYear")} type="number" min="1000" max="9999" value={form.startYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.startYear", validateYear(form.startYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, startYear: event.currentTarget.value })} /></PeasField>
+            <PeasField label="End year" htmlFor="compiled-end-year" fieldKey="compiled.endYear" required error={errors["compiled.endYear"]}><Input id="compiled-end-year" {...field("compiled.endYear")} type="number" min="1000" max="9999" value={form.endYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.endYear", validateYear(form.endYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, endYear: event.currentTarget.value })} /></PeasField>
           </div>
           <div className="peas-form-grid peas-form-grid--three">
             <PeasField label="Volume" htmlFor="compiled-volume" fieldKey="compiled.volume" optional><Input id="compiled-volume" value={form.volume} disabled={busy} placeholder="3" onChange={(event) => onChange({ ...form, volume: event.currentTarget.value })} /></PeasField>
             {synergy ? <PeasField label="Department" fieldKey="compiled.department" optional><Select value={form.department || "none"} disabled={busy} onValueChange={(value) => onChange({ ...form, department: value === "none" ? "" : value })}><SelectTrigger aria-label="Synergy department"><SelectValue placeholder="Select department" /></SelectTrigger><SelectContent><SelectItem value="none">No department</SelectItem>{DEPARTMENTS.map((department) => <SelectItem value={department} key={department}>{department}</SelectItem>)}</SelectContent></Select></PeasField> : <PeasField label="Issue number" htmlFor="compiled-issue" fieldKey="compiled.issueNumber" optional><Input id="compiled-issue" value={form.issueNumber} disabled={busy} placeholder="1" onChange={(event) => onChange({ ...form, issueNumber: event.currentTarget.value })} /></PeasField>}
-            <PeasFileDropzone label="Foreword PDF" fieldKey="compiled.foreword" file={form.forewordFile} disabled={busy} description="Optional PDF." onFileChange={(file) => { onChange({ ...form, forewordFile: file }); onError("compiled.foreword", file && !isPdf(file) ? "Choose a PDF file." : undefined); }} />
           </div>
         </WorkflowPanel>
       ) : null}
 
       {step === 2 ? (
-        <WorkflowPanel title="Studies" description="Add every study contained in this publication. Each study needs a title and PDF before you can continue.">
+        <WorkflowPanel title="Study details" description="Add every study contained in this publication. Each study needs a title before you can continue.">
           <div className="peas-study-list">
             {form.sections.map((section, index) => {
-              const complete = Boolean(section.title.trim() && section.file && isPdf(section.file));
+              const complete = Boolean(section.title.trim());
               const sectionError = errors[`compiled.section.${section.id}`];
-              return <StudyCard key={section.id} section={section} index={index} complete={complete} errors={errors} sectionError={sectionError} busy={busy} authors={authors} onAuthorCreated={onAuthorCreated} onChange={(updates) => updateSection(section.id, updates)} onError={onError} onRemove={() => { if (!section.title.trim() && !section.file || window.confirm(`Remove Study ${index + 1}?`)) onChange({ ...form, sections: form.sections.filter((item) => item.id !== section.id) }); }} />;
+              return <StudyDetailsCard key={section.id} section={section} index={index} complete={complete} errors={errors} sectionError={sectionError} busy={busy} authors={authors} onAuthorCreated={onAuthorCreated} onChange={(updates) => updateSection(section.id, updates)} onError={onError} onRemove={() => { if (!section.title.trim() && !section.file || window.confirm(`Remove Study ${index + 1}?`)) onChange({ ...form, sections: form.sections.filter((item) => item.id !== section.id) }); }} />;
             })}
           </div>
           {errors["compiled.sections"] ? <p className="peas-upload-inline-error" role="alert">{errors["compiled.sections"]}</p> : null}
@@ -456,20 +552,38 @@ function CompiledDocumentForm({ form, step, errors, busy, authors, onAuthorCreat
         </WorkflowPanel>
       ) : null}
 
-      {step === 3 ? <CompiledReview form={form} title={buildCompiledTitle(form)} errors={errors} /> : null}
+      {step === 3 ? (
+        <WorkflowPanel title="Study classification" description="Classify each study independently using the official agendas, approved topics, and optional keywords.">
+          <div className="peas-study-list">
+            {form.sections.map((section, index) => <StudyClassificationCard key={section.id} section={section} index={index} errors={errors} busy={busy} researchAgendas={researchAgendas} onChange={(updates) => updateSection(section.id, updates)} onError={onError} />)}
+          </div>
+          {errors["compiled.sections"] ? <p className="peas-upload-inline-error" role="alert">{errors["compiled.sections"]}</p> : null}
+        </WorkflowPanel>
+      ) : null}
+
+      {step === 4 ? (
+        <WorkflowPanel title="Upload PDFs" description="Choose the optional foreword and one PDF for every study. Files are transferred only after Review confirmation.">
+          <PeasFileDropzone label="Foreword PDF" fieldKey="compiled.foreword" file={form.forewordFile} disabled={busy} description="Optional PDF." error={errors["compiled.foreword"]} onFileChange={(file) => { onChange({ ...form, forewordFile: file }); onError("compiled.foreword", file && !isPdf(file) ? "Choose a PDF file." : undefined); }} />
+          <div className="peas-study-list">
+            {form.sections.map((section, index) => <StudyPdfCard key={section.id} section={section} index={index} errors={errors} busy={busy} onChange={(updates) => updateSection(section.id, updates)} onError={onError} />)}
+          </div>
+          {errors["compiled.sections"] ? <p className="peas-upload-inline-error" role="alert">{errors["compiled.sections"]}</p> : null}
+        </WorkflowPanel>
+      ) : null}
+
+      {step === 5 ? <CompiledReview form={form} title={buildCompiledTitle(form)} errors={errors} /> : null}
     </div>
   );
 }
 
-function StudyCard({ section, index, complete, errors, sectionError, busy, authors, onAuthorCreated, onChange, onError, onRemove }: { section: ResearchSection; index: number; complete: boolean; errors: FieldErrors; sectionError?: string; busy: boolean; authors: AuthorRecord[]; onAuthorCreated: (author: AuthorRecord) => void; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void; onRemove: () => void }) {
+function StudyDetailsCard({ section, index, complete, errors, sectionError, busy, authors, onAuthorCreated, onChange, onError, onRemove }: { section: ResearchSection; index: number; complete: boolean; errors: FieldErrors; sectionError?: string; busy: boolean; authors: AuthorRecord[]; onAuthorCreated: (author: AuthorRecord) => void; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void; onRemove: () => void }) {
   const [open, setOpen] = useState(index === 0);
   const titleKey = `compiled.section.${section.id}.title`;
-  const fileKey = `compiled.section.${section.id}.file`;
   return (
     <Card className={`peas-study-card${open ? " is-open" : ""}`}>
       <button type="button" className="peas-study-card__summary" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
         <span className={`peas-study-card__status${complete ? " is-ready" : ""}`}>{complete ? <Check aria-hidden="true" /> : index + 1}</span>
-        <span><strong>Study {index + 1}</strong><small>{section.title || section.file?.name || "Add a title and PDF"}</small></span>
+        <span><strong>Study {index + 1}</strong><small>{section.title || "Add a study title"}</small></span>
         <Badge tone={complete ? "green" : "slate"}>{complete ? "Ready" : "Incomplete"}</Badge>
         <ChevronRight aria-hidden="true" className="peas-study-card__chevron" />
       </button>
@@ -478,14 +592,44 @@ function StudyCard({ section, index, complete, errors, sectionError, busy, autho
         <PeasField label="Study title" htmlFor={`study-title-${section.id}`} fieldKey={titleKey} required error={errors[titleKey]}><Input id={`study-title-${section.id}`} {...fieldA11y(titleKey, errors[titleKey])} value={section.title} disabled={busy} placeholder="Enter study title" onBlur={() => onError(titleKey, section.title.trim() ? undefined : "Enter a study title.")} onChange={(event) => onChange({ title: event.currentTarget.value })} /></PeasField>
         <div className="peas-form-grid peas-form-grid--two">
           <PeasField label="Authors" htmlFor={`study-authors-${section.id}`} fieldKey={`compiled.section.${section.id}.authors`} optional description="Search the directory or add a new author. Authors are saved in the order selected."><DocumentAuthorPicker id={`study-authors-${section.id}`} authors={authors} value={section.authors} disabled={busy} onAuthorCreated={onAuthorCreated} onChange={(nextAuthors) => onChange({ authors: nextAuthors })} /></PeasField>
-          <PeasField label="Keywords" htmlFor={`study-keywords-${section.id}`} fieldKey={`compiled.section.${section.id}.keywords`} optional description="Separate keywords with semicolons."><KeywordBadgeInput id={`study-keywords-${section.id}`} value={section.keywords} disabled={busy} placeholder="education; survey; student research" onChange={(keywords) => onChange({ keywords })} /></PeasField>
         </div>
         <PeasField label="Abstract" htmlFor={`study-abstract-${section.id}`} fieldKey={`compiled.section.${section.id}.abstract`} optional><Textarea id={`study-abstract-${section.id}`} value={section.abstract} disabled={busy} rows={4} placeholder="Optional. If blank, PeAS will use extracted PDF metadata when available." onChange={(event) => onChange({ abstract: event.currentTarget.value })} /></PeasField>
-        <PeasFileDropzone label="Study PDF" fieldKey={fileKey} required file={section.file} error={errors[fileKey]} disabled={busy} description="PDF only." onFileChange={(file) => { onChange({ file }); onError(fileKey, file ? (isPdf(file) ? undefined : "Choose a PDF file.") : "Attach the study PDF."); }} />
         <Button type="button" variant="ghost" className="peas-study-card__remove" disabled={busy} onClick={onRemove}><Trash2 aria-hidden="true" /> Remove study</Button>
       </CardContent> : null}
     </Card>
   );
+}
+
+function StudyClassificationCard({ section, index, errors, busy, researchAgendas, onChange, onError }: { section: ResearchSection; index: number; errors: FieldErrors; busy: boolean; researchAgendas: Array<{ id: number; code?: string; name: string }>; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void }) {
+  return <Card className="peas-study-card peas-study-card--classification">
+    <CardContent className="peas-study-card__content">
+      <header className="peas-study-card__heading"><div><h3>Study {index + 1}</h3><p>{section.title || "Complete study details first"}</p></div><Badge tone={section.researchAgendaIds.length && section.topicIds.length ? "green" : "slate"}>{section.researchAgendaIds.length && section.topicIds.length ? "Classified" : "Needs classification"}</Badge></header>
+      <ClassificationControls
+        prefix={`compiled.section.${section.id}`}
+        agendas={researchAgendas}
+        researchAgendaIds={section.researchAgendaIds}
+        primaryResearchAgendaId={section.primaryResearchAgendaId}
+        topicIds={section.topicIds}
+        topicNames={section.topicNames}
+        keywords={section.keywords}
+        errors={errors}
+        disabled={busy}
+        onChange={onChange}
+        onError={onError}
+      />
+    </CardContent>
+  </Card>;
+}
+
+function StudyPdfCard({ section, index, errors, busy, onChange, onError }: { section: ResearchSection; index: number; errors: FieldErrors; busy: boolean; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void }) {
+  const fileKey = `compiled.section.${section.id}.file`;
+  const ready = Boolean(section.file && isPdf(section.file));
+  return <Card className="peas-study-card peas-study-card--pdf">
+    <CardContent className="peas-study-card__content">
+      <header className="peas-study-card__heading"><div><h3>Study {index + 1}</h3><p>{section.title || "Untitled study"}</p></div><Badge tone={ready ? "green" : "slate"}>{ready ? "Ready" : "Missing PDF"}</Badge></header>
+      <PeasFileDropzone label={`Study ${index + 1} PDF`} fieldKey={fileKey} required file={section.file} error={errors[fileKey]} disabled={busy} description="PDF only." onFileChange={(file) => { onChange({ file }); onError(fileKey, file ? (isPdf(file) ? undefined : "Choose a PDF file.") : "Attach the study PDF."); }} />
+    </CardContent>
+  </Card>;
 }
 
 function SingleReview({ form, errors }: { form: SingleFormState; errors: FieldErrors }) {
@@ -493,50 +637,196 @@ function SingleReview({ form, errors }: { form: SingleFormState; errors: FieldEr
     <ReviewRow label="Title" value={form.title || "Not entered"} error={errors["single.title"]} />
     <ReviewRow label="Category" value={form.category === "THESIS" ? "Thesis" : "Dissertation"} />
     <ReviewRow label="Author(s)" value={formatAuthors(form.authors)} error={errors["single.authors"]} />
-    <ReviewRow label="Publication" value={form.pubYear ? `${form.pubMonth ? MONTHS.find(([value]) => value === form.pubMonth)?.[1] + " " : ""}${form.pubYear}` : "No publication date"} />
-    <ReviewRow label="Keywords" value={form.keywords || "No keywords"} />
+    <ReviewRow label="Publication date" value={formatPublicationDate(form.pubMonth, form.pubYear)} error={errors["single.pubMonth"] || errors["single.pubYear"]} />
+    <ReviewRow label="Research agenda" value={form.researchAgendaIds.length ? `${form.researchAgendaIds.length} selected` : "Not selected"} />
+    <ReviewRow label="Topics" value={form.topicNames.length ? form.topicNames.join(", ") : "Not selected"} />
+    <ReviewRow label="Keywords" value={form.keywords.length ? form.keywords.join(", ") : "No keywords"} />
     <ReviewRow label="PDF" value={form.file?.name || "Not selected"} error={errors["single.file"]} />
   </ReviewPanel>;
 }
 
-function KeywordBadgeInput({ id, value, disabled, placeholder, onChange }: { id: string; value: string; disabled?: boolean; placeholder?: string; onChange: (value: string) => void }) {
-  const storedKeywords = parseList(value, ";");
+function KeywordBadgeInput({ id, value, disabled, placeholder, onChange }: { id: string; value: string[]; disabled?: boolean; placeholder?: string; onChange: (value: string[]) => void }) {
+  const storedKeywords = value;
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    const lastSeparator = value.lastIndexOf(";");
-    setDraft(lastSeparator >= 0 ? value.slice(lastSeparator + 1).trim() : (storedKeywords.length ? "" : value));
-  }, [value]);
+    setDraft("");
+  }, [value.length]);
 
   const keywords = storedKeywords.filter((keyword) => keyword !== draft.trim());
   const commitDraft = () => {
     const keyword = draft.trim();
     if (!keyword) { setDraft(""); return; }
-    onChange([...keywords, keyword].join("; "));
+    onChange([...keywords, keyword]);
     setDraft("");
   };
 
   return <div className="peas-keyword-input" onClick={() => document.getElementById(id)?.focus()}>
     <div className="peas-keyword-input__badges">
-      {keywords.map((keyword, index) => <Badge key={`${keyword}-${index}`} tone="green" className="peas-keyword-input__badge">{keyword}<button type="button" aria-label={`Remove keyword ${keyword}`} disabled={disabled} onClick={(event) => { event.stopPropagation(); onChange(keywords.filter((_, itemIndex) => itemIndex !== index).join("; ")); }}><X aria-hidden="true" /></button></Badge>)}
-      <input id={id} value={draft} disabled={disabled} placeholder={keywords.length ? undefined : placeholder} onChange={(event) => { const next = event.currentTarget.value; if (next.includes(";")) { const parts = next.split(";"); setDraft(parts.pop()?.trim() || ""); onChange([...keywords, ...parts.map((part) => part.trim()).filter(Boolean)].join("; ")); } else setDraft(next); }} onKeyDown={(event) => { if (event.key === "Backspace" && !draft && keywords.length) { onChange(keywords.slice(0, -1).join("; ")); } }} onBlur={commitDraft} />
+      {keywords.map((keyword, index) => <Badge key={`${keyword}-${index}`} tone="green" className="peas-keyword-input__badge">{keyword}<button type="button" aria-label={`Remove keyword ${keyword}`} disabled={disabled} onClick={(event) => { event.stopPropagation(); onChange(keywords.filter((_, itemIndex) => itemIndex !== index)); }}><X aria-hidden="true" /></button></Badge>)}
+      <input id={id} value={draft} disabled={disabled} placeholder={keywords.length ? undefined : placeholder} onChange={(event) => { const next = event.currentTarget.value; if (next.includes(";")) { const parts = next.split(";"); setDraft(parts.pop()?.trim() || ""); onChange([...keywords, ...parts.map((part) => part.trim()).filter(Boolean)]); } else setDraft(next); }} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === ";") && draft.trim()) { event.preventDefault(); commitDraft(); } else if (event.key === "Backspace" && !draft && keywords.length) { onChange(keywords.slice(0, -1)); } }} onBlur={commitDraft} />
     </div>
   </div>;
 }
 
 function CompiledReview({ form, title, errors }: { form: CompiledFormState; title: string; errors: FieldErrors }) {
   const studyAuthors = form.sections
-    .filter((section) => section.title.trim() && section.file)
+    .filter((section) => section.title.trim())
     .map((section) => `${section.title.trim()}: ${formatAuthors(section.authors)}`)
     .join(" · ") || "No authors entered";
   return <ReviewPanel title="Review your publication" description="Check the publication details and study count before continuing.">
     <ReviewRow label="Publication" value={title} />
     <ReviewRow label="Year range" value={form.startYear || form.endYear ? `${form.startYear || "?"}–${form.endYear || form.startYear || "?"}` : "No year range"} error={errors["compiled.startYear"] || errors["compiled.endYear"]} />
     <ReviewRow label="Volume / issue" value={`${form.volume || "No volume"}${form.category === "CONFLUENCE" && form.issueNumber ? ` · Issue ${form.issueNumber}` : ""}`} />
-    <ReviewRow label="Studies" value={`${form.sections.filter((section) => section.title.trim() && section.file).length} prepared`} error={errors["compiled.sections"]} />
+    <ReviewRow label="Studies" value={`${form.sections.filter((section) => section.title.trim()).length} prepared`} error={errors["compiled.sections"]} />
     <ReviewRow label="Study authors" value={studyAuthors} />
-    <ReviewRow label="Foreword" value={form.forewordFile?.name || "No foreword"} />
+    <ReviewRow label="Study classification" value={`${form.sections.filter((section) => section.topicIds.length && section.researchAgendaIds.length).length} studies classified`} />
+    <ReviewRow label="Foreword PDF" value={form.forewordFile?.name || "No foreword"} error={errors["compiled.foreword"]} />
+    <ReviewRow label="Study PDFs" value={form.sections.map((section, index) => `Study ${index + 1}: ${section.file?.name || "Not selected"}`).join(" · ") || "No study PDFs"} error={Object.entries(errors).find(([key]) => key.endsWith(".file"))?.[1]} />
   </ReviewPanel>;
+}
+
+type ClassificationUpdates = {
+  researchAgendaIds: number[];
+  primaryResearchAgendaId: number | null;
+  topicIds: number[];
+  topicNames: string[];
+  keywords: string[];
+};
+
+function ClassificationControls({
+  prefix,
+  agendas,
+  researchAgendaIds,
+  primaryResearchAgendaId,
+  topicIds,
+  topicNames,
+  keywords,
+  errors,
+  disabled,
+  onChange,
+  onError,
+}: {
+  prefix: string;
+  agendas: Array<{ id: number; code?: string; name: string }>;
+  researchAgendaIds: number[];
+  primaryResearchAgendaId: number | null;
+  topicIds: number[];
+  topicNames: string[];
+  keywords: string[];
+  errors: FieldErrors;
+  disabled: boolean;
+  onChange: (updates: Partial<ClassificationUpdates>) => void;
+  onError: (key: string, error?: string) => void;
+}) {
+  const [topicQuery, setTopicQuery] = useState("");
+  const [topicMatches, setTopicMatches] = useState<Array<{ id: number; name: string; status?: string }>>([]);
+  const [topicBusy, setTopicBusy] = useState(false);
+  const topicKey = `${prefix}.topicIds`;
+  const agendaKey = `${prefix}.researchAgendaIds`;
+  const keywordKey = `${prefix}.keywords`;
+
+  useEffect(() => {
+    const query = topicQuery.trim();
+    if (disabled || query.length < 2) {
+      setTopicMatches([]);
+      setTopicBusy(false);
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setTopicBusy(true);
+      void searchTopics(query)
+        .then((matches) => {
+          if (active) setTopicMatches(matches);
+        })
+        .catch(() => {
+          if (active) setTopicMatches([]);
+        })
+        .finally(() => {
+          if (active) setTopicBusy(false);
+        });
+    }, 180);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [disabled, topicQuery]);
+
+  function addTopic(id: number, name: string) {
+    if (topicIds.includes(id) || topicIds.length >= 5) return;
+    onChange({ topicIds: [...topicIds, id], topicNames: [...topicNames, name] });
+    onError(topicKey);
+    setTopicQuery("");
+    setTopicMatches([]);
+  }
+
+  async function proposeCurrentTopic() {
+    const name = topicQuery.trim();
+    if (name.length < 2 || topicIds.length >= 5) return;
+    try {
+      setTopicBusy(true);
+      const proposal = await proposeTopic(name);
+      addTopic(Number(proposal.id), proposal.name);
+    } finally {
+      setTopicBusy(false);
+    }
+  }
+
+  return <div className="peas-classification-controls" aria-label="Document classification">
+    <div className="peas-classification-controls__intro">
+      <strong>Classify this document</strong>
+      <span>Research agendas are institutional priorities; topics are approved subject headings; keywords are specific search terms.</span>
+    </div>
+    <PeasField label="Research agendas" fieldKey={agendaKey} required error={errors[agendaKey]} description="Select 1–3 official priorities and choose one primary agenda.">
+      <select
+        multiple
+        size={Math.min(Math.max(agendas.length, 3), 6)}
+        value={researchAgendaIds.map(String)}
+        disabled={disabled}
+        aria-label="Research agendas"
+        onChange={(event) => {
+          const next = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
+          onChange({ researchAgendaIds: next, primaryResearchAgendaId: next.includes(primaryResearchAgendaId ?? 0) ? primaryResearchAgendaId : next[0] ?? null });
+          onError(agendaKey, next.length >= 1 && next.length <= 3 ? undefined : "Select between one and three research agendas.");
+        }}
+      >
+        {agendas.map((agenda) => <option value={agenda.id} key={agenda.id}>{agenda.code ? `${agenda.code} · ` : ""}{agenda.name}</option>)}
+      </select>
+    </PeasField>
+    <PeasField label="Primary research agenda" fieldKey={`${prefix}.primaryResearchAgendaId`} required>
+      <select
+        value={primaryResearchAgendaId ? String(primaryResearchAgendaId) : ""}
+        disabled={disabled || researchAgendaIds.length === 0}
+        aria-label="Primary research agenda"
+        onChange={(event) => onChange({ primaryResearchAgendaId: event.currentTarget.value ? Number(event.currentTarget.value) : null })}
+      >
+        <option value="">Choose primary agenda</option>
+        {researchAgendaIds.map((id) => { const agenda = agendas.find((item) => item.id === id); return agenda ? <option value={id} key={id}>{agenda.name}</option> : null; })}
+      </select>
+    </PeasField>
+    <PeasField label="Topics" fieldKey={topicKey} required error={errors[topicKey]} description="Choose 1–5 approved topics. Publishers can propose a new topic for administrator review.">
+      {topicNames.length ? <div className="peas-keyword-input__badges" role="list" aria-label="Selected topics">{topicNames.map((name, index) => <Badge key={`${name}-${index}`} tone="blue" className="peas-keyword-input__badge">{name}<button type="button" aria-label={`Remove topic ${name}`} disabled={disabled} onClick={() => onChange({ topicIds: topicIds.filter((_, itemIndex) => itemIndex !== index), topicNames: topicNames.filter((_, itemIndex) => itemIndex !== index) })}><X aria-hidden="true" /></button></Badge>)}</div> : null}
+      <div className="peas-document-tag-editor__input">
+        <Input
+          id={`${prefix}-topic-search`}
+          aria-label="Search approved topics"
+          value={topicQuery}
+          disabled={disabled || topicIds.length >= 5}
+          placeholder="Search approved topics…"
+          onChange={(event) => setTopicQuery(event.currentTarget.value)}
+          onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const first = topicMatches[0]; if (first) addTopic(first.id, first.name); else void proposeCurrentTopic(); } }}
+        />
+        {topicQuery.trim().length >= 2 ? <div className="peas-document-tag-editor__suggestions" role="listbox" aria-label="Approved topic suggestions">
+          {topicBusy ? <span>Searching topics…</span> : topicMatches.map((topic) => <button type="button" role="option" key={topic.id} onMouseDown={(event) => { event.preventDefault(); addTopic(topic.id, topic.name); }}>{topic.name}{topic.status === "pending" ? " · pending" : ""}</button>)}
+          {!topicBusy && !topicMatches.length ? <button type="button" onMouseDown={(event) => { event.preventDefault(); void proposeCurrentTopic(); }}>Propose “{topicQuery.trim()}”</button> : null}
+        </div> : null}
+      </div>
+    </PeasField>
+    <PeasField label="Keywords" htmlFor={`${prefix}-keywords`} fieldKey={keywordKey} optional error={errors[keywordKey]} description="Optional. Add up to 10 specific terms; press Enter or semicolon after each term.">
+      <KeywordBadgeInput id={`${prefix}-keywords`} value={keywords} disabled={disabled} placeholder="crumb rubber tire; compressive strength" onChange={(next) => { onChange({ keywords: next }); onError(keywordKey, next.length <= 10 ? undefined : "Use no more than ten keywords."); }} />
+    </PeasField>
+  </div>;
 }
 
 function ReviewPanel({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -554,10 +844,18 @@ function WorkflowPanel({ title, description, children }: { title: string; descri
 function UploadChecklist({ mode, step, singleForm, compiledForm, compiledTitle, receipt }: { mode: UploadMode; step: UploadStep; singleForm: SingleFormState; compiledForm: CompiledFormState; compiledTitle: string; receipt: UploadReceipt | null }) {
   const isSingle = mode === "single";
   const preparedStudies = compiledForm.sections.filter((section) => section.title.trim() || section.file).length;
+  const readyStudies = compiledForm.sections.filter((section) => section.title.trim() && section.file && isPdf(section.file)).length;
   return <aside className="peas-upload-preview peas-upload-checklist" aria-label="Upload checklist">
     {receipt ? <div className="peas-upload-receipt"><CheckCircle2 aria-hidden="true" /><h2>{receipt.pendingReview ? "Submitted for review" : "Published successfully"}</h2><p>{receipt.title}</p>{receipt.pendingReview ? <p>An administrator must approve this upload before it appears publicly.</p> : null}<div className="peas-upload-receipt__facts">{receipt.documentId ? <span>Document ID: {receipt.documentId}</span> : null}{receipt.compiledDocumentId ? <span>Publication ID: {receipt.compiledDocumentId}</span> : null}{receipt.childDocumentIds ? <span>{receipt.childDocumentIds.length} studies</span> : null}</div><Button type="button" onClick={() => receipt.pendingReview ? window.location.reload() : window.location.assign("/admin/Components/documents_list.html")}>{receipt.pendingReview ? "Upload another" : "View documents"}</Button></div> : <>
-      <div><h2>{step === 3 ? "Final checklist" : "Upload checklist"}</h2><p className="peas-upload-checklist__intro">{isSingle ? "One document will be added to the repository." : "Your publication will include the studies you prepare below."}</p></div>
-      <dl><ChecklistRow label="Type" value={isSingle ? (singleForm.category === "THESIS" ? "Thesis" : "Dissertation") : compiledForm.category === "CONFLUENCE" ? "Confluence" : "Synergy"} /><ChecklistRow label={isSingle ? "Title" : "Category"} value={isSingle ? singleForm.title || "Not entered" : compiledTitle} /><ChecklistRow label={isSingle ? "PDF" : "Studies"} value={isSingle ? singleForm.file?.name || "Not selected" : `${preparedStudies} prepared`} /><ChecklistRow label="Step" value={`${step} of 3`} /></dl>
+      <div><h2>{step === FINAL_UPLOAD_STEP ? "Final checklist" : "Upload checklist"}</h2><p className="peas-upload-checklist__intro">{isSingle ? "One document will be added to the repository." : "Your publication will include the studies you prepare below."}</p></div>
+      <dl>
+        <ChecklistRow label="Type" value={isSingle ? (singleForm.category === "THESIS" ? "Thesis" : "Dissertation") : compiledForm.category === "CONFLUENCE" ? "Confluence" : "Synergy"} />
+        <ChecklistRow label={isSingle ? "Title" : "Category"} value={isSingle ? singleForm.title || "Not entered" : compiledTitle} />
+        {isSingle ? <ChecklistRow label="Publication" value={formatPublicationDate(singleForm.pubMonth, singleForm.pubYear)} /> : <ChecklistRow label="Year range" value={compiledForm.startYear && compiledForm.endYear ? `${compiledForm.startYear}–${compiledForm.endYear}` : "Not entered"} />}
+        {isSingle ? <ChecklistRow label="Classification" value={singleForm.researchAgendaIds.length && singleForm.topicIds.length ? "Ready" : "Not complete"} /> : <ChecklistRow label="Studies" value={`${preparedStudies} prepared · ${readyStudies} PDFs ready`} />}
+        <ChecklistRow label={isSingle ? "PDF" : "Foreword"} value={isSingle ? singleForm.file?.name || "Not selected" : compiledForm.forewordFile?.name || "Not selected"} />
+        <ChecklistRow label="Step" value={`${step} of ${FINAL_UPLOAD_STEP}`} />
+      </dl>
     </>}
   </aside>;
 }
@@ -574,7 +872,7 @@ function UploadActions({ step, busy, busyStep, label, onBack, onContinue }: { st
   return <div className="peas-upload-actions">
     {busyStep ? <UploadProgressDetails busyStep={busyStep} /> : null}
     {step > 1 ? <Button type="button" variant="outline" disabled={busy} onClick={(event) => { event.preventDefault(); onBack(); }}><ChevronLeft aria-hidden="true" /> Back</Button> : null}
-    {step < 3 ? <Button type="button" disabled={busy} onClick={(event) => { event.preventDefault(); onContinue(); }}>Continue <ChevronRight aria-hidden="true" /></Button> : <Button type="submit" disabled={busy} onClick={(event) => { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }}><UploadCloud aria-hidden="true" />{busy ? "Working…" : label}</Button>}
+    {step < FINAL_UPLOAD_STEP ? <Button type="button" disabled={busy} onClick={(event) => { event.preventDefault(); onContinue(); }}>Continue <ChevronRight aria-hidden="true" /></Button> : <Button type="submit" disabled={busy} onClick={(event) => { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }}><UploadCloud aria-hidden="true" />{busy ? "Working…" : label}</Button>}
   </div>;
 }
 
@@ -623,41 +921,114 @@ function getUploadProgress(busyStep: string) {
   return { value: 24, stage: 0, detail: "Sending the PDF securely and validating its file signature." };
 }
 
-function validateSingleForStep(form: SingleFormState, step: UploadStep): FieldErrors {
+function validateSingleStep(form: SingleFormState, step: UploadStep, requireClassification: boolean): FieldErrors {
   const errors: FieldErrors = {};
-  if (step >= 1) { if (!form.title.trim()) errors["single.title"] = "Enter a title."; if (!form.authors.length) errors["single.authors"] = "Enter at least one author."; }
-  if (step >= 2) { const yearError = validateYear(form.pubYear, "Enter a four-digit year."); if (yearError) errors["single.pubYear"] = yearError; if (!form.file) errors["single.file"] = "Attach the document PDF."; else if (!isPdf(form.file)) errors["single.file"] = "Choose a PDF file."; }
+  if (step === 1) {
+    if (!form.title.trim()) errors["single.title"] = "Enter a title.";
+    if (!form.authors.length) errors["single.authors"] = "Enter at least one author.";
+  }
+  if (step === 2) {
+    if (!form.pubMonth) errors["single.pubMonth"] = "Choose a publication month.";
+    const yearError = validateYear(form.pubYear, "Enter a four-digit year.");
+    if (yearError) errors["single.pubYear"] = yearError;
+  }
+  if (step === 3) addClassificationErrors(errors, "single", form, requireClassification);
+  if (step === 4) {
+    if (!form.file) errors["single.file"] = "Attach the document PDF.";
+    else if (!isPdf(form.file)) errors["single.file"] = "Choose a PDF file.";
+  }
   return errors;
 }
 
-function validateCompiledForStep(form: CompiledFormState, step: UploadStep): FieldErrors {
+function validateSingleAll(form: SingleFormState, requireClassification: boolean): FieldErrors {
+  return mergeErrors(
+    validateSingleStep(form, 1, requireClassification),
+    validateSingleStep(form, 2, requireClassification),
+    validateSingleStep(form, 3, requireClassification),
+    validateSingleStep(form, 4, requireClassification),
+  );
+}
+
+function validateCompiledStep(form: CompiledFormState, step: UploadStep, requireClassification: boolean): FieldErrors {
   const errors: FieldErrors = {};
-  if (step >= 1) {
-    const startError = validateYear(form.startYear, "Enter a four-digit year."); const endError = validateYear(form.endYear, "Enter a four-digit year.");
-    if (startError) errors["compiled.startYear"] = startError; if (endError) errors["compiled.endYear"] = endError;
-    if (form.startYear && form.endYear && Number(form.startYear) > Number(form.endYear)) { errors["compiled.startYear"] = "Start year must be before the end year."; errors["compiled.endYear"] = "End year must be after the start year."; }
-    if (form.forewordFile && !isPdf(form.forewordFile)) errors["compiled.foreword"] = "Choose a PDF file.";
+  if (step === 1) {
+    const startError = validateYear(form.startYear, "Enter a four-digit year.");
+    const endError = validateYear(form.endYear, "Enter a four-digit year.");
+    if (startError) errors["compiled.startYear"] = startError;
+    if (endError) errors["compiled.endYear"] = endError;
+    if (!startError && !endError && Number(form.startYear) > Number(form.endYear)) {
+      errors["compiled.startYear"] = "Start year must be before the end year.";
+      errors["compiled.endYear"] = "End year must be after the start year.";
+    }
   }
-  if (step >= 2) {
-    const complete = form.sections.some((section) => section.title.trim() && section.file && isPdf(section.file));
-    if (!complete) errors["compiled.sections"] = "Add at least one study with a title and PDF.";
-    for (const section of form.sections) {
-      const hasTitle = Boolean(section.title.trim()); const hasFile = Boolean(section.file);
-      if (hasTitle !== hasFile) { errors[`compiled.section.${section.id}`] = `Study ${form.sections.indexOf(section) + 1} needs both a title and a PDF.`; if (!hasTitle) errors[`compiled.section.${section.id}.title`] = "Enter a study title."; if (!hasFile) errors[`compiled.section.${section.id}.file`] = "Attach the study PDF."; }
-      if (section.file && !isPdf(section.file)) errors[`compiled.section.${section.id}.file`] = "Choose a PDF file.";
+  if (step === 2) {
+    if (!form.sections.length) errors["compiled.sections"] = "Add at least one study.";
+    for (const [index, section] of form.sections.entries()) {
+      if (!section.title.trim()) {
+        errors[`compiled.section.${section.id}`] = `Study ${index + 1} needs a title.`;
+        errors[`compiled.section.${section.id}.title`] = "Enter a study title.";
+      }
+    }
+  }
+  if (step === 3) {
+    for (const section of form.sections) addClassificationErrors(errors, `compiled.section.${section.id}`, section, requireClassification);
+  }
+  if (step === 4) {
+    if (form.forewordFile && !isPdf(form.forewordFile)) errors["compiled.foreword"] = "Choose a PDF file.";
+    if (!form.sections.length) errors["compiled.sections"] = "Add at least one study.";
+    for (const [index, section] of form.sections.entries()) {
+      const fileKey = `compiled.section.${section.id}.file`;
+      if (!section.file) errors[fileKey] = `Attach the PDF for Study ${index + 1}.`;
+      else if (!isPdf(section.file)) errors[fileKey] = "Choose a PDF file.";
     }
   }
   return errors;
 }
 
+function validateCompiledAll(form: CompiledFormState, requireClassification: boolean): FieldErrors {
+  return mergeErrors(
+    validateCompiledStep(form, 1, requireClassification),
+    validateCompiledStep(form, 2, requireClassification),
+    validateCompiledStep(form, 3, requireClassification),
+    validateCompiledStep(form, 4, requireClassification),
+  );
+}
+
+function addClassificationErrors(errors: FieldErrors, prefix: string, form: Pick<SingleFormState, "researchAgendaIds" | "primaryResearchAgendaId" | "topicIds" | "keywords">, requireClassification: boolean) {
+  if (form.researchAgendaIds.length > 3) errors[`${prefix}.researchAgendaIds`] = "Select no more than three research agendas.";
+  if (form.topicIds.length > 5) errors[`${prefix}.topicIds`] = "Select no more than five topics.";
+  if (form.keywords.length > 10) errors[`${prefix}.keywords`] = "Use no more than ten keywords.";
+  if (form.researchAgendaIds.length && !form.primaryResearchAgendaId) errors[`${prefix}.primaryResearchAgendaId`] = "Choose a primary agenda.";
+  if (form.researchAgendaIds.length && form.primaryResearchAgendaId && !form.researchAgendaIds.includes(form.primaryResearchAgendaId)) errors[`${prefix}.primaryResearchAgendaId`] = "Choose one of the selected agendas.";
+  if (requireClassification && form.researchAgendaIds.length < 1) errors[`${prefix}.researchAgendaIds`] = "Select at least one research agenda.";
+  if (requireClassification && form.topicIds.length < 1) errors[`${prefix}.topicIds`] = "Select at least one approved topic.";
+}
+
+function mergeErrors(...errors: FieldErrors[]) { return errors.reduce<FieldErrors>((merged, current) => ({ ...merged, ...current }), {}); }
+function stepForSingleError(key: string | null): UploadStep { if (!key) return FINAL_UPLOAD_STEP; if (key.startsWith("single.pub")) return 2; if (key.startsWith("single.research") || key.startsWith("single.primary") || key.startsWith("single.topic") || key.startsWith("single.keyword")) return 3; if (key === "single.file") return 4; return 1; }
+function stepForCompiledError(key: string | null): UploadStep { if (!key) return FINAL_UPLOAD_STEP; if (key.startsWith("compiled.start") || key.startsWith("compiled.end") || key.startsWith("compiled.category") || key.startsWith("compiled.volume") || key.startsWith("compiled.issue") || key.startsWith("compiled.department")) return 1; if (key === "compiled.sections" || key.endsWith(".title") || key.endsWith(".authors") || key.endsWith(".abstract")) return 2; if (key.includes("researchAgenda") || key.includes("primaryResearch") || key.includes("topic") || key.includes("keyword")) return 3; return 4; }
+function mapApiFieldsToUploadErrors(fields: Record<string, string>, mode: UploadMode): FieldErrors {
+  const mapped: FieldErrors = {};
+  for (const [field, message] of Object.entries(fields)) {
+    if (field === "publication_date") { mapped["single.pubMonth"] = message; mapped["single.pubYear"] = message; continue; }
+    if (field === "compiledDoc.start_year") { mapped["compiled.startYear"] = message; continue; }
+    if (field === "compiledDoc.end_year") { mapped["compiled.endYear"] = message; continue; }
+    const prefix = mode === "single" ? "single" : "compiled";
+    if (field.startsWith("compiled.section.")) mapped[field] = message;
+    else mapped[`${prefix}.${field}`] = message;
+  }
+  return mapped;
+}
+
 function fieldA11y(key: string, error?: string) { return { "aria-invalid": error ? true : undefined, "aria-describedby": `${key}-description${error ? ` ${key}-error` : ""}` }; }
-function focusFirstError(errors: FieldErrors) { const key = Object.keys(errors)[0]; if (!key) return; window.requestAnimationFrame(() => { const element = document.querySelector<HTMLElement>(`[data-upload-field="${key}"] input, [data-upload-field="${key}"] textarea, [data-upload-field="${key}"] button`); element?.focus(); }); }
-function validateYear(value: string, message: string) { return value.trim() && !/^\d{4}$/.test(value.trim()) ? message : undefined; }
-function createResearchSection(): ResearchSection { return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, title: "", authors: [], keywords: "", abstract: "", file: null }; }
+function validateYear(value: string, message: string) { return !/^\d{4}$/.test(value.trim()) ? message : undefined; }
+function createResearchSection(): ResearchSection { return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, title: "", authors: [], researchAgendaIds: [], primaryResearchAgendaId: null, topicIds: [], topicNames: [], keywords: [], abstract: "", file: null }; }
 function buildCompiledTitle(form: CompiledFormState) { const category = form.category === "CONFLUENCE" ? "Confluence" : "Synergy"; const volume = form.volume ? ` Vol. ${form.volume}` : ""; const range = form.startYear || form.endYear ? ` (${form.startYear || "?"}-${form.endYear || form.startYear || "?"})` : ""; return `${category}${volume}${range}`; }
 function buildPublicationDate(year: string, month: string) { return year.trim() ? `${year.trim()}-${month || "01"}-01` : null; }
+function formatPublicationDate(month: string, year: string) { return year && month ? `${MONTHS.find(([value]) => value === month)?.[1] ?? month} ${year}` : "Not entered"; }
 function formatAuthors(authors: DocumentAuthorSelection[]) { return authors.map((author) => author.fullName).join(", ") || "Not entered"; }
-function parseList(value: string, separator: string) { return value.split(separator).map((item) => item.trim()).filter(Boolean); }
 function safeInt(value: string) { const numberValue = Number.parseInt(value, 10); return Number.isFinite(numberValue) ? numberValue : null; }
 function isPdf(file: File) { return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"); }
+function isSingleFormDirty(form: SingleFormState) { return Boolean(form.title.trim() || form.authors.length || form.pubMonth || form.pubYear || form.researchAgendaIds.length || form.primaryResearchAgendaId || form.topicIds.length || form.topicNames.length || form.keywords.length || form.file || form.category !== initialSingleForm.category); }
+function isCompiledFormDirty(form: CompiledFormState) { return Boolean(form.category !== initialCompiledForm.category || form.startYear || form.endYear || form.volume || form.issueNumber || form.department || form.forewordFile || form.sections.length !== 1 || form.sections.some((section) => section.title.trim() || section.authors.length || section.researchAgendaIds.length || section.primaryResearchAgendaId || section.topicIds.length || section.topicNames.length || section.keywords.length || section.abstract.trim() || section.file)); }
 async function uploadDocumentPdf(file: File | null, documentType: SingleCategory | CompiledCategory, category: string, isForeword = false) { if (!file) throw new Error("Please choose a PDF file."); if (!isPdf(file)) throw new Error(`${file.name} is not a PDF file.`); return uploadFile(file, { storagePath: `storage/${documentType.toLowerCase()}${isForeword ? "/forewords" : ""}`, documentType, category, isForeword }); }

@@ -21,6 +21,10 @@ const routes: Record<string, AdminRoute> = {
     title: "Documents | PeAS Admin",
     Component: lazyNamed(() => import("./features/documents/DocumentsAdminPage"), "DocumentsAdminPage"),
   },
+  "/admin/Components/classification-management.html": {
+    title: "Classification Management | PeAS Admin",
+    Component: lazyNamed(() => import("./features/classification/ClassificationManagementPage"), "ClassificationManagementPage"),
+  },
   "/admin/Components/upload_document.html": {
     title: "Upload Document | PeAS",
     allowedRoles: ADMIN_AND_PUBLISHER,
