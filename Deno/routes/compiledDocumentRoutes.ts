@@ -13,6 +13,7 @@ import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewCompilation } from "../services/contentAuthorizationService.ts";
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
+import { getDocumentClassification } from "../services/documentClassificationService.ts";
 
 const requireDocumentUpload = requireCapability("documents:upload");
 const requireDocumentReview = requireCapability("documents:review");
@@ -235,6 +236,17 @@ const reviewCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
 
     const reviewerId = String(ctx.state.user.id);
     const publish = decision === "approved" && body.publish === true;
+    if (decision === "approved") {
+        const classification = await getDocumentClassification(id, false);
+        if (!classification.complete) {
+            ctx.response.status = 422;
+            ctx.response.body = {
+                error: "At least one active approved child must have complete classification",
+                classification,
+            };
+            return;
+        }
+    }
     const reviewed = await withTransaction(async (connection) => {
         const compiled = await connection.queryObject(`
             UPDATE compiled_documents

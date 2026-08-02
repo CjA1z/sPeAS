@@ -1,4 +1,6 @@
 import { createCompiledDocument as createCompiledDocumentService, getCompiledDocument as getCompiledDocumentService, addDocumentToCompilation as addDocumentToCompilationService, removeDocumentFromCompilation as removeDocumentFromCompilationService, softDeleteCompiledDocument as softDeleteCompiledDocumentService, updateCompiledDocument as updateCompiledDocumentService } from "../services/documentService.ts";
+import { getDocumentClassification } from "../services/documentClassificationService.ts";
+import { validateCompiledYearRange } from "../services/documentMetadataValidationService.ts";
 
 /**
  * Creates a new compiled document
@@ -8,8 +10,8 @@ import { createCompiledDocument as createCompiledDocumentService, getCompiledDoc
  */
 export async function createCompiledDocument(
   compiledDoc: {
-    start_year?: number;
-    end_year?: number;
+    start_year: number;
+    end_year: number;
     volume?: number;
     issue_number?: number;
     department?: string;
@@ -48,6 +50,7 @@ export async function getCompiledDocument(compiledDocId: number): Promise<any> {
     // Create a response object with all fields from compiledDoc plus any additional fields
     const response = {
       ...compiledDoc,
+      classification: await getDocumentClassification(compiledDocId, false),
       // If there's no abstract field but there is abstract_foreword, use that as the abstract
       abstract: compiledDoc.abstract_foreword || compiledDoc.foreword || ''
     };
@@ -97,6 +100,17 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
       return new Response(JSON.stringify({ error: 'compiledDoc is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const yearErrors = validateCompiledYearRange(body.compiledDoc.start_year, body.compiledDoc.end_year);
+    if (Object.keys(yearErrors).length) {
+      return new Response(JSON.stringify({
+        error: 'A valid compiled-publication year range is required.',
+        fields: yearErrors,
+      }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 

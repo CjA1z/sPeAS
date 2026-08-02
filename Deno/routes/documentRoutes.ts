@@ -15,6 +15,7 @@ import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authM
 import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewDocument } from "../services/contentAuthorizationService.ts";
+import { getDocumentClassification } from "../services/documentClassificationService.ts";
 
 const DOCUMENT_FILE_FIELD_NAMES = new Set([
     "file_path",
@@ -58,8 +59,10 @@ const getDocuments = async (ctx: RouterContext<any, any, any>) => {
     const requestUrl = new URL(ctx.request.url);
     if (sessionData?.role === "admin") {
         requestUrl.searchParams.set("include_review", "true");
+        requestUrl.searchParams.delete("public_only");
     } else {
         requestUrl.searchParams.delete("include_review");
+        requestUrl.searchParams.set("public_only", "true");
     }
 
     // Convert context to Request
@@ -182,36 +185,7 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
             authorText = document.author || "Unknown Author";
         }
         
-        // Get research agenda keywords
-        let keywords = document.keywords || [];
-        try {
-            // Query to fetch keywords from research_agenda
-            const keywordsResult = await client.queryObject(
-                `SELECT ra.id, ra.name
-                 FROM research_agenda ra
-                 JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-                 WHERE dra.document_id = $1`,
-                [numericId]
-            );
-            
-            if (keywordsResult.rows.length > 0) {
-                                
-                // Simply use research agenda names as keywords
-                for (const row of keywordsResult.rows as Array<{
-                    id?: number;
-                    name?: string;
-                }>) {
-                    // Add the agenda name itself as a keyword if not already included
-                    if (row.name && !keywords.includes(row.name)) {
-                        keywords.push(row.name);
-                    }
-                }
-                
-                // Remove duplicates
-                keywords = [...new Set(keywords)];
-            }
-        } catch (error) {
-        }
+        const classification = await getDocumentClassification(numericId, false);
         
         // Handle publication year - extract from publication_date if available
         let publicationYear = "";
@@ -256,11 +230,13 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 author: authorText,
                 abstract: document.abstract || "",
                 publication_year: publicationYear,
-                keywords: keywords,
+                classification,
+                topics: classification.topics,
+                keywords: classification.keywords.map((keyword) => keyword.name),
                 category: document.category || "",
                 volume: document.volume || "",
                 pages: document.pages || "",
-                research_agenda: document.research_agenda || "",
+                research_agenda: classification.researchAgendas.map((agenda) => agenda.name).join(", "),
                 date_uploaded: document.created_at,
                 editor: document.editor || null
                 // Note: Not including sensitive fields like file_path
@@ -464,36 +440,7 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
             publicationYear = document.publication_year;
         }
 
-        // Get research agenda keywords
-        let keywords = document.keywords || [];
-        try {
-            // Query to fetch keywords from research_agenda
-            const keywordsResult = await client.queryObject(
-                `SELECT ra.id, ra.name
-                 FROM research_agenda ra
-                 JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-                 WHERE dra.document_id = $1`,
-                [numericId]
-            );
-            
-            if (keywordsResult.rows.length > 0) {
-                                
-                // Simply use research agenda names as keywords
-                for (const row of keywordsResult.rows as Array<{
-                    id?: number;
-                    name?: string;
-                }>) {
-                    // Add the agenda name itself as a keyword if not already included
-                    if (row.name && !keywords.includes(row.name)) {
-                        keywords.push(row.name);
-                    }
-                }
-                
-                // Remove duplicates
-                keywords = [...new Set(keywords)];
-            }
-        } catch (error) {
-        }
+        const classification = await getDocumentClassification(numericId, false);
 
         // Return the document with limited fields
         ctx.response.status = 200;
@@ -506,11 +453,13 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 author: authorText,
                 abstract: document.abstract || "",
                 publication_year: publicationYear,
-                keywords: keywords,
+                classification,
+                topics: classification.topics,
+                keywords: classification.keywords.map((keyword) => keyword.name),
                 category: document.category || "",
                 volume: document.volume || "",
                 pages: document.pages || "",
-                research_agenda: document.research_agenda || "",
+                research_agenda: classification.researchAgendas.map((agenda) => agenda.name).join(", "),
                 date_uploaded: document.created_at,
                 editor: document.editor || null
             }
@@ -532,6 +481,7 @@ const createDocument = async (ctx: RouterContext<any, any, any>) => {
     const actorRole = String(ctx.state.user.role);
 
     body.uploaded_by = actorId;
+    body.classificationActorRole = actorRole;
     if (actorRole === "publisher") {
         body.is_public = false;
         body.review_status = "pending_review";
@@ -605,6 +555,21 @@ const reviewDocument = async (ctx: RouterContext<any, any, any>) => {
 
     const publish = decision === "approved" && body.publish === true;
     const reviewerId = String(ctx.state.user.id);
+    if (decision === "approved") {
+        const classification = await getDocumentClassification(id, false);
+        if (!classification.complete) {
+            ctx.response.status = 422;
+            ctx.response.body = {
+                error: "Document classification is incomplete",
+                classification,
+                fields: {
+                    researchAgendaIds: "At least one active official research agenda is required",
+                    topicIds: "At least one approved topic is required",
+                },
+            };
+            return;
+        }
+    }
     const result = await client.queryObject(`
         UPDATE documents
         SET review_status = $2,

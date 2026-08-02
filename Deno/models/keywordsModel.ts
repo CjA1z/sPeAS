@@ -11,16 +11,17 @@ export interface TrendingKeyword {
 
 export class KeywordsModel {
   /**
-   * Get all unique keywords from research_agenda table
+   * Get all normalized keywords from the keyword vocabulary.
    * 
    * @returns Array of keyword strings
    */
   static async getAllKeywords(): Promise<string[]> {
     try {
       const result = await client.queryObject(`
-        SELECT name as keyword
-        FROM research_agenda
-        WHERE name IS NOT NULL
+        SELECT term AS keyword
+        FROM keywords
+        WHERE term IS NOT NULL
+        ORDER BY term ASC
       `);
       
       // Extract keywords from the result
@@ -35,7 +36,7 @@ export class KeywordsModel {
   }
   
   /**
-   * Get trending keywords based on document visits and research agenda
+   * Get trending keywords based on document visits and keyword associations.
    * 
    * @param limit Maximum number of keywords to return (default: 10)
    * @param days Optional number of days to limit the timeframe
@@ -58,15 +59,19 @@ export class KeywordsModel {
       // Extract document IDs from most visited documents
       const documentIds = mostVisitedDocs.map(doc => doc.document_id);
       
-      // Get keywords for these documents by joining with document_research_agenda
+      // Get keywords for these documents through document_keywords only.
       const placeholders = documentIds.map((_, i) => `$${i + 1}`).join(',');
       const result = await client.queryObject(`
-        SELECT ra.name as keyword, COUNT(*) as count
-        FROM research_agenda ra
-        JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-        WHERE dra.document_id IN (${placeholders})
-        GROUP BY ra.name
-        ORDER BY count DESC, ra.name ASC
+        SELECT k.term AS keyword, COUNT(DISTINCT dk.document_id) AS count
+        FROM keywords k
+        JOIN document_keywords dk ON k.id = dk.keyword_id
+        JOIN documents d ON d.id = dk.document_id
+        WHERE dk.document_id IN (${placeholders})
+          AND d.deleted_at IS NULL
+          AND d.review_status = 'approved'
+          AND d.is_public IS TRUE
+        GROUP BY k.id, k.term
+        ORDER BY count DESC, k.term ASC
         LIMIT $${documentIds.length + 1}
       `, [...documentIds, effectiveLimit * 2]); // Fetch more to allow for filtering
       
@@ -104,9 +109,18 @@ export class KeywordsModel {
       const effectiveLimit = Math.min(limit, 10);
       
       const result = await client.queryObject(`
-        SELECT name as keyword
-        FROM research_agenda
-        WHERE name IS NOT NULL
+        SELECT term AS keyword
+        FROM keywords
+        WHERE term IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM document_keywords dk
+            JOIN documents d ON d.id = dk.document_id
+            WHERE dk.keyword_id = keywords.id
+              AND d.deleted_at IS NULL
+              AND d.review_status = 'approved'
+              AND d.is_public IS TRUE
+          )
         ORDER BY RANDOM()
         LIMIT $1
       `, [effectiveLimit]);
@@ -133,12 +147,16 @@ export class KeywordsModel {
       const effectiveLimit = Math.min(limit, 1000);
       
       const result = await client.queryObject(`
-        SELECT ra.name as keyword, COUNT(DISTINCT dra.document_id) as count
-        FROM research_agenda ra
-        LEFT JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-        WHERE ra.name IS NOT NULL
-        GROUP BY ra.name
-        ORDER BY count DESC, ra.name ASC
+        SELECT k.term AS keyword, COUNT(DISTINCT dk.document_id) AS count
+        FROM keywords k
+        LEFT JOIN document_keywords dk ON k.id = dk.keyword_id
+        LEFT JOIN documents d ON d.id = dk.document_id
+          AND d.deleted_at IS NULL
+          AND d.review_status = 'approved'
+          AND d.is_public IS TRUE
+        WHERE k.term IS NOT NULL
+        GROUP BY k.id, k.term
+        ORDER BY count DESC, k.term ASC
         LIMIT $1
       `, [effectiveLimit]);
       
@@ -151,4 +169,4 @@ export class KeywordsModel {
       return [];
     }
   }
-} 
+}

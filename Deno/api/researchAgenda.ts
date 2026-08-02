@@ -117,6 +117,18 @@ export async function handleGetResearchAgendaItems(request: Request): Promise<Re
  * Handle creation of a new standalone research agenda item
  */
 export async function handleCreateResearchAgendaItem(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    error: "This legacy endpoint is retired. Use the administrator research-agenda endpoint.",
+  }), {
+    status: 410,
+    headers: {
+      "Content-Type": "application/json",
+      "Deprecation": "true",
+      "Sunset": "2026-12-31",
+      "Link": "</api/admin/research-agendas>; rel=\"successor-version\"",
+    },
+  });
+  /*
   try {
     if (request.body) {
       const body = await request.json();
@@ -156,12 +168,25 @@ export async function handleCreateResearchAgendaItem(request: Request): Promise<
       headers: { "Content-Type": "application/json" }
     });
   }
+  */
 }
 
 /**
  * Handle batch creation of multiple research agenda items
  */
 export async function handleCreateResearchAgendaItems(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    error: "This legacy endpoint is retired. Use the administrator research-agenda endpoint.",
+  }), {
+    status: 410,
+    headers: {
+      "Content-Type": "application/json",
+      "Deprecation": "true",
+      "Sunset": "2026-12-31",
+      "Link": "</api/admin/research-agendas>; rel=\"successor-version\"",
+    },
+  });
+  /*
   try {
     if (request.body) {
       const body = await request.json();
@@ -213,6 +238,7 @@ export async function handleCreateResearchAgendaItems(request: Request): Promise
       headers: { "Content-Type": "application/json" }
     });
   }
+  */
 }
 
 /**

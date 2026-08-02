@@ -356,28 +356,6 @@ export const defaultExperienceConfig: ExperienceConfig = {
               body: "Twenty priority areas guiding faculty and student research - from Paulinian identity and formation to technology, sustainability, and global partnerships.",
               imageUrl: "/Components/images/prism.png",
               imageAlt: "Research prism diagram",
-              items: [
-                { text: "Paulinian Spirituality/Identity and its impact to international community and global partnerships" },
-                { text: "Paulinian Mission / Vision / Philosophy / Goals" },
-                { text: "Paulinian Roots and Formation" },
-                { text: "Advocacy (Peace, Pro-Life, Environment, Disaster & Risks Management)" },
-                { text: "Global Mental Health and Wellness" },
-                { text: "Synodal Church: Communion, Participation, and Mission" },
-                { text: "Inclusivity and Equity in Education" },
-                { text: "Curriculum development and Innovation geared towards internalization and global partnership" },
-                { text: "OBE - Instruction" },
-                { text: "Technology Integration" },
-                { text: "Faculty / Staff Development" },
-                { text: "Infrastructure / Software Development and Innovation" },
-                { text: "Financial Management, Sustainability, and Energy Security" },
-                { text: "Environmental Discipline and Stewardship" },
-                { text: "Ethical Leaders & Professionals" },
-                { text: "Cutting-edge Resilient Visionaries & Innovators; Engaging, Trustworthy Team Builders & Mentors; Reliable, Productive Experts & Implementers; Dedicated, Transformative Supporters & Stewardship in the context of international community and global partnerships" },
-                { text: "Civic and Community Involvement" },
-                { text: "Equality and Diversity" },
-                { text: "Economic cooperation and integration" },
-                { text: "Student and Faculty Mobility" },
-              ],
             },
           },
           {
@@ -551,14 +529,6 @@ function migrateBlockProps(type: string, defaults: Record<string, unknown>, sour
         label: typeof incoming.label === "string" ? incoming.label.slice(0, 120) : locked.label,
         description: typeof incoming.description === "string" ? incoming.description.slice(0, 300) : locked.description,
       };
-    });
-  }
-
-  if (type === "ResearchAgendaBlock" && Array.isArray(source.items) && Array.isArray(defaults.items)) {
-    const sourceItems = source.items;
-    result.items = defaults.items.map((defaultItem, index) => {
-      const incoming = asRecord(sourceItems[index]);
-      return { text: typeof incoming.text === "string" ? incoming.text.slice(0, 500) : asRecord(defaultItem).text };
     });
   }
 

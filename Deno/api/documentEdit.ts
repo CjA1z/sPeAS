@@ -1,5 +1,6 @@
 import { client } from "../db/denopost_conn.ts";
 import { getDocumentAuthors } from "../controllers/documentAuthorController.ts";
+import { getDocumentClassification, replaceDocumentClassification } from "../services/documentClassificationService.ts";
 
 /**
  * Get a document for editing with all related data
@@ -28,23 +29,14 @@ export async function getDocumentForEdit(documentId: string): Promise<any> {
     // Get document authors
     const authors = await getDocumentAuthors(documentId);
     
-    // Get document topics (research agenda)
-    const topicsQuery = `
-      SELECT ra.id, ra.name
-      FROM research_agenda ra
-      JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-      WHERE dra.document_id = $1
-      ORDER BY ra.name
-    `;
-    
-    const topicsResult = await client.queryObject(topicsQuery, [documentId]);
-    const topics = topicsResult.rows;
+    const classification = await getDocumentClassification(Number(documentId), true);
     
     // Return complete document data for editing
     return {
       document,
       authors,
-      topics
+      classification,
+      topics: classification.topics
     };
   } catch (error: unknown) {
     throw error;
@@ -56,7 +48,7 @@ export async function getDocumentForEdit(documentId: string): Promise<any> {
  */
 export async function saveDocument(documentData: any): Promise<any> {
   try {
-    const { document, authorIds, topicIds } = documentData;
+    const { document, authorIds, classification, topicIds } = documentData;
     
     if (!document || !document.id) {
       throw new Error("Document with ID is required");
@@ -111,20 +103,10 @@ export async function saveDocument(documentData: any): Promise<any> {
         }
       }
       
-      // Update topics - first remove existing relationships
-      await client.queryObject(
-        "DELETE FROM document_research_agenda WHERE document_id = $1", 
-        [document.id]
-      );
-      
-      // Insert new topic relationships if provided
-      if (topicIds && Array.isArray(topicIds) && topicIds.length > 0) {
-        for (const topicId of topicIds) {
-          await client.queryObject(
-            "INSERT INTO document_research_agenda (document_id, research_agenda_id) VALUES ($1, $2)",
-            [document.id, topicId]
-          );
-        }
+      if (classification) {
+        await replaceDocumentClassification(document.id, classification, { id: "legacy-document-edit", role: "admin" }, { allowIncomplete: true, allowPendingTopics: true });
+      } else if (topicIds !== undefined) {
+        throw new Error("The legacy topicIds field is retired; provide an explicit classification object");
       }
       
       // Commit transaction
@@ -140,4 +122,4 @@ export async function saveDocument(documentData: any): Promise<any> {
   } catch (error: unknown) {
     throw error;
   }
-} 
+}

@@ -2,6 +2,9 @@ import { DocumentModel } from "../models/documentModel.ts";
 import { client } from "../db/denopost_conn.ts";
 import { getErrorMessage } from "../utils/errorHandler.ts";
 import { fetchDocuments as fetchDocumentsService, fetchChildDocuments as fetchChildDocumentsService } from "../services/documentService.ts";
+import { getDocumentClassification, replaceDocumentClassification, ClassificationValidationError } from "../services/documentClassificationService.ts";
+import { createDocumentAuthors } from "./documentAuthorController.ts";
+import { validateSinglePublicationDate } from "../services/documentMetadataValidationService.ts";
 
 /**
  * Fetch categories from the database
@@ -108,10 +111,13 @@ export async function fetchDocuments(request: Request): Promise<Response> {
     const category = url.searchParams.get("category");
     const search = url.searchParams.get("search");
     const keyword = url.searchParams.get("keyword");
+    const agenda = url.searchParams.get("agenda");
+    const topic = url.searchParams.get("topic");
     const sort = url.searchParams.get("sort") || "latest";
     // Get doc_types parameter to support showing both single and compiled documents
     const docTypes = url.searchParams.get("doc_types") || "all";
     const includeReview = url.searchParams.get("include_review") === "true";
+    const publicOnly = url.searchParams.get("public_only") === "true";
     const reviewStatus = url.searchParams.get("review_status") || "all";
     
     // Add debug logging for multiple categories
@@ -170,10 +176,13 @@ export async function fetchDocuments(request: Request): Promise<Response> {
       category,
       search,
       keyword,
+      agenda,
+      topic,
       sort: sortField,
       order,
       docTypes: docTypes, // Pass doc_types parameter to service layer
       includeReview,
+      publicOnly,
       reviewStatus: reviewStatus === "pending_review" || reviewStatus === "approved" || reviewStatus === "rejected" ? reviewStatus : "all",
     });
     
@@ -291,37 +300,7 @@ export async function getDocumentById(req: Request): Promise<Response> {
           } catch (authorError) {
     }
     
-    // Fetch keywords from research_agenda tables
-    let keywords: string[] = document.keywords || [];
-    try {
-            const keywordsResult = await client.queryObject(
-        `SELECT ra.id, ra.name
-         FROM research_agenda ra
-         JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-         WHERE dra.document_id = $1`,
-        [docIdNum]
-      );
-      
-      if (keywordsResult.rows.length > 0) {
-                
-        // Extract keywords from research agenda entries
-        // Simply use the research agenda names as keywords
-        for (const row of keywordsResult.rows as Array<{
-          id?: number;
-          name?: string;
-        }>) {
-          // Add the agenda name itself as a keyword if not already included
-          if (row.name && !keywords.includes(row.name)) {
-            keywords.push(row.name);
-          }
-        }
-        
-        // Remove duplicates
-        keywords = [...new Set(keywords)];
-              } else {
-              }
-    } catch (keywordsError) {
-    }
+    const classification = await getDocumentClassification(docIdNum, !isGuestRequest);
     
     // Extract publication year from publication_date if available
     let publicationYear = document.publication_year || "";
@@ -337,7 +316,10 @@ export async function getDocumentById(req: Request): Promise<Response> {
       ...document,
       enhancedAuthors: authors.length > 0 ? authors : undefined,
       publication_year: publicationYear,
-      keywords: keywords
+      classification,
+      topics: classification.topics,
+      keywords: classification.keywords.map((keyword) => keyword.name),
+      research_agenda: classification.researchAgendas.map((agenda) => agenda.name).join(", ")
     };
     
     return new Response(JSON.stringify(enhancedDocument), {
@@ -370,6 +352,27 @@ export async function createDocument(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ error: "Title is required" }), {
           status: 400,
           headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (body.classification === undefined) {
+        return new Response(JSON.stringify({
+          error: "classification is required for new document records",
+          fields: { classification: "Provide researchAgendaIds, topicIds, and keywords" },
+        }), {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const publicationDateError = validateSinglePublicationDate(body.document_type, body.publication_date);
+      if (publicationDateError) {
+        return new Response(JSON.stringify({
+          error: "A valid publication date is required for thesis and dissertation records.",
+          fields: { publication_date: publicationDateError },
+        }), {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
         });
       }
 
@@ -429,7 +432,38 @@ export async function createDocument(req: Request): Promise<Response> {
         body.category_id = 5; // Default research study category ID
       }
       
-            const newDocument = await DocumentModel.create(body);
+      const newDocument = await DocumentModel.create(body);
+      if (newDocument?.id && body.classification !== undefined) {
+        try {
+          await replaceDocumentClassification(
+            Number(newDocument.id),
+            body.classification,
+            { id: String(body.uploaded_by || "system"), role: String(body.classificationActorRole || "admin") },
+            {
+              allowPendingTopics: body.review_status === "pending_review",
+              allowIncomplete: body.review_status === "pending_review",
+            },
+          );
+          if (body.authors !== undefined) {
+            if (!Array.isArray(body.authors)) {
+              throw new ClassificationValidationError("authors must be an array", { authors: "Authors must be provided as an array" });
+            }
+            if (body.authors.length > 0) {
+              await createDocumentAuthors(String(newDocument.id), body.authors);
+            }
+          }
+        } catch (classificationError) {
+          await client.queryArray("DELETE FROM documents WHERE id = $1", [newDocument.id]).catch(() => undefined);
+          const status = classificationError instanceof ClassificationValidationError || (classificationError instanceof Error && classificationError.name === "DocumentAuthorValidationError") ? 422 : 500;
+          return new Response(JSON.stringify({
+            error: getErrorMessage(classificationError),
+            fields: classificationError instanceof ClassificationValidationError ? classificationError.fieldErrors : undefined,
+          }), {
+            status,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
       
       return new Response(JSON.stringify(newDocument), {
         status: 201,
@@ -634,6 +668,14 @@ export async function getChildDocuments(req: Request): Promise<Response> {
           }
         }
       }
+
+      safeDoc.classification = doc.classification ?? {
+        researchAgendas: [],
+        topics: safeDoc.topics,
+        keywords: [],
+        complete: false,
+        source: doc.is_compiled ? "aggregated_children" : "document",
+      };
       
       safeDocuments.push(safeDoc);
     }

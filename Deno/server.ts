@@ -30,7 +30,9 @@ import { handleUpdateDocument } from "./api/document.ts";
 import { getDocumentAuthors } from "./controllers/documentAuthorController.ts";
 import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
-import { ResearchAgendaModel } from "./models/researchAgendaModel.ts";
+import { getDocumentClassification, replaceDocumentClassification, replaceDocumentKeywords } from "./services/documentClassificationService.ts";
+import { ensureDocumentClassificationSchema } from "./services/documentClassificationSchemaService.ts";
+import { documentClassificationRoutes, documentClassificationAllowedMethods } from "./routes/documentClassificationRoutes.ts";
 import { unifiedArchiveRoutes, unifiedArchiveAllowedMethods } from "./routes/unifiedArchiveRoutes.ts";
 import { authRoutes } from "./routes/authRoutes.ts"; // Transitional logout shims
 import { createDocumentRequestRoutes } from "./routes/documentRequestRoutes.ts";
@@ -623,23 +625,9 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
       const doc = await DocumentModel.getById(docId);
       if (doc) {
                 
-        // Get topics for this document
-        const topicsQuery = `
-          SELECT ra.id, ra.name
-          FROM research_agenda ra
-          JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-          WHERE dra.document_id = $1
-        `;
-        try {
-          const topicsResult = await client.queryObject(topicsQuery, [docId]);
-          // Add topics to document using type assertion
-          (doc as any).topics = topicsResult.rows.map((topic: any) => ({
-            id: topic.id,
-            name: topic.name || '',
-          }));
-                  } catch (error) {
-          (doc as any).topics = [];
-        }
+        const classification = await getDocumentClassification(docId, false);
+        (doc as any).classification = classification;
+        (doc as any).topics = classification.topics;
 
         // Get category directly from document_type field
         let categoryName = 'N/A';
@@ -663,9 +651,6 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
           }
                   }
 
-        // If no topics, but we might have research agendas elsewhere
-        // Skip the category_research_agenda query since that table doesn't exist
-
         // Format work for frontend consumption
         works.push({
           id: doc.id,
@@ -673,10 +658,11 @@ router.get("/api/authors/:authorId/works", async (ctx) => {
           // Format dates based on document type
           year: formatDocumentDate(doc),
           category: categoryName,
-          // Join research agenda topics for display
-          researchAgenda: (doc as any).topics && (doc as any).topics.length > 0 
-            ? (doc as any).topics.map((t: any) => t.name).join(', ') 
+          researchAgenda: classification.researchAgendas.length > 0
+            ? classification.researchAgendas.map((agenda) => agenda.name).join(', ')
             : 'N/A',
+          researchAgendas: classification.researchAgendas,
+          keywords: classification.keywords,
           // Add URL for document viewing if needed
           url: `/document/${doc.id}`,
           // Include original document data if needed
@@ -757,7 +743,7 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
 
     if (!childDocs || childDocs.length === 0) {
     ctx.response.status = 200;
-      ctx.response.body = { 
+      ctx.response.body = {
         message: 'No child documents found for this compiled document',
         compiledDocId,
         childCount: 0
@@ -976,9 +962,9 @@ router.post("/api/document-research-agenda/link", isAuthenticated, requireCapabi
       return;
     }
     
-    if (!Array.isArray(body.agenda_items)) {
+    if (!Array.isArray(body.agenda_items) && !Array.isArray(body.agenda_ids)) {
       ctx.response.status = 400;
-      ctx.response.body = { error: "agenda_items must be an array" };
+      ctx.response.body = { error: "agenda_items or agenda_ids must be an array" };
       return;
     }
 
@@ -989,16 +975,29 @@ router.post("/api/document-research-agenda/link", isAuthenticated, requireCapabi
     }
     
         
-    const result = await ResearchAgendaModel.linkItemsToDocumentByName(
-      parseInt(body.document_id.toString()),
-      body.agenda_items
-    );
-    
-    if (result.success) {
-    ctx.response.status = 200;
-    ctx.response.body = { 
-        message: `Linked ${result.linkedIds.length} research agenda items to document ${body.document_id}`,
-        linked_items: result.linkedIds
+    const documentId = parseInt(body.document_id.toString());
+    const actor = { id: String(ctx.state.user.id), role: String(ctx.state.user.role) };
+    let classification;
+    if (Array.isArray(body.agenda_ids)) {
+      const current = await getDocumentClassification(documentId, true);
+      classification = await replaceDocumentClassification(documentId, {
+        researchAgendaIds: body.agenda_ids,
+        primaryResearchAgendaId: body.agenda_ids[0],
+        topicIds: current.topics.map((item) => item.id),
+        keywords: current.keywords.map((item) => item.name),
+      }, actor, { allowPendingTopics: true, allowIncomplete: true });
+    } else {
+      classification = await replaceDocumentKeywords(documentId, body.agenda_items, actor);
+    }
+
+    if (classification) {
+      ctx.response.headers.set("Deprecation", "true");
+      ctx.response.headers.set("Sunset", "2026-12-31");
+      ctx.response.headers.set("Link", "</api/documents/" + documentId + "/classification>; rel=\"successor-version\"");
+      ctx.response.status = 200;
+      ctx.response.body = {
+        message: "Stored legacy classification values without creating research agenda records",
+        classification
       };
     } else {
       ctx.response.status = 500;
@@ -1007,7 +1006,7 @@ router.post("/api/document-research-agenda/link", isAuthenticated, requireCapabi
   } catch (error) {
     ctx.response.status = 500;
     ctx.response.body = { 
-      error: "Failed to link research agenda items",
+      error: "Failed to update legacy classification values",
       details: error instanceof Error ? error.message : String(error)
     };
   }
@@ -1024,6 +1023,11 @@ app.use(fileRoutes.allowedMethods());
 // Register upload routes
 app.use(uploadRoutes.routes());
 app.use(uploadRoutesAllowedMethods);
+
+// Typed classification routes keep research agendas, topics, and keywords
+// separate from the legacy document routes.
+app.use(documentClassificationRoutes);
+app.use(documentClassificationAllowedMethods);
 
 // Register Experience Studio routes
 app.use(experienceRoutes.routes());
@@ -1243,6 +1247,9 @@ async function startServer() {
         
     // Run database diagnostics
     await diagnoseDatabaseIssues();
+
+    // Install the additive classification schema before dependent routes run.
+    await ensureDocumentClassificationSchema();
     
     // Ensure the visit counter tables exist
     await ensureVisitCounterTablesExist();

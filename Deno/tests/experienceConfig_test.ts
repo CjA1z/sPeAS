@@ -50,17 +50,17 @@ Deno.test("hero keeps four stable slideshow slots while accepting replacements",
   )!.props.images as Array<{ url: string; alt: string }>).slice(1));
 });
 
-Deno.test("fixed quick-link destinations and agenda item count cannot be changed", () => {
+Deno.test("fixed quick-link destinations and agenda vocabulary cannot be changed", () => {
   const input = structuredClone(defaultExperienceConfig) as any;
   const quickLinks = input.pages.landing.data.content.find((block: any) => block.type === "QuickLinksBlock");
   quickLinks.props.links = [{ label: "Changed", description: "Changed", href: "javascript:alert(1)" }];
   const agenda = input.pages.landing.data.content.find((block: any) => block.type === "ResearchAgendaBlock");
-  agenda.props.items = [{ text: "One item only" }];
+  agenda.props.items = [{ text: "Legacy item must not be retained" }];
   const migrated = migrateExperienceConfigV1ToV2(input);
   const nextQuickLinks = migrated.pages.landing.data.content.find((block) => block.type === "QuickLinksBlock")!;
   const nextAgenda = migrated.pages.landing.data.content.find((block) => block.type === "ResearchAgendaBlock")!;
   assertEquals((nextQuickLinks.props.links as any[])[0].href, "#mission");
-  assertEquals((nextAgenda.props.items as any[]).length, 20);
+  assertEquals(nextAgenda.props.items, undefined);
 });
 
 Deno.test("publishing requires alt text for meaningful images", () => {

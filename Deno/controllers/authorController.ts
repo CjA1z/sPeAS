@@ -478,11 +478,23 @@ export const getAuthorProfile = async (ctx: Context) => {
     const workIds = works.map((work) => Number(work.id));
     const topicRows = workIds.length
       ? await client.queryObject<{ document_id: number; id: number; name: string }>(
-        `SELECT dra.document_id, ra.id, ra.name
+        `SELECT dt.document_id, t.id, t.name
+         FROM document_topics dt
+         JOIN topics t ON t.id = dt.topic_id
+         WHERE dt.document_id IN (${workIds.map((_, index) => `$${index + 1}`).join(", ")})
+           AND t.status = 'approved'
+         ORDER BY t.name ASC`,
+        workIds,
+      )
+      : { rows: [] };
+    const agendaRows = workIds.length
+      ? await client.queryObject<{ document_id: number; id: number; code: string; name: string; primary: boolean }>(
+        `SELECT dra.document_id, ra.id, ra.code, ra.name, dra.is_primary AS primary
          FROM document_research_agenda dra
          JOIN research_agenda ra ON ra.id = dra.research_agenda_id
          WHERE dra.document_id IN (${workIds.map((_, index) => `$${index + 1}`).join(", ")})
-         ORDER BY ra.name ASC`,
+           AND ra.is_official = TRUE
+         ORDER BY ra.sort_order ASC, ra.name ASC`,
         workIds,
       )
       : { rows: [] };
@@ -492,6 +504,12 @@ export const getAuthorProfile = async (ctx: Context) => {
       const topics = topicsByWork.get(Number(topic.document_id)) ?? [];
       topics.push({ id: Number(topic.id), name: String(topic.name) });
       topicsByWork.set(Number(topic.document_id), topics);
+    }
+    const agendasByWork = new Map<number, Array<{ id: number; code: string; name: string; primary: boolean }>>();
+    for (const agenda of agendaRows.rows) {
+      const agendas = agendasByWork.get(Number(agenda.document_id)) ?? [];
+      agendas.push({ id: Number(agenda.id), code: String(agenda.code), name: String(agenda.name), primary: Boolean(agenda.primary) });
+      agendasByWork.set(Number(agenda.document_id), agendas);
     }
 
     const categoryCounts = new Map<string, number>();
@@ -519,6 +537,7 @@ export const getAuthorProfile = async (ctx: Context) => {
         startYear: work.start_year === null ? null : Number(work.start_year),
         endYear: work.end_year === null ? null : Number(work.end_year),
         topics: topicsByWork.get(Number(work.id)) ?? [],
+        researchAgendas: agendasByWork.get(Number(work.id)) ?? [],
       };
     });
 

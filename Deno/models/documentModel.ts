@@ -763,7 +763,7 @@ export class DocumentModel {
       try {
                 
         const keywordsResult = await client.queryObject(
-          `SELECT k.name
+          `SELECT k.term AS name
            FROM keywords k
            JOIN document_keywords dk ON k.id = dk.keyword_id
            WHERE dk.document_id = $1`,

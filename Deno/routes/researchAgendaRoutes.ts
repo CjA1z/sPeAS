@@ -1,14 +1,12 @@
 import { Router } from "../deps.ts";
 import {
-    handleAddResearchAgendaItems,
-    handleGetResearchAgendaItems,
     handleCreateResearchAgendaItem,
     handleCreateResearchAgendaItems,
-    handleSearchResearchAgendaItems
 } from "../api/researchAgenda.ts";
 import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
 import { canModifyPendingUpload, canViewDocument } from "../services/contentAuthorizationService.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
+import { getDocumentClassification, listResearchAgendas, normalizeClassificationTerm, replaceDocumentClassification, replaceDocumentKeywords } from "../services/documentClassificationService.ts";
 
 // Create a router for research agenda routes
 const router = new Router();
@@ -25,19 +23,35 @@ const addResearchAgendaItems = async (ctx: any) => {
         return;
     }
     
-    // Convert context to Request
-    const request = new Request(ctx.request.url.toString(), {
-        method: "POST",
-        headers: ctx.request.headers,
-        body: JSON.stringify(body)
-    });
-    
-    const response = await handleAddResearchAgendaItems(request);
-    
-    // Convert Response back to context
-    ctx.response.status = response.status;
-    ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    if (!Array.isArray(body.agenda_items) && !Array.isArray(body.agenda_ids)) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "agenda_items or agenda_ids must be an array" };
+        return;
+    }
+
+    try {
+        const documentId = Number(body.document_id);
+        const actor = { id: String(ctx.state.user.id), role: String(ctx.state.user.role) };
+        let classification;
+        if (Array.isArray(body.agenda_ids)) {
+            const current = await getDocumentClassification(documentId, true);
+            classification = await replaceDocumentClassification(documentId, {
+                researchAgendaIds: body.agenda_ids,
+                primaryResearchAgendaId: body.agenda_ids[0],
+                topicIds: current.topics.map((item) => item.id),
+                keywords: current.keywords.map((item) => item.name),
+            }, actor, { allowPendingTopics: true, allowIncomplete: true });
+        } else {
+            classification = await replaceDocumentKeywords(documentId, body.agenda_items, actor);
+        }
+        ctx.response.status = 200;
+        ctx.response.headers.set("Deprecation", "true");
+        ctx.response.headers.set("Sunset", "2026-12-31");
+        ctx.response.body = { message: "Stored legacy values without creating research agenda records", classification };
+    } catch (error) {
+        ctx.response.status = 422;
+        ctx.response.body = { error: error instanceof Error ? error.message : "Unable to update classification" };
+    }
 };
 
 const getResearchAgendaItems = async (ctx: any) => {
@@ -49,18 +63,12 @@ const getResearchAgendaItems = async (ctx: any) => {
         return;
     }
     
-    // Convert context to Request
-    const request = new Request(`${ctx.request.url.origin}/api/document-research-agenda/${documentId}`, {
-        method: "GET",
-        headers: ctx.request.headers
-    });
-    
-    const response = await handleGetResearchAgendaItems(request);
-    
-    // Convert Response back to context
-    ctx.response.status = response.status;
-    ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const classification = await getDocumentClassification(Number(documentId), session?.role === "admin");
+    ctx.response.status = 200;
+    ctx.response.headers.set("Deprecation", "true");
+    ctx.response.headers.set("Sunset", "2026-12-31");
+    ctx.response.headers.set("Link", `</api/documents/${documentId}/classification>; rel="successor-version"`);
+    ctx.response.body = { items: classification.researchAgendas, classification };
 };
 
 // New handler for creating a single research agenda item
@@ -106,21 +114,13 @@ const createResearchAgendaItems = async (ctx: any) => {
 // New handler for searching research agenda items
 const searchResearchAgendaItems = async (ctx: any) => {
     const query = ctx.request.url.searchParams.get("q") || "";
-    console.log("Research agenda search handler hit:", ctx.request.url.toString());
-    console.log("Search query:", query);
-    
-    // Convert context to Request
-    const request = new Request(`${ctx.request.url.origin}/api/research-agenda-items/search?q=${encodeURIComponent(query)}`, {
-        method: "GET",
-        headers: ctx.request.headers
-    });
-    
-    const response = await handleSearchResearchAgendaItems(request);
-    
-    // Convert Response back to context
-    ctx.response.status = response.status;
-    ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const normalized = normalizeClassificationTerm(query);
+    const agendas = await listResearchAgendas(false);
+    ctx.response.status = 200;
+    ctx.response.headers.set("Deprecation", "true");
+    ctx.response.headers.set("Sunset", "2026-12-31");
+    ctx.response.headers.set("Link", '</api/research-agendas>; rel="successor-version"');
+    ctx.response.body = agendas.filter((agenda) => !normalized || normalizeClassificationTerm(agenda.name).includes(normalized));
 };
 
 // Register routes (writes are admin-only)

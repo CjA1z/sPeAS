@@ -1,4 +1,5 @@
 import { client } from "../db/denopost_conn.ts";
+import { getDocumentClassification, getDocumentClassifications, type DocumentClassification } from "./documentClassificationService.ts";
 
 // Define interfaces for our data structures
 export interface DocumentOptions {
@@ -7,11 +8,14 @@ export interface DocumentOptions {
   category?: string | null;
   search?: string | null;
   keyword?: string | null;
+  agenda?: string | null;
+  topic?: string | null;
   sort?: string;
   order?: string;
   docTypes?: string; // Add docTypes option to filter by document type (all, compiled, single)
   includeReview?: boolean;
   reviewStatus?: 'all' | 'pending_review' | 'approved' | 'rejected';
+  publicOnly?: boolean;
 }
 
 export interface Document {
@@ -24,6 +28,7 @@ export interface Document {
   issue?: string;
   authors: Author[];
   topics: Topic[];
+  classification?: DocumentClassification;
   is_compiled?: boolean;
   child_count?: number;
   parent_compiled_id?: number | null;
@@ -36,6 +41,8 @@ export interface Document {
   visit_count?: number;
   guest_count?: number;
   user_count?: number;
+  matchedFields?: string[];
+  matchedTerms?: string[];
 }
 
 interface Author {
@@ -113,16 +120,23 @@ export async function fetchDocuments(
       category = null,
       search = null,
       keyword = null,
+      agenda = null,
+      topic = null,
       sort = 'id',
       order = 'ASC',
       docTypes = 'all', // Default to showing all document types
       includeReview = false,
       reviewStatus = 'all',
+      publicOnly = false,
     } = options;
     
     // Build the parameters array
     const params: any[] = [];
     let paramIndex = 1;
+    let searchParamIndex: number | null = null;
+    let keywordParamIndex: number | null = null;
+    let agendaParamIndex: number | null = null;
+    let topicParamIndex: number | null = null;
     
     // Validate sort field and order to prevent SQL injection
     const validSortFields = ['id', 'title', 'publication_date', 'document_type', 'created_at'];
@@ -134,9 +148,11 @@ export async function fetchDocuments(
     // For search filtering
     let searchWhereClause = '';
     if (search) {
+      searchParamIndex = paramIndex;
       searchWhereClause = `AND (
         d.title ILIKE $${paramIndex} OR 
         d.description ILIKE $${paramIndex} OR
+        d.abstract ILIKE $${paramIndex} OR
         EXISTS (
           SELECT 1 FROM authors a 
           JOIN document_authors da ON a.id = da.author_id
@@ -146,7 +162,18 @@ export async function fetchDocuments(
           SELECT 1 FROM research_agenda ra
           JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
           WHERE dra.document_id = d.id
+            AND ra.is_official = TRUE
             AND LOWER(REGEXP_REPLACE(BTRIM(ra.name), '[[:space:]]+', ' ', 'g')) LIKE LOWER($${paramIndex})
+        ) OR
+        EXISTS (
+          SELECT 1 FROM document_topics dt
+          JOIN topics t ON t.id = dt.topic_id
+          WHERE dt.document_id = d.id AND t.status = 'approved' AND t.normalized_name LIKE LOWER($${paramIndex})
+        ) OR
+        EXISTS (
+          SELECT 1 FROM document_keywords dk
+          JOIN keywords k ON k.id = dk.keyword_id
+          WHERE dk.document_id = d.id AND k.normalized_term LIKE LOWER($${paramIndex})
         )
       )`;
       params.push(`%${search}%`);
@@ -156,17 +183,82 @@ export async function fetchDocuments(
     // For keyword filtering
     let keywordWhereClause = '';
     if (keyword) {
+      keywordParamIndex = paramIndex;
       keywordWhereClause = `AND (
         EXISTS (
-          SELECT 1 FROM research_agenda ra 
-          JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-          WHERE dra.document_id = d.id
-            AND LOWER(REGEXP_REPLACE(BTRIM(ra.name), '[[:space:]]+', ' ', 'g')) LIKE LOWER($${paramIndex})
+          SELECT 1 FROM document_keywords dk
+          JOIN keywords k ON k.id = dk.keyword_id
+          WHERE dk.document_id = d.id
+            AND k.normalized_term = LOWER(REGEXP_REPLACE(BTRIM($${paramIndex}), '[[:space:]]+', ' ', 'g'))
         )
       )`;
       params.push(`%${keyword}%`);
       paramIndex++;
     }
+
+    const typedAgendaId = agenda && /^\d+$/u.test(agenda) ? Number(agenda) : null;
+    const typedTopicId = topic && /^\d+$/u.test(topic) ? Number(topic) : null;
+    const agendaDocWhereClause = agenda
+      ? typedAgendaId === null
+        ? 'AND FALSE'
+        : `AND EXISTS (SELECT 1 FROM document_research_agenda dra JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE dra.document_id = d.id AND ra.is_official = TRUE AND dra.research_agenda_id = $${paramIndex})`
+      : '';
+    if (agenda && typedAgendaId !== null) {
+      agendaParamIndex = paramIndex;
+      params.push(typedAgendaId);
+      paramIndex++;
+    }
+    const topicDocWhereClause = topic
+      ? typedTopicId === null
+        ? 'AND FALSE'
+        : `AND EXISTS (SELECT 1 FROM document_topics dt JOIN topics t ON t.id = dt.topic_id WHERE dt.document_id = d.id AND t.status = 'approved' AND dt.topic_id = $${paramIndex})`
+      : '';
+    if (topic && typedTopicId !== null) {
+      topicParamIndex = paramIndex;
+      params.push(typedTopicId);
+      paramIndex++;
+    }
+
+    const childVisibilityClause = (!includeReview || publicOnly)
+      ? "AND child.review_status = 'approved' AND child.is_public IS TRUE"
+      : "";
+    let compiledSearchWhereClause = '';
+    if (search) {
+      compiledSearchWhereClause = `AND EXISTS (
+        SELECT 1
+        FROM documents child
+        LEFT JOIN document_authors child_da ON child_da.document_id = child.id
+        LEFT JOIN authors child_author ON child_author.id = child_da.author_id
+        LEFT JOIN document_research_agenda child_dra ON child_dra.document_id = child.id
+        LEFT JOIN research_agenda child_ra ON child_ra.id = child_dra.research_agenda_id
+        LEFT JOIN document_topics child_dt ON child_dt.document_id = child.id
+        LEFT JOIN topics child_topic ON child_topic.id = child_dt.topic_id
+        LEFT JOIN document_keywords child_dk ON child_dk.document_id = child.id
+        LEFT JOIN keywords child_keyword ON child_keyword.id = child_dk.keyword_id
+        WHERE child.deleted_at IS NULL
+          ${childVisibilityClause}
+          AND (child.compiled_parent_id = cd.id OR EXISTS (SELECT 1 FROM compiled_document_items link WHERE link.compiled_document_id = cd.id AND link.document_id = child.id))
+          AND (
+            child.title ILIKE $${searchParamIndex}
+            OR child.description ILIKE $${searchParamIndex}
+            OR child.abstract ILIKE $${searchParamIndex}
+            OR child_author.full_name ILIKE $${searchParamIndex}
+            OR (child_ra.is_official = TRUE AND child_ra.name ILIKE $${searchParamIndex})
+            OR (child_topic.status = 'approved' AND child_topic.normalized_name ILIKE $${searchParamIndex})
+            OR child_keyword.normalized_term ILIKE $${searchParamIndex}
+          )
+      )`;
+    }
+    const compiledAgendaWhereClause = agenda
+      ? typedAgendaId === null
+        ? 'AND FALSE'
+        : `AND EXISTS (SELECT 1 FROM documents child JOIN document_research_agenda dra ON dra.document_id = child.id JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE child.deleted_at IS NULL ${childVisibilityClause} AND (child.compiled_parent_id = cd.id OR EXISTS (SELECT 1 FROM compiled_document_items link WHERE link.compiled_document_id = cd.id AND link.document_id = child.id)) AND ra.is_official = TRUE AND dra.research_agenda_id = $${agendaParamIndex})`
+      : '';
+    const compiledTopicWhereClause = topic
+      ? typedTopicId === null
+        ? 'AND FALSE'
+        : `AND EXISTS (SELECT 1 FROM documents child JOIN document_topics dt ON dt.document_id = child.id JOIN topics t ON t.id = dt.topic_id WHERE child.deleted_at IS NULL ${childVisibilityClause} AND (child.compiled_parent_id = cd.id OR EXISTS (SELECT 1 FROM compiled_document_items link WHERE link.compiled_document_id = cd.id AND link.document_id = child.id)) AND t.status = 'approved' AND dt.topic_id = $${topicParamIndex})`
+      : '';
     
     // For category filtering in documents
     let categoryDocWhereClause = '';
@@ -293,11 +385,14 @@ export async function fetchDocuments(
             d.compiled_parent_id IS NULL
             -- Exclude archived documents
             AND d.deleted_at IS NULL
+            ${publicOnly ? "AND d.is_public IS TRUE" : ""}
             ${includeReview || normalizedReviewStatus ? "" : "AND d.review_status = 'approved'"}
             ${reviewStatusWhereClause}
             
             ${searchWhereClause}
             ${keywordWhereClause}
+            ${agendaDocWhereClause}
+            ${topicDocWhereClause}
             ${categoryDocWhereClause}
       `;
     }
@@ -347,8 +442,23 @@ export async function fetchDocuments(
           compiled_documents cd
         WHERE 
           cd.deleted_at IS NULL
+          ${publicOnly ? `AND EXISTS (
+            SELECT 1
+            FROM documents public_child
+            WHERE public_child.deleted_at IS NULL
+              AND public_child.review_status = 'approved'
+              AND public_child.is_public IS TRUE
+              AND (public_child.compiled_parent_id = cd.id OR EXISTS (
+                SELECT 1 FROM compiled_document_items public_link
+                WHERE public_link.compiled_document_id = cd.id
+                  AND public_link.document_id = public_child.id
+              ))
+          )` : ""}
           ${includeReview || normalizedReviewStatus ? "" : "AND cd.review_status = 'approved'"}
           ${compiledReviewStatusWhereClause}
+          ${compiledSearchWhereClause}
+          ${compiledAgendaWhereClause}
+          ${compiledTopicWhereClause}
           ${categoryCompWhereClause}
       `;
     }
@@ -435,6 +545,10 @@ export async function fetchDocuments(
     
     // Process documents
     const documents: Document[] = [];
+    const classifications = await getDocumentClassifications(
+      (result.rows as any[]).map((row) => Number(row.id)),
+      includeReview || normalizedReviewStatus === 'pending_review',
+    );
     
     for (const row of result.rows as any[]) {
       console.log(`[DB] Processing ${row.doc_source} row ID=${row.id}:`, {
@@ -500,22 +614,56 @@ export async function fetchDocuments(
         doc.authors = [];
       }
       
-      // Fetch topics for this document - for ALL document types 
+      // Fetch the three classification namespaces for every record.  The
+      // legacy topics array is retained as a topics-only compatibility field.
       try {
-        const topicsQuery = `
-          SELECT ra.id, ra.name
-          FROM research_agenda ra
-          JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-          WHERE dra.document_id = $1
-        `;
-        const topicsResult = await client.queryObject(topicsQuery, [doc.id]);
-        
-        doc.topics = topicsResult.rows.map((topic: any) => ({
-          id: topic.id,
-          name: topic.name || '',
-        }));
+        doc.classification = classifications.get(doc.id) ?? {
+          researchAgendas: [],
+          topics: [],
+          keywords: [],
+          complete: false,
+          source: doc.is_compiled ? "aggregated_children" : "document",
+        };
+        doc.topics = doc.classification.topics.map((topic) => ({ id: topic.id, name: topic.name }));
+        const matchedFields = new Set<string>();
+        const matchedTerms = new Set<string>();
+        const normalizedSearch = search?.trim().toLocaleLowerCase();
+        if (normalizedSearch) {
+          if (doc.title.toLocaleLowerCase().includes(normalizedSearch)) matchedFields.add("title");
+          if (doc.description.toLocaleLowerCase().includes(normalizedSearch)) matchedFields.add("description");
+          for (const author of doc.authors) {
+            if (String(author.full_name ?? "").toLocaleLowerCase().includes(normalizedSearch)) matchedFields.add("author");
+          }
+          for (const agendaTerm of doc.classification.researchAgendas) {
+            if (agendaTerm.name.toLocaleLowerCase().includes(normalizedSearch)) {
+              matchedFields.add("agenda");
+              matchedTerms.add(agendaTerm.name);
+            }
+          }
+          for (const topicTerm of doc.classification.topics) {
+            if (topicTerm.name.toLocaleLowerCase().includes(normalizedSearch)) {
+              matchedFields.add("topic");
+              matchedTerms.add(topicTerm.name);
+            }
+          }
+          for (const keywordTerm of doc.classification.keywords) {
+            if (keywordTerm.name.toLocaleLowerCase().includes(normalizedSearch)) {
+              matchedFields.add("keyword");
+              matchedTerms.add(keywordTerm.name);
+            }
+          }
+        }
+        if (keyword) {
+          matchedFields.add("keyword");
+          doc.classification.keywords.filter((term) => term.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase())).forEach((term) => matchedTerms.add(term.name));
+        }
+        if (agenda) matchedFields.add("agenda");
+        if (topic) matchedFields.add("topic");
+        if (matchedFields.size) doc.matchedFields = [...matchedFields];
+        if (matchedTerms.size) doc.matchedTerms = [...matchedTerms];
       } catch (error) {
         doc.topics = [];
+        doc.classification = { researchAgendas: [], topics: [], keywords: [], complete: false, source: doc.is_compiled ? "aggregated_children" : "document" };
       }
       
       documents.push(doc);
@@ -694,22 +842,13 @@ async function processChildDocuments(rows: any[]): Promise<Document[]> {
       doc.authors = [];
     }
     
-    // Fetch topics for this document
+    // Fetch the separate classification namespaces for child documents.
     try {
-      const topicsQuery = `
-        SELECT ra.id, ra.name
-        FROM research_agenda ra
-        JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-        WHERE dra.document_id = $1
-      `;
-      const topicsResult = await client.queryObject(topicsQuery, [doc.id]);
-      
-      doc.topics = (topicsResult.rows as any[]).map(topic => ({
-        id: topic.id,
-        name: topic.name || ''
-      }));
+      doc.classification = await getDocumentClassification(doc.id);
+      doc.topics = doc.classification.topics.map((topic) => ({ id: topic.id, name: topic.name }));
     } catch (error) {
       doc.topics = [];
+      doc.classification = { researchAgendas: [], topics: [], keywords: [], complete: false, source: "document" };
     }
     
     documents.push(doc);
@@ -1241,28 +1380,9 @@ export async function updateCompiledDocument(
       }
     }
     
-    // Update research agenda/topics if provided
-    if ((Array.isArray(compiledDoc.topics) && compiledDoc.topics.length > 0) ||
-        (Array.isArray(compiledDoc.research_agenda) && compiledDoc.research_agenda.length > 0)) {
-      // Use either topics or research_agenda, preferring topics
-      const topicsToUse = Array.isArray(compiledDoc.topics) ? compiledDoc.topics : 
-                         (Array.isArray(compiledDoc.research_agenda) ? compiledDoc.research_agenda : []);
-      
-      if (topicsToUse.length > 0) {
-        // First delete existing topic associations
-        await client.queryArray('DELETE FROM document_research_agenda WHERE document_id = $1', [compiledDocId]);
-        
-        // Insert new topic associations
-        for (const topic of topicsToUse) {
-          if (topic && topic.id) {
-            await client.queryArray(
-              'INSERT INTO document_research_agenda (document_id, research_agenda_id) VALUES ($1, $2)',
-              [compiledDocId, topic.id]
-            );
-          }
-        }
-      }
-    }
+    // Compiled parents do not own classifications. Their public metadata is
+    // always aggregated from child documents by getDocumentClassification().
+    // Legacy topics/research_agenda payloads are intentionally ignored here.
     
     // Commit the transaction
     await client.queryArray('COMMIT');
