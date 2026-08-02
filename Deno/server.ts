@@ -7,7 +7,7 @@
 // SECTION: Imports
 // -----------------------------
 import { Application, Router, FormDataReader } from "./deps.ts";
-import type { RouterContext } from "./deps.ts";
+import type { Context, RouterContext } from "./deps.ts";
 import { getErrorMessage } from "./utils/errorHandler.ts";
 import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
 import { join } from "https://deno.land/std@0.190.0/path/mod.ts";
@@ -26,6 +26,7 @@ import { uploadRoutes, uploadRoutesAllowedMethods } from "./routes/uploadRoutes.
 import reportsRoutes from "./routes/reportsRoutes.ts"; // Import reports routes
 import { categoryRoutes, categoryAllowedMethods } from "./routes/categoryRoutes.ts";
 import { getChildDocuments } from "./controllers/documentController.ts";
+import { handleUpdateDocument } from "./api/document.ts";
 import { getDocumentAuthors } from "./controllers/documentAuthorController.ts";
 import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
@@ -37,6 +38,7 @@ import { DocumentRequestModel } from "./models/documentRequestModel.ts";
 import { DocumentRequestController } from "./controllers/documentRequestController.ts";
 import { emailRoutes } from "./routes/emailRoutes.ts"; // Import email routes
 import { authorVisitsRoutes, authorVisitsAllowedMethods } from "./routes/authorVisitsRoutes.ts"; // Import author visits routes
+import { authorReferenceRoutes, authorReferenceAllowedMethods } from "./routes/authorReferenceRoutes.ts";
 import { pageVisitsRoutes, pageVisitsAllowedMethods } from "./routes/pageVisitsRoutes.ts"; // Import page visits routes
 import { systemLogsRoutes, systemLogsAllowedMethods } from "./routes/systemLogsRoutes.ts"; // Import system logs routes
 import keywordsRoutes from "./routes/keywordsRoutes.ts"; // Import keywords routes
@@ -44,16 +46,35 @@ import { getCompiledDocument } from "./api/compiledDocument.ts";
 import { handleGetUserProfileForNavbar } from "./api/user.ts"; // Import user profile handler
 import { handleLibraryRequest } from "./api/userLibrary.ts"; // Import user library handler
 import { handleUserProfilePictureUpload } from "./api/userProfilePicture.ts"; // Import user profile picture handler
-import { isAuthenticated, isAdmin } from "./middleware/authMiddleware.ts"; // Authn/authz middleware
+import { isAuthenticated, isAdmin, requireCapability } from "./middleware/authMiddleware.ts"; // Authn/authz middleware
+import { canModifyPendingUpload, canViewCompilation } from "./services/contentAuthorizationService.ts";
+import { AuthorReferenceValidationError, ensureAuthorReferenceDataExists, listAffiliationsCompatibility, validateAuthorReferenceValues } from "./services/authorReferenceDataService.ts";
+import { getSessionFromHeaders } from "./services/sessionService.ts";
+import { UserDocumentHistoryModel } from "./models/userDocumentHistoryModel.ts";
 import { auth } from "./config/auth.ts"; // Better Auth instance
 import { webHandler } from "./utils/oakAdapter.ts"; // web Request/Response -> oak bridge
 import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
+import { STORAGE_ROOT } from "./config/storage.ts";
 import experienceRoutes from "./routes/experienceRoutes.ts";
 import { ensureExperienceTablesExist } from "./services/experienceService.ts";
 import newsRoutes from "./routes/newsRoutes.ts";
 import { ensureNewsTableExists } from "./services/newsService.ts";
 import contactInquiryRoutes from "./routes/contactInquiryRoutes.ts";
-import { ensureContactInquiryTablesExist, startContactNotificationWorker } from "./services/contactInquiryService.ts";
+import { ensureContactInquiryTablesExist, getContactNotificationConfiguration, startContactNotificationWorker } from "./services/contactInquiryService.ts";
+import adminNotificationRoutes from "./routes/adminNotificationRoutes.ts";
+import { ensureAuthorNotificationTablesExist } from "./services/authorNotificationService.ts";
+import { syncAuthorProfileNotification } from "./services/authorNotificationService.ts";
+import {
+  ensureLegacyPublicSoakTablesExist,
+  getLegacyPublicReleaseId,
+  recordLegacyPublicPathHit,
+  registerLegacyPublicRelease,
+} from "./services/legacyPublicPathService.ts";
+import {
+  LEGACY_PUBLIC_REDIRECTS,
+  matchLegacyPublicPath,
+} from "./shared/legacyPublicPaths.ts";
+import { authorNameKey } from "../shared/authorName.ts";
 // Import the document view controller
 // TODO: Fix DocumentViewController implementation
 // import { DocumentViewController } from "./controllers/documentViewController.ts";
@@ -65,6 +86,7 @@ import { ensureContactInquiryTablesExist, startContactNotificationWorker } from 
 // SECTION: Configuration
 // -----------------------------
 const PORT = Deno.env.get("PORT") || 8000;
+const LEGACY_PUBLIC_RELEASE_ID = getLegacyPublicReleaseId();
 const PROTECTED_DOCUMENT_FILE_PREFIXES = [
   "/storage/thesis/",
   "/storage/dissertation/",
@@ -101,8 +123,31 @@ function isProtectedDocumentFilePath(pathname: string): boolean {
 // -----------------------------
 const app = new Application();
 const router = new Router();
+const PUBLIC_ERROR_STATUSES = new Set<number>([400, 401, 403, 404, 408, 429, 500, 503]);
 // Record when the server started
 export const SERVER_START_TIME = Date.now();
+
+function requestAcceptsHtml(ctx: Context) {
+  return (ctx.request.headers.get("accept") || "").includes("text/html");
+}
+
+async function servePublicErrorPage(ctx: Context, status: number) {
+  ctx.response.status = status;
+  ctx.response.headers.set("Cache-Control", "no-store");
+  ctx.response.headers.set("X-Robots-Tag", "noindex");
+  ctx.response.headers.set("Vary", "Accept");
+
+  try {
+    const shellPath = `${Deno.cwd()}/Public/pages/miscellaneous/error.html`;
+    const shell = await Deno.readTextFile(shellPath);
+    const content = shell.replace("<body>", `<body data-peas-error-status="${status}">`);
+    ctx.response.type = "text/html";
+    ctx.response.body = ctx.request.method === "HEAD" ? null : content;
+  } catch {
+    ctx.response.type = "text/plain";
+    ctx.response.body = ctx.request.method === "HEAD" ? null : `${status} - Error`;
+  }
+}
 
 // Setup visit counters tables if needed
 async function ensureVisitCounterTablesExist() {
@@ -161,11 +206,18 @@ async function ensureVisitCounterTablesExist() {
 app.use(async (ctx, next) => {
   try {
     await next();
+    if (PUBLIC_ERROR_STATUSES.has(Number(ctx.response.status)) && requestAcceptsHtml(ctx)) {
+      await servePublicErrorPage(ctx, Number(ctx.response.status));
+    }
   } catch (err) {
     // Log the details server-side; never echo internals back to the client.
     console.error(`Unhandled error on ${ctx.request.method} ${ctx.request.url.pathname}:`, err);
-    ctx.response.status = 500;
-    ctx.response.body = { message: "Internal server error" };
+    if (requestAcceptsHtml(ctx)) {
+      await servePublicErrorPage(ctx, 500);
+    } else {
+      ctx.response.status = 500;
+      ctx.response.body = { message: "Internal server error" };
+    }
   }
 });
 
@@ -174,7 +226,38 @@ const publicAliases: Record<string, string> = {
   "/terms": "/pages/miscellaneous/T&A-Public.html",
   "/privacy": "/pages/miscellaneous/Privacy.html",
   "/login": "/log-in.html",
+  ...LEGACY_PUBLIC_REDIRECTS,
 };
+
+app.use(async (ctx, next) => {
+  const legacyPath = matchLegacyPublicPath(ctx.request.url.pathname);
+  if (!legacyPath) return await next();
+
+  let responseStatus = 500;
+  try {
+    await next();
+    responseStatus = Number(ctx.response.status);
+  } finally {
+    ctx.response.headers.set("X-PeAS-Deprecated", "true");
+    ctx.response.headers.set("Cache-Control", "no-cache, must-revalidate");
+    const successor = LEGACY_PUBLIC_REDIRECTS[legacyPath];
+    if (successor) ctx.response.headers.set("Link", `<${successor}>; rel=\"successor-version\"`);
+
+    try {
+      await recordLegacyPublicPathHit({
+        releaseId: LEGACY_PUBLIC_RELEASE_ID,
+        path: legacyPath,
+        method: ctx.request.method,
+        responseStatus,
+      });
+    } catch (error) {
+      console.warn("Unable to record legacy public-path request", {
+        path: legacyPath,
+        error: getErrorMessage(error),
+      });
+    }
+  }
+});
 
 app.use(async (ctx, next) => {
   if (ctx.request.method !== "GET" && ctx.request.method !== "HEAD") return await next();
@@ -182,6 +265,18 @@ app.use(async (ctx, next) => {
   if (!destination) return await next();
   ctx.response.status = 308;
   ctx.response.headers.set("Location", destination + ctx.request.url.search);
+});
+
+// All status pages share the same HTML entry and React implementation.
+app.use(async (ctx, next) => {
+  if (ctx.request.method !== "GET" && ctx.request.method !== "HEAD") return await next();
+
+  const routeMatch = ctx.request.url.pathname.match(/^\/error\/(\d{3})\/?$/);
+  const routeStatus = Number(routeMatch?.[1]);
+  const status = ctx.request.url.pathname === "/pages/miscellaneous/404.html" ? 404 : routeStatus;
+  if (!PUBLIC_ERROR_STATUSES.has(status)) return await next();
+
+  await servePublicErrorPage(ctx, status);
 });
 
 // Add static file serving middleware
@@ -227,9 +322,6 @@ app.use(async (ctx, next) => {
       ctx.request.url.pathname.match(/\/storage\/users\/profile-picture\//) ||
       ctx.request.url.pathname.match(/\/C:\/Users\/.*\/storage\/(authors\/profile-pictures|users\/profile-picture)\//)) {
     try {
-      // Get the workspace root directory (parent of Deno directory)
-      const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
-      
       // Extract just the filename from the path
       const matches = ctx.request.url.pathname.match(/([^/\\]+)$/);
       const filename = matches ? matches[1] : null;
@@ -240,11 +332,13 @@ app.use(async (ctx, next) => {
       
       // Determine which path to use based on the URL pattern
       let correctPath;
+      const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
       if (ctx.request.url.pathname.includes('users/profile-picture')) {
-        correctPath = `storage/users/profile-picture/${filename}`;
-              } else {
+        await ctx.send({ root: STORAGE_ROOT, path: join("users", "profile-picture", filename) });
+        return;
+      } else {
         correctPath = `storage/authors/profile-pictures/${filename}`;
-              }
+      }
       
       await ctx.send({
         root: workspaceRoot,
@@ -263,10 +357,14 @@ app.use(async (ctx, next) => {
   // Check if the request is for a file in the storage directory
   if (ctx.request.url.pathname.startsWith('/storage/')) {
     if (isProtectedDocumentFilePath(ctx.request.url.pathname)) {
-      ctx.response.status = 403;
-      ctx.response.body = {
-        error: "Protected document files must be accessed through an approved download route",
-      };
+      if (requestAcceptsHtml(ctx)) {
+        await servePublicErrorPage(ctx, 403);
+      } else {
+        ctx.response.status = 403;
+        ctx.response.body = {
+          error: "Protected document files must be accessed through an approved download route",
+        };
+      }
       return;
     }
 
@@ -338,6 +436,12 @@ emailRoutes.forEach(route => {
 router.get("/api/documents/:id/children", async (ctx) => {
   try {
     const docId = ctx.params.id;
+    const session = await getSessionFromHeaders(ctx.request.headers);
+    if (!await canViewCompilation(session, docId)) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Compiled document not found" };
+      return;
+    }
         
     // Convert context to Request for the controller
     const request = new Request(`${ctx.request.url.origin}/api/documents/${docId}/children`, {
@@ -387,49 +491,54 @@ router.get("/api/document-authors/:documentId", async (ctx) => {
 // Add endpoint to get all authors
 router.get("/api/authors/all", async (ctx) => {
   try {
-        
-    // Import AuthorModel dynamically to avoid circular dependencies
-    const { AuthorModel } = await import("./models/authorModel.ts");
-    
-    // Get all authors from the model
-    const authors = await AuthorModel.getAll();
-    
-    // Get work counts for each author
-    const authorWorksCountQuery = `
-      SELECT author_id, COUNT(document_id) as works_count 
-      FROM document_authors 
-      GROUP BY author_id
-    `;
-    const authorWorksResult = await client.queryObject(authorWorksCountQuery);
-    
-    // Create a map of author ID to works count
-    const authorWorksMap = new Map();
-    authorWorksResult.rows.forEach((row: any) => {
-      authorWorksMap.set(row.author_id, parseInt(row.works_count, 10));
-    });
-    
-    // Format the data in a frontend-friendly way
-    const formattedAuthors = authors.map(author => {
-      // Get works count from map or default to 0
-      const worksCount = authorWorksMap.get(author.id) || 0;
-      
-      return {
-        id: author.id, // Keep the UUID as the internal ID for API calls
-        spud_id: author.spud_id || '', // Include spud_id for display purposes
-        full_name: author.full_name,
-        department: author.department || '',
-        affiliation: author.affiliation || '',
-        email: author.email || '',
-        bio: author.biography || '',
-        profilePicUrl: author.profile_picture || '',
-        // Populate with actual work count from database
-        worksCount: worksCount
-      };
-    });
+    const params: unknown[] = [];
+    const clauses: string[] = [];
+    const query = ctx.request.url.searchParams.get("q")?.trim();
+    const department = ctx.request.url.searchParams.get("department")?.trim();
+    const affiliation = ctx.request.url.searchParams.get("affiliation")?.trim();
+    if (query) {
+      params.push(`%${query}%`);
+      clauses.push(`(a.full_name ILIKE $${params.length} OR a.department ILIKE $${params.length} OR a.affiliation ILIKE $${params.length})`);
+    }
+    if (department) {
+      params.push(department);
+      clauses.push(`LOWER(BTRIM(a.department)) = LOWER(BTRIM($${params.length}))`);
+    }
+    if (affiliation) {
+      params.push(affiliation);
+      clauses.push(`LOWER(BTRIM(a.affiliation)) = LOWER(BTRIM($${params.length}))`);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+    const authorsResult = await client.queryObject<Record<string, unknown>>(`
+      SELECT a.id, a.spud_id, a.full_name, a.department, a.affiliation, a.email,
+             a.biography, a.profile_picture, a.created_source,
+             (
+               (NULLIF(BTRIM(a.department), '') IS NOT NULL OR NULLIF(BTRIM(a.affiliation), '') IS NOT NULL)
+             ) AS profile_complete,
+             COUNT(da.document_id) AS works_count
+      FROM authors a
+      LEFT JOIN document_authors da ON da.author_id = a.id
+      ${where}
+      GROUP BY a.id
+      ORDER BY a.full_name
+    `, params);
+    const formattedAuthors = authorsResult.rows.map((author) => ({
+      id: author.id,
+      spud_id: author.spud_id || '',
+      full_name: author.full_name,
+      department: author.department || '',
+      affiliation: author.affiliation || '',
+      email: author.email || '',
+      bio: author.biography || '',
+      profilePicUrl: author.profile_picture || '',
+      createdSource: author.created_source || 'author_directory',
+      profileComplete: Boolean(author.profile_complete),
+      worksCount: Number(author.works_count || 0),
+    }));
     
     ctx.response.status = 200;
     ctx.response.body = {
-      count: authors.length,
+      count: formattedAuthors.length,
       authors: formattedAuthors
     };
   } catch (error) {
@@ -698,81 +807,166 @@ router.get("/api/compiled-documents/:compiledDocId/sync-authors", async (ctx) =>
 // Add endpoint to update author information
 router.put("/api/authors/:authorId", isAuthenticated, isAdmin, async (ctx) => {
   const authorId = ctx.params.authorId;
-  
+
   if (!authorId) {
-      ctx.response.status = 400;
+    ctx.response.status = 400;
     ctx.response.body = { error: "Author ID is required" };
-      return;
-    }
-    
+    return;
+  }
+
   try {
-    // Parse the request body
     const body = ctx.request.body();
     if (body.type !== "json") {
       ctx.response.status = 400;
       ctx.response.body = { error: "Request body must be JSON" };
       return;
     }
-    
+
     const authorData = await body.value;
-    
-    // Check if the author exists
     const existingAuthor = await AuthorModel.getById(authorId);
     if (!existingAuthor) {
       ctx.response.status = 404;
       ctx.response.body = { error: "Author not found" };
       return;
     }
-    
-    // If trying to change ID, check if the new ID already exists
-    if (authorData.newId && authorData.newId !== authorId) {
-      const duplicateCheck = await AuthorModel.getById(authorData.newId);
-      if (duplicateCheck) {
-        ctx.response.status = 409; // Conflict
-        ctx.response.body = { error: "The new ID is already in use" };
+
+    const newId = typeof authorData?.newId === "string" ? authorData.newId.trim() : "";
+    if (newId && newId !== authorId) {
+      const duplicateId = await AuthorModel.getById(newId);
+      if (duplicateId) {
+        ctx.response.status = 409;
+        ctx.response.body = { error: "The new ID is already in use." };
         return;
       }
     }
-    
-    // Prepare update data
-    const updateData: any = {
-      full_name: authorData.full_name || authorData.full_name,
-      department: authorData.department || null,
-      affiliation: authorData.affiliation || null,
-      email: authorData.email || null,
-      biography: authorData.bio || null,
-      profile_picture: authorData.profilePicUrl || null
-    };
-    
-    // Add spud_id to update data if provided
-    if (authorData.spud_id !== undefined) {
-      updateData.spud_id = authorData.spud_id || null;
+
+    const fieldErrors: Record<string, string> = {};
+    const fullName = sanitizeAuthorDisplayName(authorData?.full_name, fieldErrors, "full_name");
+    const spudId = normalizeOptionalAuthorValue(authorData?.spud_id, 50, fieldErrors, "spud_id");
+    const department = normalizeOptionalAuthorValue(authorData?.department, 255, fieldErrors, "department");
+    const affiliation = normalizeOptionalAuthorValue(authorData?.affiliation, 255, fieldErrors, "affiliation");
+    const email = normalizeOptionalAuthorValue(authorData?.email, 255, fieldErrors, "email");
+    const biography = normalizeOptionalAuthorValue(authorData?.bio, Number.MAX_SAFE_INTEGER, fieldErrors, "bio");
+    const profilePicture = normalizeOptionalAuthorValue(authorData?.profilePicUrl, 255, fieldErrors, "profilePicUrl");
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) {
+      fieldErrors.email = "Enter a valid email address or leave this field empty.";
     }
-    
-    // Update the author in the database
-    await AuthorModel.update(authorId, updateData);
-    
-    // Handle ID change if requested
-    if (authorData.newId && authorData.newId !== authorId) {
-      await AuthorModel.updateId(authorId, authorData.newId);
+
+    if (Object.keys(fieldErrors).length) {
+      ctx.response.status = 400;
+      ctx.response.body = { error: "Fix the highlighted author fields.", fieldErrors };
+      return;
     }
-    
-    // Return the updated author
-    const updatedAuthor = await AuthorModel.getById(authorData.newId || authorId);
-    
+
+    let canonicalReference;
+    try {
+      canonicalReference = await validateAuthorReferenceValues(department, affiliation);
+    } catch (error) {
+      ctx.response.status = error instanceof AuthorReferenceValidationError ? 400 : 500;
+      const referenceField: "department" | "affiliation" = error instanceof AuthorReferenceValidationError
+        ? error.field ?? "department"
+        : "department";
+      ctx.response.body = {
+        error: error instanceof Error ? error.message : "Unable to validate author references.",
+        fieldErrors: error instanceof AuthorReferenceValidationError ? { [referenceField]: error instanceof Error ? error.message : "Choose a managed department or affiliation." } : undefined,
+      };
+      return;
+    }
+
+    const duplicateName = await client.queryObject(
+      `SELECT id FROM authors
+       WHERE id <> $2
+         AND LOWER(REGEXP_REPLACE(BTRIM(full_name), '[[:space:]]+', ' ', 'g')) = $1
+       LIMIT 1`,
+      [authorNameKey(fullName), authorId],
+    );
+    if (duplicateName.rows.length) {
+      ctx.response.status = 409;
+      ctx.response.body = { error: "An author with this publication display name already exists.", fieldErrors: { full_name: "Use a publication display name that is not already in the directory." } };
+      return;
+    }
+
+    if (spudId) {
+      const duplicateSpudId = await client.queryObject(
+        "SELECT id FROM authors WHERE id <> $2 AND spud_id = $1 LIMIT 1",
+        [spudId, authorId],
+      );
+      if (duplicateSpudId.rows.length) {
+        ctx.response.status = 409;
+        ctx.response.body = { error: "That SPUD ID is already assigned to another author.", fieldErrors: { spud_id: "Use a unique SPUD ID." } };
+        return;
+      }
+    }
+
+    const updatedResult = await client.queryObject(
+      `UPDATE authors
+       SET full_name = $1,
+           department = $2,
+           affiliation = $3,
+           email = $4,
+           biography = $5,
+           profile_picture = $6,
+           spud_id = $7,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8
+       RETURNING *`,
+      [
+        fullName,
+        canonicalReference.department,
+        canonicalReference.affiliation,
+        email || null,
+        biography || null,
+        profilePicture || null,
+        spudId || null,
+        authorId,
+      ],
+    );
+
+    const updatedAuthor = updatedResult.rows[0] ?? null;
+    if (!updatedAuthor) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Author not found" };
+      return;
+    }
+
+    if (newId && newId !== authorId) {
+      await AuthorModel.updateId(authorId, newId);
+    }
+
+    const responseAuthor = newId && newId !== authorId
+      ? await AuthorModel.getById(newId)
+      : updatedAuthor;
+    if (!responseAuthor) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Author not found after ID update" };
+      return;
+    }
+
+    const profileComplete = Boolean(
+      String(responseAuthor.department ?? "").trim() || String(responseAuthor.affiliation ?? "").trim()
+    );
+    await syncAuthorProfileNotification(String(responseAuthor.id), String(responseAuthor.full_name), profileComplete);
+
     ctx.response.status = 200;
-    ctx.response.body = {
-      message: "Author updated successfully",
-      author: updatedAuthor
-    };
+    ctx.response.body = { message: "Author updated successfully", author: responseAuthor };
   } catch (error) {
+    if (isAuthorUniqueViolation(error)) {
+      const uniqueField = authorUniqueField(error);
+      ctx.response.status = 409;
+      ctx.response.body = {
+        error: "An author identifier is already in use.",
+        fieldErrors: uniqueField ? { [uniqueField]: uniqueField === "full_name" ? "Use a unique publication display name." : "Use a unique SPUD ID." } : undefined,
+      };
+      return;
+    }
     ctx.response.status = 500;
     ctx.response.body = { error: error instanceof Error ? error.message : "Unknown error" };
   }
 });
 
 // Add authors endpoint
-router.post("/api/document-research-agenda/link", isAuthenticated, isAdmin, async (ctx) => {
+router.post("/api/document-research-agenda/link", isAuthenticated, requireCapability("documents:upload"), async (ctx) => {
   try {
     const body = await ctx.request.body({ type: "json" }).value;
     
@@ -782,9 +976,15 @@ router.post("/api/document-research-agenda/link", isAuthenticated, isAdmin, asyn
       return;
     }
     
-    if (!body.agenda_items || !Array.isArray(body.agenda_items) || body.agenda_items.length === 0) {
+    if (!Array.isArray(body.agenda_items)) {
       ctx.response.status = 400;
-      ctx.response.body = { error: "At least one agenda item is required" };
+      ctx.response.body = { error: "agenda_items must be an array" };
+      return;
+    }
+
+    if (!await canModifyPendingUpload(ctx.state.user, body.document_id)) {
+      ctx.response.status = 403;
+      ctx.response.body = { error: "You cannot change research agenda items for this document" };
       return;
     }
     
@@ -836,6 +1036,8 @@ app.use(newsRoutes.allowedMethods());
 // Register durable public Contact and administrator triage routes
 app.use(contactInquiryRoutes.routes());
 app.use(contactInquiryRoutes.allowedMethods());
+app.use(adminNotificationRoutes.routes());
+app.use(adminNotificationRoutes.allowedMethods());
 
 // Add router to app
 app.use(router.routes());
@@ -874,7 +1076,9 @@ router.put("/api/documents/:id/metadata", isAuthenticated, isAdmin, async (ctx) 
     // Get request body
     const body = await ctx.request.body({ type: "json" }).value;
     
-    // Create a request to the document update endpoint
+    // Forward directly to the document update handler. An internal fetch would
+    // create a second request without the browser session cookie and could
+    // turn the real update response into an opaque 500 error.
     const updateRequest = new Request(`${ctx.request.url.origin}/documents/${id}`, {
       method: "PUT",
       headers: {
@@ -883,8 +1087,7 @@ router.put("/api/documents/:id/metadata", isAuthenticated, isAdmin, async (ctx) 
       body: JSON.stringify(body)
     });
     
-    // Forward to the document update handler
-    const updateResponse = await fetch(updateRequest);
+    const updateResponse = await handleUpdateDocument(updateRequest);
     
     // Return the response
     ctx.response.status = updateResponse.status;
@@ -1046,6 +1249,10 @@ async function startServer() {
     await ensureExperienceTablesExist();
     await ensureNewsTableExists();
     await ensureContactInquiryTablesExist();
+    await ensureAuthorNotificationTablesExist();
+    await ensureLegacyPublicSoakTablesExist();
+    await ensureAuthorReferenceDataExists();
+    await registerLegacyPublicRelease(LEGACY_PUBLIC_RELEASE_ID);
     await startContactNotificationWorker();
     await DocumentRequestModel.ensureAccessTokenTableExists();
     
@@ -1053,8 +1260,11 @@ async function startServer() {
     // after registration still dispatch, since Oak matches at request time).
 
     // Register author visits routes
-        app.use(authorVisitsRoutes);
+    app.use(authorVisitsRoutes);
     app.use(authorVisitsAllowedMethods);
+
+    app.use(authorReferenceRoutes);
+    app.use(authorReferenceAllowedMethods);
     
     // Register page visits routes
         app.use(pageVisitsRoutes);
@@ -1097,20 +1307,7 @@ async function startServer() {
         const acceptHeader = ctx.request.headers.get("accept") || "";
         
         if (acceptHeader.includes("text/html")) {
-          // For HTML requests, serve the custom 404 page
-          // Use normalized path to handle case-sensitivity across environments
-          // Directory is canonically "Public" (capital P) — one consistent
-          // casing so paths survive case-sensitive filesystems (Linux/Docker).
-          const customErrorPath = `${Deno.cwd()}/Public/pages/miscellaneous/404.html`;
-          try {
-            const content = await Deno.readTextFile(customErrorPath);
-            ctx.response.type = "text/html";
-            ctx.response.body = content;
-          } catch (e: unknown) {
-            // Fallback to simple text response if file can't be read
-            ctx.response.type = "text/plain";
-            ctx.response.body = "404 - Page Not Found";
-          }
+          await servePublicErrorPage(ctx, 404);
         } else {
           // For API requests, return JSON
           ctx.response.type = "application/json";
@@ -1136,14 +1333,9 @@ async function startServer() {
 
 router.get('/api/affiliations', async (ctx) => {
   try {
-    // Get distinct affiliations from authors table
-    const result = await client.queryObject(
-      "SELECT DISTINCT affiliation FROM authors WHERE affiliation IS NOT NULL ORDER BY affiliation"
-    );
-    
     ctx.response.status = 200;
     ctx.response.type = "json";
-    ctx.response.body = result.rows.map((row: any) => row.affiliation);
+    ctx.response.body = await listAffiliationsCompatibility();
   } catch (error) {
     ctx.response.status = 500;
     ctx.response.type = "json";
@@ -1153,10 +1345,18 @@ router.get('/api/affiliations', async (ctx) => {
 
 // Add a server ping endpoint for client health checks
 router.get("/ping", (ctx) => {
+    const contactNotifications = getContactNotificationConfiguration();
     ctx.response.status = 200;
     ctx.response.body = {
         status: "ok",
-        serverStartTime: SERVER_START_TIME
+        serverStartTime: SERVER_START_TIME,
+        checks: {
+          contactNotifications: {
+            status: contactNotifications.status,
+            configured: contactNotifications.configured,
+            diagnosticCode: contactNotifications.diagnosticCode,
+          },
+        },
     };
 });
 
@@ -1528,7 +1728,6 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       
       // If it's a PDF and format isn't explicitly set to 'json', serve it directly with the proper content type
       if (isPdf && format !== 'json') {
-                
         // Set PDF content type header
         ctx.response.headers.set('Content-Type', 'application/pdf');
         
@@ -1539,12 +1738,14 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
         
         // Read and serve the file directly
         const file = await Deno.readFile(absolutePath);
+        await UserDocumentHistoryModel.recordAction(String(ctx.state.user.id), Number(id), "DOWNLOAD", "compiled");
         ctx.response.body = file;
         return;
       }
       
       // If not a PDF or format is explicitly 'json', return as text in JSON
       const forewordContent = await Deno.readTextFile(absolutePath);
+      await UserDocumentHistoryModel.recordAction(String(ctx.state.user.id), Number(id), "DOWNLOAD", "compiled");
       
       // Return the foreword content
       ctx.response.status = 200;
@@ -1649,7 +1850,7 @@ router.post("/api/compiled-documents/save-to-library", isAuthenticated, async (c
       const { UserLibraryModel } = await import("./models/userLibraryModel.ts");
       
       // Check if the document is already in the library
-      const isInLibrary = await UserLibraryModel.isInLibrary(userId, documentId);
+      const isInLibrary = await UserLibraryModel.isInLibrary(userId, documentId, "compiled");
       
       if (isInLibrary) {
         ctx.response.status = 200;
@@ -1663,7 +1864,7 @@ router.post("/api/compiled-documents/save-to-library", isAuthenticated, async (c
       }
       
       // Add the document to the library
-      const result = await UserLibraryModel.addToLibrary(userId, documentId);
+      const result = await UserLibraryModel.addToLibrary(userId, documentId, "compiled");
       
       if (result) {
         // Get the updated library count
@@ -1716,7 +1917,7 @@ router.post("/api/library/save-compiled", isAuthenticated, async (ctx) => {
     const { UserLibraryModel } = await import("./models/userLibraryModel.ts");
     
     // Check if the document is already in the library
-    const isInLibrary = await UserLibraryModel.isInLibrary(userId, documentId);
+    const isInLibrary = await UserLibraryModel.isInLibrary(userId, documentId, "compiled");
     
     if (isInLibrary) {
       ctx.response.status = 200;
@@ -1730,7 +1931,7 @@ router.post("/api/library/save-compiled", isAuthenticated, async (ctx) => {
     }
     
     // Add the document to the library
-    const result = await UserLibraryModel.addToLibrary(userId, documentId);
+    const result = await UserLibraryModel.addToLibrary(userId, documentId, "compiled");
     
     if (result) {
       // Get the updated library count
@@ -2014,6 +2215,54 @@ router.get(/\.(pdf)$/i as unknown as string, async (ctx: RouterContext<string>) 
     ctx.response.body = { error: 'Internal server error' };
   }
 });
+
+function sanitizeAuthorDisplayName(value: unknown, fieldErrors: Record<string, string>, field: string) {
+  if (value !== undefined && value !== null && typeof value !== "string") {
+    fieldErrors[field] = "Enter the publication display name as text.";
+    return "";
+  }
+  const normalized = String(value ?? "").normalize("NFC").trim().replace(/\s+/gu, " ");
+  if (!normalized) {
+    fieldErrors[field] = "Enter the author’s publication display name.";
+    return "";
+  }
+  if (normalized.length > 255) {
+    fieldErrors[field] = "The publication display name must be 255 characters or fewer.";
+  }
+  if (/[\u0000-\u001F\u007F]/u.test(normalized)) {
+    fieldErrors[field] = "The publication display name contains unsupported characters.";
+  }
+  return normalized;
+}
+
+function normalizeOptionalAuthorValue(value: unknown, maxLength: number, fieldErrors: Record<string, string>, field: string) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value !== "string") {
+    fieldErrors[field] = "Enter a text value or leave this field empty.";
+    return "";
+  }
+  const normalized = String(value).normalize("NFC").trim().replace(/\s+/gu, " ");
+  if (normalized.length > maxLength) {
+    fieldErrors[field] = `This field must be ${maxLength} characters or fewer.`;
+  }
+  if (/[\u0000-\u001F\u007F]/u.test(normalized)) {
+    fieldErrors[field] = "This field contains unsupported characters.";
+  }
+  return normalized;
+}
+
+function isAuthorUniqueViolation(error: unknown) {
+  return typeof error === "object" && error !== null && "fields" in error &&
+    String((error as { fields?: { code?: string } }).fields?.code) === "23505";
+}
+
+function authorUniqueField(error: unknown): "full_name" | "spud_id" | undefined {
+  if (typeof error !== "object" || error === null || !("fields" in error)) return undefined;
+  const constraint = String((error as { fields?: { constraint?: string } }).fields?.constraint ?? "").toLowerCase();
+  if (constraint.includes("spud")) return "spud_id";
+  if (constraint.includes("full_name") || constraint.includes("normalized")) return "full_name";
+  return undefined;
+}
 
 // Start the server
 await startServer();

@@ -35,6 +35,10 @@ export interface Document {
   deleted_at?: Date;
   compiled_document_id?: number; // Reference to compiled_documents table (legacy field)
   compiled_parent_id?: number; // Direct reference to compiled_documents table
+  uploaded_by?: string;
+  review_status?: 'pending_review' | 'approved' | 'rejected';
+  reviewed_by?: string;
+  reviewed_at?: Date;
   // Additional fields for guest document API
   author?: string;
   publication_year?: string;
@@ -220,9 +224,10 @@ export class DocumentModel {
           title, description, abstract, publication_date, 
           start_year, end_year, category_id, department_id,
           file_path, pages, volume, issue, is_public, document_type,
-          compiled_parent_id
+          compiled_parent_id, uploaded_by, review_status, reviewed_by, reviewed_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19
         ) RETURNING *`,
         [
           document.title,
@@ -239,7 +244,11 @@ export class DocumentModel {
           document.issue || null,
           document.is_public || false,
           document.document_type,
-          document.compiled_parent_id || null
+          document.compiled_parent_id || null,
+          document.uploaded_by || null,
+          document.review_status || "approved",
+          document.reviewed_by || null,
+          document.reviewed_at || null,
         ]
       );
       

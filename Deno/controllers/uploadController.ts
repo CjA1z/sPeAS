@@ -4,13 +4,18 @@ import { join } from "../deps.ts";
 import { Context } from "../deps.ts";
 import { saveFile } from "../services/uploadService.ts";
 import { extractPdfMetadata } from "../services/pdfService.ts";
+import { createUploaderHashCode } from "../utils/uploaderHash.ts";
+
+export interface UploadPolicy {
+  documentOnly?: boolean;
+}
 
 /**
  * Handle file upload request
  * @param ctx The Oak context
  * @returns HTTP response 
  */
-export async function handleFileUpload(ctx: Context): Promise<void> {
+export async function handleFileUpload(ctx: Context, policy: UploadPolicy = {}): Promise<void> {
   try {
         
     // Check if content type is multipart/form-data
@@ -23,9 +28,10 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
     
     // Get form data
     const form = await ctx.request.body({ type: "form-data" }).value;
-    const data = await form.read({ 
-      maxFileSize: 500_000_000, // 500MB limit
-      maxSize: 550_000_000 // 550MB total form limit
+    const maxFileSize = policy.documentOnly ? 100_000_000 : 500_000_000;
+    const data = await form.read({
+      maxFileSize,
+      maxSize: maxFileSize + 10_000_000,
     });
     
     // Get file from form data
@@ -58,15 +64,22 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
 
     // Check if this is a profile picture upload
     const isProfilePicture = data.fields.is_profile_picture === "true";
+    const isReplacement = data.fields.is_replacement === "true";
+    const uploaderHash = await createUploaderHashCode(String(ctx.state.user?.id ?? ""));
+
+    if (policy.documentOnly && (isProfilePicture || isReplacement)) {
+      ctx.response.status = 403;
+      ctx.response.body = { error: "This upload route only accepts new document PDFs" };
+      return;
+    }
     
     if (isProfilePicture) {
       // Handle profile picture upload
-      return await handleProfilePictureUpload(file, ctx);
+      return await handleProfilePictureUpload(file, ctx, uploaderHash);
     }
     
     // Get storage path from form data or original path for replacements
     let storagePath = data.fields.storagePath;
-    const isReplacement = data.fields.is_replacement === "true";
     const originalName = data.fields.original_name;
     let originalPath = data.fields.original_path;
     
@@ -81,6 +94,17 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       ctx.response.body = { error: `Invalid document type. Must be one of: ${validDocumentTypes.join(", ")}` };
       return;
     }
+
+    const originalFileName = getUploadedFileName(file).toLowerCase();
+    if (policy.documentOnly && !originalFileName.endsWith(".pdf")) {
+      ctx.response.status = 415;
+      ctx.response.body = { error: "Only PDF document uploads are allowed" };
+      return;
+    }
+
+    if (policy.documentOnly) {
+      storagePath = `storage/${documentType.toLowerCase()}`;
+    }
     
                             
     // Normalize path separators to forward slashes and remove leading/trailing slashes
@@ -89,10 +113,7 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
     }
     
     // Special handling for foreword files
-    const isFileNameForeword = file && 
-                              typeof file === 'object' && 
-                              (file as any).filename && 
-                              ((file as any).filename.toLowerCase().includes('foreword'));
+    const isFileNameForeword = getUploadedFileName(file).toLowerCase().includes("foreword");
     const isForewordUpload = isFileNameForeword || 
                             (data.fields.document_type && data.fields.document_type.toString().toLowerCase().includes('foreword')) || 
                             data.fields.is_foreword === 'true';
@@ -179,10 +200,12 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       originalName: originalName,
       originalPath: originalPath, // Pass the full original path to the upload service
       documentType,
-      category
+      category,
+      uploaderHash,
     } : {
       documentType,
-      category
+      category,
+      uploaderHash,
     };
     
         
@@ -196,10 +219,26 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
           } catch (statError: unknown) {
       const errorMessage = statError instanceof Error ? statError.message : String(statError);
     }
+
+    if (policy.documentOnly) {
+      const signature = new Uint8Array(5);
+      const savedFile = await Deno.open(fullFilePath, { read: true });
+      try {
+        await savedFile.read(signature);
+      } finally {
+        savedFile.close();
+      }
+      if (new TextDecoder().decode(signature) !== "%PDF-") {
+        await Deno.remove(fullFilePath).catch(() => undefined);
+        ctx.response.status = 415;
+        ctx.response.body = { error: "The uploaded file is not a valid PDF" };
+        return;
+      }
+    }
     
     // Extract metadata if it's a PDF file
     let metadata = null;
-    const isPdf = (file.name || file.filename || "").toLowerCase().endsWith('.pdf');
+    const isPdf = getUploadedFileName(file).toLowerCase().endsWith(".pdf");
     
     if (isPdf) {
             try {
@@ -223,7 +262,7 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
       details: {
         fullPath: fileResult.path,
         storagePath: storagePath,
-        originalFileName: file.name || file.filename,
+        originalFileName: getUploadedFileName(file),
         documentType: documentType
       }
     };
@@ -263,6 +302,17 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
   }
 }
 
+function getUploadedFileName(file: { originalName?: unknown; filename?: unknown; name?: unknown } | null | undefined): string {
+  const originalName = typeof file?.originalName === "string" ? file.originalName.trim() : "";
+  if (originalName) return originalName;
+
+  const name = typeof file?.name === "string" ? file.name.trim() : "";
+  if (name.includes(".")) return name;
+
+  const filename = typeof file?.filename === "string" ? file.filename.trim() : "";
+  return filename || name;
+}
+
 /**
  * Handle profile picture upload
  * @param file The profile picture file
@@ -270,14 +320,16 @@ export async function handleFileUpload(ctx: Context): Promise<void> {
  */
 export async function handleProfilePictureUpload(
   file: any, 
-  ctx: Context
+  ctx: Context,
+  uploaderHash: string,
 ): Promise<void> {
   try {
     // Handle profile picture upload
     const storagePath = "storage/authors/profile-pictures";
     const saveOptions = {
       documentType: "PROFILE_PICTURE",
-      category: "PROFILE"
+      category: "PROFILE",
+      uploaderHash,
     };
     
     // Save profile picture
@@ -310,4 +362,4 @@ export async function handleProfilePictureUpload(
       timestamp: new Date().toISOString()
     };
   }
-} 
+}

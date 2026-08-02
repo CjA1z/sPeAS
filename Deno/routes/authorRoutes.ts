@@ -5,7 +5,9 @@ import {
   createAuthor,
   createAuthors,
   deleteAuthor,
-  restoreAuthor
+  restoreAuthor,
+  getAuthorPreview,
+  getAuthorProfile,
 } from "../controllers/authorController.ts";
 import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
@@ -17,6 +19,8 @@ router.get("/authors/search", searchAuthors);
 
 // Author API test route
 router.get("/api/authors/test", testAuthorApi);
+router.get("/api/authors/:id/preview", getAuthorPreview);
+router.get("/api/authors/:id/profile", getAuthorProfile);
 
 // Author creation route (admin only)
 router.post("/authors", isAuthenticated, isAdmin, createAuthor);
@@ -31,4 +35,4 @@ router.delete("/authors/:id", isAuthenticated, isAdmin, deleteAuthor);
 router.post("/authors/:id/restore", isAuthenticated, isAdmin, restoreAuthor);
 
 // Export the routes
-export const authorRoutes = router.routes(); 
+export const authorRoutes = router.routes();

@@ -298,11 +298,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
                 { url: "/Components/images/3.jpg", alt: "Research Initiative Photo 3" },
                 { url: "/Components/images/4.jpg", alt: "Research Initiative Photo 4" },
               ],
-              primaryLabel: "View Research Agenda",
-              primaryHref: "#research-agenda",
-              secondaryLabel: "Contact the Office",
-              secondaryHref: "/contact.html",
-              variant: "split-gallery",
+              variant: "background-slideshow",
             },
           },
           {
@@ -428,12 +424,12 @@ export const defaultExperienceConfig: ExperienceConfig = {
               schoolIdLabel: "School ID",
               schoolIdPlaceholder: "Enter your School ID",
               passwordLabel: "Password",
-              passwordPlaceholder: "••••••••",
+              passwordPlaceholder: "Enter your password",
               submitLabel: "Sign in",
               forgotPasswordLabel: "Forgot Password?",
               forgotPasswordTitle: "Forgot Password?",
               forgotPasswordSubtitle: "No worries, we'll send you reset instructions.",
-              backgroundImageUrl: "/Components/images/1.jpg",
+              backgroundImageUrl: "/Components/images/spud_facade.jpg",
               graphicLogoUrl: "/Components/images/spud_logo_s.png",
               footerText: "PeAS. All Rights Reserved. L. Rovira Rd, Bantayan, Dumaguete, Negros Oriental.",
               layout: "split",
@@ -446,7 +442,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
 };
 
 const EDITABLE_STRING_FIELDS: Record<string, readonly string[]> = {
-  HeroBlock: ["eyebrow", "title", "body", "primaryLabel", "secondaryLabel"],
+  HeroBlock: ["eyebrow", "title", "body"],
   QuickLinksBlock: ["title"],
   RichTextBlock: ["eyebrow", "title", "body"],
   ImageFeatureBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt", "caption"],
@@ -534,9 +530,10 @@ function migrateBlockProps(type: string, defaults: Record<string, unknown>, sour
 
   if (type === "HeroBlock" && Array.isArray(source.images)) {
     const fallback = Array.isArray(defaults.images) ? defaults.images.map(asRecord) : [];
-    result.images = source.images.slice(0, 4).map((item, index) => {
-      const image = asRecord(item);
-      const defaultImage = fallback[index] ?? fallback[0] ?? {};
+    const sourceImages = source.images;
+    result.images = fallback.slice(0, 4).map((defaultItem, index) => {
+      const image = asRecord(sourceImages[index]);
+      const defaultImage = asRecord(defaultItem);
       return {
         url: approvedImageUrl(image.url, String(defaultImage.url ?? "")),
         alt: typeof image.alt === "string" ? image.alt.slice(0, 255) : String(defaultImage.alt ?? ""),

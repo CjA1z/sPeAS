@@ -177,6 +177,12 @@ The loader and standalone navbar documents have no active consumers and are reta
 the planned two-release legacy-request soak. After that soak confirms no traffic, delete them
 instead of refactoring them.
 
+The soak is now instrumented through aggregate release/path counters. Deployments receive a
+stable `PEAS_RELEASE_ID`, `/log-ien.html` redirects permanently to `/log-in.html`, and
+`deno task legacy:soak-report --check` blocks cleanup until two completed production releases
+show zero legacy-path traffic. No visitor IP address, query string, or user-agent value is
+stored. The retained files remain in place until that command succeeds.
+
 ## Explicitly NOT refactoring (audited, fine as-is)
 
 `documentModel.ts`, `documentController.ts`, `pageVisitsModel.ts`, `authorVisitsModel.ts`,

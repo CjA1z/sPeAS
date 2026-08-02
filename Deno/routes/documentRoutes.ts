@@ -11,9 +11,10 @@ import {
 import { DocumentModel } from "../models/documentModel.ts";
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
-import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
 import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
+import { canViewDocument } from "../services/contentAuthorizationService.ts";
 
 const DOCUMENT_FILE_FIELD_NAMES = new Set([
     "file_path",
@@ -28,6 +29,8 @@ const DOCUMENT_FILE_FIELD_NAMES = new Set([
     "foreword_attachment",
     "attachment",
 ]);
+const requireDocumentUpload = requireCapability("documents:upload");
+const requireDocumentReview = requireCapability("documents:review");
 
 function removeDocumentFileFields(value: unknown): unknown {
     if (Array.isArray(value)) {
@@ -51,8 +54,16 @@ function removeDocumentFileFields(value: unknown): unknown {
 
 // Document route handlers
 const getDocuments = async (ctx: RouterContext<any, any, any>) => {
+    const sessionData = await getSessionFromHeaders(ctx.request.headers);
+    const requestUrl = new URL(ctx.request.url);
+    if (sessionData?.role === "admin") {
+        requestUrl.searchParams.set("include_review", "true");
+    } else {
+        requestUrl.searchParams.delete("include_review");
+    }
+
     // Convert context to Request
-    const request = new Request(ctx.request.url.toString(), {
+    const request = new Request(requestUrl.toString(), {
         method: ctx.request.method,
         headers: ctx.request.headers
     });
@@ -76,6 +87,25 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
         ctx.response.body = { error: "Unauthorized" };
         return;
     }
+
+    if (sessionData) {
+        const access = await client.queryObject<{
+            review_status: string;
+            uploaded_by: string | null;
+        }>(`
+            SELECT review_status, uploaded_by
+            FROM documents
+            WHERE id = $1 AND deleted_at IS NULL
+        `, [id]);
+        const document = access.rows[0];
+        const mayViewPending = sessionData.role === "admin" ||
+            (sessionData.role === "publisher" && document?.uploaded_by === sessionData.id);
+        if (document && document.review_status !== "approved" && !mayViewPending) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
+            return;
+        }
+    }
     
     // Convert context to Request
     const request = new Request(`${ctx.request.url.origin}/api/documents/${id}${ctx.request.url.search}`, {
@@ -89,6 +119,9 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     const responseBody = await response.json();
+    if (response.ok && sessionData && !isGuestRequest) {
+        await UserDocumentHistoryModel.recordAction(sessionData.id, Number(id), "VIEW");
+    }
     ctx.response.body = sessionData && !isGuestRequest
         ? responseBody
         : removeDocumentFileFields(responseBody);
@@ -316,6 +349,13 @@ const getDocumentAuthorsById = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
 
+        const sessionData = await getSessionFromHeaders(ctx.request.headers);
+        if (!await canViewDocument(sessionData, numericId)) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
+            return;
+        }
+
         // Query to fetch authors for this document
         const authorsResult = await client.queryObject(
             `SELECT a.*
@@ -331,6 +371,8 @@ const getDocumentAuthorsById = async (ctx: RouterContext<any, any, any>) => {
             full_name: row.full_name,
             affiliation: row.affiliation,
             department: row.department,
+            biography: row.biography,
+            profile_picture: row.profile_picture,
             email: row.email,
             orcid_id: row.orcid_id
         }));
@@ -486,6 +528,22 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
 const createDocument = async (ctx: RouterContext<any, any, any>) => {
     const bodyParser = await ctx.request.body({type: "json"});
     const body = await bodyParser.value;
+    const actorId = String(ctx.state.user.id);
+    const actorRole = String(ctx.state.user.role);
+
+    body.uploaded_by = actorId;
+    if (actorRole === "publisher") {
+        body.is_public = false;
+        body.review_status = "pending_review";
+        body.reviewed_by = null;
+        body.reviewed_at = null;
+    } else {
+        body.review_status = body.review_status === "pending_review" ? "pending_review" : "approved";
+        if (body.review_status === "approved") {
+            body.reviewed_by = actorId;
+            body.reviewed_at = new Date().toISOString();
+        }
+    }
     
     // Convert context to Request
     const request = new Request(ctx.request.url.toString(), {
@@ -499,7 +557,81 @@ const createDocument = async (ctx: RouterContext<any, any, any>) => {
     // Convert Response back to context
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const responseBody = await response.json();
+    ctx.response.body = responseBody;
+
+    if (response.ok && responseBody?.id) {
+        await SystemLogsModel.createLog({
+            log_type: "document",
+            user_id: actorId,
+            username: actorId,
+            action: actorRole === "publisher" ? "document_submitted_for_review" : "document_created",
+            details: {
+                role: actorRole,
+                title: body.title,
+                documentType: body.document_type,
+                reviewStatus: body.review_status,
+            },
+            related_id: String(responseBody.id),
+        }).catch(() => undefined);
+    }
+};
+
+const reviewDocument = async (ctx: RouterContext<any, any, any>) => {
+    const id = Number(ctx.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid document ID is required" };
+        return;
+    }
+
+    let body: Record<string, unknown>;
+    try {
+        body = await ctx.request.body({ type: "json" }).value;
+    } catch {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid JSON body is required" };
+        return;
+    }
+
+    const decision = body.decision === "approved" ? "approved"
+        : body.decision === "rejected" ? "rejected"
+        : null;
+    if (!decision) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "Decision must be approved or rejected" };
+        return;
+    }
+
+    const publish = decision === "approved" && body.publish === true;
+    const reviewerId = String(ctx.state.user.id);
+    const result = await client.queryObject(`
+        UPDATE documents
+        SET review_status = $2,
+            is_public = $3,
+            reviewed_by = $4,
+            reviewed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id, title, review_status, is_public, uploaded_by, reviewed_by, reviewed_at
+    `, [id, decision, publish, reviewerId]);
+
+    if (!result.rows[0]) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Document not found" };
+        return;
+    }
+
+    await SystemLogsModel.createLog({
+        log_type: "document",
+        user_id: reviewerId,
+        username: reviewerId,
+        action: decision === "approved" ? "document_approved" : "document_rejected",
+        details: { publish },
+        related_id: String(id),
+    }).catch(() => undefined);
+
+    ctx.response.body = { document: result.rows[0] };
 };
 
 // Update Document
@@ -680,66 +812,6 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
                 throw new Error("Not a file");
             }
             
-            // RECORD THE DOWNLOAD IN HISTORY - Do this right before serving the file
-            // This ensures we only record successful downloads
-            const success = await UserDocumentHistoryModel.recordAction(
-                sessionData.id,
-                parseInt(id),
-                "DOWNLOAD"
-            );
-            
-            if (success) {
-                                
-                // Get document title if possible for better logging
-                let documentTitle = "Unknown";
-                try {
-                    const docInfo = await DocumentModel.getDocumentById(parseInt(id));
-                    documentTitle = docInfo?.title || `Document ${id}`;
-                } catch (docError) {
-                }
-                
-                // Log the download to system logs
-                try {
-                    await SystemLogsModel.createLog({
-                        log_type: 'download',
-                        user_id: sessionData.id,
-                        username: sessionData.id,
-                        action: 'Document download',
-                        details: {
-                            document_id: id,
-                            document_title: documentTitle,
-                            timestamp: new Date().toISOString(),
-                            file_path: filePath,
-                            file_name: filePath.split('/').pop() || filePath.split('\\').pop() || ''
-                        },
-                        ip_address: ctx.request.ip || 'Unknown',
-                        status: 'success',
-                        related_id: id
-                    });
-                } catch (logError) {
-                    // Non-critical error, continue with download
-                }
-            } else {
-                // Log the failed download
-                try {
-                    await SystemLogsModel.createLog({
-                        log_type: 'download',
-                        user_id: sessionData.id,
-                        username: sessionData.id,
-                        action: 'Failed document download',
-                        details: {
-                            document_id: id,
-                            timestamp: new Date().toISOString(),
-                            reason: 'Database recording failed'
-                        },
-                        ip_address: ctx.request.ip || 'Unknown',
-                        status: 'failed',
-                        related_id: id
-                    });
-                } catch (logError) {
-                }
-            }
-            
         } catch (error) {
             ctx.response.status = 404;
             ctx.response.body = { error: "File not found on server" };
@@ -776,6 +848,22 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         
         // Stream the file
         const fileContent = await Deno.readFile(filePath);
+        // Record and audit only after the file has been read successfully.
+        const success = await UserDocumentHistoryModel.recordAction(sessionData.id, parseInt(id), "DOWNLOAD");
+        try {
+            await SystemLogsModel.createLog({
+                log_type: 'download',
+                user_id: sessionData.id,
+                username: sessionData.id,
+                action: success ? 'Document download' : 'Failed document download',
+                details: { document_id: id, timestamp: new Date().toISOString(), file_path: filePath },
+                ip_address: ctx.request.ip || 'Unknown',
+                status: success ? 'success' : 'failed',
+                related_id: id,
+            });
+        } catch {
+            // Audit logging is non-critical to file delivery.
+        }
         ctx.response.body = fileContent;
         
     } catch (error) {
@@ -988,7 +1076,8 @@ export const documentRoutes: Route[] = [
     { method: "GET", path: "/documents/:id", handler: getDocumentById },
     { method: "GET", path: "/documents/:id/download", handler: downloadDocument },
     { method: "GET", path: "/documents/:id/authors", handler: getDocumentAuthorsById },
-    { method: "POST", path: "/documents", handler: createDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "POST", path: "/documents", handler: createDocument, middleware: [isAuthenticated, requireDocumentUpload] },
+    { method: "PUT", path: "/documents/:id/review", handler: reviewDocument, middleware: [isAuthenticated, requireDocumentReview] },
     { method: "PUT", path: "/documents/:id", handler: updateDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "DELETE", path: "/documents/:id", handler: deleteDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "DELETE", path: "/documents/:id/hard-delete", handler: hardDeleteDocument, middleware: [isAuthenticated, isAdmin] },

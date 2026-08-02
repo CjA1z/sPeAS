@@ -19,6 +19,12 @@ export interface ResearchAgendaItem {
   name: string;
 }
 
+function normalizeAgendaName(value: string) {
+  return value.trim().replace(/[\s]+/gu, " ");
+}
+
+const normalizedAgendaNameSql = "LOWER(REGEXP_REPLACE(BTRIM(name), '[[:space:]]+', ' ', 'g'))";
+
 export class ResearchAgendaModel {
   /**
    * Add research agenda items to a document
@@ -39,9 +45,11 @@ export class ResearchAgendaModel {
         if (!item.trim()) continue;
         
         // First, check if the agenda item already exists by name
+        const normalizedName = normalizeAgendaName(item);
+        if (!normalizedName) continue;
         const existingItemResult = await client.queryObject(
-          "SELECT id FROM research_agenda WHERE name ILIKE $1",
-          [item.trim()]
+          `SELECT id FROM research_agenda WHERE ${normalizedAgendaNameSql} = LOWER($1) ORDER BY id ASC LIMIT 1`,
+          [normalizedName]
         );
         
         let agendaItemId: number;
@@ -53,7 +61,7 @@ export class ResearchAgendaModel {
           // Create a new agenda item
           const newItemResult = await client.queryObject(
             "INSERT INTO research_agenda (name) VALUES ($1) RETURNING id",
-            [item.trim()]
+            [normalizedName]
           );
           
           if (newItemResult.rows.length === 0) {
@@ -124,13 +132,17 @@ export class ResearchAgendaModel {
       );
       
       // Process each agenda item
+      const seenNames = new Set<string>();
       for (const name of agendaItemNames) {
-        if (!name.trim()) continue;
+        const normalizedName = normalizeAgendaName(name);
+        const normalizedKey = normalizedName.toLocaleLowerCase();
+        if (!normalizedName || seenNames.has(normalizedKey)) continue;
+        seenNames.add(normalizedKey);
         
         // Try to find existing agenda item by name
         const existingItem = await client.queryObject(
-          "SELECT id FROM research_agenda WHERE name ILIKE $1",
-          [name.trim()]
+          `SELECT id FROM research_agenda WHERE ${normalizedAgendaNameSql} = LOWER($1) ORDER BY id ASC LIMIT 1`,
+          [normalizedName]
         );
         
         let agendaItemId: number;
@@ -142,7 +154,7 @@ export class ResearchAgendaModel {
           // Create new agenda item
           const newItem = await client.queryObject(
             "INSERT INTO research_agenda (name) VALUES ($1) RETURNING id",
-            [name.trim()]
+            [normalizedName]
           );
           
           if (newItem.rows.length === 0) {
@@ -217,9 +229,11 @@ export class ResearchAgendaModel {
   static async createAgendaItem(name: string): Promise<ResearchAgendaItem | null> {
     try {
       // Check if the agenda item already exists
+      const normalizedName = normalizeAgendaName(name);
+      if (!normalizedName) return null;
       const existingItem = await client.queryObject(
-        "SELECT id, name FROM research_agenda WHERE name ILIKE $1",
-        [name]
+        `SELECT id, name FROM research_agenda WHERE ${normalizedAgendaNameSql} = LOWER($1) ORDER BY id ASC LIMIT 1`,
+        [normalizedName]
       );
 
       if (existingItem.rows.length > 0) {
@@ -229,7 +243,7 @@ export class ResearchAgendaModel {
       // Create new agenda item
       const result = await client.queryObject(
         "INSERT INTO research_agenda (name) VALUES ($1) RETURNING id, name",
-        [name]
+        [normalizedName]
       );
 
       if (result.rows.length === 0) {
@@ -255,7 +269,8 @@ export class ResearchAgendaModel {
     for (const item of items) {
       try {
         // Skip items without name
-        if (!item.name || !item.name.trim()) {
+        const normalizedName = normalizeAgendaName(item.name || "");
+        if (!normalizedName) {
           errors.push({ 
             name: item.name || "unnamed", 
             error: "Name is required" 
@@ -265,8 +280,8 @@ export class ResearchAgendaModel {
 
         // Check if the agenda item already exists
         const existingItem = await client.queryObject(
-          "SELECT id, name FROM research_agenda WHERE name ILIKE $1",
-          [item.name]
+          `SELECT id, name FROM research_agenda WHERE ${normalizedAgendaNameSql} = LOWER($1) ORDER BY id ASC LIMIT 1`,
+          [normalizedName]
         );
 
         if (existingItem.rows.length > 0) {
@@ -280,7 +295,7 @@ export class ResearchAgendaModel {
         // Create new agenda item
         const result = await client.queryObject(
           "INSERT INTO research_agenda (name) VALUES ($1) RETURNING id, name",
-          [item.name]
+          [normalizedName]
         );
 
         if (result.rows.length === 0) {
@@ -313,9 +328,15 @@ export class ResearchAgendaModel {
         return [];
       }
 
+      const normalizedQuery = normalizeAgendaName(query);
       const result = await client.queryObject(
-        "SELECT id, name FROM research_agenda WHERE name ILIKE $1 ORDER BY name ASC LIMIT 10",
-        [`%${query}%`]
+        `SELECT MIN(id) AS id, MIN(name) AS name
+         FROM research_agenda
+         WHERE ${normalizedAgendaNameSql} LIKE LOWER($1)
+         GROUP BY ${normalizedAgendaNameSql}
+         ORDER BY MIN(name) ASC
+         LIMIT 10`,
+        [`%${normalizedQuery}%`]
       );
 
       return result.rows as unknown as ResearchAgendaItem[];
@@ -323,4 +344,4 @@ export class ResearchAgendaModel {
       return [];
     }
   }
-} 
+}

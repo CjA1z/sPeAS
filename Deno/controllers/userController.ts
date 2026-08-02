@@ -7,10 +7,14 @@ interface User {
   first_name: string;
   middle_name?: string;
   last_name: string;
+  name?: string;
   email?: string;
   role_id?: number;
+  role?: string;
   created_at?: Date;
   profile_picture?: string;
+  email_verified?: boolean;
+  can_change_password?: boolean;
 }
 
 /**
@@ -32,9 +36,24 @@ export const getCurrentUser = async (ctx: Context) => {
     }
     
     const result = await client.queryObject(
-      `SELECT id, first_name, middle_name, last_name, email, role_id, created_at, profile_picture
-       FROM users 
-       WHERE id = $1`,
+      `SELECT
+         u.id,
+         u.first_name,
+         u.middle_name,
+         u.last_name,
+         u.name,
+         u.email,
+         u.role_id,
+         lower(COALESCE(u.role, 'user')) AS role,
+         u.created_at,
+         u.profile_picture,
+         u.email_verified,
+         EXISTS (
+           SELECT 1 FROM account a
+           WHERE a.user_id = u.id AND a.provider_id = 'credential' AND a.password IS NOT NULL
+         ) AS can_change_password
+       FROM users u
+       WHERE u.id = $1`,
       [userId]
     );
     
@@ -123,9 +142,24 @@ export const handleGetUserProfile = async (req: Request): Promise<Response> => {
     }
     
     const result = await client.queryObject(
-      `SELECT id, first_name, middle_name, last_name, email, role_id, created_at, profile_picture
-       FROM users 
-       WHERE id = $1`,
+      `SELECT
+         u.id,
+         u.first_name,
+         u.middle_name,
+         u.last_name,
+         u.name,
+         u.email,
+         u.role_id,
+         lower(COALESCE(u.role, 'user')) AS role,
+         u.created_at,
+         u.profile_picture,
+         u.email_verified,
+         EXISTS (
+           SELECT 1 FROM account a
+           WHERE a.user_id = u.id AND a.provider_id = 'credential' AND a.password IS NOT NULL
+         ) AS can_change_password
+       FROM users u
+       WHERE u.id = $1`,
       [userId]
     );
     
@@ -147,7 +181,8 @@ export const handleGetUserProfile = async (req: Request): Promise<Response> => {
     // Type userData correctly
     const userData = result.rows[0] as unknown as UserRecord;
     
-    // Get the user's library count
+    // Get the user's library count without making profile rendering depend on
+    // the count query succeeding.
     try {
       const libraryCount = await UserLibraryModel.getLibraryCount(userId);
       userData.library_count = libraryCount;

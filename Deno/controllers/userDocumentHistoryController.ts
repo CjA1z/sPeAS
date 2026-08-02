@@ -1,5 +1,6 @@
 import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { getSessionFromRequest } from "../services/sessionService.ts";
+import { UserLibraryModel } from "../models/userLibraryModel.ts";
 
 /**
  * Record a document view action
@@ -21,11 +22,13 @@ export async function recordDocumentView(request: Request): Promise<Response> {
     
     // Get document ID from request body
     const requestData = await request.json();
-    const documentId = requestData.documentId;
+    const documentId = requestData.documentId ?? requestData.recordId;
+    const recordType = UserLibraryModel.normalizeRecordType(requestData.recordType);
     
-    if (!documentId) {
+    const parsedDocumentId = parseRecordId(documentId);
+    if (parsedDocumentId === null) {
       return new Response(
-        JSON.stringify({ error: "Document ID is required" }), 
+        JSON.stringify({ error: "A valid document ID is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -33,8 +36,9 @@ export async function recordDocumentView(request: Request): Promise<Response> {
     // Record the document view
     const success = await UserDocumentHistoryModel.recordAction(
       sessionData.id,
-      parseInt(documentId),
-      "VIEW"
+      parsedDocumentId,
+      "VIEW",
+      recordType,
     );
     
     if (!success) {
@@ -79,11 +83,13 @@ export async function recordDocumentDownload(request: Request): Promise<Response
     
     // Get document ID from request body
     const requestData = await request.json();
-    const documentId = requestData.documentId;
+    const documentId = requestData.documentId ?? requestData.recordId;
+    const recordType = UserLibraryModel.normalizeRecordType(requestData.recordType);
     
-    if (!documentId) {
+    const parsedDocumentId = parseRecordId(documentId);
+    if (parsedDocumentId === null) {
       return new Response(
-        JSON.stringify({ error: "Document ID is required" }), 
+        JSON.stringify({ error: "A valid document ID is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -91,8 +97,9 @@ export async function recordDocumentDownload(request: Request): Promise<Response
     // Record the document download
     const success = await UserDocumentHistoryModel.recordAction(
       sessionData.id,
-      parseInt(documentId),
-      "DOWNLOAD"
+      parsedDocumentId,
+      "DOWNLOAD",
+      recordType,
     );
     
     if (!success) {
@@ -137,18 +144,19 @@ export async function getUserHistory(request: Request): Promise<Response> {
     
     // Extract query parameters for filtering
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const page = positiveInt(url.searchParams.get("page"), 1);
+    const limit = Math.min(100, positiveInt(url.searchParams.get("limit"), 10));
     const offset = (page - 1) * limit;
     
     // Build filters object
     const filters = {
       category: url.searchParams.get("category") || "all",
       keyword: url.searchParams.get("keyword") || "all",
+      action: url.searchParams.get("action") || "all",
       startDate: url.searchParams.get("startDate") || "",
       endDate: url.searchParams.get("endDate") || "",
       searchTerm: url.searchParams.get("search") || "",
-      sortBy: url.searchParams.get("sortBy") || "date-saved-desc",
+      sortBy: url.searchParams.get("sortBy") || "newest",
       limit,
       offset
     };
@@ -159,6 +167,7 @@ export async function getUserHistory(request: Request): Promise<Response> {
     // Get available categories and keywords for filters
     const categories = await UserDocumentHistoryModel.getHistoryCategories(sessionData.id);
     const keywords = await UserDocumentHistoryModel.getHistoryKeywords(sessionData.id);
+    const actions = await UserDocumentHistoryModel.getHistoryActions(sessionData.id);
     
     return new Response(
       JSON.stringify({ 
@@ -169,8 +178,9 @@ export async function getUserHistory(request: Request): Promise<Response> {
         totalPages: Math.ceil(result.totalCount / limit),
         filters: {
           availableCategories: categories,
-          availableKeywords: keywords
-        }
+          availableKeywords: keywords,
+          availableActions: actions,
+        },
       }), 
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -183,4 +193,14 @@ export async function getUserHistory(request: Request): Promise<Response> {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
-} 
+}
+
+function parseRecordId(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function positiveInt(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}

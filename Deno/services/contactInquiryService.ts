@@ -164,7 +164,18 @@ export async function getContactInquirySummary() {
   `);
   const byStatus: Record<ContactInquiryStatus, number> = { new: 0, read: 0, resolved: 0, spam: 0 };
   for (const row of counts.rows) byStatus[row.status] = Number(row.count);
-  return { byStatus, failedNotifications: Number(failed.rows[0]?.count ?? 0), recipientConfigured: Boolean(Deno.env.get("CONTACT_RECIPIENT_EMAIL")) };
+  return { byStatus, failedNotifications: Number(failed.rows[0]?.count ?? 0), recipientConfigured: getContactNotificationConfiguration().configured };
+}
+
+export function getContactNotificationConfiguration() {
+  const recipient = Deno.env.get("CONTACT_RECIPIENT_EMAIL")?.trim() ?? "";
+  const configured = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient);
+  return {
+    configured,
+    status: configured ? "ready" : "configuration_required",
+    diagnosticCode: configured ? null : "CONTACT_RECIPIENT_EMAIL_NOT_CONFIGURED",
+    recipient: configured ? recipient : null,
+  } as const;
 }
 
 export async function retryContactNotification(referenceCode: string) {
@@ -227,7 +238,7 @@ export async function processNextContactNotification() {
   });
   if (!job) return false;
 
-  const recipient = Deno.env.get("CONTACT_RECIPIENT_EMAIL")?.trim();
+  const { recipient } = getContactNotificationConfiguration();
   if (!recipient) {
     await failNotificationJob(job, "CONTACT_RECIPIENT_EMAIL_NOT_CONFIGURED", true);
     return true;
@@ -255,6 +266,15 @@ export async function processNextContactNotification() {
 }
 
 export async function startContactNotificationWorker() {
+  const notificationConfiguration = getContactNotificationConfiguration();
+  if (!notificationConfiguration.configured) {
+    console.warn("Contact email notifications require configuration", {
+      diagnosticCode: notificationConfiguration.diagnosticCode,
+      environmentVariable: "CONTACT_RECIPIENT_EMAIL",
+      inquiryStorage: "available",
+      notificationDelivery: "paused",
+    });
+  }
   await recoverStuckContactNotificationJobs();
   let running = false;
   const run = async () => {

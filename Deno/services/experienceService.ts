@@ -87,6 +87,11 @@ export function normalizeSiteAssetAltText(value?: string): string | null {
   return Array.from(trimmed).slice(0, SITE_ASSET_ALT_TEXT_MAX_LENGTH).join("");
 }
 
+export function siteAssetStorageDirectory(kind: string): string {
+  const heroSlot = /^hero-slot-([1-4])$/.exec(kind);
+  return heroSlot ? `hero/slot-${heroSlot[1]}` : kind;
+}
+
 const DEFAULT_SITE_ASSET_DEPENDENCIES: SiteAssetDependencies = {
   ensureDirectory: (path) => ensureDir(path),
   writeFile: (path, bytes) => Deno.writeFile(path, bytes),
@@ -410,11 +415,12 @@ export async function saveSiteAsset(
   }
 
   const safeKind = normalizeSiteAssetKind(options.kind);
+  const storageDirectory = siteAssetStorageDirectory(safeKind);
   const safeAltText = normalizeSiteAssetAltText(options.altText);
   const extension = mimeType === "image/jpeg" ? ".jpg" : mimeType === "image/png" ? ".png" : ".webp";
   const fileName = dependencies.createFileName(extension);
-  const relativePath = `storage/site-branding/${safeKind}/${fileName}`;
-  const fullDir = join(SITE_BRANDING_STORAGE, safeKind);
+  const relativePath = `storage/site-branding/${storageDirectory}/${fileName}`;
+  const fullDir = join(SITE_BRANDING_STORAGE, ...storageDirectory.split("/"));
   const fullPath = join(WORKSPACE_ROOT, relativePath);
 
   await dependencies.ensureDirectory(fullDir);

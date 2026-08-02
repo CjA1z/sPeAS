@@ -10,6 +10,7 @@ interface FileUploadOptions {
   originalPath?: string;
   documentType?: string;
   category?: string;
+  uploaderHash?: string;
 }
 
 interface FileResponse {
@@ -20,6 +21,8 @@ interface FileResponse {
 }
 
 interface FileWithContent {
+  originalName?: string;
+  filename?: string;
   name?: string;
   content?: Uint8Array;
   bytes?: Uint8Array;
@@ -77,15 +80,17 @@ export async function saveFile(
   
   try {
     // Create appropriate directory structure
-    const targetDir = await createDocumentTypeDirectory(documentType, category);
-    
-    // Generate timestamp for unique filename
-    const timestamp = Date.now();
+    await createDocumentTypeDirectory(documentType, category);
     
     // Get original filename or generate one
     let originalName = "";
-    if (typeof file === "object" && "name" in file) {
-      originalName = file.name || "";
+    if (typeof file === "object" && file !== null && ("originalName" in file || "filename" in file || "name" in file)) {
+      const fileWithName = file as FileWithContent;
+      originalName = fileWithName.originalName
+        || (fileWithName.name?.includes(".") ? fileWithName.name : "")
+        || fileWithName.filename
+        || fileWithName.name
+        || "";
     } else if (options.originalName) {
       originalName = options.originalName;
     }
@@ -106,12 +111,6 @@ export async function saveFile(
       fileExtension = "pdf";
     }
     
-    const uniqueFilename = `${timestamp}_${Math.floor(Math.random() * 10000)}.${fileExtension}`;
-    
-    // Construct full file path using path.join and normalize to forward slashes
-    const filePath = join(targetDir, uniqueFilename).replace(/\\/g, '/');
-    
-                        
     // Normalize storage path to use forward slashes and no leading/trailing slashes
     storagePath = storagePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     
@@ -128,13 +127,12 @@ export async function saveFile(
     if (options.keepOriginalName && options.originalName) {
       // For replacements, use the original name
       finalFilename = options.originalName;
-          } else {
-      // Create a unique filename based on timestamp and original filename
-      finalFilename = uniqueFilename;
-          }
+    } else {
+      finalFilename = createStoredFilename(options.uploaderHash, fileExtension);
+    }
     
     // Create the full path using forward slashes
-    const fullFilePath = join(fullStoragePath, finalFilename).replace(/\\/g, '/');
+    let fullFilePath = join(fullStoragePath, finalFilename).replace(/\\/g, '/');
         
     // If this is a replacement, try to delete both the original path and the new path
     if (options.keepOriginalName && options.originalPath) {
@@ -230,8 +228,30 @@ export async function saveFile(
       throw new Error("File content is empty");
     }
     
-        // Write the file to disk
-    await Deno.writeFile(fullFilePath, fileContent);
+    // New uploads use exclusive creation. If an identifier ever collides, a new
+    // UUID is generated instead of overwriting an existing document.
+    if (options.keepOriginalName && options.originalName) {
+      await Deno.writeFile(fullFilePath, fileContent);
+    } else {
+      const maxCreateAttempts = 5;
+      let stored = false;
+      for (let attempt = 0; attempt < maxCreateAttempts; attempt += 1) {
+        if (attempt > 0) {
+          finalFilename = createStoredFilename(options.uploaderHash, fileExtension);
+          fullFilePath = join(fullStoragePath, finalFilename).replace(/\\/g, '/');
+        }
+        try {
+          await writeFileExclusively(fullFilePath, fileContent);
+          stored = true;
+          break;
+        } catch (error) {
+          if (!(error instanceof Deno.errors.AlreadyExists)) throw error;
+        }
+      }
+      if (!stored) {
+        throw new Error("Could not allocate a unique stored filename after multiple attempts");
+      }
+    }
         
     // Get file size
     let fileSize = 0;
@@ -260,6 +280,30 @@ export async function saveFile(
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to save file: ${message}`);
   }
+}
+
+function createStoredFilename(uploaderHash: string | undefined, extension: string): string {
+  const uploaderToken = uploaderHash?.toLowerCase().replace(/[^a-f0-9]/g, "") || "system";
+  const dateToken = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const extensionToken = extension.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  return `${uploaderToken}_${dateToken}_${crypto.randomUUID()}.${extensionToken}`;
+}
+
+async function writeFileExclusively(filePath: string, content: Uint8Array): Promise<void> {
+  const file = await Deno.open(filePath, { write: true, createNew: true });
+  try {
+    let offset = 0;
+    while (offset < content.length) {
+      const written = await file.write(content.subarray(offset));
+      if (written === 0) throw new Error("The stored file could not be written completely");
+      offset += written;
+    }
+  } catch (error) {
+    file.close();
+    await Deno.remove(filePath).catch(() => undefined);
+    throw error;
+  }
+  file.close();
 }
 
 /**
@@ -303,4 +347,4 @@ function getMimeTypeFromExtension(extension: string): string {
   };
   
   return mimeTypes[extension.toLowerCase()] || 'application/octet-stream';
-} 
+}

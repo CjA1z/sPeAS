@@ -10,6 +10,8 @@ export interface DocumentOptions {
   sort?: string;
   order?: string;
   docTypes?: string; // Add docTypes option to filter by document type (all, compiled, single)
+  includeReview?: boolean;
+  reviewStatus?: 'all' | 'pending_review' | 'approved' | 'rejected';
 }
 
 export interface Document {
@@ -27,6 +29,7 @@ export interface Document {
   parent_compiled_id?: number | null;
   start_year?: number;
   end_year?: number;
+  review_status?: 'pending_review' | 'approved' | 'rejected';
   // Fields present on DB rows and consumed by route handlers
   deleted_at?: Date | string | null;
   file_path?: string;
@@ -113,6 +116,8 @@ export async function fetchDocuments(
       sort = 'id',
       order = 'ASC',
       docTypes = 'all', // Default to showing all document types
+      includeReview = false,
+      reviewStatus = 'all',
     } = options;
     
     // Build the parameters array
@@ -136,6 +141,12 @@ export async function fetchDocuments(
           SELECT 1 FROM authors a 
           JOIN document_authors da ON a.id = da.author_id
           WHERE da.document_id = d.id AND a.full_name ILIKE $${paramIndex}
+        ) OR
+        EXISTS (
+          SELECT 1 FROM research_agenda ra
+          JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
+          WHERE dra.document_id = d.id
+            AND LOWER(REGEXP_REPLACE(BTRIM(ra.name), '[[:space:]]+', ' ', 'g')) LIKE LOWER($${paramIndex})
         )
       )`;
       params.push(`%${search}%`);
@@ -149,7 +160,8 @@ export async function fetchDocuments(
         EXISTS (
           SELECT 1 FROM research_agenda ra 
           JOIN document_research_agenda dra ON ra.id = dra.research_agenda_id
-          WHERE dra.document_id = d.id AND ra.name ILIKE $${paramIndex}
+          WHERE dra.document_id = d.id
+            AND LOWER(REGEXP_REPLACE(BTRIM(ra.name), '[[:space:]]+', ' ', 'g')) LIKE LOWER($${paramIndex})
         )
       )`;
       params.push(`%${keyword}%`);
@@ -178,6 +190,20 @@ export async function fetchDocuments(
         params.push(category);
         paramIndex++;
       }
+    }
+
+    const normalizedReviewStatus = reviewStatus === 'pending_review' || reviewStatus === 'approved' || reviewStatus === 'rejected'
+      ? reviewStatus
+      : null;
+    const reviewStatusWhereClause = normalizedReviewStatus
+      ? `AND d.review_status = $${paramIndex}`
+      : '';
+    const compiledReviewStatusWhereClause = normalizedReviewStatus
+      ? `AND cd.review_status = $${paramIndex}`
+      : '';
+    if (normalizedReviewStatus) {
+      params.push(normalizedReviewStatus);
+      paramIndex++;
     }
     
     // For category filtering in compiled documents
@@ -258,7 +284,8 @@ export async function fetchDocuments(
               FROM compiled_document_items cdi 
               WHERE cdi.compiled_document_id = d.id
             )::BIGINT as child_count,
-            d.deleted_at
+            d.deleted_at,
+            d.review_status
         FROM 
           documents d
         WHERE 
@@ -266,6 +293,8 @@ export async function fetchDocuments(
             d.compiled_parent_id IS NULL
             -- Exclude archived documents
             AND d.deleted_at IS NULL
+            ${includeReview || normalizedReviewStatus ? "" : "AND d.review_status = 'approved'"}
+            ${reviewStatusWhereClause}
             
             ${searchWhereClause}
             ${keywordWhereClause}
@@ -312,11 +341,15 @@ export async function fetchDocuments(
             FROM compiled_document_items cdi 
             WHERE cdi.compiled_document_id = cd.id
           )::BIGINT as child_count,
-          cd.deleted_at
+          cd.deleted_at,
+          cd.review_status
         FROM 
           compiled_documents cd
         WHERE 
-          cd.deleted_at IS NULL ${categoryCompWhereClause}
+          cd.deleted_at IS NULL
+          ${includeReview || normalizedReviewStatus ? "" : "AND cd.review_status = 'approved'"}
+          ${compiledReviewStatusWhereClause}
+          ${categoryCompWhereClause}
       `;
     }
     
@@ -425,7 +458,8 @@ export async function fetchDocuments(
         child_count: parseInt(String(row.child_count || '0'), 10),
         parent_compiled_id: row.parent_id,
         start_year: row.start_year ? parseInt(String(row.start_year), 10) : undefined,
-        end_year: row.end_year ? parseInt(String(row.end_year), 10) : undefined
+        end_year: row.end_year ? parseInt(String(row.end_year), 10) : undefined,
+        review_status: row.review_status || "approved",
       };
       
       // Also add deleted_at explicitly for use in filtering
@@ -700,6 +734,10 @@ export async function createCompiledDocument(
     category?: string;
     foreword?: string;
     abstract_foreword?: string;
+    uploaded_by?: string;
+    review_status?: 'pending_review' | 'approved' | 'rejected';
+    reviewed_by?: string;
+    reviewed_at?: string;
   },
   documentIds: number[] = []
 ): Promise<number> {
@@ -723,9 +761,13 @@ export async function createCompiledDocument(
           category,
           foreword,
           abstract_foreword,
+          uploaded_by,
+          review_status,
+          reviewed_by,
+          reviewed_at,
           created_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
         RETURNING id
       `;
       
@@ -737,7 +779,11 @@ export async function createCompiledDocument(
         compiledDoc.department || null,
         compiledDoc.category || 'CONFLUENCE',
         compiledDoc.foreword || null,
-        compiledDoc.abstract_foreword || null
+        compiledDoc.abstract_foreword || null,
+        compiledDoc.uploaded_by || null,
+        compiledDoc.review_status || "approved",
+        compiledDoc.reviewed_by || null,
+        compiledDoc.reviewed_at || null,
       ];
       
       const compiledResult = await client.queryObject(compiledQuery, compiledParams);

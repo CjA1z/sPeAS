@@ -3,6 +3,7 @@ import {
   normalizeSiteAssetAltText,
   normalizeSiteAssetKind,
   saveSiteAsset,
+  siteAssetStorageDirectory,
   SITE_ASSET_ALT_TEXT_MAX_LENGTH,
   SITE_ASSET_KIND_MAX_LENGTH,
   SiteAssetValidationError,
@@ -34,6 +35,9 @@ Deno.test("site asset metadata is sanitized and bounded to database limits", () 
   assert(altText);
   assertEquals(Array.from(altText).length, SITE_ASSET_ALT_TEXT_MAX_LENGTH);
   assertEquals(normalizeSiteAssetAltText("   "), null);
+  assertEquals(siteAssetStorageDirectory("hero-slot-1"), "hero/slot-1");
+  assertEquals(siteAssetStorageDirectory("hero-slot-4"), "hero/slot-4");
+  assertEquals(siteAssetStorageDirectory("org-chart"), "org-chart");
 });
 
 Deno.test("saveSiteAsset persists normalized metadata without changing its response shape", async () => {
@@ -129,6 +133,43 @@ Deno.test("saveSiteAsset removes a newly written file when its database insert f
   assertEquals(error, databaseError);
   assert(writtenPath.endsWith("/storage/site-branding/org-chart/orphan.png"));
   assertEquals(removedPath, writtenPath);
+});
+
+Deno.test("hero uploads retain their slot identity in metadata and storage", async () => {
+  let insertedKind = "";
+  let writtenPath = "";
+
+  const asset = await saveSiteAsset({
+    file: { type: "image/png", content: PNG_SIGNATURE },
+    kind: "hero-slot-3",
+    altText: "Researchers collaborating in the library",
+    userId: "admin-1",
+  }, {
+    ensureDirectory: async () => {},
+    writeFile: (path) => {
+      writtenPath = path;
+      return Promise.resolve();
+    },
+    removeFile: async () => {},
+    createFileName: (extension) => `hero-image${extension}`,
+    insertAsset: (record) => {
+      insertedKind = record.kind;
+      return Promise.resolve({
+        id: 8,
+        file_path: record.filePath,
+        kind: record.kind,
+        alt_text: record.altText,
+        mime_type: record.mimeType,
+        size_bytes: record.sizeBytes,
+        created_by: record.userId,
+      });
+    },
+  });
+
+  assertEquals(insertedKind, "hero-slot-3");
+  assert(writtenPath.endsWith("/storage/site-branding/hero/slot-3/hero-image.png"));
+  assertEquals(asset.file_path, "/storage/site-branding/hero/slot-3/hero-image.png");
+  assertEquals(asset.kind, "hero-slot-3");
 });
 
 Deno.test("saveSiteAsset reports image validation failures as safe client errors", async () => {

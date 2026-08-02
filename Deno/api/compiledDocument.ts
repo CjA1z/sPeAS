@@ -16,6 +16,10 @@ export async function createCompiledDocument(
     category?: string;
     foreword?: string;
     abstract_foreword?: string;
+    uploaded_by?: string;
+    review_status?: 'pending_review' | 'approved' | 'rejected';
+    reviewed_by?: string;
+    reviewed_at?: string;
   },
   documentIds: number[]
 ): Promise<number> {
@@ -105,7 +109,11 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
 
     const compiledDocId = await createCompiledDocument(body.compiledDoc, documentIds);
 
-    return new Response(JSON.stringify({ id: compiledDocId, success: true }), {
+    return new Response(JSON.stringify({
+      id: compiledDocId,
+      success: true,
+      reviewStatus: body.compiledDoc.review_status || "approved",
+    }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -387,4 +395,4 @@ export async function handleUpdateCompiledDocument(request: Request): Promise<Re
       headers: { 'Content-Type': 'application/json' }
     });
   }
-} 
+}

@@ -28,6 +28,7 @@ export async function fetchCategories(): Promise<Response> {
       SELECT category_id, COUNT(*) as count 
       FROM documents 
       WHERE deleted_at IS NULL 
+      AND review_status = 'approved'
       AND compiled_parent_id IS NULL
       GROUP BY category_id
     `;
@@ -55,6 +56,7 @@ export async function fetchCategories(): Promise<Response> {
       SELECT cd.category, COUNT(*) as count 
       FROM compiled_documents cd
       WHERE cd.deleted_at IS NULL
+      AND cd.review_status = 'approved'
       GROUP BY cd.category
     `;
     
@@ -109,6 +111,8 @@ export async function fetchDocuments(request: Request): Promise<Response> {
     const sort = url.searchParams.get("sort") || "latest";
     // Get doc_types parameter to support showing both single and compiled documents
     const docTypes = url.searchParams.get("doc_types") || "all";
+    const includeReview = url.searchParams.get("include_review") === "true";
+    const reviewStatus = url.searchParams.get("review_status") || "all";
     
     // Add debug logging for multiple categories
     if (category && category.includes(',')) {
@@ -168,7 +172,9 @@ export async function fetchDocuments(request: Request): Promise<Response> {
       keyword,
       sort: sortField,
       order,
-      docTypes: docTypes // Pass doc_types parameter to service layer
+      docTypes: docTypes, // Pass doc_types parameter to service layer
+      includeReview,
+      reviewStatus: reviewStatus === "pending_review" || reviewStatus === "approved" || reviewStatus === "rejected" ? reviewStatus : "all",
     });
     
         

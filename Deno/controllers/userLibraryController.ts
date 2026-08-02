@@ -1,256 +1,158 @@
-import { UserLibraryModel } from "../models/userLibraryModel.ts";
+import { UserLibraryModel, type LibraryRecordType } from "../models/userLibraryModel.ts";
 import { getSessionFromRequest } from "../services/sessionService.ts";
 
-/**
- * Add a document to user's library
- * @param request The HTTP request object
- * @returns Response object with result
- */
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
 export async function addToLibrary(request: Request): Promise<Response> {
   try {
-    // Verify user authentication
     const sessionData = await getSessionFromRequest(request);
-    
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
+    if (!sessionData) return json({ error: "Authentication required" }, 401);
+
+    const body = await request.json() as Record<string, unknown>;
+    const recordId = parseRecordId(body.documentId ?? body.recordId);
+    const recordType = UserLibraryModel.normalizeRecordType(body.recordType);
+    if (recordId === null) return json({ error: "A valid document ID is required" }, 400);
+
+    if (await UserLibraryModel.isInLibrary(sessionData.id, recordId, recordType)) {
+      return json({
+        success: true,
+        inLibrary: true,
+        recordId,
+        recordType,
+        count: await UserLibraryModel.getLibraryCount(sessionData.id),
+        message: "Document is already in your library",
+      }, 409);
     }
-    
-    
-    // Get request body
-    const body = await request.json();
-    
-    // Validate required parameters
-    if (!body.documentId) {
-      return new Response(
-        JSON.stringify({ error: "Document ID is required" }), 
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Use the user ID from the token for security
-    const userId = sessionData.id;
-    const documentId = parseInt(body.documentId, 10);
-    
-    if (isNaN(documentId)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid document ID" }), 
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Check if document is already in library
-    const isInLibrary = await UserLibraryModel.isInLibrary(userId, documentId);
-    
-    if (isInLibrary) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Document is already in your library",
-          inLibrary: true,
-          count: await UserLibraryModel.getLibraryCount(userId)
-        }), 
-        { status: 409, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Add document to library
-    await UserLibraryModel.addToLibrary(userId, documentId);
-    
-    // Get updated library count
-    const libraryCount = await UserLibraryModel.getLibraryCount(userId);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Document added to library successfully",
-        count: libraryCount
-      }), 
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+
+    const added = await UserLibraryModel.addToLibrary(sessionData.id, recordId, recordType);
+    if (!added) return json({ error: "Document not found or unavailable" }, 404);
+
+    return json({
+      success: true,
+      inLibrary: true,
+      recordId,
+      recordType,
+      count: await UserLibraryModel.getLibraryCount(sessionData.id),
+      message: "Document added to library successfully",
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ 
-        error: "Failed to add document to library",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Failed to add document to library", details: errorMessage(error) }, 500);
   }
 }
 
-/**
- * Check if a document is in user's library
- * @param request The HTTP request object
- * @returns Response object with result
- */
 export async function checkLibraryStatus(request: Request): Promise<Response> {
   try {
-    // Verify user authentication
     const sessionData = await getSessionFromRequest(request);
-    
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    
-    // Get URL parameters
+    if (!sessionData) return json({ error: "Authentication required" }, 401);
+
     const url = new URL(request.url);
-    const documentId = parseInt(url.searchParams.get("documentId") || "", 10);
-    
-    if (isNaN(documentId)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing document ID" }), 
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Use the user ID from the token for security
-    const userId = sessionData.id;
-    
-    // Check if document is in library
-    const inLibrary = await UserLibraryModel.isInLibrary(userId, documentId);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        inLibrary,
-        count: await UserLibraryModel.getLibraryCount(userId)
-      }), 
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    const recordId = parseRecordId(url.searchParams.get("documentId") ?? url.searchParams.get("recordId"));
+    const recordType = UserLibraryModel.normalizeRecordType(url.searchParams.get("recordType"));
+    if (recordId === null) return json({ error: "A valid document ID is required" }, 400);
+
+    return json({
+      success: true,
+      inLibrary: await UserLibraryModel.isInLibrary(sessionData.id, recordId, recordType),
+      recordId,
+      recordType,
+      count: await UserLibraryModel.getLibraryCount(sessionData.id),
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ 
-        error: "Failed to check library status",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Failed to check library status", details: errorMessage(error) }, 500);
   }
 }
 
-/**
- * Get all documents in user's library
- * @param request The HTTP request object
- * @returns Response object with library documents
- */
 export async function getUserLibrary(request: Request): Promise<Response> {
   try {
-    // Verify user authentication
     const sessionData = await getSessionFromRequest(request);
-    
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    
-    // Use the user ID from the token for security
-    const userId = sessionData.id;
-    
-    // Get library documents
-    const library = await UserLibraryModel.getUserLibrary(userId);
-    const count = await UserLibraryModel.getLibraryCount(userId);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        documents: library,
-        count
-      }), 
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    if (!sessionData) return json({ error: "Authentication required" }, 401);
+
+    const url = new URL(request.url);
+    const page = positiveInt(url.searchParams.get("page"), 1);
+    const limit = Math.min(100, positiveInt(url.searchParams.get("limit") ?? url.searchParams.get("size"), 20));
+    const recordType = url.searchParams.has("recordType")
+      ? (url.searchParams.get("recordType")?.toLowerCase() === "all" ? "all" : UserLibraryModel.normalizeRecordType(url.searchParams.get("recordType")))
+      : "document";
+    const result = await UserLibraryModel.getUserLibrary(sessionData.id, {
+      recordType,
+      page,
+      limit,
+      search: url.searchParams.get("search") ?? "",
+      category: url.searchParams.get("category") ?? "",
+      sort: url.searchParams.get("sort") ?? url.searchParams.get("sortBy") ?? "saved-newest",
+    });
+    const categories = await UserLibraryModel.getLibraryCategories(sessionData.id, recordType);
+    const count = await UserLibraryModel.getLibraryCount(sessionData.id, recordType);
+    const totalPages = Math.ceil(result.totalCount / limit);
+    const legacyDocuments = result.items.map((item) => ({
+      ...item,
+      id: item.record_id,
+      doc_id: item.record_type === "document" ? item.record_id : null,
+    }));
+
+    return json({
+      success: true,
+      // `documents` remains for the legacy navbar and page consumers.
+      documents: legacyDocuments,
+      items: result.items,
+      count,
+      totalCount: result.totalCount,
+      totalPages,
+      currentPage: page,
+      filters: { availableCategories: categories },
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ 
-        error: "Failed to retrieve user library",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Failed to retrieve user library", details: errorMessage(error) }, 500);
   }
 }
 
-/**
- * Remove a document from user's library
- * @param request The HTTP request object
- * @returns Response object with result
- */
 export async function removeFromLibrary(request: Request): Promise<Response> {
   try {
-    // Verify user authentication
     const sessionData = await getSessionFromRequest(request);
-    
-    if (!sessionData) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }), 
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    
-    // Get URL parameters or request body
-    let documentId: number;
-    
+    if (!sessionData) return json({ error: "Authentication required" }, 401);
+
+    const url = new URL(request.url);
+    let recordId: number | null;
+    let recordType: LibraryRecordType;
     if (request.method === "DELETE") {
-      // For DELETE requests, get document ID from URL
-      const url = new URL(request.url);
-      documentId = parseInt(url.searchParams.get("documentId") || "", 10);
+      recordId = parseRecordId(url.searchParams.get("documentId") ?? url.searchParams.get("recordId"));
+      recordType = UserLibraryModel.normalizeRecordType(url.searchParams.get("recordType"));
     } else {
-      // For other methods (e.g., POST), get document ID from request body
-      const body = await request.json();
-      documentId = parseInt(body.documentId || "", 10);
+      const body = await request.json() as Record<string, unknown>;
+      recordId = parseRecordId(body.documentId ?? body.recordId);
+      recordType = UserLibraryModel.normalizeRecordType(body.recordType);
     }
-    
-    if (isNaN(documentId)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing document ID" }), 
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Use the user ID from the token for security
-    const userId = sessionData.id;
-    
-    // Remove document from library
-    const removed = await UserLibraryModel.removeFromLibrary(userId, documentId);
-    
-    if (!removed) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: "Document was not in your library"
-        }), 
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Get updated library count
-    const libraryCount = await UserLibraryModel.getLibraryCount(userId);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Document removed from library successfully",
-        count: libraryCount
-      }), 
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    if (recordId === null) return json({ error: "A valid document ID is required" }, 400);
+
+    const removed = await UserLibraryModel.removeFromLibrary(sessionData.id, recordId, recordType);
+    if (!removed) return json({ success: false, message: "Document was not in your library" }, 404);
+
+    return json({
+      success: true,
+      recordId,
+      recordType,
+      count: await UserLibraryModel.getLibraryCount(sessionData.id),
+      message: "Document removed from library successfully",
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ 
-        error: "Failed to remove document from library",
-        details: error instanceof Error ? error.message : String(error)
-      }), 
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return json({ error: "Failed to remove document from library", details: errorMessage(error) }, 500);
   }
-} 
+}
+
+function parseRecordId(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function positiveInt(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}

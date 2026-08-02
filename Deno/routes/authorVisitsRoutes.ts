@@ -154,7 +154,7 @@ async function compatGetTopAuthorsForDashboard(ctx: RouterContext<string>) {
         author_id: author.author_id,
         full_name: author.full_name,
         visit_count: author.visit_count,
-        profile_picture: author.profile_picture || '/admin/Components/img/samp_pfp.jpg'
+        profile_picture: author.profile_picture || null
       }))
     };
     
@@ -252,4 +252,4 @@ router.get("/api/debug/author-visits-counter", async (ctx: RouterContext<string>
     ctx.response.status = 500;
     ctx.response.body = { error: "Error querying database directly", details: String(error) };
   }
-}); 
+});

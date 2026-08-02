@@ -1,13 +1,16 @@
 // Routes for document-author relationships
 
 import { Router } from "../deps.ts";
-import { createDocumentAuthors, getDocumentAuthors } from "../controllers/documentAuthorController.ts";
-import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { createDocumentAuthors, DocumentAuthorValidationError, getDocumentAuthors, type DocumentAuthorInput } from "../controllers/documentAuthorController.ts";
+import { isAuthenticated, requireCapability } from "../middleware/authMiddleware.ts";
+import { canModifyPendingUpload, canViewDocument } from "../services/contentAuthorizationService.ts";
+import { getSessionFromHeaders } from "../services/sessionService.ts";
 
 const router = new Router();
+const requireDocumentUpload = requireCapability("documents:upload");
 
 // Route to add authors to a document (admin only)
-router.post("/document-authors", isAuthenticated, isAdmin, async (ctx) => {
+router.post("/document-authors", isAuthenticated, requireDocumentUpload, async (ctx) => {
   try {
     // Get request body
     const body = await ctx.request.body({ type: "json" }).value;
@@ -24,20 +27,27 @@ router.post("/document-authors", isAuthenticated, isAdmin, async (ctx) => {
       ctx.response.body = { error: "authors array is required and must not be empty" };
       return;
     }
+
+    if (!await canModifyPendingUpload(ctx.state.user, body.document_id)) {
+      ctx.response.status = 403;
+      ctx.response.body = { error: "You cannot change authors for this document" };
+      return;
+    }
     
     // Create document-author relationships
-    const documentAuthors = await createDocumentAuthors(body.document_id, body.authors);
+    const documentAuthors = await createDocumentAuthors(body.document_id, body.authors as DocumentAuthorInput[]);
     
     // Return success response
     ctx.response.status = 201;
     ctx.response.body = {
       success: true,
       document_id: body.document_id,
-      authors_count: documentAuthors.length,
-      authors: documentAuthors
+      authors_count: documentAuthors.authors.length,
+      authors: documentAuthors.authors,
+      relationships: documentAuthors.relationships,
     };
   } catch (error) {
-    ctx.response.status = 500;
+    ctx.response.status = error instanceof DocumentAuthorValidationError ? 400 : 500;
     ctx.response.body = {
       error: "Failed to create document-author relationships",
       details: error instanceof Error ? error.message : String(error)
@@ -53,6 +63,13 @@ router.get("/document-authors/:documentId", async (ctx) => {
     if (!documentId) {
       ctx.response.status = 400;
       ctx.response.body = { error: "document_id is required" };
+      return;
+    }
+
+    const session = await getSessionFromHeaders(ctx.request.headers);
+    if (!await canViewDocument(session, documentId)) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Document not found" };
       return;
     }
     
@@ -75,4 +92,4 @@ router.get("/document-authors/:documentId", async (ctx) => {
   }
 });
 
-export default router; 
+export default router;

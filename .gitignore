@@ -53,6 +53,8 @@ Deno/storage/
 uploads/
 Deno/uploads/
 logs/
+!app-ui/src/features/logs/
+!app-ui/src/features/logs/SystemLogsPage.tsx
 Deno/logs/
 *.log
 npm-debug.log*

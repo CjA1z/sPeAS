@@ -1,6 +1,7 @@
 import { Router } from "../deps.ts";
 import { 
   getDocumentStatistics,
+  getCanonicalRepositoryMetrics,
   exportPdfReport,
   exportCsvReport
 } from "../controllers/reportsController.ts";
@@ -8,31 +9,7 @@ import {
 // Create a simplified stats controller function
 async function getSimpleStats(ctx: any) {
   try {
-        
-    // Connect to the database and run simple queries
-    const client = (await import("../db/denopost_conn.ts")).client;
-    
-    // Query for active documents
-    const activeQuery = "SELECT COUNT(*) as count FROM documents WHERE deleted_at IS NULL";
-    const activeResult = await client.queryObject(activeQuery);
-    const activeCount = activeResult.rows.length > 0 ? Number(activeResult.rows[0].count || 0) : 0;
-    
-    // Query for archived documents
-    const archivedQuery = "SELECT COUNT(*) as count FROM documents WHERE deleted_at IS NOT NULL";
-    const archivedResult = await client.queryObject(archivedQuery);
-    const archivedCount = archivedResult.rows.length > 0 ? Number(archivedResult.rows[0].count || 0) : 0;
-    
-    // Calculate total
-    const totalCount = activeCount + archivedCount;
-    
-    // Return a simple response
-    ctx.response.body = {
-      active_documents: activeCount,
-      archived_documents: archivedCount,
-      total_documents: totalCount,
-      document_types: [],
-      time_range: "all"
-    };
+    ctx.response.body = await getCanonicalRepositoryMetrics("all");
     ctx.response.status = 200;
         
   } catch (error) {
@@ -53,4 +30,4 @@ router
   .post("/api/reports/export-pdf", exportPdfReport)
   .post("/api/reports/export-csv", exportCsvReport);
 
-export default router; 
+export default router;

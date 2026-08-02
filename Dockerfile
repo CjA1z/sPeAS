@@ -3,11 +3,12 @@ FROM node:24-alpine AS ui-builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+RUN npm ci
 COPY experience-studio ./experience-studio
 COPY app-ui ./app-ui
+COPY shared ./shared
 COPY Deno/shared ./Deno/shared
 
-RUN npm ci
 RUN npm run check:experience
 RUN npm run build:experience
 RUN npm run check:app-ui
@@ -16,6 +17,10 @@ RUN npm run build:app-ui
 FROM denoland/deno:2.7.13
 
 WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends poppler-utils webp \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 COPY --from=ui-builder /app/Deno/admin/experience-studio ./Deno/admin/experience-studio
@@ -38,4 +43,4 @@ WORKDIR /app/Deno
 
 EXPOSE 8000
 
-CMD ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "server.ts"]
+CMD ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "--allow-run=pdftoppm,pdfinfo,cwebp", "server.ts"]

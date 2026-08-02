@@ -117,7 +117,7 @@ inside containers.
     ```bash
     docker compose up --build
     ```
-    The app will be available at `http://localhost:8000` by default.
+    The app will be available at `http://localhost:18080` by default.
 
     The Docker image builds the React/Vite Experience Studio during
     `docker compose up --build`; do not run local Deno, npm, or Vite commands
@@ -126,6 +126,44 @@ inside containers.
 The first database boot imports `Deno/db/peas_db.sql` and then runs the SQL
 migrations in `Deno/db/migrations/`. PostgreSQL data, uploaded documents, and
 logs are stored in Docker volumes.
+
+### Updating the Docker deployment
+
+After changing or pulling application code, update the running containers with:
+
+```bash
+./update-docker.sh
+```
+
+This rebuilds PeAS using the local Docker cache, restarts the Compose services, and
+waits for their health checks. It does not pull images on every update.
+Named volumes containing PostgreSQL data, uploaded documents, and logs are not
+removed. To force a completely fresh application build, run
+`./update-docker.sh --no-cache`.
+
+To intentionally refresh the PostgreSQL and application base images, run
+`./update-docker.sh --refresh-images`.
+
+### Legacy public-route soak
+
+PeAS records aggregate request counts for retired public HTML, navbar,
+Webflow, and document-access paths. It does not retain IP addresses, query
+strings, or user-agent values. `start.sh` and `update-docker.sh` identify each
+deployment with the current Git commit; set `PEAS_RELEASE_ID` explicitly when
+running Docker Compose through another deployment workflow.
+
+After deploying a new release, inspect the compatibility soak with:
+
+```bash
+docker compose exec app deno task legacy:soak-report
+```
+
+Use `deno task legacy:soak-report --check` as a cleanup gate. It exits with a
+failure until two completed, non-development releases have both recorded zero
+legacy-path requests. Only after that check succeeds should the files listed in
+`Deno/shared/legacyPublicPaths.ts` be removed. The misspelled legacy login URL
+`/log-ien.html` permanently redirects to `/log-in.html` while remaining part
+of the traffic measurement.
 
 ## Usage
 

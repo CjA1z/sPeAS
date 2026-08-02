@@ -8,7 +8,7 @@ import {
   migrateExperienceConfigV1ToV2,
 } from "../shared/experienceConfig.ts";
 
-Deno.test("v1 experience content migrates while layout, links, and theme stay locked", () => {
+Deno.test("v1 experience content migrates while layout and theme stay locked", () => {
   const input = structuredClone(defaultExperienceConfig) as any;
   input.schemaVersion = 1;
   input.theme = { primaryColor: "#FF0000" };
@@ -24,7 +24,30 @@ Deno.test("v1 experience content migrates while layout, links, and theme stay lo
   assertEquals(migrated.pages.landing.data.content.map((block) => block.type), defaultExperienceConfig.pages.landing.data.content.map((block) => block.type));
   const migratedHero = migrated.pages.landing.data.content.find((block) => block.type === "HeroBlock")!;
   assertEquals(migratedHero.props.title, "Approved new title");
-  assertEquals(migratedHero.props.primaryHref, "#research-agenda");
+  assertEquals("primaryHref" in migratedHero.props, false);
+  assertEquals(migratedHero.props.variant, "background-slideshow");
+});
+
+Deno.test("hero keeps four stable slideshow slots while accepting replacements", () => {
+  const input = structuredClone(defaultExperienceConfig) as any;
+  const hero = input.pages.landing.data.content.find((block: any) => block.type === "HeroBlock");
+  hero.props.images = [{
+    url: "/storage/site-branding/hero/slot-1/replacement.webp",
+    alt: "Replacement for the first hero photo",
+  }];
+
+  const migrated = migrateExperienceConfigV1ToV2(input);
+  const migratedHero = migrated.pages.landing.data.content.find((block) => block.type === "HeroBlock")!;
+  const images = migratedHero.props.images as Array<{ url: string; alt: string }>;
+
+  assertEquals(images.length, 4);
+  assertEquals(images[0], {
+    url: "/storage/site-branding/hero/slot-1/replacement.webp",
+    alt: "Replacement for the first hero photo",
+  });
+  assertEquals(images.slice(1), (defaultExperienceConfig.pages.landing.data.content.find((block) =>
+    block.type === "HeroBlock"
+  )!.props.images as Array<{ url: string; alt: string }>).slice(1));
 });
 
 Deno.test("fixed quick-link destinations and agenda item count cannot be changed", () => {

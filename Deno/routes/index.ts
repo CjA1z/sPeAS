@@ -6,6 +6,7 @@ import { authRoutes } from "./authRoutes.ts";
 import { researchAgendaRoutesArray } from "./researchAgendaRoutes.ts";
 import { compiledDocumentRoutes } from "./compiledDocumentRoutes.ts";
 import { documentEditRoutes } from "./documentEditRoutes.ts";
+import { paperRoutes } from "./paperRoutes.ts";
 // author routes are now handled directly in server.ts
 
 // Define the route interface
@@ -47,6 +48,11 @@ const apiDocumentRoutes = documentRoutes.map(route => {
   };
 });
 
+const apiPaperRoutes = paperRoutes.map(route => ({
+  ...route,
+  path: route.path.replace(/^\/papers/, "/api/papers"),
+}));
+
 // Map compiled document routes to /api/compiled-documents path
 const apiCompiledDocumentRoutes = compiledDocumentRoutes.map(route => {
   const newPath = route.path.replace(/^\/compiled-documents/, '/api/compiled-documents');
@@ -85,6 +91,7 @@ export const routes: Route[] = [
   ...userRoutes,
   ...permissionsRoutes,
   ...apiDocumentRoutes, // Use the mapped API document routes
+  ...apiPaperRoutes,
   ...apiCompiledDocumentRoutes, // Use the mapped API compiled document routes
   ...apiDocumentEditRoutes, // Use the mapped API document edit routes
   ...authRoutes,

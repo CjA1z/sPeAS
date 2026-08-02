@@ -23,6 +23,13 @@ interface CategoryWithCount {
  */
 export async function getCategories(ctx: Context) {
   try {
+    const requestedStatus = new URL(ctx.request.url).searchParams.get("review_status") || "approved";
+    const reviewStatus = requestedStatus === "all" || requestedStatus === "pending_review" || requestedStatus === "approved" || requestedStatus === "rejected"
+      ? requestedStatus
+      : "approved";
+    const regularStatusClause = reviewStatus === "all" ? "" : `AND review_status = '${reviewStatus}'`;
+    const compiledStatusClause = reviewStatus === "all" ? "" : `AND review_status = '${reviewStatus}'`;
+
         
     // First attempt: Just return a simple list of known categories
     const knownCategories = [
@@ -39,12 +46,14 @@ export async function getCategories(ctx: Context) {
         SELECT COUNT(*) as count FROM documents 
         WHERE deleted_at IS NULL 
         AND compiled_parent_id IS NULL
+        ${regularStatusClause}
       `);
       
       // Get total count of compiled documents
       const compiledCount = await client.queryObject(`
         SELECT COUNT(*) as count FROM compiled_documents 
         WHERE deleted_at IS NULL
+        ${compiledStatusClause}
       `);
       
       // Attempt to get document type distribution for regular documents
@@ -53,6 +62,7 @@ export async function getCategories(ctx: Context) {
         FROM documents 
         WHERE deleted_at IS NULL 
         AND compiled_parent_id IS NULL
+        ${regularStatusClause}
         GROUP BY document_type
       `;
       
@@ -79,6 +89,7 @@ export async function getCategories(ctx: Context) {
         SELECT category, COUNT(*) as count 
         FROM compiled_documents 
         WHERE deleted_at IS NULL
+        ${compiledStatusClause}
         GROUP BY category
       `;
       
@@ -111,9 +122,9 @@ export async function getCategories(ctx: Context) {
     ctx.response.body = knownCategories;
   } catch (error) {
     ctx.response.status = 500;
-    ctx.response.body = { 
+    ctx.response.body = {
       error: "Failed to fetch categories",
       details: error instanceof Error ? error.message : String(error)
     };
   }
-} 
+}

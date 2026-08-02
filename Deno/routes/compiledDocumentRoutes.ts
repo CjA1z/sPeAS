@@ -7,9 +7,15 @@ import {
     handleSoftDeleteCompiledDocument,
     handleUpdateCompiledDocument
 } from "../api/compiledDocument.ts";
-import { client } from "../db/denopost_conn.ts"; // Import the client directly
-import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { client, withTransaction } from "../db/denopost_conn.ts"; // Import the client directly
+import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
 import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
+import { SystemLogsModel } from "../models/systemLogsModel.ts";
+import { canViewCompilation } from "../services/contentAuthorizationService.ts";
+import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
+
+const requireDocumentUpload = requireCapability("documents:upload");
+const requireDocumentReview = requireCapability("documents:review");
 
 function removeCompiledFileFields(value: any): any {
     if (!value || typeof value !== "object") {
@@ -35,6 +41,29 @@ function removeCompiledFileFields(value: any): any {
 const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     const bodyParser = await ctx.request.body({type: "json"});
     const body = await bodyParser.value;
+    const actorId = String(ctx.state.user.id);
+    const actorRole = String(ctx.state.user.role);
+
+    if (!body.compiledDoc || typeof body.compiledDoc !== "object") {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "compiledDoc is required" };
+        return;
+    }
+
+    body.compiledDoc.uploaded_by = actorId;
+    if (actorRole === "publisher") {
+        body.compiledDoc.review_status = "pending_review";
+        body.compiledDoc.reviewed_by = null;
+        body.compiledDoc.reviewed_at = null;
+    } else {
+        body.compiledDoc.review_status = body.compiledDoc.review_status === "pending_review"
+            ? "pending_review"
+            : "approved";
+        if (body.compiledDoc.review_status === "approved") {
+            body.compiledDoc.reviewed_by = actorId;
+            body.compiledDoc.reviewed_at = new Date().toISOString();
+        }
+    }
     
     // Convert context to Request
     const request = new Request(ctx.request.url.toString(), {
@@ -48,7 +77,23 @@ const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     // Convert Response back to context
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
-    ctx.response.body = await response.json();
+    const responseBody = await response.json();
+    ctx.response.body = responseBody;
+
+    if (response.ok && responseBody?.id) {
+        await SystemLogsModel.createLog({
+            log_type: "document",
+            user_id: actorId,
+            username: actorId,
+            action: actorRole === "publisher" ? "compilation_submitted_for_review" : "compilation_created",
+            details: {
+                role: actorRole,
+                category: body.compiledDoc.category,
+                reviewStatus: body.compiledDoc.review_status,
+            },
+            related_id: String(responseBody.id),
+        }).catch(() => undefined);
+    }
 };
 
 const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
@@ -62,6 +107,33 @@ const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
         if (!sessionData) {
             ctx.response.status = 401;
             ctx.response.body = { error: "Unauthorized" };
+            return;
+        }
+        const reviewResult = await client.queryObject<{
+            review_status: string;
+            uploaded_by: string | null;
+        }>(`
+            SELECT review_status, uploaded_by
+            FROM compiled_documents
+            WHERE id = $1 AND deleted_at IS NULL
+        `, [id]);
+        const compiledDocument = reviewResult.rows[0];
+        const mayViewPending = sessionData.role === "admin" ||
+            (sessionData.role === "publisher" && compiledDocument?.uploaded_by === sessionData.id);
+        if (compiledDocument && compiledDocument.review_status !== "approved" && !mayViewPending) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Compiled document not found" };
+            return;
+        }
+    } else {
+        const reviewResult = await client.queryObject<{ review_status: string }>(`
+            SELECT review_status
+            FROM compiled_documents
+            WHERE id = $1 AND deleted_at IS NULL
+        `, [id]);
+        if (reviewResult.rows[0]?.review_status !== "approved") {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Compiled document not found" };
             return;
         }
     }
@@ -78,12 +150,47 @@ const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     const responseBody = await response.json();
+    if (response.ok && !isLimitedRoute) {
+        const sessionData = await getSessionFromHeaders(ctx.request.headers);
+        if (sessionData) await UserDocumentHistoryModel.recordAction(sessionData.id, Number(id), "VIEW", "compiled");
+    }
     ctx.response.body = isLimitedRoute ? removeCompiledFileFields(responseBody) : responseBody;
 };
 
 const addDocumentsToCompilation = async (ctx: RouterContext<any, any, any>) => {
     const bodyParser = await ctx.request.body({type: "json"});
     const body = await bodyParser.value;
+
+    if (String(ctx.state.user.role) === "publisher") {
+        const compiledDocumentId = Number(body.compiledDocumentId);
+        const documentIds = Array.isArray(body.documentIds)
+            ? body.documentIds.map(Number).filter((id: number) => Number.isInteger(id) && id > 0)
+            : [];
+        const ownership = await client.queryObject<{ allowed: boolean }>(`
+            SELECT
+              EXISTS (
+                SELECT 1
+                FROM compiled_documents
+                WHERE id = $1
+                  AND uploaded_by = $2
+                  AND review_status = 'pending_review'
+                  AND deleted_at IS NULL
+              )
+              AND (
+                SELECT COUNT(*) = $3
+                FROM documents
+                WHERE id = ANY($4::int[])
+                  AND uploaded_by = $2
+                  AND review_status = 'pending_review'
+                  AND deleted_at IS NULL
+              ) AS allowed
+        `, [compiledDocumentId, String(ctx.state.user.id), documentIds.length, documentIds]);
+        if (!ownership.rows[0]?.allowed) {
+            ctx.response.status = 403;
+            ctx.response.body = { error: "Publishers may only link documents from their current pending upload" };
+            return;
+        }
+    }
     
     // Convert context to Request
     const request = new Request(ctx.request.url.toString(), {
@@ -98,6 +205,76 @@ const addDocumentsToCompilation = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     ctx.response.body = await response.json();
+};
+
+const reviewCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
+    const id = Number(ctx.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid compiled document ID is required" };
+        return;
+    }
+
+    let body: Record<string, unknown>;
+    try {
+        body = await ctx.request.body({ type: "json" }).value;
+    } catch {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid JSON body is required" };
+        return;
+    }
+
+    const decision = body.decision === "approved" ? "approved"
+        : body.decision === "rejected" ? "rejected"
+        : null;
+    if (!decision) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "Decision must be approved or rejected" };
+        return;
+    }
+
+    const reviewerId = String(ctx.state.user.id);
+    const publish = decision === "approved" && body.publish === true;
+    const reviewed = await withTransaction(async (connection) => {
+        const compiled = await connection.queryObject(`
+            UPDATE compiled_documents
+            SET review_status = $2,
+                reviewed_by = $3,
+                reviewed_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND deleted_at IS NULL
+            RETURNING id, category, volume, review_status, uploaded_by, reviewed_by, reviewed_at
+        `, [id, decision, reviewerId]);
+        if (!compiled.rows[0]) return null;
+
+        await connection.queryObject(`
+            UPDATE documents
+            SET review_status = $2,
+                is_public = $3,
+                reviewed_by = $4,
+                reviewed_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE compiled_parent_id = $1 AND deleted_at IS NULL
+        `, [id, decision, publish, reviewerId]);
+        return compiled.rows[0];
+    });
+
+    if (!reviewed) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Compiled document not found" };
+        return;
+    }
+
+    await SystemLogsModel.createLog({
+        log_type: "document",
+        user_id: reviewerId,
+        username: reviewerId,
+        action: decision === "approved" ? "compilation_approved" : "compilation_rejected",
+        details: { publish },
+        related_id: String(id),
+    }).catch(() => undefined);
+
+    ctx.response.body = { compiledDocument: reviewed };
 };
 
 // Add soft delete handler
@@ -266,6 +443,12 @@ const getCompiledDocumentChildren = async (ctx: RouterContext<any, any, any>) =>
     }
     
     const compiledDocId = parseInt(id, 10);
+    const sessionData = await getSessionFromHeaders(ctx.request.headers);
+    if (!await canViewCompilation(sessionData, compiledDocId)) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Compiled document not found" };
+        return;
+    }
     
     try {
         // Query to get documents associated with this compiled document
@@ -293,12 +476,16 @@ const getCompiledDocumentChildren = async (ctx: RouterContext<any, any, any>) =>
             }
             
             // Return the found documents
-            ctx.response.body = altResult.rows;
+            ctx.response.body = sessionData?.role === "admin"
+                ? altResult.rows
+                : removeCompiledFileFields(altResult.rows);
             return;
         }
         
         // Return the found documents
-        ctx.response.body = result.rows;
+        ctx.response.body = sessionData?.role === "admin"
+            ? result.rows
+            : removeCompiledFileFields(result.rows);
     } catch (error) {
         ctx.response.status = 500;
         ctx.response.body = { 
@@ -322,6 +509,12 @@ const getCompiledDocumentItems = async (ctx: RouterContext<any, any, any>) => {
     }
     
     const compiledDocId = parseInt(id, 10);
+    const sessionData = await getSessionFromHeaders(ctx.request.headers);
+    if (!await canViewCompilation(sessionData, compiledDocId)) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Compiled document not found" };
+        return;
+    }
     
     try {
         // Query to get items directly from the compiled_document_items table
@@ -355,11 +548,12 @@ const getCompiledDocumentItems = async (ctx: RouterContext<any, any, any>) => {
 
 // Export an array of routes
 export const compiledDocumentRoutes: Route[] = [
-    { method: "POST", path: "/compiled-documents", handler: createCompiledDocument, middleware: [isAuthenticated, isAdmin] },
+    { method: "POST", path: "/compiled-documents", handler: createCompiledDocument, middleware: [isAuthenticated, requireDocumentUpload] },
     { method: "GET", path: "/compiled-documents/:id", handler: getCompiledDocument },
     { method: "GET", path: "/compiled-documents/:id/children", handler: getCompiledDocumentChildren },
     { method: "GET", path: "/compiled-documents/:id/items", handler: getCompiledDocumentItems },
-    { method: "POST", path: "/compiled-documents/add-documents", handler: addDocumentsToCompilation, middleware: [isAuthenticated, isAdmin] },
+    { method: "POST", path: "/compiled-documents/add-documents", handler: addDocumentsToCompilation, middleware: [isAuthenticated, requireDocumentUpload] },
+    { method: "PUT", path: "/compiled-documents/:id/review", handler: reviewCompiledDocument, middleware: [isAuthenticated, requireDocumentReview] },
     { method: "DELETE", path: "/compiled-documents/:id/soft-delete", handler: softDeleteCompiledDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "PUT", path: "/compiled-documents/:id", handler: updateCompiledDocument, middleware: [isAuthenticated, isAdmin] },
     { method: "DELETE", path: "/compiled-documents/:id/hard-delete", handler: hardDeleteCompiledDocument, middleware: [isAuthenticated, isAdmin] },

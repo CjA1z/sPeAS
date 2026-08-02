@@ -4,7 +4,7 @@
  * Sessions are created and stored by Better Auth (config/auth.ts) in the
  * `session` table; the cookie is `better-auth.session_token`. This module
  * keeps the app-facing shape stable: `{ id, role, isLoggedIn }` with roles
- * normalized to lowercase (e.g. "admin", "user").
+ * normalized to lowercase (e.g. "admin", "publisher", "user").
  */
 
 import { auth } from "../config/auth.ts";

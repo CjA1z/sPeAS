@@ -1,24 +1,109 @@
-import { PoolClient } from "../deps.ts";
 import { client } from "../db/denopost_conn.ts";
 
-// Define a type for document statistics
 interface DocumentStatistics {
   active_documents: number;
   archived_documents: number;
   total_documents: number;
+  catalog_entries: number;
+  archived_catalog_entries: number;
+  total_catalog_entries: number;
+  stored_documents: number;
+  author_records: number;
   document_types: Array<{document_type: string; count: number}>;
   time_range: string;
+  metric_definitions: Record<string, string>;
 }
 
-// Define a type for row with count
-interface CountRow {
-  count: string; // PostgreSQL COUNT returns string that needs to be converted
+const METRIC_DEFINITIONS = {
+  catalog_entries: "Active top-level repository entries. A compilation counts once and its child studies are excluded.",
+  stored_documents: "Active document records stored by PeAS. Child studies inside compilations are included.",
+  archived_catalog_entries: "Archived top-level repository entries. A compilation counts once.",
+  archived_documents: "Archived document records. Compilation parent records are not stored in the documents table.",
+  author_records: "All author directory records, including authors that are not yet linked to a published work.",
+} as const;
+
+/**
+ * Canonical operational metrics shared by Dashboard and Reports.
+ * Catalog entries count top-level records; stored documents count rows in the
+ * document store and therefore include studies contained by compilations.
+ */
+export async function getCanonicalRepositoryMetrics(timeRange = "all"): Promise<DocumentStatistics> {
+  const startDate = getRangeStart(timeRange);
+  const params = startDate ? [startDate.toISOString()] : [];
+  const dateFilter = startDate ? "(created_at >= $1 OR updated_at >= $1)" : "TRUE";
+
+  const [documentCounts, compilationCounts, authorCounts, documentTypes] = await Promise.all([
+    client.queryObject(`
+      SELECT
+        COUNT(*) FILTER (WHERE deleted_at IS NULL)::BIGINT AS active_documents,
+        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)::BIGINT AS archived_documents,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND compiled_parent_id IS NULL)::BIGINT AS active_single_entries,
+        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND compiled_parent_id IS NULL)::BIGINT AS archived_single_entries
+      FROM documents
+      WHERE ${dateFilter}
+    `, params),
+    client.queryObject(`
+      SELECT
+        COUNT(*) FILTER (WHERE deleted_at IS NULL)::BIGINT AS active_compilations,
+        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)::BIGINT AS archived_compilations
+      FROM compiled_documents
+      WHERE ${dateFilter}
+    `, params),
+    client.queryObject("SELECT COUNT(*)::BIGINT AS author_records FROM authors"),
+    client.queryObject(`
+      SELECT document_type, COUNT(*)::BIGINT AS count
+      FROM (
+        SELECT d.document_type::TEXT AS document_type
+        FROM documents d
+        WHERE d.deleted_at IS NULL
+          AND d.compiled_parent_id IS NULL
+          AND ${startDate ? "(d.created_at >= $1 OR d.updated_at >= $1)" : "TRUE"}
+        UNION ALL
+        SELECT COALESCE(cd.category, 'CONFLUENCE')::TEXT AS document_type
+        FROM compiled_documents cd
+        WHERE cd.deleted_at IS NULL
+          AND ${startDate ? "(cd.created_at >= $1 OR cd.updated_at >= $1)" : "TRUE"}
+      ) entries
+      GROUP BY document_type
+      ORDER BY document_type
+    `, params),
+  ]);
+
+  const documentRow = (documentCounts.rows[0] ?? {}) as Record<string, unknown>;
+  const compilationRow = (compilationCounts.rows[0] ?? {}) as Record<string, unknown>;
+  const authorRow = (authorCounts.rows[0] ?? {}) as Record<string, unknown>;
+  const activeDocuments = Number(documentRow.active_documents ?? 0);
+  const archivedDocuments = Number(documentRow.archived_documents ?? 0);
+  const catalogEntries = Number(documentRow.active_single_entries ?? 0) + Number(compilationRow.active_compilations ?? 0);
+  const archivedCatalogEntries = Number(documentRow.archived_single_entries ?? 0) + Number(compilationRow.archived_compilations ?? 0);
+
+  return {
+    active_documents: activeDocuments,
+    archived_documents: archivedDocuments,
+    total_documents: activeDocuments + archivedDocuments,
+    catalog_entries: catalogEntries,
+    archived_catalog_entries: archivedCatalogEntries,
+    total_catalog_entries: catalogEntries + archivedCatalogEntries,
+    stored_documents: activeDocuments,
+    author_records: Number(authorRow.author_records ?? 0),
+    document_types: documentTypes.rows.map((row) => ({
+      document_type: String((row as Record<string, unknown>).document_type ?? "unknown"),
+      count: Number((row as Record<string, unknown>).count ?? 0),
+    })),
+    time_range: startDate ? timeRange : "all",
+    metric_definitions: { ...METRIC_DEFINITIONS },
+  };
 }
 
-// Define a type for query result
-interface QueryResult {
-  rows: Array<Record<string, unknown>>;
-  rowCount: number;
+function getRangeStart(timeRange: string): Date | null {
+  if (timeRange === "all") return null;
+  const start = new Date();
+  if (timeRange === "daily") start.setDate(start.getDate() - 1);
+  else if (timeRange === "weekly") start.setDate(start.getDate() - 7);
+  else if (timeRange === "monthly") start.setMonth(start.getMonth() - 1);
+  else if (timeRange === "yearly") start.setFullYear(start.getFullYear() - 1);
+  else return null;
+  return start;
 }
 
 /**
@@ -27,150 +112,9 @@ interface QueryResult {
  */
 export async function getDocumentStatistics(ctx: any) {
   try {
-                    
-    // Get all query parameters
-    const queryParams: Record<string, string> = {};
-    for (const [key, value] of ctx.request.url.searchParams.entries()) {
-      queryParams[key] = value;
-    }
-        
-    // Get the time range parameter with better fallback
-    let timeRange = "all";
-    try {
-      timeRange = ctx.request.url.searchParams.get("timeRange") || "all";
-          } catch (paramError) {
-      // Fall back to default
-      timeRange = "all";
-    }
-    
-        
-    // Build date criteria based on time range
-    let dateCriteria = "";
-    let params: any[] = [];
-    let startDate = new Date();
-    
-    if (timeRange !== "all") {
-      const now = new Date();
-      
-      // Set the start date based on the time range
-      switch (timeRange) {
-        case "daily":
-          startDate.setDate(now.getDate() - 1);
-          break;
-        case "weekly":
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case "monthly":
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case "yearly":
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          // If an invalid time range is provided, default to "all"
-          // This prevents issues with unexpected timeRange values
-          break;
-      }
-      
-      dateCriteria = "AND (created_at >= $1 OR updated_at >= $1)";
-      params.push(startDate.toISOString());
-    }
-    
-    // Simple database connectivity test before running the real queries
-    try {
-            const testResult = await client.queryObject("SELECT 1 as test");
-          } catch (dbTestError) {
-      throw new Error("Database connection test failed");
-    }
-    
-        
-    // Query for active documents
-    const activeQuery = `
-      SELECT COUNT(*) as count
-      FROM documents
-      WHERE deleted_at IS NULL
-      ${dateCriteria}
-    `;
-    
-            
-    // Query for archived documents
-    const archivedQuery = `
-      SELECT COUNT(*) as count
-      FROM documents
-      WHERE deleted_at IS NOT NULL
-      ${dateCriteria}
-    `;
-    
-        
-    // Execute the queries with proper typing and error handling
-    let activeCount = 0;
-    let archivedCount = 0;
-    
-    try {
-            const activeResult = await client.queryObject(activeQuery, params) as QueryResult;
-            
-      if (activeResult.rows.length > 0) {
-                activeCount = Number(activeResult.rows[0].count || 0);
-      }
-          } catch (activeError) {
-      // Continue with zero count
-    }
-    
-    try {
-            const archivedResult = await client.queryObject(archivedQuery, params) as QueryResult;
-            
-      if (archivedResult.rows.length > 0) {
-                archivedCount = Number(archivedResult.rows[0].count || 0);
-      }
-          } catch (archivedError) {
-      // Continue with zero count
-    }
-    
-    // Calculate the total
-    const totalCount = activeCount + archivedCount;
-        
-    // Get document type statistics
-    const docTypeQuery = `
-      SELECT document_type, COUNT(*) as count
-      FROM documents
-      WHERE ${timeRange !== "all" ? "(created_at >= $1 OR updated_at >= $1) AND" : ""}
-      deleted_at IS NULL
-      GROUP BY document_type
-    `;
-    
-        
-    // Default empty array for document types
-    let documentTypes: Array<{document_type: string; count: number}> = [];
-    
-    try {
-            const docTypeResult = await client.queryObject(docTypeQuery, 
-        timeRange !== "all" ? [startDate.toISOString()] : []) as QueryResult;
-      
-            
-      // Parse the document types results
-      documentTypes = docTypeResult.rows.map(row => ({
-        document_type: String(row.document_type || "unknown"),
-        count: Number(row.count || 0)
-      }));
-      
-          } catch (docTypeError) {
-      // Continue with empty array
-    }
-    
-    // Format the response
-    const response: DocumentStatistics = {
-      active_documents: activeCount,
-      archived_documents: archivedCount,
-      total_documents: totalCount,
-      document_types: documentTypes,
-      time_range: timeRange
-    };
-    
-        
-    // Return the statistics
-    ctx.response.body = response;
+    const timeRange = ctx.request.url.searchParams.get("timeRange") || "all";
+    ctx.response.body = await getCanonicalRepositoryMetrics(timeRange);
     ctx.response.status = 200;
-    
   } catch (error: unknown) {
     ctx.response.body = {
       success: false,
@@ -331,4 +275,4 @@ function generateMockPdfContent(reportType: string, timeRange: string, data: any
   content += "%%EOF";
   
   return content;
-} 
+}

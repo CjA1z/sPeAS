@@ -6,15 +6,24 @@ import {
     handleCreateResearchAgendaItems,
     handleSearchResearchAgendaItems
 } from "../api/researchAgenda.ts";
-import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
+import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
+import { canModifyPendingUpload, canViewDocument } from "../services/contentAuthorizationService.ts";
+import { getSessionFromHeaders } from "../services/sessionService.ts";
 
 // Create a router for research agenda routes
 const router = new Router();
+const requireDocumentUpload = requireCapability("documents:upload");
 
 // Research Agenda route handlers
 const addResearchAgendaItems = async (ctx: any) => {
     const bodyParser = await ctx.request.body({type: "json"});
     const body = await bodyParser.value;
+
+    if (!await canModifyPendingUpload(ctx.state.user, body.document_id)) {
+        ctx.response.status = 403;
+        ctx.response.body = { error: "You cannot change research agenda items for this document" };
+        return;
+    }
     
     // Convert context to Request
     const request = new Request(ctx.request.url.toString(), {
@@ -33,6 +42,12 @@ const addResearchAgendaItems = async (ctx: any) => {
 
 const getResearchAgendaItems = async (ctx: any) => {
     const documentId = ctx.params.documentId;
+    const session = await getSessionFromHeaders(ctx.request.headers);
+    if (!await canViewDocument(session, documentId)) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Document not found" };
+        return;
+    }
     
     // Convert context to Request
     const request = new Request(`${ctx.request.url.origin}/api/document-research-agenda/${documentId}`, {
@@ -109,7 +124,7 @@ const searchResearchAgendaItems = async (ctx: any) => {
 };
 
 // Register routes (writes are admin-only)
-router.post("/document-research-agenda", isAuthenticated, isAdmin, addResearchAgendaItems);
+router.post("/document-research-agenda", isAuthenticated, requireDocumentUpload, addResearchAgendaItems);
 router.get("/document-research-agenda/:documentId", getResearchAgendaItems);
 router.post("/research-agenda-items", isAuthenticated, isAdmin, createResearchAgendaItem);
 router.post("/research-agenda-items/batch", isAuthenticated, isAdmin, createResearchAgendaItems);
@@ -129,11 +144,11 @@ export interface Route {
 // Keep the original array export for backward compatibility (writes are admin-only)
 export const researchAgendaRoutesArray: Route[] = [
     // Document-related research agenda routes
-    { method: "POST", path: "/document-research-agenda", handler: addResearchAgendaItems, middleware: [isAuthenticated, isAdmin] },
+    { method: "POST", path: "/document-research-agenda", handler: addResearchAgendaItems, middleware: [isAuthenticated, requireDocumentUpload] },
     { method: "GET", path: "/document-research-agenda/:documentId", handler: getResearchAgendaItems },
 
     // Standalone research agenda item routes
     { method: "POST", path: "/research-agenda-items", handler: createResearchAgendaItem, middleware: [isAuthenticated, isAdmin] },
     { method: "POST", path: "/research-agenda-items/batch", handler: createResearchAgendaItems, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/research-agenda-items/search", handler: searchResearchAgendaItems },
-]; 
+];
