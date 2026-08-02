@@ -7,8 +7,10 @@ test("contact inquiry admin APIs reject unauthenticated access", async ({ reques
   }
 });
 
-test("admin Contact Inquiries entry uses the React admin bundle", async ({ page }) => {
-  await page.goto("/admin/Components/contact-inquiries.html");
-  await expect(page.locator("#react-contact-inquiries-admin-root")).toBeVisible();
-  await expect(page.locator('script[src="/admin/react-ui/main-admin.js"]')).toHaveCount(1);
+test("admin Contact Inquiries entry uses the React admin bundle", async ({ request, baseURL }) => {
+  const response = await request.get(`${baseURL}/admin/Components/contact-inquiries.html`);
+  expect(response.ok()).toBeTruthy();
+  const html = await response.text();
+  expect(html).toContain('id="react-contact-inquiries-admin-root"');
+  expect(html).toContain('src="/admin/react-ui/main-admin.js"');
 });

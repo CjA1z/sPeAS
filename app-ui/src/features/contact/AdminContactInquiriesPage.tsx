@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Mail, MessageSquarePlus, RefreshCw, Search, X } from "lucide-react";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
-import { PeasErrorState } from "../../components/feedback/PeasStates";
+import { PeasEmptyState, PeasErrorState } from "../../components/feedback/PeasStates";
 import { Button } from "../../components/ui/button";
 import {
   addAdminContactNote, fetchAdminContactInquiries, fetchAdminContactInquiry,
@@ -9,6 +9,7 @@ import {
   updateAdminContactStatus, type AdminContactInquiry, type ContactInquiryStatus, type ContactNote,
 } from "../../lib/api/adminContact";
 import { getErrorMessage } from "../../lib/api/http";
+import { AdminPageHeader } from "../../components/layout/AdminPageHeader";
 
 const tabs: Array<{ label: string; value: "" | ContactInquiryStatus }> = [
   { label: "All", value: "" }, { label: "New", value: "new" }, { label: "Read", value: "read" },
@@ -54,12 +55,9 @@ export function AdminContactInquiriesPage() {
   };
 
   return (
-    <section className="peas-contact-admin" aria-labelledby="contact-inbox-title">
-      <header className="peas-contact-admin__header">
-        <div><span>Public communications</span><h1 id="contact-inbox-title">Contact Inquiries</h1><p>Review, triage, and annotate inquiries retained by PeAS.</p></div>
-        <div className="peas-contact-admin__summary"><strong>{summary?.byStatus.new ?? 0}</strong><span>new</span><strong>{summary?.failedNotifications ?? 0}</strong><span>failed notices</span></div>
-      </header>
-      {summary && !summary.recipientConfigured ? <div className="peas-contact-admin__warning" role="alert">CONTACT_RECIPIENT_EMAIL is not configured. Inquiries remain safe, but notifications will be marked failed.</div> : null}
+    <main className="peas-admin-island peas-contact-admin" aria-labelledby="contact-inbox-title">
+      <AdminPageHeader eyebrow="Public communications" title="Contact Inquiries" titleId="contact-inbox-title" description="Review, triage, and annotate inquiries retained by PeAS." actions={<div className="peas-contact-admin__summary"><strong>{summary?.byStatus.new ?? 0}</strong><span>new</span><strong>{summary?.failedNotifications ?? 0}</strong><span>failed notices</span></div>} />
+      {summary && !summary.recipientConfigured ? <div className="peas-contact-admin__warning" role="alert"><strong>Email notifications need configuration.</strong> Inquiries remain safely stored, but notification delivery is paused.<details><summary>Technical details</summary><code>CONTACT_RECIPIENT_EMAIL</code> is not configured.</details></div> : null}
       <div className="peas-contact-admin__tabs" role="tablist" aria-label="Inquiry status">
         {tabs.map((tab) => <button role="tab" aria-selected={status === tab.value} className={status === tab.value ? "is-active" : ""} onClick={() => { setPage(1); setStatus(tab.value); }} key={tab.label}>{tab.label}{tab.value ? <small>{summary?.byStatus[tab.value] ?? 0}</small> : null}</button>)}
       </div>
@@ -77,12 +75,12 @@ export function AdminContactInquiriesPage() {
               <span className={`peas-notification-status is-${item.notificationStatus}`}>{item.notificationStatus}</span>
               <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
             </button>
-          )) : <p className="peas-contact-admin__empty">No inquiries match these filters.</p>}
+          )) : <PeasEmptyState title="No inquiries found" description="Try another status or search term." />}
         </div>
       )}
       {totalCount > 0 ? <PeasPagination page={page} totalPages={totalPages} totalCount={totalCount} visibleCount={items.length} label="Contact inquiry pages" onPageChange={setPage} /> : null}
       {selected ? <InquiryDetail inquiry={selected} onClose={() => setSelected(null)} onChanged={async (next) => { setSelected(next); await load(); }} /> : null}
-    </section>
+    </main>
   );
 }
 

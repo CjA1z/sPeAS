@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: "/admin/react-ui/",
   plugins: [react()],
   build: {
     outDir: resolve(__dirname, "../Deno/admin/react-ui"),

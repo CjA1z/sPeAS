@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Clock, LogOut, Menu, UserRound, X } from "lucide-react";
+import { BookMarked, Clock3, LayoutDashboard, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { usePublicSession } from "./PublicSessionProvider";
 
@@ -12,11 +12,15 @@ const links = [
 export function PublicNavbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const alwaysGreen = usesAlwaysGreenNavbar();
   const { session, signOut } = usePublicSession();
   const authenticated = Boolean(session?.authenticated);
+  const isAdmin = session?.role === "admin";
   const userName = String(session?.user?.name ?? session?.username ?? session?.userId ?? "User");
 
   useEffect(() => {
+    if (alwaysGreen) return;
+
     const updateScrolled = () => {
       const nextScrolled = window.scrollY > 16;
       setScrolled((current) => (current === nextScrolled ? current : nextScrolled));
@@ -25,14 +29,14 @@ export function PublicNavbar() {
     updateScrolled();
     window.addEventListener("scroll", updateScrolled, { passive: true });
     return () => window.removeEventListener("scroll", updateScrolled);
-  }, []);
+  }, [alwaysGreen]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
   }, [signOut]);
 
   return (
-    <header className={`peas-public-navbar${scrolled ? " is-scrolled" : ""}`}>
+    <header className={`peas-public-navbar${alwaysGreen || scrolled ? " is-scrolled" : ""}`}>
       <a className="peas-public-brand" href="/index.html" aria-label="PeAS home">
         <img src="/Components/images/spud_logo_s.png" alt="" />
         <span>
@@ -52,14 +56,20 @@ export function PublicNavbar() {
       <div className="peas-public-nav-actions">
         {authenticated ? (
           <>
+            {isAdmin ? (
+              <a className="peas-public-user-link peas-public-dashboard-link" href="/admin/dashboard.html">
+                <LayoutDashboard aria-hidden="true" />
+                <span>Dashboard</span>
+              </a>
+            ) : null}
             <a className="peas-public-icon-link" href="/pages/SavedDocument.html" aria-label="Saved documents">
-              <BookOpen aria-hidden="true" />
+              <BookMarked aria-hidden="true" />
             </a>
             <a className="peas-public-icon-link" href="/pages/UserHistory.html" aria-label="User history">
-              <Clock aria-hidden="true" />
+              <Clock3 aria-hidden="true" />
             </a>
             <a className="peas-public-user-link" href="/pages/UserProfile.html">
-              <UserRound aria-hidden="true" />
+              {session?.user?.image ? <img className="peas-public-user-avatar" src={String(session.user.image)} alt="" /> : <UserRound aria-hidden="true" />}
               <span>{userName}</span>
             </a>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
@@ -68,7 +78,7 @@ export function PublicNavbar() {
             </Button>
           </>
         ) : (
-          <Button size="sm" onClick={() => (window.location.href = "/log-in.html")}>
+          <Button className="peas-public-login-button" size="sm" onClick={() => (window.location.href = "/log-in.html")}>
             Login
           </Button>
         )}
@@ -99,21 +109,26 @@ export function PublicNavbar() {
             ))}
             {authenticated ? (
               <>
-                <a href="/pages/SavedDocument.html">Saved Documents</a>
-                <a href="/pages/UserHistory.html">History</a>
-                <a href="/pages/UserProfile.html">Profile</a>
+                {isAdmin ? <a href="/admin/dashboard.html"><LayoutDashboard aria-hidden="true" /> Dashboard</a> : null}
+                <a href="/pages/SavedDocument.html"><BookMarked aria-hidden="true" /> Saved Documents</a>
+                <a href="/pages/UserHistory.html"><Clock3 aria-hidden="true" /> History</a>
+                <a href="/pages/UserProfile.html"><UserRound aria-hidden="true" /> Profile</a>
                 <Button variant="outline" onClick={handleLogout}>
                   Logout
                 </Button>
               </>
             ) : (
-              <Button onClick={() => (window.location.href = "/log-in.html")}>Login</Button>
+              <Button className="peas-public-login-button" onClick={() => (window.location.href = "/log-in.html")}>Login</Button>
             )}
           </div>
         </div>
       ) : null}
     </header>
   );
+}
+
+function usesAlwaysGreenNavbar() {
+  return ["/news.html", "/contact", "/contact.html"].includes(window.location.pathname);
 }
 
 function isActivePath(href: string) {

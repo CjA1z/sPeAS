@@ -13,7 +13,8 @@ export interface SessionUser {
 
 /**
  * Normalized session shape derived from Better Auth's GET /api/auth/get-session
- * response ({ session, user } or null). `role` is lowercase ("admin" | "user").
+ * response ({ session, user } or null). `role` is lowercase
+ * ("admin" | "publisher" | "user").
  */
 export interface SessionResponse {
   authenticated: boolean;
@@ -48,8 +49,13 @@ export interface UserProfile {
   first_name?: string;
   middle_name?: string;
   last_name?: string;
+  name?: string;
   email?: string;
   role_id?: number;
+  role?: string;
+  created_at?: string;
+  email_verified?: boolean;
+  can_change_password?: boolean;
   profile_picture?: string;
   [key: string]: unknown;
 }

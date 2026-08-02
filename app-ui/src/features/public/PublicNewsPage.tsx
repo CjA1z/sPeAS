@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Newspaper } from "lucide-react";
+import { ArrowLeft, CalendarDays, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import { PeasErrorState } from "../../components/feedback/PeasStates";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
+import { NewsPreviewCard } from "../../components/public/NewsPreviewCard";
+import { NewsArticleBody } from "../../components/news/NewsArticleBody";
+import { NewsArticleAuthors, NewsArticleWorks } from "../../components/news/NewsArticleReferences";
 import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { Skeleton } from "../../components/ui/skeleton";
 import { getErrorMessage } from "../../lib/api/http";
 import { fetchPublishedNews, fetchPublishedNewsPost, type NewsPost } from "../../lib/api/news";
@@ -71,7 +75,7 @@ function NewsFeed({ posts, page, totalCount, totalPages, onPageChange }: {
         </div>
         {posts.length ? (
           <div className="peas-news-grid">
-            {posts.map((post, index) => <NewsCard post={post} index={index} key={post.id} />)}
+            {posts.map((post, index) => <NewsPreviewCard post={post} index={index} key={post.id} />)}
           </div>
         ) : (
           <div className="peas-news-empty">
@@ -86,26 +90,8 @@ function NewsFeed({ posts, page, totalCount, totalPages, onPageChange }: {
   );
 }
 
-function NewsCard({ post, index }: { post: NewsPost; index: number }) {
-  return (
-    <motion.article className="peas-news-card" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-      <a className="peas-news-card__image" href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>
-        {post.coverImageUrl ? <img src={post.coverImageUrl} alt="" /> : <Newspaper aria-hidden="true" />}
-      </a>
-      <div className="peas-news-card__body">
-        <NewsMeta post={post} />
-        <h3><a href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>{post.title}</a></h3>
-        <p>{post.excerpt}</p>
-        <a className="peas-news-card__link" href={`/news.html?slug=${encodeURIComponent(post.slug)}`}>
-          Read full story <ArrowRight aria-hidden="true" />
-        </a>
-      </div>
-    </motion.article>
-  );
-}
-
 function NewsArticle({ post }: { post: NewsPost }) {
-  const paragraphs = post.body.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  const { session } = usePublicSession();
   return (
     <article className="peas-news-article">
       <a className="peas-news-back" href="/news.html"><ArrowLeft aria-hidden="true" /> All news</a>
@@ -114,11 +100,20 @@ function NewsArticle({ post }: { post: NewsPost }) {
         <h1>{post.title}</h1>
         <NewsMeta post={post} />
         <p>{post.excerpt}</p>
+        <NewsArticleAuthors authors={post.taggedAuthors || []} />
       </header>
-      {post.coverImageUrl ? <img className="peas-news-article__cover" src={post.coverImageUrl} alt="" /> : null}
+      {post.coverImageUrl ? <img className="peas-news-article__cover" src={post.coverImageUrl} alt={post.coverImageAlt || ""} /> : null}
       <div className="peas-news-article__content">
-        {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        <NewsArticleBody
+          body={post.body}
+          format={post.bodyFormat}
+          authors={post.taggedAuthors || []}
+        />
       </div>
+      <NewsArticleWorks
+        works={post.taggedWorks || []}
+        authenticated={Boolean(session?.authenticated)}
+      />
     </article>
   );
 }

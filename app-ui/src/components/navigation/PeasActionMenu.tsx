@@ -28,10 +28,7 @@ export function PeasActionMenu({ label, items }: PeasActionMenuProps) {
           <DropdownMenuItem
             destructive={item.destructive}
             key={item.label}
-            onSelect={(event) => {
-              event.preventDefault();
-              item.onSelect();
-            }}
+            onSelect={item.onSelect}
           >
             {item.icon}
             {item.label}

@@ -27,6 +27,8 @@ export interface DocumentRecord {
   issue?: string;
   startYear?: number;
   endYear?: number;
+  reviewStatus: "pending_review" | "approved" | "rejected";
+  isPublic?: boolean;
   raw: Record<string, unknown>;
 }
 
@@ -41,6 +43,7 @@ export interface DocumentFilterState {
   size: number;
   sort: "latest" | "earliest";
   category: DocumentCategory;
+  status: "all" | "approved" | "pending_review" | "rejected";
   search: string;
 }
 
@@ -124,12 +127,37 @@ export interface DocumentRequestRecord {
 export interface AuthorRecord {
   id: number | string;
   fullName: string;
+  spudId?: string | null;
   affiliation?: string | null;
   department?: string | null;
   email?: string | null;
   orcidId?: string | null;
   profilePicture?: string | null;
+  biography?: string | null;
+  createdSource?: "document_upload" | "author_directory" | string | null;
+  profileComplete?: boolean;
+  worksCount: number;
   raw: Record<string, unknown>;
+}
+
+export interface DepartmentReference {
+  id: number;
+  name: string;
+  code: string;
+  authorCount: number;
+  documentCount: number;
+  userCount: number;
+}
+
+export interface AffiliationReference {
+  id: number;
+  name: string;
+  authorCount: number;
+}
+
+export interface AuthorReferenceData {
+  departments: DepartmentReference[];
+  affiliations: AffiliationReference[];
 }
 
 export interface AuthorWorkRecord {
@@ -153,8 +181,14 @@ export interface ReportStats {
   activeDocuments: number;
   archivedDocuments: number;
   totalDocuments: number;
+  catalogEntries: number;
+  archivedCatalogEntries: number;
+  totalCatalogEntries: number;
+  storedDocuments: number;
+  authorRecords: number;
   documentTypes: Array<{ documentType: string; count: number }>;
   timeRange: string;
+  metricDefinitions: Record<string, string>;
   raw: Record<string, unknown>;
 }
 

@@ -38,6 +38,7 @@ import {
 } from "../../components/ui/alert-dialog";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
 import { DocumentToolbar } from "../documents/DocumentToolbar";
+import { AdminPageHeader } from "../../components/layout/AdminPageHeader";
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +48,7 @@ export function ArchiveDocumentsPage() {
     size: PAGE_SIZE,
     sort: "latest",
     category: "All",
+    status: "approved",
     search: "",
   });
   const debouncedSearch = useDebouncedValue(filter.search, 250);
@@ -168,9 +170,13 @@ export function ArchiveDocumentsPage() {
   return (
     <main className="peas-admin-island peas-documents-page peas-archive-page">
       <PeasToaster />
+      <AdminPageHeader eyebrow="Repository catalog" title="Archived Documents" description="Review archived entries, restore records, or permanently remove data when authorized." />
       <DocumentToolbar
         filter={filter}
         categories={categories}
+        totalCount={totalCount}
+        showStatusFilter={false}
+        onClearFilters={() => setFilter((current) => ({ ...current, page: 1, category: "All", sort: "latest", search: "" }))}
         onSearchChange={(search) => updateFilter({ search })}
         onSortChange={(sort) => updateFilter({ sort })}
         onCategoryChange={(category: DocumentCategory) => updateFilter({ category })}
@@ -182,7 +188,7 @@ export function ArchiveDocumentsPage() {
         <PeasErrorState title="Unable to load archive" message={error} onRetry={() => setReloadKey((current) => current + 1)} />
       ) : documents.length === 0 ? (
         <Reveal>
-          <PeasEmptyState title="No archived documents found" description="Try another category or search term." />
+          <PeasEmptyState title="No archived documents" description="Try another category or search term." />
         </Reveal>
       ) : (
         <div className="peas-document-list">
@@ -279,6 +285,7 @@ function ArchivedDocumentCard({
                 Archived {formatDate(document.deletedAt)}
               </span>
               <span>{document.authorsText}</span>
+              <span className="peas-document-card__meta-category">{category.label}</span>
               {canExpand ? (
                 <span>
                   <ListTree aria-hidden="true" />
@@ -293,7 +300,7 @@ function ArchivedDocumentCard({
           {canExpand ? (
             <PeasIconButton
               label={expanded ? "Hide contained documents" : "Show contained documents"}
-              variant="actionPurple"
+              variant="outline"
               onClick={() => onToggleChildren(document)}
             >
               <ListTree aria-hidden="true" />

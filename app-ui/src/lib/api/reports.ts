@@ -57,8 +57,22 @@ function normalizeReportStats(raw: Record<string, unknown>): ReportStats {
     activeDocuments: Number(raw.active_documents ?? 0),
     archivedDocuments: Number(raw.archived_documents ?? 0),
     totalDocuments: Number(raw.total_documents ?? 0),
+    catalogEntries: Number(raw.catalog_entries ?? raw.active_documents ?? 0),
+    archivedCatalogEntries: Number(raw.archived_catalog_entries ?? raw.archived_documents ?? 0),
+    totalCatalogEntries: Number(raw.total_catalog_entries ?? raw.total_documents ?? 0),
+    storedDocuments: Number(raw.stored_documents ?? raw.active_documents ?? 0),
+    authorRecords: Number(raw.author_records ?? 0),
     documentTypes,
     timeRange: String(raw.time_range ?? "all"),
+    metricDefinitions: normalizeDefinitions(raw.metric_definitions),
     raw,
   };
+}
+
+function normalizeDefinitions(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
 }

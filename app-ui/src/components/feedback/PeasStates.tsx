@@ -1,4 +1,5 @@
 import { AlertCircle, FileSearch, Loader2, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 
@@ -22,17 +23,20 @@ export function PeasLoadingState() {
 interface EmptyStateProps {
   title: string;
   description?: string;
+  icon?: ReactNode;
+  action?: ReactNode;
 }
 
-export function PeasEmptyState({ title, description }: EmptyStateProps) {
+export function PeasEmptyState({ title, description, icon, action }: EmptyStateProps) {
   return (
     <div className="peas-state peas-state--empty">
       <div className="peas-state__orb">
-        <FileSearch aria-hidden="true" />
+        {icon ?? <FileSearch aria-hidden="true" />}
       </div>
       <div>
         <h3>{title}</h3>
         {description ? <p>{description}</p> : null}
+        {action ? <div className="peas-state__action">{action}</div> : null}
       </div>
     </div>
   );

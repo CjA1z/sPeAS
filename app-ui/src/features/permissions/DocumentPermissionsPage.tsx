@@ -15,11 +15,11 @@ import { PeasStatusBadge } from "../../components/data-display/PeasStatusBadge";
 import { PeasDateRange } from "../../components/forms/PeasDateRange";
 import { PeasSearchInput } from "../../components/forms/PeasSearchInput";
 import { PeasEmptyState, PeasErrorState, PeasLoadingState } from "../../components/feedback/PeasStates";
-import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Textarea } from "../../components/ui/textarea";
 import { PeasIconButton } from "../../components/ui/peas-button";
 import { PeasToaster, toast } from "../../components/ui/toast";
+import { AdminPageHeader } from "../../components/layout/AdminPageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -235,17 +235,10 @@ export function DocumentPermissionsPage() {
   return (
     <main className="peas-admin-island peas-permissions-page">
       <PeasToaster />
-      <section className="peas-page-header">
-        <div>
-          <Badge tone="green">Access Control</Badge>
-          <h1>Document Permissions</h1>
-          <p>Review access requests, inspect requester details, and approve or reject requests.</p>
-        </div>
-        <Button variant="outline" onClick={() => setReloadKey((current) => current + 1)}>
+      <AdminPageHeader eyebrow="Access control" title="Document Permissions" description="Review access requests, inspect requester details, and approve or reject requests." actions={<Button variant="outline" onClick={() => setReloadKey((current) => current + 1)}>
           <RefreshCw aria-hidden="true" />
           Refresh
-        </Button>
-      </section>
+        </Button>} />
 
       <section className="peas-summary-grid" aria-label="Permission request summary">
         <SummaryCard label="All Requests" value={summary.all} active={status === "all"} onClick={() => setStatus("all")} />

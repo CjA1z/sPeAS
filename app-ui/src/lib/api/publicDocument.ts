@@ -1,11 +1,25 @@
 import { apiFetch } from "./http";
 import type { LooseRecord } from "./account";
 
+const PUBLIC_DOCUMENT_ERROR_STATUSES = [400, 401, 403, 404, 408, 429, 500, 503] as const;
+
+export class PublicDocumentLoadError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "PublicDocumentLoadError";
+  }
+}
+
+export function getPublicDocumentErrorStatus(error: unknown) {
+  return error instanceof PublicDocumentLoadError ? error.status : 500;
+}
+
 export async function fetchPublicDocumentDetail(id: string, compiled: boolean, authenticated: boolean) {
   const candidates = compiled
     ? authenticated ? [`/api/compiled-documents/${id}`, `/api/documents/${id}`] : [`/api/guest/compiled-documents/${id}`, `/api/documents/${id}?guest=true`]
     : authenticated ? [`/api/documents/${id}`] : [`/api/guest/documents/${id}`, `/api/public/documents/${id}`, `/api/documents/${id}?guest=true`];
-  const record = await firstAvailable(candidates);
+  const payload = await firstAvailable(candidates);
+  const record = payload?.document ?? payload?.compiled_document ?? payload;
   const actualCompiled = compiled || record.is_compiled === true || String(record.document_type ?? "").toLowerCase() === "compiled" || Number(record.child_count ?? 0) > 0;
   const children = actualCompiled ? await fetchChildren(id, authenticated, record) : [];
   const authors = !actualCompiled ? await fetchAuthors(id, authenticated) : [];
@@ -43,5 +57,15 @@ async function firstAvailable(paths: string[]): Promise<any> {
     if (response.ok) return await response.json();
     if (![401, 403, 404].includes(response.status)) break;
   }
-  throw new Error(lastStatus === 404 ? "Document not found or no longer available." : "This document is not available with your current access.");
+  const status = PUBLIC_DOCUMENT_ERROR_STATUSES.includes(lastStatus as typeof PUBLIC_DOCUMENT_ERROR_STATUSES[number])
+    ? lastStatus
+    : lastStatus >= 500 ? 500 : 400;
+  const message = status === 404
+    ? "Document not found or no longer available."
+    : status === 401
+      ? "Sign in to view this document."
+      : status === 403
+        ? "This document is not available with your current access."
+        : "Unable to load this document.";
+  throw new PublicDocumentLoadError(status, message);
 }

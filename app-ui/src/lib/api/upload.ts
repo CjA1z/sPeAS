@@ -1,4 +1,5 @@
 import { apiFetch } from "./http";
+import type { DocumentAuthorReference, DocumentAuthorSelection } from "../authorSelection";
 import type { UploadCompiledDocumentPayload, UploadSingleDocumentPayload } from "./types";
 
 export interface UploadedFileResult {
@@ -20,6 +21,7 @@ export interface UploadedFileResult {
 export interface CreatedDocumentResult {
   id: number;
   title?: string;
+  review_status?: "pending_review" | "approved" | "rejected";
   [key: string]: unknown;
 }
 
@@ -59,7 +61,23 @@ export function uploadFile(file: File, options: { storagePath: string; documentT
   if (options.category) formData.append("category", options.category);
   if (options.isForeword) formData.append("is_foreword", "true");
 
-  return apiFetch<UploadedFileResult>("/api/upload", {
+  return apiFetch<UploadedFileResult>("/api/content/upload", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function uploadAuthorProfilePicture(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("is_profile_picture", "true");
+  return apiFetch<{ filePath: string }>("/api/upload", { method: "POST", body: formData });
+}
+
+export function uploadUserProfilePicture(file: File) {
+  const formData = new FormData();
+  formData.append("profilePicture", file);
+  return apiFetch<{ success: boolean; pictureUrl: string; profilePicture: string }>("/api/user/profile/picture", {
     method: "POST",
     body: formData,
   });
@@ -73,7 +91,11 @@ export function createDocumentRecord(payload: Record<string, unknown>) {
 }
 
 export function createCompiledDocumentRecord(payload: UploadCompiledDocumentPayload | Record<string, unknown>) {
-  return apiFetch<{ id: number; success?: boolean }>("/api/compiled-documents", {
+  return apiFetch<{
+    id: number;
+    success?: boolean;
+    reviewStatus?: "pending_review" | "approved" | "rejected";
+  }>("/api/compiled-documents", {
     method: "POST",
     json: payload,
   });
@@ -89,34 +111,63 @@ export function linkDocumentsToCompilation(compiledDocumentId: number, documentI
   });
 }
 
-export function linkDocumentAuthors(documentId: number, authors: string[]) {
+export function linkDocumentAuthors(documentId: number, authors: DocumentAuthorSelection[] | DocumentAuthorReference[]) {
   if (authors.length === 0) return Promise.resolve(null);
 
   return apiFetch<Record<string, unknown>>("/document-authors", {
     method: "POST",
     json: {
       document_id: documentId,
-      authors,
+      authors: authors.map((author) => typeof author === "string"
+        ? author
+        : "source" in author
+          ? { id: author.id, full_name: author.fullName }
+          : author),
     },
   });
 }
 
-export async function linkResearchAgenda(documentId: number, agendaItems: string[]) {
-  if (agendaItems.length === 0) return;
+export interface ResearchAgendaSuggestion {
+  id: number;
+  name: string;
+}
 
+export async function fetchDocumentResearchAgenda(documentId: number): Promise<ResearchAgendaSuggestion[]> {
+  const payload = await apiFetch<unknown>(`/api/document-research-agenda/${documentId}`);
+  const items = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { items?: unknown[] }).items)
+      ? (payload as { items: unknown[] }).items
+      : [];
+
+  return items
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const id = Number(record.id);
+      const name = String(record.name ?? "").trim();
+      return Number.isFinite(id) && name ? { id, name } : null;
+    })
+    .filter((item): item is ResearchAgendaSuggestion => Boolean(item));
+}
+
+export function searchResearchAgendaItems(query: string) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return Promise.resolve<ResearchAgendaSuggestion[]>([]);
+  return apiFetch<ResearchAgendaSuggestion[]>(`/api/research-agenda-items/search?q=${encodeURIComponent(trimmed)}`);
+}
+
+export async function linkResearchAgenda(documentId: number, agendaItems: string[]) {
   const payload = {
     document_id: documentId,
     agenda_items: agendaItems,
   };
 
-  await Promise.allSettled([
-    apiFetch<Record<string, unknown>>("/document-research-agenda", {
-      method: "POST",
-      json: payload,
-    }),
-    apiFetch<Record<string, unknown>>("/api/document-research-agenda/link", {
-      method: "POST",
-      json: payload,
-    }),
-  ]);
+  // Use the canonical API route once. Calling the legacy route in parallel
+  // causes both handlers to delete and recreate the same links concurrently,
+  // which can violate the document/agenda junction table's unique key.
+  await apiFetch<Record<string, unknown>>("/api/document-research-agenda/link", {
+    method: "POST",
+    json: payload,
+  });
 }

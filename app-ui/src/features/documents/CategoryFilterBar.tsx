@@ -13,7 +13,7 @@ export function CategoryFilterBar({ categories, selectedCategory, onSelectCatego
   const allCount = categories.reduce((sum, category) => sum + category.count, 0);
 
   return (
-    <div className="peas-category-filter-bar" aria-label="Document categories">
+    <div className="peas-category-filter-bar" role="group" aria-label="Document categories">
       {CATEGORY_ORDER.map((categoryValue) => {
         const category = getCategoryMeta(categoryValue);
         const count = categoryValue === "All" ? allCount : countByCategory.get(categoryValue) ?? 0;
@@ -25,6 +25,7 @@ export function CategoryFilterBar({ categories, selectedCategory, onSelectCatego
             type="button"
             key={category.value}
             aria-pressed={active}
+            aria-label={`${category.label}, ${count} ${count === 1 ? "entry" : "entries"}`}
             onClick={() => onSelectCategory(category.value)}
           >
             <span className="peas-category-filter__icon">

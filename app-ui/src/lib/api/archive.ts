@@ -86,6 +86,7 @@ function normalizeArchivedDocument(raw: Record<string, unknown>): ArchivedDocume
     issue: stringifyNullable(raw.issue ?? raw.issue_number) ?? undefined,
     startYear: numericNullable(raw.start_year),
     endYear: numericNullable(raw.end_year),
+    reviewStatus: raw.review_status === "rejected" ? "rejected" : "approved",
     deletedAt: stringifyNullable(raw.deleted_at_formatted ?? raw.deleted_at),
     sourceTable: String(raw.source_table ?? ""),
     raw,

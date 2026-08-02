@@ -6,6 +6,7 @@ import type {
   ArchiveRequest,
   CategoryCount,
   DocumentRecord,
+  DocumentFilterState,
   DocumentsPageResult,
 } from "./types";
 
@@ -25,12 +26,14 @@ interface FetchDocumentsParams {
   size: number;
   sort: "latest" | "earliest";
   category: DocumentCategory;
+  status?: DocumentFilterState["status"];
   search?: string;
   keyword?: string;
 }
 
-export async function fetchCategories(): Promise<CategoryCount[]> {
-  const payload = await apiFetch<Array<Record<string, unknown>>>("/api/categories");
+export async function fetchCategories(status: DocumentFilterState["status"] = "approved"): Promise<CategoryCount[]> {
+  const searchParams = new URLSearchParams({ review_status: status });
+  const payload = await apiFetch<Array<Record<string, unknown>>>(`/api/categories?${searchParams.toString()}`);
 
   return payload.map((row) => {
     const name = normalizeCategory(row.name ?? row.category ?? row.document_type);
@@ -50,6 +53,8 @@ export async function fetchDocuments(params: FetchDocumentsParams): Promise<Docu
   });
 
   if (params.category !== "All") searchParams.set("category", params.category);
+  if (params.status && params.status !== "all") searchParams.set("review_status", params.status);
+  searchParams.set("include_review", "true");
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
   if (params.keyword?.trim()) searchParams.set("keyword", params.keyword.trim());
 
@@ -101,7 +106,14 @@ function normalizeDocumentRecord(raw: Record<string, unknown>): DocumentRecord {
   const rawCategory = String(raw.document_type ?? raw.doc_type ?? raw.category ?? "");
   const category = normalizeCategory(rawCategory);
   const authors = normalizeAuthors(raw.authors ?? raw.enhancedAuthors ?? raw.author);
-  const topics = normalizeTopics(raw.topics ?? raw.keywords);
+  const topics = normalizeTopics(
+    raw.topics,
+    raw.keywords,
+    raw.research_agenda,
+    raw.researchAgenda,
+    raw.agenda_items,
+    raw.tags,
+  );
   const publicationDate = stringifyNullable(raw.publication_date ?? raw.publicationDate ?? raw.date_uploaded ?? raw.created_at);
 
   return {
@@ -120,8 +132,23 @@ function normalizeDocumentRecord(raw: Record<string, unknown>): DocumentRecord {
     issue: stringifyNullable(raw.issue ?? raw.issue_number) ?? undefined,
     startYear: numericNullable(raw.start_year),
     endYear: numericNullable(raw.end_year),
+    reviewStatus: normalizeReviewStatus(raw.review_status),
+    isPublic: raw.is_public === undefined || raw.is_public === null ? undefined : Boolean(raw.is_public),
     raw,
   };
+}
+
+export function reviewDocument(
+  id: number,
+  isCompiled: boolean,
+  decision: "approved" | "rejected",
+  publish = false,
+) {
+  const collection = isCompiled ? "compiled-documents" : "documents";
+  return apiFetch<Record<string, unknown>>(`/api/${collection}/${id}/review`, {
+    method: "PUT",
+    json: { decision, publish },
+  });
 }
 
 function normalizeAuthors(value: unknown): ApiAuthor[] {
@@ -142,15 +169,31 @@ function normalizeAuthors(value: unknown): ApiAuthor[] {
   return [];
 }
 
-function normalizeTopics(value: unknown): ApiTopic[] {
+function normalizeTopics(...values: unknown[]): ApiTopic[] {
+  const value = values.find((candidate) => Array.isArray(candidate) && candidate.length > 0)
+    ?? values.find((candidate) => typeof candidate === "string" && candidate.trim())
+    ?? values.find((candidate) => Array.isArray(candidate));
+
+  if (typeof value === "string") {
+    return value
+      .split(/[;,|]/u)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ name }));
+  }
+
   if (Array.isArray(value)) {
     return value
       .map((item) => {
         if (typeof item === "string") return { name: item };
-        if (item && typeof item === "object") return item as ApiTopic;
+        if (item && typeof item === "object") {
+          const record = item as Record<string, unknown>;
+          const name = String(record.name ?? record.tag ?? record.label ?? record.keyword ?? "").trim();
+          return name ? { ...record, name } as ApiTopic : null;
+        }
         return null;
       })
-      .filter(Boolean) as ApiTopic[];
+      .filter((item): item is ApiTopic => Boolean(item));
   }
 
   return [];
@@ -164,4 +207,9 @@ function stringifyNullable(value: unknown) {
 function numericNullable(value: unknown) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+}
+
+function normalizeReviewStatus(value: unknown): DocumentRecord["reviewStatus"] {
+  if (value === "pending_review" || value === "rejected") return value;
+  return "approved";
 }
