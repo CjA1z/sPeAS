@@ -177,6 +177,17 @@ body {
     object-fit: cover;
 }
 
+.header-profile-avatar .user-avatar-initials {
+    align-items: center;
+    color: #12503d;
+    display: inline-flex;
+    font-size: 0.64rem;
+    font-weight: 800;
+    height: 100%;
+    justify-content: center;
+    width: 100%;
+}
+
 .header-profile-meta {
     display: flex;
     flex-direction: column;

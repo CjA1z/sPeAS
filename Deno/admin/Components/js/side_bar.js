@@ -73,53 +73,155 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(error => console.error('Error loading sidebar:', error));
 });
 
+let adminIdentityPromise = null;
+
 /**
- * Populate the sidebar user-profile name/role/avatar from the active session.
- * Reads userInfo from sessionStorage (then localStorage as fallback),
- * then enriches with /api/user/profile?userId=... when possible to get the
- * real full name and profile picture.
+ * Resolve display information from the authoritative Better Auth session.
+ * Browser storage is updated only as a compatibility cache for older pages;
+ * it is never used to decide who is signed in.
  */
-function populateSidebarUser() {
-    const nameEl = document.getElementById('sidebar-user-name');
-    const roleEl = document.getElementById('sidebar-user-role');
-    const avatarEl = document.getElementById('sidebar-user-avatar');
-    if (!nameEl || !roleEl) return;
+function getAdminIdentity() {
+    if (adminIdentityPromise) return adminIdentityPromise;
 
-    let userInfo = null;
-    try {
-        const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-        if (raw) userInfo = JSON.parse(raw);
-    } catch (_) { /* ignore malformed JSON */ }
+    adminIdentityPromise = fetch('/api/auth/get-session', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.ok ? response.json() : null)
+    .then(async data => {
+        const user = data && data.user;
+        if (!user) {
+            try {
+                sessionStorage.removeItem('userInfo');
+                localStorage.removeItem('userInfo');
+            } catch (_) { /* storage may be unavailable */ }
+            return null;
+        }
 
-    if (!userInfo) {
-        nameEl.textContent = 'Guest';
-        roleEl.textContent = '';
+        let profile = null;
+        try {
+            const response = await fetch('/api/user/profile', {
+                credentials: 'include',
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (response.ok) profile = await response.json();
+        } catch (_) { /* session data is sufficient for the display */ }
+
+        const profileName = profile
+            ? [profile.first_name, profile.middle_name, profile.last_name]
+                .filter(Boolean)
+                .join(' ')
+                .trim()
+            : '';
+        const identity = {
+            id: user.id,
+            name: profileName || user.name || user.displayUsername || user.username || String(user.id || 'User'),
+            username: user.displayUsername || user.username || user.name || String(user.id || ''),
+            role: String(user.role || 'user').toLowerCase(),
+            avatar: (profile && profile.profile_picture) || user.image || ''
+        };
+
+        try {
+            const cached = JSON.stringify({
+                isLoggedIn: true,
+                id: identity.id,
+                username: identity.username,
+                role: identity.role
+            });
+            sessionStorage.setItem('userInfo', cached);
+            localStorage.setItem('userInfo', cached);
+        } catch (_) { /* storage may be unavailable */ }
+
+        return identity;
+    })
+    .catch(() => null);
+
+    return adminIdentityPromise;
+}
+
+function setTextIfChanged(element, value) {
+    if (element && element.textContent !== value) element.textContent = value;
+}
+
+function identityInitials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+function renderLegacyAvatar(elementId, identity) {
+    const current = document.getElementById(elementId);
+    if (!current) return;
+
+    if (identity.avatar) {
+        if (current.tagName === 'IMG') {
+            const image = current;
+            const normalizedAvatar = identity.avatar.startsWith('/') ? identity.avatar : `/${identity.avatar}`;
+            if (image.src !== normalizedAvatar) image.src = normalizedAvatar;
+            return;
+        }
+
+        const image = document.createElement('img');
+        image.id = elementId;
+        image.src = identity.avatar.startsWith('/') ? identity.avatar : `/${identity.avatar}`;
+        image.alt = 'User Avatar';
+        image.addEventListener('error', () => renderLegacyAvatar(elementId, { ...identity, avatar: '' }), { once: true });
+        current.replaceWith(image);
         return;
     }
 
-    // Immediate fill from session (username + role) so the UI is never blank
-    nameEl.textContent = userInfo.username || 'User';
-    roleEl.textContent = userInfo.role || '';
+    if (current.tagName !== 'SPAN') {
+        const initials = document.createElement('span');
+        initials.id = elementId;
+        initials.className = 'user-avatar-initials';
+        initials.setAttribute('role', 'img');
+        initials.setAttribute('aria-label', 'User Avatar');
+        current.replaceWith(initials);
+        renderLegacyAvatar(elementId, identity);
+        return;
+    }
 
-    // Enrich with first/last name and avatar from the profile endpoint
-    if (!userInfo.id) return;
-    fetch(`/api/user/profile?userId=${encodeURIComponent(userInfo.id)}`, {
-        credentials: 'include'
-    })
-    .then(r => r.ok ? r.json() : null)
-    .then(profile => {
-        if (!profile) return;
-        const fullName = [profile.first_name, profile.last_name]
-            .filter(Boolean)
-            .join(' ')
-            .trim();
-        if (fullName) nameEl.textContent = fullName;
-        if (avatarEl && profile.profile_picture) {
-            avatarEl.src = profile.profile_picture;
-        }
-    })
-    .catch(() => { /* keep the session-derived values */ });
+    current.textContent = identityInitials(identity.name);
 }
+
+function renderAdminIdentity(identity) {
+    if (!identity) return;
+
+    setTextIfChanged(document.getElementById('sidebar-user-name'), identity.name);
+    setTextIfChanged(document.getElementById('sidebar-user-role'),
+        identity.role === 'admin' ? 'Administrator' : identity.role === 'publisher' ? 'Content Publisher' : 'User');
+    setTextIfChanged(document.getElementById('header-user-name'), identity.name);
+    setTextIfChanged(document.getElementById('header-user-role'),
+        identity.role === 'admin' ? 'ADMIN' : identity.role === 'publisher' ? 'PUBLISHER' : identity.role.toUpperCase());
+    setTextIfChanged(document.getElementById('welcome-username'), identity.name);
+
+    renderLegacyAvatar('sidebar-user-avatar', identity);
+    renderLegacyAvatar('header-user-avatar', identity);
+}
+
+/** Populate every legacy admin identity surface from one session result. */
+function populateSidebarUser() {
+    return getAdminIdentity().then(renderAdminIdentity);
+}
+
+// Header/sidebar fragments are injected asynchronously with innerHTML, which
+// does not execute their embedded scripts. Re-apply the resolved identity when
+// either fragment appears, without issuing another session request.
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+        if (document.getElementById('sidebar-user-name') || document.getElementById('header-user-name')) {
+            populateSidebarUser();
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    populateSidebarUser();
+});
+
+globalThis.populateAdminIdentity = populateSidebarUser;
 
 // Highlight active sidebar link
 function highlightActiveSidebarLink(sideBar) {

@@ -48,7 +48,11 @@
       }
       window.PeasAuth.storeUserInfo(session);
       window.location.replace(
-        session.role === 'admin' ? '/admin/dashboard.html' : '/index.html'
+        session.role === 'admin'
+          ? '/admin/dashboard.html'
+          : session.role === 'publisher'
+            ? '/admin/Components/news.html'
+            : '/index.html'
       );
     })();
   </script>

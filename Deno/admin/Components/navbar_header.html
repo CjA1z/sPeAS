@@ -26,11 +26,11 @@
             <div class="header-divider" aria-hidden="true"></div>
             <div class="header-profile" id="header-profile">
                 <div class="header-profile-avatar">
-                    <img id="header-user-avatar" src="/admin/Components/img/admin.png" alt="User Avatar">
+                    <span id="header-user-avatar" class="user-avatar-initials" role="img" aria-label="User Avatar">?</span>
                 </div>
                 <div class="header-profile-meta">
                     <span class="header-profile-name" id="header-user-name">&mdash;</span>
-                    <span class="header-profile-role" id="header-user-role">Admin</span>
+                    <span class="header-profile-role" id="header-user-role">&mdash;</span>
                 </div>
             </div>
         </div>
@@ -38,30 +38,9 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // Mirror sidebar identity into the header chip
-        try {
-          const raw = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-          if (raw) {
-            const u = JSON.parse(raw);
-            const nameEl = document.getElementById('header-user-name');
-            const roleEl = document.getElementById('header-user-role');
-            if (nameEl) nameEl.textContent = u.username || 'User';
-            if (roleEl) roleEl.textContent = (u.role || 'Admin').toString().toUpperCase();
-
-            if (u.id) {
-              fetch('/api/user/profile?userId=' + encodeURIComponent(u.id), { credentials: 'include' })
-                .then(r => r.ok ? r.json() : null)
-                .then(profile => {
-                  if (!profile) return;
-                  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
-                  if (fullName && nameEl) nameEl.textContent = fullName;
-                  const avatarEl = document.getElementById('header-user-avatar');
-                  if (avatarEl && profile.profile_picture) avatarEl.src = profile.profile_picture;
-                })
-                .catch(() => {});
-            }
-          }
-        } catch (_) { /* ignore */ }
+        // Identity is resolved from the Better Auth session by side_bar.js.
+        // This call also supports loaders that explicitly execute fragment scripts.
+        if (globalThis.populateAdminIdentity) globalThis.populateAdminIdentity();
 
         // Add a subtle shadow when the page scrolls
         const header = document.querySelector('.header');
