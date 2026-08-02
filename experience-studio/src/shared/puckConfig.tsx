@@ -12,10 +12,6 @@ type ImageItem = {
   alt?: string;
 };
 
-type AgendaItem = {
-  text?: string;
-};
-
 type OrganizationRoleItem = {
   title?: string;
   label?: string;
@@ -78,16 +74,6 @@ const imageArrayField = {
   },
   defaultItemProps: { url: "/Components/images/image-placeholder.svg", alt: "Image" },
   getItemSummary: (item: ImageItem) => item.alt || item.url || "Image",
-} as const;
-
-const agendaArrayField = {
-  type: "array",
-  arrayFields: {
-    text: { type: "textarea" },
-  },
-  defaultItemProps: { text: "New agenda item" },
-  getItemSummary: (item: AgendaItem, index?: number) =>
-    item.text ? `${(index || 0) + 1}. ${item.text.slice(0, 40)}` : "Agenda item",
 } as const;
 
 const organizationRoleArrayField = {
@@ -347,7 +333,6 @@ export const experiencePuckConfig: Config = {
         body: { type: "textarea" },
         imageUrl: { type: "text" },
         imageAlt: { type: "text" },
-        items: agendaArrayField,
       },
       defaultProps: {
         id: "research-agenda",
@@ -356,17 +341,12 @@ export const experiencePuckConfig: Config = {
         body: "Priority areas guiding faculty and student research.",
         imageUrl: "/Components/images/prism.png",
         imageAlt: "Research prism diagram",
-        items: [{ text: "New agenda item" }],
       },
-      render: ({ id, eyebrow, title, body, imageUrl, imageAlt, items }) => (
+      render: ({ id, eyebrow, title, body, imageUrl, imageAlt }) => (
         <section id={id} className="xp-section xp-agenda">
           <SectionHeader eyebrow={eyebrow} title={title} body={body} />
           {imageUrl ? <img className="xp-agenda-image" src={imageUrl} alt={imageAlt || ""} /> : null}
-          <ol>
-            {asArray<AgendaItem>(items).map((item, index) => (
-              <li key={`${item.text}-${index}`}>{item.text}</li>
-            ))}
-          </ol>
+          <p className="xp-managed-list-note">Official research agenda items are managed in Classification Management.</p>
         </section>
       ),
     },

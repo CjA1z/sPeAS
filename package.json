@@ -10,6 +10,8 @@
     "check:ui": "npm run check:experience && npm run check:app-ui",
     "check:deno": "cd Deno && deno task check",
     "test:deno": "cd Deno && deno task test",
+    "test:classification-db": "cd Deno && deno task classification:db-test",
+    "audit:classification": "cd Deno && deno task classification:audit:check",
     "test:experience": "playwright test -c experience-studio/playwright.config.ts",
     "test:public": "playwright test -c app-ui/playwright.public.config.ts",
     "test:admin": "playwright test -c app-ui/playwright.admin.config.ts",

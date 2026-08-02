@@ -91,7 +91,7 @@ const sectionMeta: Record<string, { name: string; description: string }> = {
   QuickLinksBlock: { name: "Quick Links", description: "Cards that take visitors to other pages or sections." },
   RichTextBlock: { name: "Text Section", description: "A heading with paragraphs of plain text." },
   ImageFeatureBlock: { name: "Organizational Chart", description: "The people, boards, and responsibilities in the office structure." },
-  ResearchAgendaBlock: { name: "Research Agenda", description: "The numbered list of research priorities." },
+  ResearchAgendaBlock: { name: "Research Agenda", description: "Presentation for the database-managed research priorities." },
   CtaBlock: { name: "Call to Action", description: "A banner inviting visitors to do something, like contacting you." },
   FooterLinksBlock: { name: "Footer", description: "The logo, copyright line, and links at the very bottom." },
   LoginShellBlock: { name: "Sign-in Box", description: "The form where users enter their School ID and password." },
@@ -107,7 +107,7 @@ const editableFields: Record<string, readonly string[]> = {
   QuickLinksBlock: ["title", "links"],
   RichTextBlock: ["eyebrow", "title", "body"],
   ImageFeatureBlock: ["eyebrow", "title", "body", "roles"],
-  ResearchAgendaBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt", "items"],
+  ResearchAgendaBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt"],
   CtaBlock: ["title", "body", "label"],
   LoginShellBlock: ["brandText", "title", "subtitle", "forgotPasswordTitle", "forgotPasswordSubtitle", "footerText", "backgroundImageUrl", "graphicLogoUrl", "logoUrl"],
 };
