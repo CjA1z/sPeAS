@@ -1,3 +1,5 @@
+@import "@fontsource-variable/inter";
+
 :root {
   --xp-primary: #006A4E;
   --xp-primary-dark: #00523D;
@@ -9,12 +11,12 @@
   --xp-bg: linear-gradient(to bottom right, #fdfae8, #e6f4ea);
   --xp-radius: 14px;
   --xp-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
-  font-family: Inter;
+  font-family: Inter, system-ui, sans-serif;
 }
 
 .uppy-Dashboard,
 .uppy-Dashboard * {
-  font-family: Inter !important;
+  font-family: Inter, system-ui, sans-serif !important;
 }
 
 .xp-runtime-body {
@@ -160,6 +162,33 @@
   color: #374151;
   font-size: 1.02rem;
   line-height: 1.7;
+}
+
+.xp-hero-categories {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.xp-hero-categories > span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.xp-hero-categories a {
+  padding: 0.42rem 0.68rem;
+  border: 1px solid rgba(0, 106, 78, 0.22);
+  border-radius: 999px;
+  background: rgba(0, 106, 78, 0.06);
+  color: var(--xp-primary-dark);
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-decoration: none;
 }
 
 .xp-actions {
@@ -622,6 +651,18 @@
   gap: 0.5rem;
   align-items: center;
 }
+
+.xp-studio-identity {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0.1rem;
+  line-height: 1.15;
+  min-width: 120px;
+  text-align: right;
+}
+
+.xp-studio-identity strong { font-size: 0.82rem; }
+.xp-studio-identity small { color: #64748b; font-size: 0.7rem; font-weight: 750; text-transform: uppercase; }
 
 .xp-studio-center-actions {
   justify-content: center;

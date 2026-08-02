@@ -53,6 +53,11 @@ type OrganizationRole = {
   summary?: string;
 };
 
+type HeroImage = {
+  url?: string;
+  alt?: string;
+};
+
 const landingBlocks = [
   "AnnouncementBanner",
   "HeroBlock",
@@ -81,7 +86,7 @@ const pageNames: Record<PageKey, string> = {
 // shown in the section list and the "Add a section" menu.
 const sectionMeta: Record<string, { name: string; description: string }> = {
   AnnouncementBanner: { name: "Announcement Bar", description: "A thin colored strip at the top for short news." },
-  HeroBlock: { name: "Welcome Banner", description: "The big opening area with a title, photos, and buttons." },
+  HeroBlock: { name: "Welcome Banner", description: "The big opening area with a title, photos, search, and category links." },
   GalleryBlock: { name: "Photo Gallery", description: "A row of pictures with a short introduction." },
   QuickLinksBlock: { name: "Quick Links", description: "Cards that take visitors to other pages or sections." },
   RichTextBlock: { name: "Text Section", description: "A heading with paragraphs of plain text." },
@@ -98,7 +103,7 @@ const sectionName = (type: string) =>
   sectionMeta[type]?.name || (componentMap[type]?.label as string) || type;
 
 const editableFields: Record<string, readonly string[]> = {
-  HeroBlock: ["eyebrow", "title", "body", "images", "primaryLabel", "secondaryLabel"],
+  HeroBlock: ["eyebrow", "title", "body", "images"],
   QuickLinksBlock: ["title", "links"],
   RichTextBlock: ["eyebrow", "title", "body"],
   ImageFeatureBlock: ["eyebrow", "title", "body", "roles"],
@@ -156,10 +161,6 @@ const fieldLabels: Record<string, string> = {
   href: "Where the link goes",
   linkLabel: "Link text",
   label: "Button text",
-  primaryLabel: "Main button text",
-  primaryHref: "Where the main button goes",
-  secondaryLabel: "Second button text",
-  secondaryHref: "Where the second button goes",
   logoUrl: "Logo image",
   imageUrl: "Picture",
   url: "Picture",
@@ -196,8 +197,6 @@ const fieldHelp: Record<string, string> = {
   eyebrow: "Optional. Leave blank to hide it.",
   body: "Plain text. Press Enter twice to start a new paragraph.",
   href: "A page like /contact.html, a section like #research-agenda, or a full https:// address.",
-  primaryHref: "Where visitors go when they press the main button.",
-  secondaryHref: "Where visitors go when they press the second button.",
   linkLabel: "The clickable words. Leave blank to show no link.",
   alt: "A few words describing the picture, read aloud for blind visitors.",
   imageAlt: "A few words describing the picture, read aloud for blind visitors.",
@@ -211,8 +210,6 @@ const fieldHelp: Record<string, string> = {
 
 const fieldPlaceholders: Record<string, string> = {
   href: "/contact.html or https://example.com",
-  primaryHref: "/contact.html or #section-id",
-  secondaryHref: "/contact.html or #section-id",
   alt: "e.g. Students collaborating in the library",
   imageAlt: "e.g. Students collaborating in the library",
   photoAlt: "e.g. Portrait of Juan Dela Cruz",
@@ -338,6 +335,8 @@ function ImageUrlField(props: {
   onChange: (value: string) => void;
   uploadKind?: string;
   altText?: string;
+  storageHint?: string;
+  allowManualPath?: boolean;
   clearLabel?: string;
   onClear?: () => void;
 }) {
@@ -383,8 +382,12 @@ function ImageUrlField(props: {
       <div className="xp-copy-row">
         <input
           value={props.value || ""}
+          readOnly={props.allowManualPath === false}
+          aria-label={props.allowManualPath === false ? `${props.label} storage path` : undefined}
           placeholder="Upload or use an existing PeAS image path"
-          onChange={(event) => props.onChange(event.target.value)}
+          onChange={(event) => {
+            if (props.allowManualPath !== false) props.onChange(event.target.value);
+          }}
         />
         <button
           type="button"
@@ -419,7 +422,7 @@ function ImageUrlField(props: {
       ) : null}
       {uploadError
         ? <small className="xp-field-error">{uploadError}</small>
-        : <small className="xp-field-help">JPG, PNG, or WEBP up to 8MB.</small>}
+        : <small className="xp-field-help">{props.storageHint || "JPG, PNG, or WEBP up to 8MB."}</small>}
     </div>
   );
 }
@@ -559,6 +562,71 @@ function OrganizationRolesField(props: {
   );
 }
 
+function HeroImagesField(props: {
+  value: unknown;
+  onChange: (value: HeroImage[]) => void;
+}) {
+  const defaultHero = defaultExperienceConfig.pages.landing.data.content.find((block) =>
+    block.type === "HeroBlock"
+  );
+  const defaultImages = Array.isArray(defaultHero?.props.images)
+    ? defaultHero.props.images as HeroImage[]
+    : [];
+  const currentImages = Array.isArray(props.value) ? props.value as HeroImage[] : [];
+  const images = Array.from({ length: 4 }, (_, index) => ({
+    ...(defaultImages[index] || {}),
+    ...(currentImages[index] || {}),
+  }));
+
+  const updateImage = (index: number, key: keyof HeroImage, value: string) => {
+    props.onChange(images.map((image, imageIndex) =>
+      imageIndex === index ? { ...image, [key]: value } : image
+    ));
+  };
+
+  return (
+    <section className="xp-array-field" aria-labelledby="xp-hero-images-title">
+      <div className="xp-array-heading">
+        <span id="xp-hero-images-title">Hero background photos</span>
+        <small>4 fixed slideshow slots</small>
+      </div>
+      <p className="xp-help-text">
+        Replace each slot independently. Uploads stay in that slot's dedicated hero folder, and the public page fades through the slots in this order.
+      </p>
+      {images.map((image, index) => {
+        const slotNumber = index + 1;
+        return (
+          <div className="xp-array-item" key={`hero-slot-${slotNumber}`}>
+            <div className="xp-array-item-top">
+              <strong>Slideshow photo {slotNumber}</strong>
+              <small>Slot {slotNumber}</small>
+            </div>
+            <ImageUrlField
+              label="Photo"
+              value={image.url || ""}
+              uploadKind={`hero-slot-${slotNumber}`}
+              altText={image.alt}
+              storageHint={`JPG, PNG, or WEBP up to 8MB. Stored in hero/slot-${slotNumber}.`}
+              allowManualPath={false}
+              onChange={(value) => updateImage(index, "url", value)}
+            />
+            <label>
+              <span>Photo description</span>
+              <input
+                value={image.alt || ""}
+                maxLength={255}
+                placeholder={`Describe slideshow photo ${slotNumber}`}
+                onChange={(event) => updateImage(index, "alt", event.target.value)}
+              />
+              <small className="xp-field-help">Required before publishing. Describe what this photo shows.</small>
+            </label>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 function FieldEditor(props: {
   name: string;
   field: any;
@@ -576,6 +644,10 @@ function FieldEditor(props: {
 
   if (field.type === "array" && name === "roles") {
     return <OrganizationRolesField value={value} onChange={onChange} />;
+  }
+
+  if (field.type === "array" && name === "images") {
+    return <HeroImagesField value={value} onChange={onChange} />;
   }
 
   if (field.type === "textarea") {
@@ -604,24 +676,21 @@ function FieldEditor(props: {
 
   if (field.type === "array") {
     const items = Array.isArray(value) ? value : [];
-    const canChangeLength = name === "images";
-    const addItem = () => onChange([...items, field.defaultItemProps || {}].slice(0, 4));
     const updateItem = (index: number, key: string, itemValue: any) => {
       onChange(items.map((item: any, itemIndex: number) =>
         itemIndex === index ? { ...item, [key]: itemValue } : item
       ));
     };
-    const removeItem = (index: number) => onChange(items.filter((_: any, itemIndex: number) => itemIndex !== index));
 
     return (
       <div className="xp-array-field">
         <div className="xp-array-heading">
           <span>{label}</span>
-          {canChangeLength ? <button type="button" onClick={addItem} disabled={items.length >= 4}>Add photo</button> : <small>Fixed list</small>}
+          <small>Fixed list</small>
         </div>
         {items.map((item: any, index: number) => (
           <div className="xp-array-item" key={index}>
-            <div className="xp-array-item-top"><strong>{field.getItemSummary ? field.getItemSummary(item, index) : `${label} ${index + 1}`}</strong>{canChangeLength ? <button type="button" onClick={() => removeItem(index)}>Remove</button> : null}</div>
+            <div className="xp-array-item-top"><strong>{field.getItemSummary ? field.getItemSummary(item, index) : `${label} ${index + 1}`}</strong></div>
             {Object.entries(field.arrayFields || {}).filter(([itemKey]) => itemKey !== "href").map(([itemKey, itemField]: [string, any]) => (
               <FieldEditor
                 key={itemKey}
@@ -733,7 +802,7 @@ function AssetUploader() {
           ))}
         </div>
       ) : (
-        <p className="xp-help-text">After you upload a picture, press Copy next to it, then paste into any picture box in the Edit tab.</p>
+        <p className="xp-help-text">After you upload a reusable picture, press Copy next to it and paste it into a compatible picture box. Hero photos should be uploaded directly in their fixed slideshow slots.</p>
       )}
     </div>
   );
@@ -750,6 +819,7 @@ export default function App() {
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [busy, setBusy] = useState<"save" | "publish" | "preview" | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [identityName, setIdentityName] = useState("");
   const [confirmState, setConfirmState] = useState<{
     title: string;
     body: React.ReactNode;
@@ -827,6 +897,19 @@ export default function App() {
         applyThemeVars(EXPERIENCE_FIXED_THEME);
       });
     loadVersions().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      fetchJson<{ user?: { name?: string; username?: string } }>("/api/auth/get-session"),
+      fetchJson<{ first_name?: string; middle_name?: string; last_name?: string }>("/api/user/profile"),
+    ]).then(([session, profile]) => {
+      if (!mounted) return;
+      const profileName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(" ").trim();
+      setIdentityName(profileName || session.user?.name || session.user?.username || "Administrator");
+    }).catch(() => { if (mounted) setIdentityName("Administrator"); });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => { applyThemeVars(EXPERIENCE_FIXED_THEME); }, []);
@@ -1150,13 +1233,13 @@ export default function App() {
           type="button"
           className="xp-studio-exit"
           onClick={exitStudio}
-          title="Back to admin dashboard"
-          aria-label="Exit to admin dashboard"
+          title="Exit to PeAS Admin"
+          aria-label="Exit to Admin"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6l6 6" />
           </svg>
-          <span>Exit</span>
+          <span>Exit to Admin</span>
         </button>
         <div className="xp-studio-brand">
           <strong>PeAS Experience Studio</strong>
@@ -1181,6 +1264,10 @@ export default function App() {
         </div>
 
         <div className="xp-studio-actions">
+          <div className="xp-studio-identity" aria-label="Authenticated identity">
+            <strong>{identityName || "Loading identity…"}</strong>
+            <small>Administrator</small>
+          </div>
           <button className="xp-studio-button" onClick={undo} disabled={!canUndo} title="Undo the last change (Cmd/Ctrl+Z)">
             Undo
           </button>

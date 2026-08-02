@@ -42,6 +42,7 @@ function forceInterFontFamily(): Plugin {
 }
 
 export default defineConfig({
+  base: "/admin/experience-studio/",
   plugins: [react(), forceInterFontFamily()],
   build: {
     outDir: resolve(__dirname, "../Deno/admin/experience-studio"),

@@ -183,16 +183,10 @@ export const experiencePuckConfig: Config = {
         body: { type: "textarea" },
         logoUrl: { type: "text" },
         images: imageArrayField,
-        primaryLabel: { type: "text" },
-        primaryHref: { type: "text" },
-        secondaryLabel: { type: "text" },
-        secondaryHref: { type: "text" },
         variant: {
           type: "select",
           options: [
-            { label: "Split Gallery", value: "split-gallery" },
-            { label: "Editorial", value: "editorial" },
-            { label: "Compact", value: "compact" },
+            { label: "Background Slideshow", value: "background-slideshow" },
           ],
         },
       },
@@ -203,16 +197,12 @@ export const experiencePuckConfig: Config = {
         body: "A configurable research and publications portal.",
         logoUrl: "/Components/images/peas.png",
         images: [{ url: "/Components/images/1.jpg", alt: "Research photo" }],
-        primaryLabel: "Explore",
-        primaryHref: "#research-agenda",
-        secondaryLabel: "Contact",
-        secondaryHref: "/contact.html",
-        variant: "split-gallery",
+        variant: "background-slideshow",
       },
-      render: ({ id, eyebrow, title, body, logoUrl, images, primaryLabel, primaryHref, secondaryLabel, secondaryHref, variant }) => {
+      render: ({ id, eyebrow, title, body, logoUrl, images, variant }) => {
         const safeImages = asArray<ImageItem>(images);
         return (
-          <section id={id} className={`xp-hero xp-hero-${variant || "split-gallery"}`}>
+          <section id={id} className={`xp-hero xp-hero-${variant || "background-slideshow"}`}>
             <div className="xp-hero-media" aria-label="Featured images">
               {safeImages.slice(0, 4).map((image, index) => (
                 <img key={`${image.url}-${index}`} src={image.url} alt={image.alt || ""} />
@@ -223,10 +213,17 @@ export const experiencePuckConfig: Config = {
               {eyebrow ? <span className="xp-eyebrow">{eyebrow}</span> : null}
               <h1>{title}</h1>
               <p>{body}</p>
-              <div className="xp-actions">
-                {primaryLabel ? <a className="xp-button-primary" href={safeHref(primaryHref)}>{primaryLabel}</a> : null}
-                {secondaryLabel ? <a className="xp-button-secondary" href={safeHref(secondaryHref)}>{secondaryLabel}</a> : null}
-              </div>
+              <nav className="xp-hero-categories" aria-label="Browse repository by category">
+                <span>Browse by category</span>
+                {[
+                  ["CONFLUENCE", "Confluence"],
+                  ["SYNERGY", "Synergy"],
+                  ["DISSERTATION", "Dissertation"],
+                  ["THESIS", "Thesis"],
+                ].map(([value, label]) => (
+                  <a href={`/pages/searchResultsPage.html?category=${value}`} key={value}>{label}</a>
+                ))}
+              </nav>
             </div>
           </section>
         );
@@ -460,12 +457,12 @@ export const experiencePuckConfig: Config = {
         schoolIdLabel: "School ID",
         schoolIdPlaceholder: "Enter your School ID",
         passwordLabel: "Password",
-        passwordPlaceholder: "••••••••",
+        passwordPlaceholder: "Enter your password",
         submitLabel: "Sign in",
         forgotPasswordLabel: "Forgot Password?",
         forgotPasswordTitle: "Forgot Password?",
         forgotPasswordSubtitle: "No worries, we'll send you reset instructions.",
-        backgroundImageUrl: "/Components/images/office-20of-20research-20-26-20publications.png",
+        backgroundImageUrl: "/Components/images/spud_facade.jpg",
         graphicLogoUrl: "/Components/images/spud-logo.png",
         footerText: "PeAS. All Rights Reserved.",
         layout: "split",
