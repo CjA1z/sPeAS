@@ -108,6 +108,10 @@ window.NavbarModule = (function() {
         if (typeof window.recordPageVisit !== 'function') {
             window.recordPageVisit = function() {
                 try {
+                    // The active React public application records its page view
+                    // after mount. Keep this legacy compatibility tracker
+                    // dormant there so a home load is counted once.
+                    if (document.getElementById('react-public-root')) return;
                     // Check if user is logged in
                     let userInfo = null;
                     try {

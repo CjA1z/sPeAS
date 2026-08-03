@@ -17,6 +17,9 @@
  */
 async function recordDocumentVisit(documentId, visitorType = 'guest', metadata = {}) {
     try {
+        // React detail routes record successful server-side metadata/file
+        // operations. The legacy script must not create a second visit.
+        if (document.getElementById('react-public-root')) return;
         if (!documentId) {
             return;
         }
@@ -486,4 +489,4 @@ window.DocumentTracker = {
             message: 'Check complete. See browser console for details.'
         };
     }
-}; 
+};
