@@ -41,3 +41,39 @@ test("experience admin and user APIs stay protected", async ({ request, baseURL 
   const profileResponse = await request.get(`${baseURL}/api/user/profile?userId=someone-else`);
   expect(profileResponse.status()).toBe(401);
 });
+
+test("experience studio exits to Settings for clean and unsaved sessions", async ({ page }) => {
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ session: { id: "session-admin" }, user: { id: "admin-01", name: "Administrator", role: "admin", username: "admin-01" } }),
+  }));
+  await page.route("**/api/user/profile", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ id: "admin-01", first_name: "Administrator" }),
+  }));
+  await page.route("**/api/admin/experience/draft", (route) => route.fulfill({
+    status: 404,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "No draft configured for this test" }),
+  }));
+  await page.route("**/api/admin/experience/versions?limit=8", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ versions: [] }),
+  }));
+
+  await page.goto("/admin/Components/experience-studio.html");
+  const exit = page.getByRole("button", { name: "Exit to Admin" });
+  await expect(exit).toBeVisible();
+  await exit.click();
+  await expect(page).toHaveURL(/\/admin\/Components\/admin_settings\.html$/);
+
+  await page.goto("/admin/Components/experience-studio.html");
+  await expect(exit).toBeVisible();
+  const editable = page.locator('textarea, input:not([type="file"])').first();
+  await expect(editable).toBeVisible();
+  await editable.fill("Changed for exit test");
+  await exit.click();
+  await expect(page.getByRole("dialog", { name: "Leave without saving?" })).toBeVisible();
+  await page.getByRole("button", { name: "Leave studio" }).click();
+  await expect(page).toHaveURL(/\/admin\/Components\/admin_settings\.html$/);
+});

@@ -936,7 +936,7 @@ export default function App() {
 
   const exitStudio = () => {
     if (!dirty) {
-      window.location.assign("/admin/dashboard.html");
+      window.location.assign("/admin/Components/admin_settings.html");
       return;
     }
     setConfirmState({
@@ -946,7 +946,7 @@ export default function App() {
       danger: true,
       onConfirm: () => {
         leaveConfirmed.current = true;
-        window.location.assign("/admin/dashboard.html");
+        window.location.assign("/admin/Components/admin_settings.html");
       },
     });
   };
