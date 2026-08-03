@@ -1,33 +1,17 @@
 import { Router } from "../deps.ts";
-import { 
-  getDocumentStatistics,
-  getCanonicalRepositoryMetrics,
-  exportPdfReport,
-  exportCsvReport
-} from "../controllers/reportsController.ts";
-
-// Create a simplified stats controller function
-async function getSimpleStats(ctx: any) {
-  try {
-    ctx.response.body = await getCanonicalRepositoryMetrics("all");
-    ctx.response.status = 200;
-        
-  } catch (error) {
-    ctx.response.body = { 
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    };
-    ctx.response.status = 500;
-  }
-}
+import { getAdminDashboard, getAdminOperationalReport, getLegacyStatistics, exportOperationalReport, deprecatedExportEndpoint } from "../controllers/reportsController.ts";
+import { isAuthenticated, requireCapability } from "../middleware/authMiddleware.ts";
 
 const router = new Router();
 
-// Reports API routes
+// Canonical administrator reporting routes.
 router
-  .get("/api/documents/statistics", getDocumentStatistics)
-  .get("/api/stats/summary", getSimpleStats)  // Add a new, simpler endpoint
-  .post("/api/reports/export-pdf", exportPdfReport)
-  .post("/api/reports/export-csv", exportCsvReport);
+  .get("/api/admin/dashboard", isAuthenticated, requireCapability("reports:view"), getAdminDashboard)
+  .get("/api/admin/reports/operational", isAuthenticated, requireCapability("reports:view"), getAdminOperationalReport)
+  .get("/api/admin/reports/operational/export", isAuthenticated, requireCapability("reports:export"), exportOperationalReport)
+  .post("/api/reports/export-pdf", isAuthenticated, requireCapability("reports:export"), deprecatedExportEndpoint)
+  .post("/api/reports/export-csv", isAuthenticated, requireCapability("reports:export"), deprecatedExportEndpoint)
+  .get("/api/documents/statistics", isAuthenticated, requireCapability("reports:view"), getLegacyStatistics)
+  .get("/api/stats/summary", isAuthenticated, requireCapability("reports:view"), getLegacyStatistics);
 
 export default router;

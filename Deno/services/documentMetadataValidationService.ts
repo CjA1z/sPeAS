@@ -7,7 +7,7 @@ export function isSupportedIsoDate(value: unknown): value is string {
 
 export function validateSinglePublicationDate(documentType: unknown, value: unknown): string | undefined {
   if (documentType !== "THESIS" && documentType !== "DISSERTATION") return undefined;
-  if (!isSupportedIsoDate(value)) return "Choose a valid publication month and year.";
+  if (!isSupportedIsoDate(value)) return "Choose a publication month and year.";
   return undefined;
 }
 

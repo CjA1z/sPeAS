@@ -3,6 +3,8 @@ import { PageVisitsModel } from "../models/pageVisitsModel.ts";
 import { client } from "../db/denopost_conn.ts";
 import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 import { analyticsRateLimit } from "../middleware/rateLimit.ts";
+import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
+import { normalizePageKey, recordPageActivity } from "../services/operationalReportingService.ts";
 
 // Create a router for page visit routes
 const router = new Router();
@@ -24,25 +26,41 @@ async function recordPageVisit(ctx: RouterContext<string>) {
       return;
     }
     
-    // Default to guest if visitorType is not provided
-    const visitorType = body.visitorType === 'user' ? 'user' : 'guest';
+    const session = await getSessionFromHeaders(ctx.request.headers);
+    const role = String(session?.role ?? "").toLowerCase();
+    if (role === "admin" || role === "publisher") {
+      ctx.response.status = 204;
+      return;
+    }
+    const visitorType = role === "user" ? "user" : "guest";
+    const pageUrl = normalizePageKey(String(body.pageUrl));
     
     // Get client IP address
     const ipAddress = ctx.request.ip;
     
     // Record the visit in both counter and legacy tables
+    // Page analytics is intentionally scoped to the normalized page key.
+    // Ignore browser metadata (especially document IDs) so this compatibility
+    // endpoint cannot be used to write document readership counters.
     const visit = await PageVisitsModel.recordVisit(
-      body.pageUrl,
+      pageUrl,
       visitorType,
-      body.userId,
+      undefined,
       ipAddress,
-      body.metadata
+      undefined
     );
-    
-    if (visit) {
+
+    // The legacy counter remains for compatibility, while the v2 report
+    // snapshot receives a privacy-safe server-derived audience row.
+    let v2Recorded = false;
+    await recordPageActivity(pageUrl, visitorType === "user" ? "registered" : "guest")
+      .then(() => { v2Recorded = true; })
+      .catch(() => undefined);
+
+    if (visit || v2Recorded) {
       ctx.response.status = 201;
-      ctx.response.body = { 
-        success: true, 
+      ctx.response.body = {
+        success: true,
         message: "Visit recorded successfully",
         data: visit
       };
@@ -594,57 +612,9 @@ async function compatGetHomePageVisitStats(ctx: RouterContext<string>) {
  * Body: { documentId: string, visitorType: "guest" | "user", childDocumentId?: string, fromChild?: boolean }
  */
 async function recordDocumentVisitDirectly(ctx: RouterContext<string>) {
-  try {
-    // Get request body
-    const body = await ctx.request.body({ type: "json" }).value;
-    
-    // Validate required fields
-    if (!body.documentId) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Document ID is required" };
-      return;
-    }
-    
-    // Extra logging to diagnose issue
-        
-    // Default to guest if visitorType is not provided or invalid
-    const validTypes = ['user', 'guest'];
-    let visitorType: "guest" | "user" = 'guest';
-    
-    // Normalize the visitor type for more reliable comparison
-    if (body.visitorType && typeof body.visitorType === 'string') {
-      const normalized = body.visitorType.toLowerCase().trim();
-      if (normalized === 'user') {
-        visitorType = 'user';
-      }
-    }
-    
-        
-    // Record the document visit
-    const count = await PageVisitsModel.recordDocumentVisit(
-      body.documentId,
-      visitorType
-    );
-    
-        
-    // If this is a child document, also record a visit to its parent
-    if (body.childDocumentId && !body.fromChild) {
-      await PageVisitsModel.recordDocumentVisit(
-        body.childDocumentId,
-        visitorType
-      );
-    }
-    
-    ctx.response.status = 201;
-    ctx.response.body = { 
-      success: true,
-      message: "Document visit recorded successfully",
-      count: count
-    };
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
+  ctx.response.status = 204;
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
 }
 
 /**
@@ -961,4 +931,4 @@ router.get("/api/compiled-documents/:documentId/details", getCompiledDocumentDet
 
 // Export the router
 export const pageVisitsRoutes = router.routes();
-export const pageVisitsAllowedMethods = router.allowedMethods(); 
+export const pageVisitsAllowedMethods = router.allowedMethods();

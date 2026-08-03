@@ -6,8 +6,8 @@ import {
 } from "../services/documentMetadataValidationService.ts";
 
 Deno.test("publication dates require valid calendar dates for thesis and dissertation records", () => {
-  assertEquals(validateSinglePublicationDate("THESIS", null), "Choose a valid publication month and year.");
-  assertEquals(validateSinglePublicationDate("DISSERTATION", "2026-02-30"), "Choose a valid publication month and year.");
+  assertEquals(validateSinglePublicationDate("THESIS", null), "Choose a publication month and year.");
+  assertEquals(validateSinglePublicationDate("DISSERTATION", "2026-02-30"), "Choose a publication month and year.");
   assertEquals(validateSinglePublicationDate("THESIS", "2026-08-01"), undefined);
   assertEquals(validateSinglePublicationDate("THESIS", "2024-02-29"), undefined);
   assertEquals(validateSinglePublicationDate("CONFLUENCE", null), undefined);

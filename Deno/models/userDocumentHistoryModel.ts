@@ -35,6 +35,37 @@ export interface UserHistoryFilters {
 }
 
 export class UserDocumentHistoryModel {
+  static async recordActionOnConnection(
+    connection: { queryObject: (query: string, params?: unknown[]) => Promise<{ rowCount?: number; rows: unknown[] }> },
+    userId: string,
+    recordId: number,
+    action: HistoryAction,
+    recordType: LibraryRecordType = "document",
+  ): Promise<boolean> {
+    const id = Number(recordId);
+    if (!Number.isInteger(id) || id <= 0) return false;
+    if (recordType === "compiled") {
+      const result = await connection.queryObject(
+        `INSERT INTO user_compiled_document_history (user_id, compiled_document_id, action)
+         SELECT $1, id, $3
+         FROM compiled_documents
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING id`,
+        [userId, id, action],
+      );
+      return (result.rowCount ?? result.rows.length) > 0;
+    }
+    const result = await connection.queryObject(
+      `INSERT INTO user_document_history (user_id, document_id, action)
+       SELECT $1, id, $3
+       FROM documents
+       WHERE id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [userId, id, action],
+    );
+    return (result.rowCount ?? result.rows.length) > 0;
+  }
+
   static async recordAction(
     userId: string,
     recordId: number,
@@ -45,27 +76,7 @@ export class UserDocumentHistoryModel {
     if (!Number.isInteger(id) || id <= 0) return false;
 
     try {
-      if (recordType === "compiled") {
-        const result = await client.queryObject(
-          `INSERT INTO user_compiled_document_history (user_id, compiled_document_id, action)
-           SELECT $1, id, $3
-           FROM compiled_documents
-           WHERE id = $2 AND deleted_at IS NULL
-           RETURNING id`,
-          [userId, id, action],
-        );
-        return (result.rowCount ?? 0) > 0;
-      }
-
-      const result = await client.queryObject(
-        `INSERT INTO user_document_history (user_id, document_id, action)
-         SELECT $1, id, $3
-         FROM documents
-         WHERE id = $2 AND deleted_at IS NULL
-         RETURNING id`,
-        [userId, id, action],
-      );
-      return (result.rowCount ?? 0) > 0;
+      return await UserDocumentHistoryModel.recordActionOnConnection(client, userId, id, action, recordType);
     } catch {
       // History is non-critical to document delivery.
       return false;

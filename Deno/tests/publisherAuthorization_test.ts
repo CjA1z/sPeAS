@@ -17,10 +17,19 @@ Deno.test("publisher capabilities are limited to news management and document up
     throw new Error("Publisher should be able to upload documents");
   }
 
-  for (const capability of ["news:delete", "documents:review", "roles:manage", "system:admin"] as const) {
+  for (const capability of ["news:delete", "documents:review", "roles:manage", "system:admin", "reports:view", "reports:export"] as const) {
     if (hasCapability("publisher", capability)) {
       throw new Error(`Publisher must not receive ${capability}`);
     }
+  }
+});
+
+Deno.test("only administrators receive reporting capabilities", () => {
+  if (hasCapability("publisher", "reports:view") || hasCapability("publisher", "reports:export") || hasCapability("user", "reports:view") || hasCapability("user", "reports:export")) {
+    throw new Error("Publisher/user must not receive reporting capabilities");
+  }
+  if (!hasCapability("admin", "reports:view") || !hasCapability("admin", "reports:export")) {
+    throw new Error("Administrator must receive both reporting capabilities");
   }
 });
 

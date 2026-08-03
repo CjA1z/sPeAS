@@ -11,7 +11,7 @@ const [agenda, legacy, unresolved, missing, overlap, badLinks] = await Promise.a
     SELECT COUNT(*) AS count
     FROM documents d
     WHERE d.deleted_at IS NULL AND d.review_status = 'approved' AND d.is_public IS TRUE
-      AND (NOT EXISTS (SELECT 1 FROM document_research_agenda dra JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE dra.document_id = d.id AND ra.is_official = TRUE AND ra.is_active = TRUE)
+      AND (NOT EXISTS (SELECT 1 FROM document_research_agenda dra JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE dra.document_id = d.id AND ra.is_official = TRUE)
         OR NOT EXISTS (SELECT 1 FROM document_topics dt JOIN topics t ON t.id = dt.topic_id WHERE dt.document_id = d.id AND t.status = 'approved'))
   `),
   client.queryObject<{ count: number | bigint }>(`

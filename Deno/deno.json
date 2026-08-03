@@ -1,9 +1,10 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp server.ts",
-    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp server.ts",
-    "watch": "deno run --watch --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp server.ts",
-    "debug": "deno run --inspect-brk --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp server.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp,ffmpeg,ffprobe,clamdscan server.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp,ffmpeg,ffprobe,clamdscan server.ts",
+    "watch": "deno run --watch --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp,ffmpeg,ffprobe,clamdscan server.ts",
+    "debug": "deno run --inspect-brk --allow-net --allow-read --allow-write --allow-env --allow-run=pdftoppm,pdfinfo,cwebp,ffmpeg,ffprobe,clamdscan server.ts",
+    "media-worker": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run=ffmpeg,ffprobe,clamdscan media-worker.ts",
     "check": "deno check server.ts",
     "test": "deno test --allow-env --allow-read tests/",
     "classification:audit": "deno run --allow-env --allow-net --allow-read scripts/classification-audit.ts",
@@ -11,6 +12,16 @@
     "classification:db-test": "deno run --allow-env --allow-net --allow-read scripts/classification-database-test.ts",
     "classification:migrate": "deno run --allow-env --allow-net --allow-read scripts/classification-migrate.ts",
     "classification:migrate:apply": "deno run --allow-env --allow-net --allow-read scripts/classification-migrate.ts --apply",
+    "reporting:migrate": "deno run --allow-env --allow-net --allow-read scripts/reporting-migrate.ts",
+    "reporting:migrate:apply": "deno run --allow-env --allow-net --allow-read scripts/reporting-migrate.ts --apply",
+    "reporting:backfill": "deno run --allow-env --allow-net --allow-read scripts/reporting-backfill.ts",
+    "reporting:backfill:apply": "deno run --allow-env --allow-net --allow-read scripts/reporting-backfill.ts --apply",
+    "reporting:db-test": "deno run --allow-env --allow-net --allow-read scripts/reporting-database-test.ts",
+    "reporting:fixture": "deno run --allow-env --allow-net --allow-read scripts/reporting-fixture.ts",
+    "reporting:report-test": "deno run --allow-env --allow-net --allow-read scripts/reporting-report-test.ts",
+    "reporting:backfill-fixture": "deno run --allow-env --allow-net --allow-read scripts/reporting-backfill-fixture.ts",
+    "reporting:backfill-test": "deno run --allow-env --allow-net --allow-read scripts/reporting-backfill-test.ts",
+    "reporting:schema-test": "deno run --allow-env --allow-net --allow-read scripts/reporting-schema-test.ts",
     "legacy:soak-report": "deno run --allow-env --allow-read --allow-net scripts/legacy-public-soak-report.ts"
   },
   "imports": {

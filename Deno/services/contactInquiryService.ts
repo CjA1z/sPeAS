@@ -114,9 +114,9 @@ export async function updateContactInquiryStatus(referenceCode: string, status: 
     }
     const updated = await connection.queryObject<InquiryRow>(`
       UPDATE contact_inquiries
-      SET status = $2,
-          first_read_at = CASE WHEN $2 = 'read' THEN COALESCE(first_read_at, CURRENT_TIMESTAMP) ELSE first_read_at END,
-          resolved_at = CASE WHEN $2 = 'resolved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+      SET status = $2::varchar,
+          first_read_at = CASE WHEN $2::varchar = 'read' THEN COALESCE(first_read_at, CURRENT_TIMESTAMP) ELSE first_read_at END,
+          resolved_at = CASE WHEN $2::varchar = 'resolved' THEN CURRENT_TIMESTAMP ELSE NULL END,
           updated_at = CURRENT_TIMESTAMP
       WHERE reference_code = $1
       RETURNING ${SELECT_FIELDS}

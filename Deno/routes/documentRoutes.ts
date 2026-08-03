@@ -9,13 +9,13 @@ import {
     handleHardDeleteDocument
 } from "../api/document.ts";
 import { DocumentModel } from "../models/documentModel.ts";
-import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
 import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
 import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewDocument } from "../services/contentAuthorizationService.ts";
 import { getDocumentClassification } from "../services/documentClassificationService.ts";
+import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
 
 const DOCUMENT_FILE_FIELD_NAMES = new Set([
     "file_path",
@@ -82,6 +82,13 @@ const getDocuments = async (ctx: RouterContext<any, any, any>) => {
 const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     const id = ctx.params.id;
     const isGuestRequest = ctx.request.url.searchParams.get("guest") === "true";
+    const numericId = Number(id);
+
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid document ID is required" };
+        return;
+    }
 
     const sessionData = await getSessionFromHeaders(ctx.request.headers);
 
@@ -92,18 +99,19 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     }
 
     if (sessionData) {
-        const access = await client.queryObject<{
-            review_status: string;
-            uploaded_by: string | null;
-        }>(`
-            SELECT review_status, uploaded_by
+        if (!await canViewDocument(sessionData, numericId)) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
+            return;
+        }
+    } else {
+        const publicRecord = await client.queryObject<{ review_status: string; is_public: boolean }>(`
+            SELECT review_status, is_public
             FROM documents
             WHERE id = $1 AND deleted_at IS NULL
-        `, [id]);
-        const document = access.rows[0];
-        const mayViewPending = sessionData.role === "admin" ||
-            (sessionData.role === "publisher" && document?.uploaded_by === sessionData.id);
-        if (document && document.review_status !== "approved" && !mayViewPending) {
+        `, [numericId]);
+        const document = publicRecord.rows[0];
+        if (!document || document.review_status !== "approved" || document.is_public !== true) {
             ctx.response.status = 404;
             ctx.response.body = { error: "Document not found" };
             return;
@@ -111,7 +119,7 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     }
     
     // Convert context to Request
-    const request = new Request(`${ctx.request.url.origin}/api/documents/${id}${ctx.request.url.search}`, {
+    const request = new Request(`${ctx.request.url.origin}/api/documents/${numericId}${ctx.request.url.search}`, {
         method: "GET",
         headers: ctx.request.headers
     });
@@ -122,8 +130,11 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     const responseBody = await response.json();
-    if (response.ok && sessionData && !isGuestRequest) {
-        await UserDocumentHistoryModel.recordAction(sessionData.id, Number(id), "VIEW");
+    const isReader = String(sessionData?.role ?? "").toLowerCase() === "user";
+    if (response.ok && isReader) {
+        await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "registered", action: "view", registeredUserId: sessionData!.id }).catch(() => undefined);
+    } else if (response.ok && !sessionData && isGuestRequest) {
+        await recordRepositoryActivity({ recordType: "document", recordId: Number(id), audience: "guest", action: "view" }).catch(() => undefined);
     }
     ctx.response.body = sessionData && !isGuestRequest
         ? responseBody
@@ -134,10 +145,11 @@ const getDocumentById = async (ctx: RouterContext<any, any, any>) => {
 const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
     try {
         const id = ctx.params.id;
+        const viewerSession = await getSessionFromHeaders(ctx.request.headers);
         
         // Validate ID is numeric
-        const numericId = parseInt(id);
-        if (isNaN(numericId)) {
+        const numericId = Number(id);
+        if (!Number.isSafeInteger(numericId) || numericId <= 0) {
             ctx.response.status = 400;
             ctx.response.body = { 
                 success: false, 
@@ -155,6 +167,16 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 success: false, 
                 message: "Document not found" 
             };
+            return;
+        }
+        if (document.review_status !== "approved") {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
+            return;
+        }
+        if (document.is_public !== true) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
             return;
         }
 
@@ -300,6 +322,11 @@ const getGuestDocumentById = async (ctx: RouterContext<any, any, any>) => {
 
         ctx.response.status = 200;
         ctx.response.body = result;
+        if (String(viewerSession?.role ?? "").toLowerCase() === "user") {
+            await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "registered", action: "view", registeredUserId: viewerSession!.id }).catch(() => undefined);
+        } else if (!viewerSession) {
+            await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "guest", action: "view" }).catch(() => undefined);
+        }
     } catch (error) {
         ctx.response.status = 500;
         ctx.response.body = { 
@@ -315,8 +342,8 @@ const getDocumentAuthorsById = async (ctx: RouterContext<any, any, any>) => {
         const id = ctx.params.id;
         
         // Validate ID is numeric
-        const numericId = parseInt(id);
-        if (isNaN(numericId)) {
+        const numericId = Number(id);
+        if (!Number.isSafeInteger(numericId) || numericId <= 0) {
             ctx.response.status = 400;
             ctx.response.body = { 
                 success: false, 
@@ -371,10 +398,11 @@ const getDocumentAuthorsById = async (ctx: RouterContext<any, any, any>) => {
 const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
     try {
         const id = ctx.params.id;
+        const viewerSession = await getSessionFromHeaders(ctx.request.headers);
         
         // Validate ID is numeric
-        const numericId = parseInt(id);
-        if (isNaN(numericId)) {
+        const numericId = Number(id);
+        if (!Number.isSafeInteger(numericId) || numericId <= 0) {
             ctx.response.status = 400;
             ctx.response.body = { 
                 success: false, 
@@ -396,8 +424,8 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
         }
 
         // Check if document is public
-        if (!document.is_public) {
-            ctx.response.status = 403;
+        if (document.review_status !== "approved" || document.is_public !== true) {
+            ctx.response.status = 404;
             ctx.response.body = { 
                 success: false, 
                 message: "This document is not public" 
@@ -464,6 +492,11 @@ const getPublicDocumentById = async (ctx: RouterContext<any, any, any>) => {
                 editor: document.editor || null
             }
         };
+        if (String(viewerSession?.role ?? "").toLowerCase() === "user") {
+            await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "registered", action: "view", registeredUserId: viewerSession!.id }).catch(() => undefined);
+        } else if (!viewerSession) {
+            await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "guest", action: "view" }).catch(() => undefined);
+        }
     } catch (error) {
         ctx.response.status = 500;
         ctx.response.body = { 
@@ -761,8 +794,25 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
         
+        const numericId = Number(id);
+        if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+            ctx.response.status = 400;
+            ctx.response.body = { error: "A valid document ID is required" };
+            return;
+        }
+
+        // Use the same server-side visibility policy as metadata routes.  A
+        // session by itself is not permission to download a private/pending
+        // file; admins and owning publishers may still preview where the
+        // existing policy permits it.
+        if (!await canViewDocument(sessionData, numericId)) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Document not found" };
+            return;
+        }
+
         // Get the document's file path
-                const filePath = await DocumentModel.getDocumentPath(id);
+                const filePath = await DocumentModel.getDocumentPath(String(numericId));
                 
         if (!filePath) {
             ctx.response.status = 404;
@@ -813,14 +863,27 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         
         // Stream the file
         const fileContent = await Deno.readFile(filePath);
-        // Record and audit only after the file has been read successfully.
-        const success = await UserDocumentHistoryModel.recordAction(sessionData.id, parseInt(id), "DOWNLOAD");
+        if (contentType === "application/pdf" &&
+            (fileContent.byteLength < 5 || new TextDecoder().decode(fileContent.subarray(0, 5)) !== "%PDF-")) {
+            ctx.response.status = 415;
+            ctx.response.body = { error: "Document file signature is invalid" };
+            return;
+        }
+        // Record downloads only after a successful attachment delivery. Inline
+        // PDF viewing is a view, not a download, and is already covered by the
+        // authorized metadata/detail instrumentation.
+        const isDownload = disposition !== "inline";
+        const readerSession = String(sessionData.role ?? "").toLowerCase() === "user";
+        const success = true;
+        if (isDownload && readerSession) {
+            await recordRepositoryActivity({ recordType: "document", recordId: numericId, audience: "registered", action: "download", registeredUserId: sessionData.id }).catch(() => undefined);
+        }
         try {
             await SystemLogsModel.createLog({
                 log_type: 'download',
                 user_id: sessionData.id,
                 username: sessionData.id,
-                action: success ? 'Document download' : 'Failed document download',
+                action: isDownload ? (success ? 'Document download' : 'Failed document download') : 'Document inline view',
                 details: { document_id: id, timestamp: new Date().toISOString(), file_path: filePath },
                 ip_address: ctx.request.ip || 'Unknown',
                 status: success ? 'success' : 'failed',
@@ -833,10 +896,8 @@ const downloadDocument = async (ctx: RouterContext<any, any, any>) => {
         
     } catch (error) {
         ctx.response.status = 500;
-        ctx.response.body = { 
-            error: "Failed to download document",
-            details: error instanceof Error ? error.message : String(error)
-        };
+        console.error("Document delivery failed", { code: "DOCUMENT_DELIVERY_FAILED" });
+        ctx.response.body = { error: "Failed to download document", code: "DOCUMENT_DELIVERY_FAILED" };
     }
 };
 

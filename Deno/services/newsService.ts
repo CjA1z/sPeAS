@@ -1,4 +1,13 @@
 import { client, withTransaction } from "../db/denopost_conn.ts";
+import {
+  attachNewsMediaToPost,
+  ensureNewsMediaTablesExist,
+  getNewsMedia,
+  validateNewsMediaOwnership,
+  validateNewsMediaForPublish,
+  type NewsMediaAsset,
+  NewsMediaValidationError,
+} from "./newsMediaService.ts";
 
 export type NewsStatus = "draft" | "published";
 export type NewsBodyFormat = "plain" | "markdown";
@@ -37,8 +46,12 @@ export interface NewsPostInput {
   bodyFormat?: NewsBodyFormat;
   coverImageUrl?: string | null;
   coverImageAlt?: string;
+  coverMediaId?: string | null;
+  mediaIds?: string[];
   authorName: string;
   status: NewsStatus;
+  /** ISO timestamp for a future publication; null/omitted means publish now. */
+  publishAt?: string | null;
   taggedAuthorIds?: string[];
   taggedWorks?: NewsWorkInput[];
 }
@@ -52,6 +65,7 @@ export interface NewsPost {
   bodyFormat: NewsBodyFormat;
   coverImageUrl: string | null;
   coverImageAlt: string;
+  coverMediaId: string | null;
   authorName: string;
   status: NewsStatus;
   publishedAt: string | null;
@@ -59,6 +73,7 @@ export interface NewsPost {
   updatedAt: string;
   taggedAuthors: NewsAuthorReference[];
   taggedWorks: NewsWorkReference[];
+  media: NewsMediaAsset[];
 }
 
 interface NewsRow {
@@ -70,6 +85,7 @@ interface NewsRow {
   body_format: NewsBodyFormat;
   cover_image_url: string | null;
   cover_image_alt: string;
+  cover_media_id: string | null;
   author_name: string;
   status: NewsStatus;
   published_at: Date | string | null;
@@ -111,7 +127,7 @@ type QueryExecutor = {
 };
 
 const SELECT_FIELDS = `
-  id, title, slug, excerpt, body, body_format, cover_image_url, cover_image_alt, author_name,
+  id, title, slug, excerpt, body, body_format, cover_image_url, cover_image_alt, cover_media_id, author_name,
   status, published_at, created_at, updated_at
 `;
 const MAX_REFERENCES_PER_TYPE = 20;
@@ -145,6 +161,14 @@ export async function ensureNewsTableExists(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_news_posts_public_feed
       ON news_posts (published_at DESC)
       WHERE status = 'published' AND deleted_at IS NULL;
+    CREATE TABLE IF NOT EXISTS user_saved_news_posts (
+      user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      news_post_id BIGINT NOT NULL REFERENCES news_posts(id) ON DELETE CASCADE,
+      saved_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, news_post_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_saved_news_posts_user_saved
+      ON user_saved_news_posts (user_id, saved_at DESC);
     ALTER TABLE news_posts ADD COLUMN IF NOT EXISTS body_format VARCHAR(20) NOT NULL DEFAULT 'plain';
     ALTER TABLE news_posts ADD COLUMN IF NOT EXISTS cover_image_alt VARCHAR(255) NOT NULL DEFAULT '';
 
@@ -167,6 +191,8 @@ export async function ensureNewsTableExists(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_news_post_works_record
       ON news_post_works (record_type, record_id, news_post_id);
   `);
+  await ensureNewsMediaTablesExist();
+  await client.queryObject("ALTER TABLE news_posts ADD COLUMN IF NOT EXISTS cover_media_id UUID REFERENCES news_media_assets(id) ON DELETE SET NULL");
 }
 
 export async function listPublishedNews(
@@ -225,7 +251,7 @@ export async function listAllNews(): Promise<NewsPost[]> {
     WHERE deleted_at IS NULL
     ORDER BY created_at DESC, id DESC
   `);
-  return await hydrateNewsPosts(result.rows.map(mapNewsRow));
+  return await hydrateNewsPosts(result.rows.map(mapNewsRow), true);
 }
 
 export async function searchNewsReferences(
@@ -309,10 +335,11 @@ export async function createNewsPost(
     const result = await connection.queryObject<NewsRow>(
       `
       INSERT INTO news_posts (
-        title, slug, excerpt, body, body_format, cover_image_url, cover_image_alt, author_name,
+        title, slug, excerpt, body, body_format, cover_image_url, cover_image_alt, cover_media_id, author_name,
         status, published_at, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        CASE WHEN $9 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::varchar,
+        CASE WHEN $11::timestamptz IS NOT NULL THEN $11::timestamptz
+          WHEN $10::varchar = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END, $12)
       RETURNING ${SELECT_FIELDS}
     `,
       [
@@ -323,21 +350,27 @@ export async function createNewsPost(
         input.bodyFormat === "markdown" ? "markdown" : "plain",
         input.coverImageUrl || null,
         input.coverImageAlt || "",
+        input.coverMediaId || null,
         input.authorName,
         input.status,
+        input.publishAt ?? null,
         userId,
       ],
     );
     const post = mapNewsRow(result.rows[0]);
     await replaceReferences(connection, post.id, authorIds, works);
+    await validateNewsMediaOwnership(connection, userId, input.coverMediaId);
+    await attachNewsMediaToPost(connection, post.id, input.mediaIds ?? [], userId);
+    if (input.status === "published") await validateNewsMediaForPublish(connection, post.id, [...(input.mediaIds ?? []), ...(input.coverMediaId ? [input.coverMediaId] : [])]);
     return post;
   });
-  return (await hydrateNewsPosts([basePost]))[0];
+  return (await hydrateNewsPosts([basePost], true))[0];
 }
 
 export async function updateNewsPost(
   id: number,
   input: NewsPostInput,
+  userId: string,
 ): Promise<NewsPost | null> {
   const authorIds = normalizeAuthorIds(input.taggedAuthorIds);
   const works = normalizeWorkInputs(input.taggedWorks);
@@ -352,11 +385,15 @@ export async function updateNewsPost(
           body_format = $5,
           cover_image_url = $6,
           cover_image_alt = $7,
-          author_name = $8,
-          status = $9,
+          cover_media_id = $8,
+          author_name = $9,
+          status = $10,
           published_at = CASE
-            WHEN $9 = 'published' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
-            ELSE NULL
+            WHEN $10::varchar <> 'published' THEN NULL
+            WHEN $11::timestamptz IS NOT NULL THEN $11::timestamptz
+            WHEN published_at IS NULL OR published_at > CURRENT_TIMESTAMP
+              THEN CURRENT_TIMESTAMP
+            ELSE published_at
           END,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $1 AND deleted_at IS NULL
@@ -370,17 +407,22 @@ export async function updateNewsPost(
         input.bodyFormat === "markdown" ? "markdown" : "plain",
         input.coverImageUrl || null,
         input.coverImageAlt || "",
+        input.coverMediaId || null,
         input.authorName,
         input.status,
+        input.publishAt ?? null,
       ],
     );
     if (!result.rows[0]) return null;
     const post = mapNewsRow(result.rows[0]);
     await replaceReferences(connection, post.id, authorIds, works);
+    await validateNewsMediaOwnership(connection, userId, input.coverMediaId);
+    await attachNewsMediaToPost(connection, post.id, input.mediaIds ?? [], userId);
+    if (input.status === "published") await validateNewsMediaForPublish(connection, post.id, [...(input.mediaIds ?? []), ...(input.coverMediaId ? [input.coverMediaId] : [])]);
     return post;
   });
   if (!basePost) return null;
-  return (await hydrateNewsPosts([basePost]))[0];
+  return (await hydrateNewsPosts([basePost], true))[0];
 }
 
 export async function deleteNewsPost(id: number): Promise<boolean> {
@@ -396,7 +438,7 @@ export async function deleteNewsPost(id: number): Promise<boolean> {
   return Boolean(result.rowCount);
 }
 
-async function hydrateNewsPosts(posts: NewsPost[]): Promise<NewsPost[]> {
+async function hydrateNewsPosts(posts: NewsPost[], includePrivateMedia = false): Promise<NewsPost[]> {
   if (!posts.length) return posts;
   const postIds = posts.map((post) => post.id);
   const [authorsResult, worksResult] = await Promise.all([
@@ -461,10 +503,33 @@ async function hydrateNewsPosts(posts: NewsPost[]): Promise<NewsPost[]> {
     list.push(mapWorkReference(row));
     worksByPost.set(postId, list);
   }
+  const mediaLinks = await client.queryObject<{ news_post_id: number | bigint; asset_id: string; position: number }>(
+    `SELECT news_post_id, asset_id, position FROM news_post_media WHERE news_post_id = ANY($1::bigint[]) ORDER BY news_post_id, position`,
+    [postIds],
+  );
+  const mediaByPost = new Map<number, NewsMediaAsset[]>();
+  await Promise.all(mediaLinks.rows.map(async (link) => {
+    const media = await getNewsMedia(null, link.asset_id, includePrivateMedia);
+    if (!media) return;
+    const postId = Number(link.news_post_id);
+    const list = mediaByPost.get(postId) ?? [];
+    list.push(media);
+    mediaByPost.set(postId, list);
+  }));
+  await Promise.all(posts.map(async (post) => {
+    const existing = mediaByPost.get(post.id) ?? [];
+    if (!post.coverMediaId || existing.some((media) => media.id === post.coverMediaId)) return;
+    const cover = await getNewsMedia(null, post.coverMediaId, includePrivateMedia);
+    if (!cover) return;
+    const list = mediaByPost.get(post.id) ?? [];
+    list.unshift(cover);
+    mediaByPost.set(post.id, list);
+  }));
   return posts.map((post) => ({
     ...post,
     taggedAuthors: authorsByPost.get(post.id) ?? [],
     taggedWorks: worksByPost.get(post.id) ?? [],
+    media: mediaByPost.get(post.id) ?? [],
   }));
 }
 
@@ -629,6 +694,7 @@ function mapNewsRow(row: NewsRow): NewsPost {
     bodyFormat: row.body_format || "plain",
     coverImageUrl: row.cover_image_url,
     coverImageAlt: row.cover_image_alt || "",
+    coverMediaId: row.cover_media_id || null,
     authorName: row.author_name,
     status: row.status,
     publishedAt: toIso(row.published_at),
@@ -636,6 +702,7 @@ function mapNewsRow(row: NewsRow): NewsPost {
     updatedAt: toIso(row.updated_at) ?? "",
     taggedAuthors: [],
     taggedWorks: [],
+    media: [],
   };
 }
 

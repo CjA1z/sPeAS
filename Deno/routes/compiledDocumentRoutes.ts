@@ -12,8 +12,8 @@ import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authM
 import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewCompilation } from "../services/contentAuthorizationService.ts";
-import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
 import { getDocumentClassification } from "../services/documentClassificationService.ts";
+import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
 
 const requireDocumentUpload = requireCapability("documents:upload");
 const requireDocumentReview = requireCapability("documents:review");
@@ -99,48 +99,33 @@ const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
 
 const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     const id = ctx.params.id;
+    const numericId = Number(id);
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid compiled document ID is required" };
+        return;
+    }
     const isLimitedRoute = ctx.request.url.pathname.includes("/guest/") ||
         ctx.request.url.pathname.includes("/public/");
 
-    if (!isLimitedRoute) {
-        const sessionData = await getSessionFromHeaders(ctx.request.headers);
-
-        if (!sessionData) {
-            ctx.response.status = 401;
-            ctx.response.body = { error: "Unauthorized" };
-            return;
-        }
-        const reviewResult = await client.queryObject<{
-            review_status: string;
-            uploaded_by: string | null;
-        }>(`
-            SELECT review_status, uploaded_by
-            FROM compiled_documents
-            WHERE id = $1 AND deleted_at IS NULL
-        `, [id]);
-        const compiledDocument = reviewResult.rows[0];
-        const mayViewPending = sessionData.role === "admin" ||
-            (sessionData.role === "publisher" && compiledDocument?.uploaded_by === sessionData.id);
-        if (compiledDocument && compiledDocument.review_status !== "approved" && !mayViewPending) {
-            ctx.response.status = 404;
-            ctx.response.body = { error: "Compiled document not found" };
-            return;
-        }
-    } else {
-        const reviewResult = await client.queryObject<{ review_status: string }>(`
-            SELECT review_status
-            FROM compiled_documents
-            WHERE id = $1 AND deleted_at IS NULL
-        `, [id]);
-        if (reviewResult.rows[0]?.review_status !== "approved") {
-            ctx.response.status = 404;
-            ctx.response.body = { error: "Compiled document not found" };
-            return;
-        }
+    const viewerSession = await getSessionFromHeaders(ctx.request.headers);
+    if (!isLimitedRoute && !viewerSession) {
+        ctx.response.status = 401;
+        ctx.response.body = { error: "Unauthorized" };
+        return;
+    }
+    // All public, reader, administrator, and publisher-preview access uses the
+    // same policy.  The policy permits approved compilations to readers and
+    // guests, while retaining existing admin/owning-publisher previews without
+    // turning those previews into readership activity.
+    if (!await canViewCompilation(viewerSession, numericId)) {
+        ctx.response.status = 404;
+        ctx.response.body = { error: "Compiled document not found" };
+        return;
     }
     
     // Convert context to Request
-    const request = new Request(`${ctx.request.url.origin}/api/compiled-documents/${id}`, {
+    const request = new Request(`${ctx.request.url.origin}/api/compiled-documents/${numericId}`, {
         method: "GET",
         headers: ctx.request.headers
     });
@@ -151,9 +136,10 @@ const getCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     const responseBody = await response.json();
-    if (response.ok && !isLimitedRoute) {
-        const sessionData = await getSessionFromHeaders(ctx.request.headers);
-        if (sessionData) await UserDocumentHistoryModel.recordAction(sessionData.id, Number(id), "VIEW", "compiled");
+    if (response.ok && String(viewerSession?.role ?? "").toLowerCase() === "user") {
+        await recordRepositoryActivity({ recordType: "compiled", recordId: numericId, audience: "registered", action: "view", registeredUserId: viewerSession!.id }).catch(() => undefined);
+    } else if (response.ok && isLimitedRoute && !viewerSession) {
+        await recordRepositoryActivity({ recordType: "compiled", recordId: numericId, audience: "guest", action: "view" }).catch(() => undefined);
     }
     ctx.response.body = isLimitedRoute ? removeCompiledFileFields(responseBody) : responseBody;
 };

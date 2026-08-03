@@ -74,7 +74,7 @@ export class AuthorVisitsModel {
                     
           const result = await client.queryObject(
             `INSERT INTO author_visits_counter (author_id, date, visitor_type, visit_count)
-             VALUES ($1, CURRENT_DATE, $2, 1)
+             VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date, $2, 1)
              ON CONFLICT (author_id, date, visitor_type)
              DO UPDATE SET visit_count = author_visits_counter.visit_count + 1
              RETURNING visit_count`,
@@ -93,7 +93,7 @@ export class AuthorVisitsModel {
       // First check if the record exists for today
       const checkExisting = await client.queryObject(
         `SELECT visit_count FROM author_visits_counter 
-         WHERE author_id = $1 AND date = CURRENT_DATE`,
+         WHERE author_id = $1 AND date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date`,
         [authorId]
       );
       
@@ -105,7 +105,7 @@ export class AuthorVisitsModel {
       // Insert or update the counter
       const result = await client.queryObject(
         `INSERT INTO author_visits_counter (author_id, date, visit_count)
-         VALUES ($1, CURRENT_DATE, 1)
+         VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date, 1)
          ON CONFLICT (author_id, date)
          DO UPDATE SET visit_count = author_visits_counter.visit_count + 1
          RETURNING visit_count`,
@@ -129,7 +129,7 @@ export class AuthorVisitsModel {
                 const updateResult = await client.queryObject(
           `UPDATE author_visits_counter 
            SET visit_count = visit_count + 1
-           WHERE author_id = $1 AND date = CURRENT_DATE
+           WHERE author_id = $1 AND date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date
            RETURNING visit_count`,
           [authorId]
         );
@@ -149,7 +149,7 @@ export class AuthorVisitsModel {
         } else {
                     const insertResult = await client.queryObject(
             `INSERT INTO author_visits_counter (author_id, date, visit_count)
-             VALUES ($1, CURRENT_DATE, 1)
+             VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date, 1)
              RETURNING visit_count`,
             [authorId]
           );
@@ -630,4 +630,4 @@ export class AuthorVisitsModel {
       return 0;
     }
   }
-} 
+}

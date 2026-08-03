@@ -19,6 +19,28 @@ export interface ClassificationActor {
   role: string;
 }
 
+export interface AdminResearchAgenda {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  documentCount: number;
+  primaryDocumentCount: number;
+}
+
+export interface PublicResearchAgenda {
+  id: number;
+  name: string;
+  isActive: boolean;
+  historical: boolean;
+}
+
+export interface AdminKeyword {
+  id: number;
+  term: string;
+  documentCount: number;
+}
+
 export class ClassificationValidationError extends Error {
   constructor(
     message: string,
@@ -98,7 +120,7 @@ function toTerm(row: Record<string, unknown>, nameKey = "name"): ClassificationT
 
 export async function listResearchAgendas(includeInactive = false): Promise<ClassificationTerm[]> {
   const result = await client.queryObject(`
-    SELECT id, code, name, description, is_active, sort_order
+    SELECT id, name, is_active, sort_order
     FROM research_agenda
     WHERE is_official = TRUE
       ${includeInactive ? "" : "AND is_active = TRUE"}
@@ -107,52 +129,130 @@ export async function listResearchAgendas(includeInactive = false): Promise<Clas
   return (result.rows as Record<string, unknown>[]).map((row) => toTerm(row));
 }
 
+export async function listAdminResearchAgendas(): Promise<AdminResearchAgenda[]> {
+  const result = await client.queryObject(`
+    SELECT ra.id, ra.name, ra.is_active, ra.sort_order,
+           COUNT(DISTINCT dra.document_id) AS document_count,
+           COUNT(DISTINCT dra.document_id) FILTER (WHERE dra.is_primary = TRUE) AS primary_document_count
+    FROM research_agenda ra
+    LEFT JOIN document_research_agenda dra ON dra.research_agenda_id = ra.id
+    WHERE ra.is_official = TRUE
+    GROUP BY ra.id, ra.name, ra.is_active, ra.sort_order
+    ORDER BY ra.sort_order ASC, ra.id ASC
+  `);
+  return (result.rows as Record<string, unknown>[]).map((row) => ({
+    id: Number(row.id),
+    name: String(row.name ?? ""),
+    isActive: Boolean(row.is_active),
+    sortOrder: Number(row.sort_order ?? 0),
+    documentCount: Number(row.document_count ?? 0),
+    primaryDocumentCount: Number(row.primary_document_count ?? 0),
+  }));
+}
+
+export async function listPublicResearchAgendas(includeHistorical = false): Promise<PublicResearchAgenda[]> {
+  const result = await client.queryObject(`
+    SELECT ra.id, ra.name, ra.is_active,
+           CASE WHEN ra.is_active THEN FALSE ELSE TRUE END AS historical
+    FROM research_agenda ra
+    WHERE ra.is_official = TRUE
+      AND (ra.is_active = TRUE OR (${includeHistorical ? "EXISTS (SELECT 1 FROM document_research_agenda dra JOIN documents d ON d.id = dra.document_id WHERE dra.research_agenda_id = ra.id AND d.deleted_at IS NULL AND d.review_status = 'approved' AND d.is_public IS TRUE)" : "FALSE"}))
+    ORDER BY ra.sort_order ASC, ra.id ASC
+  `);
+  return (result.rows as Record<string, unknown>[]).map((row) => ({
+    id: Number(row.id),
+    name: String(row.name ?? ""),
+    isActive: Boolean(row.is_active),
+    historical: Boolean(row.historical),
+  }));
+}
+
+function validateAgendaSortOrder(value: unknown): number {
+  const sortOrder = Number(value);
+  if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+    throw new ClassificationValidationError("Agenda order must be a non-negative whole number", { sortOrder: "Enter a whole number of zero or greater" });
+  }
+  return sortOrder;
+}
+
+async function ensureAgendaNameAvailable(normalizedName: string, agendaId?: number) {
+  const result = await client.queryObject<{ id: number }>(
+    "SELECT id FROM research_agenda WHERE is_official = TRUE AND normalized_name = $1 AND ($2::INTEGER IS NULL OR id <> $2) LIMIT 1",
+    [normalizedName, agendaId ?? null],
+  );
+  if (result.rows[0]) throw new ClassificationValidationError("An official research agenda with that name already exists", { name: "Use a unique agenda name" });
+}
+
 export async function createResearchAgenda(input: {
-  code: string;
-  name: string;
-  description?: string;
+  code?: unknown;
+  name?: unknown;
+  description?: unknown;
   isActive?: boolean;
   sortOrder?: number;
 }): Promise<ClassificationTerm> {
-  const code = input.code.trim().toUpperCase();
+  if (Object.prototype.hasOwnProperty.call(input, "code")) throw new ClassificationValidationError("Agenda codes are generated automatically", { code: "Do not provide an agenda code" });
+  if (typeof input.name !== "string") throw new ClassificationValidationError("Agenda name is required", { name: "Enter an agenda name" });
+  if (Object.prototype.hasOwnProperty.call(input, "description")) throw new ClassificationValidationError("Research agendas do not have descriptions", { description: "Remove the description field" });
+  if (input.isActive !== undefined && typeof input.isActive !== "boolean") throw new ClassificationValidationError("Agenda status is invalid", { isActive: "Status must be true or false" });
   const name = input.name.trim().replace(/[\s]+/gu, " ");
-  if (!/^RA-[A-Z0-9-]{1,27}$/u.test(code)) {
-    throw new ClassificationValidationError("Agenda code must use the RA- prefix", { code: "Use a stable code such as RA-21" });
-  }
   if (!name || name.length > 255) {
     throw new ClassificationValidationError("Agenda name is required and must be at most 255 characters", { name: "Enter an agenda name" });
   }
   const normalized = normalizeClassificationTerm(name);
-  const result = await client.queryObject(`
-    INSERT INTO research_agenda (code, name, normalized_name, description, is_official, is_active, sort_order)
-    VALUES ($1, $2, $3, $4, TRUE, $5, $6)
-    RETURNING id, code, name
-  `, [code, name, normalized, input.description?.trim() || null, input.isActive !== false, Number(input.sortOrder ?? 0)]);
+  const result = await withTransaction(async (connection) => {
+    // Serialize code allocation so two administrators cannot receive the same
+    // automatically generated identifier at the same time.
+    await connection.queryArray("SELECT pg_advisory_xact_lock(843719921)");
+    const existingName = await connection.queryObject<{ id: number }>(
+      "SELECT id FROM research_agenda WHERE is_official = TRUE AND normalized_name = $1 LIMIT 1",
+      [normalized],
+    );
+    if (existingName.rows[0]) throw new ClassificationValidationError("An official research agenda with that name already exists", { name: "Use a unique agenda name" });
+    const nextCodeResult = await connection.queryObject<{ next_code: number | string }>(`
+      SELECT COALESCE(MAX(CASE WHEN code ~ '^RA-[0-9]+$' THEN CAST(SUBSTRING(code FROM 4) AS INTEGER) ELSE 0 END), 0) + 1 AS next_code
+      FROM research_agenda
+    `);
+    const code = `RA-${String(Number(nextCodeResult.rows[0]?.next_code ?? 1)).padStart(2, "0")}`;
+    const nextOrder = input.sortOrder === undefined
+      ? Number((await connection.queryObject<{ next_order: number | string }>("SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_order FROM research_agenda WHERE is_official = TRUE")).rows[0]?.next_order ?? 0)
+      : validateAgendaSortOrder(input.sortOrder);
+    return connection.queryObject(`
+      INSERT INTO research_agenda (code, name, normalized_name, is_official, is_active, sort_order)
+      VALUES ($1, $2, $3, TRUE, $4, $5)
+      RETURNING id, name
+    `, [code, name, normalized, input.isActive !== false, nextOrder]);
+  });
   return toTerm(result.rows[0] as Record<string, unknown>);
 }
 
 export async function updateResearchAgenda(
   agendaId: number,
-  input: { name?: string; description?: string; isActive?: boolean; sortOrder?: number },
+  input: { code?: unknown; name?: string; description?: unknown; isActive?: boolean; sortOrder?: number },
 ): Promise<ClassificationTerm> {
+  if (Object.prototype.hasOwnProperty.call(input, "code")) {
+    throw new ClassificationValidationError("Agenda codes cannot be changed after creation", { code: "The internal agenda code is immutable" });
+  }
+  if (Object.prototype.hasOwnProperty.call(input, "description")) {
+    throw new ClassificationValidationError("Research agendas do not have descriptions", { description: "Remove the description field" });
+  }
   const fields: string[] = [];
   const params: unknown[] = [];
   if (input.name !== undefined) {
+    if (typeof input.name !== "string") throw new ClassificationValidationError("Agenda name is invalid", { name: "Enter an agenda name" });
     const name = input.name.trim().replace(/[\s]+/gu, " ");
     if (!name || name.length > 255) throw new ClassificationValidationError("Agenda name is invalid", { name: "Enter an agenda name" });
-    params.push(name, normalizeClassificationTerm(name));
+    const normalized = normalizeClassificationTerm(name);
+    await ensureAgendaNameAvailable(normalized, agendaId);
+    params.push(name, normalized);
     fields.push(`name = $${params.length - 1}`, `normalized_name = $${params.length}`);
   }
-  if (input.description !== undefined) {
-    params.push(input.description.trim() || null);
-    fields.push(`description = $${params.length}`);
-  }
   if (input.isActive !== undefined) {
+    if (typeof input.isActive !== "boolean") throw new ClassificationValidationError("Agenda status is invalid", { isActive: "Status must be true or false" });
     params.push(input.isActive);
     fields.push(`is_active = $${params.length}`);
   }
   if (input.sortOrder !== undefined) {
-    params.push(Number(input.sortOrder));
+    params.push(validateAgendaSortOrder(input.sortOrder));
     fields.push(`sort_order = $${params.length}`);
   }
   if (!fields.length) throw new ClassificationValidationError("At least one agenda field is required");
@@ -161,10 +261,25 @@ export async function updateResearchAgenda(
     UPDATE research_agenda
     SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP
     WHERE id = $${params.length} AND is_official = TRUE
-    RETURNING id, code, name, is_active, sort_order
+    RETURNING id, name, is_active, sort_order
   `, params);
   if (!result.rows[0]) throw new ClassificationValidationError("Official research agenda not found");
   return toTerm(result.rows[0] as Record<string, unknown>);
+}
+
+export async function reorderResearchAgendas(agendaIds: unknown[]): Promise<void> {
+  const ids = uniquePositiveIds(agendaIds, "agendaIds");
+  if (!ids.length) throw new ClassificationValidationError("At least one agenda is required", { agendaIds: "Provide the complete agenda order" });
+  await withTransaction(async (connection) => {
+    const existing = await connection.queryObject<{ id: number }>("SELECT id FROM research_agenda WHERE is_official = TRUE ORDER BY sort_order ASC, id ASC FOR UPDATE");
+    const existingIds = existing.rows.map((row) => Number(row.id));
+    if (ids.length !== existingIds.length || ids.some((id) => !existingIds.includes(id))) {
+      throw new ClassificationValidationError("The agenda order is out of date", { agendaIds: "Refresh the list and try again" });
+    }
+    for (const [index, id] of ids.entries()) {
+      await connection.queryArray("UPDATE research_agenda SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND is_official = TRUE", [index + 1, id]);
+    }
+  });
 }
 
 export async function searchTopics(query: string, includePending = false): Promise<ClassificationTerm[]> {
@@ -203,6 +318,96 @@ export async function searchKeywords(query: string): Promise<ClassificationTerm[
     LIMIT 20
   `, [`%${normalized}%`]);
   return (result.rows as Record<string, unknown>[]).map((row) => toTerm(row, "term"));
+}
+
+export async function listAdminKeywords(query = ""): Promise<AdminKeyword[]> {
+  const normalized = normalizeClassificationTerm(query);
+  const result = await client.queryObject(`
+    SELECT k.id, k.term, COUNT(dk.document_id) AS document_count
+    FROM keywords k
+    LEFT JOIN document_keywords dk ON dk.keyword_id = k.id
+    WHERE ($1 = '' OR k.normalized_term LIKE $2)
+    GROUP BY k.id, k.term
+    ORDER BY COUNT(dk.document_id) DESC, k.term ASC
+  `, [normalized, `%${normalized}%`]);
+  return (result.rows as Record<string, unknown>[]).map((row) => ({
+    id: Number(row.id),
+    term: String(row.term),
+    documentCount: Number(row.document_count ?? 0),
+  }));
+}
+
+export async function updateKeyword(keywordId: number, value: unknown): Promise<AdminKeyword> {
+  if (!Number.isInteger(keywordId) || keywordId <= 0) {
+    throw new ClassificationValidationError("Keyword not found", { keywordId: "Keyword not found" });
+  }
+  if (typeof value !== "string") {
+    throw new ClassificationValidationError("Keyword must be text", { term: "Enter a keyword" });
+  }
+
+  const term = value.trim().replace(/[\s]+/gu, " ");
+  if (term.length < 2 || term.length > CLASSIFICATION_LIMITS.keywordMaxLength) {
+    throw new ClassificationValidationError("Keywords must be between 2 and 80 characters", {
+      term: "Use between 2 and 80 characters",
+    });
+  }
+  const normalized = normalizeClassificationTerm(term);
+
+  return await withTransaction(async (connection) => {
+    await connection.queryArray(`SELECT pg_advisory_xact_lock(843719922)`);
+    const current = await connection.queryObject<{ id: number; term: string }>(`
+      SELECT id, term FROM keywords WHERE id = $1 FOR UPDATE
+    `, [keywordId]);
+    if (!current.rows[0]) {
+      throw new ClassificationValidationError("Keyword not found", { keywordId: "Keyword not found" });
+    }
+
+    const duplicate = await connection.queryObject<{ id: number }>(`
+      SELECT id FROM keywords WHERE normalized_term = $1 AND id <> $2 LIMIT 1
+    `, [normalized, keywordId]);
+    if (duplicate.rows[0]) {
+      throw new ClassificationValidationError("A keyword with this name already exists", {
+        term: "Use a unique keyword",
+      });
+    }
+
+    const overlap = await connection.queryObject<{ document_id: number }>(`
+      SELECT dk.document_id
+      FROM document_keywords dk
+      WHERE dk.keyword_id = $2
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM document_research_agenda dra
+            JOIN research_agenda ra ON ra.id = dra.research_agenda_id
+            WHERE dra.document_id = dk.document_id AND ra.normalized_name = $1
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM document_topics dt
+            JOIN topics t ON t.id = dt.topic_id
+            WHERE dt.document_id = dk.document_id AND t.normalized_name = $1
+          )
+        )
+      LIMIT 1
+    `, [normalized, keywordId]);
+    if (overlap.rows[0]) {
+      throw new ClassificationValidationError("This rename conflicts with another classification on a linked document", {
+        term: "Choose a term that is not already used as an agenda or topic on linked documents",
+      });
+    }
+
+    const updated = await connection.queryObject<{ id: number; term: string; document_count: number | bigint }>(`
+      UPDATE keywords
+      SET term = $2, normalized_term = $3
+      WHERE id = $1
+      RETURNING id, term,
+        (SELECT COUNT(*) FROM document_keywords WHERE keyword_id = $1) AS document_count
+    `, [keywordId, term, normalized]);
+    const row = updated.rows[0];
+    if (!row) throw new ClassificationValidationError("Keyword not found", { keywordId: "Keyword not found" });
+    return { id: Number(row.id), term: row.term, documentCount: Number(row.document_count ?? 0) };
+  });
 }
 
 export async function createTopic(
@@ -403,11 +608,11 @@ export async function getDocumentClassifications(
     const researchAgendas = agendaById.get(id) ?? [];
     const topics = topicById.get(id) ?? [];
     const keywords = keywordById.get(id) ?? [];
-    const hasActiveAgenda = researchAgendas.some((term) => term.is_active !== false);
+    const hasOfficialAgenda = researchAgendas.length > 0;
     const complete = source === "aggregated_children"
-      ? Boolean(scopePairs.some(([requestedId]) => requestedId === id)) && hasActiveAgenda && topics.length > 0 && topics.every((term) => term.status === "approved")
+      ? Boolean(scopePairs.some(([requestedId]) => requestedId === id)) && hasOfficialAgenda && topics.length > 0 && topics.every((term) => term.status === "approved")
       : researchAgendas.length >= CLASSIFICATION_LIMITS.agendasMin && researchAgendas.length <= CLASSIFICATION_LIMITS.agendasMax
-        && hasActiveAgenda
+        && hasOfficialAgenda
         && topics.length >= CLASSIFICATION_LIMITS.topicsMin && topics.length <= CLASSIFICATION_LIMITS.topicsMax
         && topics.every((term) => term.status === "approved");
     result.set(id, { researchAgendas, topics, keywords, complete, source });
@@ -457,11 +662,11 @@ export async function getDocumentClassification(
   const agendaTerms = (agendas.rows as Record<string, unknown>[]).map((row) => toTerm(row));
   const topicTerms = (topics.rows as Record<string, unknown>[]).map((row) => toTerm(row));
   const keywordTerms = (keywords.rows as Record<string, unknown>[]).map((row) => toTerm(row, "term"));
-  const hasActiveAgenda = agendaTerms.some((term) => term.is_active !== false);
+  const hasOfficialAgenda = agendaTerms.length > 0;
   const complete = scope.source === "aggregated_children"
-    ? ids.length > 0 && hasActiveAgenda && topicTerms.length > 0 && topicTerms.every((term) => term.status === "approved")
+    ? ids.length > 0 && hasOfficialAgenda && topicTerms.length > 0 && topicTerms.every((term) => term.status === "approved")
     : agendaTerms.length >= CLASSIFICATION_LIMITS.agendasMin && agendaTerms.length <= CLASSIFICATION_LIMITS.agendasMax
-      && hasActiveAgenda
+      && hasOfficialAgenda
       && topicTerms.length >= CLASSIFICATION_LIMITS.topicsMin && topicTerms.length <= CLASSIFICATION_LIMITS.topicsMax
       && topicTerms.every((term) => term.status === "approved");
 
@@ -495,9 +700,6 @@ export async function replaceDocumentClassification(
   if (topicIds.length > CLASSIFICATION_LIMITS.topicsMax) {
     throw new ClassificationValidationError("A document can have at most five topics", { topicIds: "Select no more than five topics" });
   }
-  if (keywordTerms.length > CLASSIFICATION_LIMITS.keywordsMax) {
-    throw new ClassificationValidationError("A document can have at most ten keywords", { keywords: "Use no more than ten keywords" });
-  }
   if (agendaIds.length && !agendaIds.includes(primaryAgendaId)) {
     throw new ClassificationValidationError("The primary agenda must be selected", { primaryResearchAgendaId: "Choose one of the selected agendas" });
   }
@@ -508,10 +710,22 @@ export async function replaceDocumentClassification(
     });
   }
 
+  const previous = await getDocumentClassification(documentId, true).catch(() => ({
+    researchAgendas: [],
+    topics: [],
+    keywords: [],
+    complete: false,
+    source: "document" as const,
+  }));
+  const previousAgendaIds = new Set(previous.researchAgendas.map((term) => term.id));
+
   const agendaRows = agendaIds.length
-    ? await client.queryObject(`SELECT id, code, name, normalized_name FROM research_agenda WHERE id IN (${placeholders(agendaIds)}) AND is_official = TRUE AND is_active = TRUE`, agendaIds)
+    ? await client.queryObject(`SELECT id, code, name, normalized_name, is_active FROM research_agenda WHERE id IN (${placeholders(agendaIds)}) AND is_official = TRUE`, agendaIds)
     : { rows: [] } as any;
   if (agendaRows.rows.length !== agendaIds.length) {
+    throw new ClassificationValidationError("One or more research agendas are unavailable", { researchAgendaIds: "Choose active official research agendas" });
+  }
+  if ((agendaRows.rows as Record<string, unknown>[]).some((row) => row.is_active === false && !previousAgendaIds.has(Number(row.id)))) {
     throw new ClassificationValidationError("One or more research agendas are unavailable", { researchAgendaIds: "Choose active official research agendas" });
   }
 
@@ -523,7 +737,7 @@ export async function replaceDocumentClassification(
   }
   const invalidTopics = (topicRows.rows as Record<string, unknown>[]).some((row) => row.status !== "approved" && !(allowPendingTopics && row.status === "pending"));
   if (invalidTopics) {
-    throw new ClassificationValidationError("Every selected topic must be approved", { topicIds: "Remove pending or retired topics before publication" });
+    throw new ClassificationValidationError("Choose approved topics before publication", { topicIds: "Remove pending or retired topics before publication" });
   }
 
   const normalizedSet = new Set<string>();
@@ -538,14 +752,6 @@ export async function replaceDocumentClassification(
     if (normalizedSet.has(normalized)) throw new ClassificationValidationError("A term cannot overlap an agenda or topic on the same document", { keywords: "Use keywords distinct from the selected agendas and topics" });
     normalizedSet.add(normalized);
   }
-
-  const previous = await getDocumentClassification(documentId, true).catch(() => ({
-    researchAgendas: [],
-    topics: [],
-    keywords: [],
-    complete: false,
-    source: "document" as const,
-  }));
 
   await withTransaction(async (connection) => {
     const document = await connection.queryObject(`SELECT id FROM documents WHERE id = $1 AND deleted_at IS NULL`, [documentId]);

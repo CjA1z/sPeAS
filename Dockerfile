@@ -19,7 +19,7 @@ FROM denoland/deno:2.7.13
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends poppler-utils webp \
+  && apt-get install -y --no-install-recommends poppler-utils webp ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 COPY . .
@@ -43,4 +43,4 @@ WORKDIR /app/Deno
 
 EXPOSE 8000
 
-CMD ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "--allow-run=pdftoppm,pdfinfo,cwebp", "server.ts"]
+CMD ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "--allow-run=pdftoppm,pdfinfo,cwebp,ffmpeg,ffprobe,clamdscan", "server.ts"]

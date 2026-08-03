@@ -6,17 +6,23 @@ import {
   createResearchAgenda,
   createTopic,
   getDocumentClassification,
+  listAdminResearchAgendas,
+  listAdminKeywords,
+  listPublicResearchAgendas,
   listResearchAgendas,
   listTopics,
   mergeTopics,
   normalizeClassificationTerm,
+  reorderResearchAgendas,
   replaceDocumentClassification,
   reviewTopic,
   searchKeywords,
   searchTopics,
+  updateKeyword,
   updateResearchAgenda,
 } from "../services/documentClassificationService.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
+import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { client, withTransaction } from "../db/denopost_conn.ts";
 
 const router = new Router();
@@ -40,7 +46,8 @@ router.get("/api/research-agendas", async (ctx) => {
   try {
     const session = await getSessionFromHeaders(ctx.request.headers);
     const includeInactive = ctx.request.url.searchParams.get("include_inactive") === "true" && session?.role === "admin";
-    ctx.response.body = await listResearchAgendas(includeInactive);
+    const includeHistorical = ctx.request.url.searchParams.get("include_historical") === "true";
+    ctx.response.body = includeInactive ? await listResearchAgendas(true) : await listPublicResearchAgendas(includeHistorical);
   } catch (error) {
     validationResponse(ctx, error);
   }
@@ -49,8 +56,44 @@ router.get("/api/research-agendas", async (ctx) => {
 router.post("/api/admin/research-agendas", isAuthenticated, isAdmin, async (ctx) => {
   try {
     const body = await ctx.request.body({ type: "json" }).value;
+    const agenda = await createResearchAgenda(body ?? {});
+    void SystemLogsModel.createLog({
+      log_type: "classification_management",
+      user_id: String(ctx.state.user.id),
+      username: String(ctx.state.user.id),
+      action: "research_agenda_created",
+      related_id: String(agenda.id),
+      details: { after: agenda },
+    }).catch(() => undefined);
     ctx.response.status = 201;
-    ctx.response.body = await createResearchAgenda(body ?? {});
+    ctx.response.body = agenda;
+  } catch (error) {
+    validationResponse(ctx, error);
+  }
+});
+
+router.get("/api/admin/research-agendas", isAuthenticated, isAdmin, async (ctx) => {
+  try {
+    ctx.response.body = await listAdminResearchAgendas();
+  } catch (error) {
+    validationResponse(ctx, error);
+  }
+});
+
+router.put("/api/admin/research-agendas/order", isAuthenticated, isAdmin, async (ctx) => {
+  try {
+    const body = await ctx.request.body({ type: "json" }).value;
+    const before = await listAdminResearchAgendas();
+    await reorderResearchAgendas(body?.agendaIds);
+    const after = await listAdminResearchAgendas();
+    void SystemLogsModel.createLog({
+      log_type: "classification_management",
+      user_id: String(ctx.state.user.id),
+      username: String(ctx.state.user.id),
+      action: "research_agendas_reordered",
+      details: { before: before.map((item) => item.id), after: after.map((item) => item.id) },
+    }).catch(() => undefined);
+    ctx.response.body = after;
   } catch (error) {
     validationResponse(ctx, error);
   }
@@ -59,7 +102,21 @@ router.post("/api/admin/research-agendas", isAuthenticated, isAdmin, async (ctx)
 router.put("/api/admin/research-agendas/:id", isAuthenticated, isAdmin, async (ctx) => {
   try {
     const body = await ctx.request.body({ type: "json" }).value;
-    ctx.response.body = await updateResearchAgenda(Number(ctx.params.id), body ?? {});
+    const id = Number(ctx.params.id);
+    const before = (await listAdminResearchAgendas()).find((item) => item.id === id);
+    if (!before) throw new ClassificationValidationError("Official research agenda not found");
+    const agenda = await updateResearchAgenda(id, body ?? {});
+    const after = (await listAdminResearchAgendas()).find((item) => item.id === id) ?? agenda;
+    const action = body?.isActive === false ? "research_agenda_retired" : body?.isActive === true ? "research_agenda_reactivated" : "research_agenda_updated";
+    void SystemLogsModel.createLog({
+      log_type: "classification_management",
+      user_id: String(ctx.state.user.id),
+      username: String(ctx.state.user.id),
+      action,
+      related_id: String(id),
+      details: { before, after },
+    }).catch(() => undefined);
+    ctx.response.body = after;
   } catch (error) {
     validationResponse(ctx, error);
   }
@@ -68,7 +125,10 @@ router.put("/api/admin/research-agendas/:id", isAuthenticated, isAdmin, async (c
 router.get("/api/topics", async (ctx) => {
   try {
     const session = await getSessionFromHeaders(ctx.request.headers);
-    ctx.response.body = await searchTopics(ctx.request.url.searchParams.get("q") ?? "", session?.role === "admin");
+    // Upload search results must match what the current user can submit.  A
+    // publisher may include a pending proposal in a submission for review;
+    // administrators publish immediately and must choose approved topics.
+    ctx.response.body = await searchTopics(ctx.request.url.searchParams.get("q") ?? "", session?.role === "publisher");
   } catch (error) {
     validationResponse(ctx, error);
   }
@@ -84,13 +144,42 @@ router.get("/api/admin/topics", isAuthenticated, isAdmin, async (ctx) => {
   }
 });
 
+router.get("/api/admin/keywords", isAuthenticated, isAdmin, async (ctx) => {
+  try {
+    ctx.response.body = await listAdminKeywords(ctx.request.url.searchParams.get("q") ?? "");
+  } catch (error) {
+    validationResponse(ctx, error);
+  }
+});
+
+router.put("/api/admin/keywords/:id", isAuthenticated, isAdmin, async (ctx) => {
+  try {
+    const id = Number(ctx.params.id);
+    const before = (await listAdminKeywords()).find((item) => item.id === id);
+    if (!before) throw new ClassificationValidationError("Keyword not found", { keywordId: "Keyword not found" });
+    const body = await ctx.request.body({ type: "json" }).value;
+    const after = await updateKeyword(id, body?.term);
+    void SystemLogsModel.createLog({
+      log_type: "classification_management",
+      user_id: String(ctx.state.user.id),
+      username: String(ctx.state.user.id),
+      action: "keyword_updated",
+      related_id: String(id),
+      details: { before, after },
+    }).catch(() => undefined);
+    ctx.response.body = after;
+  } catch (error) {
+    validationResponse(ctx, error);
+  }
+});
+
 router.get("/api/admin/classification/summary", isAuthenticated, isAdmin, async (ctx) => {
   try {
     const result = await client.queryObject<{ missing_documents: number | bigint; pending_migration: number | bigint }>(`
       SELECT
         (SELECT COUNT(*) FROM documents d
          WHERE d.deleted_at IS NULL AND d.review_status = 'approved' AND d.is_public IS TRUE
-           AND (NOT EXISTS (SELECT 1 FROM document_research_agenda dra JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE dra.document_id = d.id AND ra.is_official = TRUE AND ra.is_active = TRUE)
+           AND (NOT EXISTS (SELECT 1 FROM document_research_agenda dra JOIN research_agenda ra ON ra.id = dra.research_agenda_id WHERE dra.document_id = d.id AND ra.is_official = TRUE)
              OR NOT EXISTS (SELECT 1 FROM document_topics dt JOIN topics t ON t.id = dt.topic_id WHERE dt.document_id = d.id AND t.status = 'approved'))) AS missing_documents,
         (SELECT COUNT(*) FROM classification_migration_review WHERE status = 'pending') AS pending_migration
     `);

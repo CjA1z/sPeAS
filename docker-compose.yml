@@ -9,6 +9,7 @@ services:
         condition: service_healthy
     environment:
       PORT: "8000"
+      DENO_ENV: ${DENO_ENV:-development}
       PGHOST: db
       PGPORT: "5432"
       PGUSER: postgres
@@ -18,6 +19,7 @@ services:
       PEAS_RELEASE_ID: ${PEAS_RELEASE_ID:-development}
       DOCUMENT_ACCESS_TOKEN_TTL_HOURS: ${DOCUMENT_ACCESS_TOKEN_TTL_HOURS:-168}
       STORAGE_ROOT: /app/storage
+      NEWS_MEDIA_WORKER_ENABLED: "false"
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
@@ -48,6 +50,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  media-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peas-media-worker
+    command: ["deno", "task", "media-worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: ${PGPASSWORD:-peas_dev_password}
+      PGDATABASE: peas_db
+      STORAGE_ROOT: /app/storage
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+    volumes:
+      - peas-storage:/app/storage
+    restart: unless-stopped
 
   db:
     image: postgres:17-alpine

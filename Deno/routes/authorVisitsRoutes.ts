@@ -7,51 +7,16 @@ import { analyticsRateLimit } from "../middleware/rateLimit.ts";
 const router = new Router();
 
 /**
- * Record a visit to an author profile
- * POST /api/author-visits
- * Body: { authorId: string, visitorType: "guest" | "user", userId?: string }
+ * Compatibility endpoint for the retired client-side author tracker.
+ * POST /api/author-visits now returns 204 and never writes statistics.
  */
-async function recordAuthorVisit(ctx: RouterContext<string>) {
-  try {
-    // Get request body
-    const body = await ctx.request.body({ type: "json" }).value;
-    
-    // Validate required fields
-    if (!body.authorId) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Author ID is required" };
-      return;
-    }
-    
-    // Default to guest if visitorType is not provided
-    const visitorType = body.visitorType === 'user' ? 'user' : 'guest';
-    
-    // Get client IP address
-    const ipAddress = ctx.request.ip;
-    
-    // Record the visit
-    const visit = await AuthorVisitsModel.recordVisit(
-      body.authorId,
-      visitorType,
-      body.userId,
-      ipAddress
-    );
-    
-    if (visit) {
-      ctx.response.status = 201;
-      ctx.response.body = { 
-        success: true, 
-        message: "Visit recorded successfully",
-        data: visit
-      };
-    } else {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "Failed to record visit. Author may not exist." };
-    }
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
+export async function recordAuthorVisit(ctx: RouterContext<string>) {
+  // Compatibility only: author activity is now recorded after the canonical
+  // public profile response. Never trust browser classifications or write
+  // legacy/v2 counters from this client-callable endpoint.
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
+  ctx.response.status = 204;
 }
 
 /**

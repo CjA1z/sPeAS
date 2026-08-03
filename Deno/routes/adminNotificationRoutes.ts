@@ -1,18 +1,25 @@
 import { Router } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { isAdmin, isAuthenticated } from "../middleware/authMiddleware.ts";
 import {
-  ensureIncompleteAuthorNotifications,
+  clearAdminNotifications,
   getAdminNotificationSummary,
   listAdminNotifications,
   markAdminNotificationRead,
+  syncAdminActionNotifications,
 } from "../services/authorNotificationService.ts";
 
 const router = new Router();
 
 router.get("/api/admin/notifications", isAuthenticated, isAdmin, async (ctx) => {
-  await ensureIncompleteAuthorNotifications();
+  await syncAdminActionNotifications();
   ctx.response.status = 200;
   ctx.response.body = { notifications: await listAdminNotifications(), summary: await getAdminNotificationSummary() };
+});
+
+router.delete("/api/admin/notifications", isAuthenticated, isAdmin, async (ctx) => {
+  const cleared = await clearAdminNotifications();
+  ctx.response.status = 200;
+  ctx.response.body = { status: "cleared", cleared };
 });
 
 router.patch("/api/admin/notifications/:id/read", isAuthenticated, isAdmin, async (ctx) => {

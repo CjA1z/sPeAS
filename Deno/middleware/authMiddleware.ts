@@ -10,6 +10,8 @@ export const CAPABILITIES = [
     "documents:upload",
     "documents:review",
     "roles:manage",
+    "reports:view",
+    "reports:export",
     "system:admin",
 ] as const;
 export type Capability = typeof CAPABILITIES[number];
@@ -30,22 +32,26 @@ export function hasCapability(role: unknown, capability: Capability): boolean {
 }
 
 export async function isAuthenticated(ctx: Context, next: Next) {
+    let session;
     try {
-        const session = await getSessionFromHeaders(ctx.request.headers);
-
-        if (!session) {
-            ctx.response.status = 401;
-            ctx.response.body = { error: "Unauthorized" };
-            return;
-        }
-
-        ctx.state.user = { id: session.id, role: normalizeAppRole(session.role) };
-        await next();
+        session = await getSessionFromHeaders(ctx.request.headers);
     } catch (error) {
-        console.error("isAuthenticated: unexpected error:", error);
+        console.error("isAuthenticated: session lookup failed:", error);
         ctx.response.status = 401;
         ctx.response.body = { error: "Unauthorized" };
+        return;
     }
+
+    if (!session) {
+        ctx.response.status = 401;
+        ctx.response.body = { error: "Unauthorized" };
+        return;
+    }
+
+    ctx.state.user = { id: session.id, role: normalizeAppRole(session.role) };
+    // Run downstream middleware outside the authentication error boundary so
+    // application and database failures retain their real status/error path.
+    await next();
 }
 
 export function requireCapability(capability: Capability) {

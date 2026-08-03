@@ -15,8 +15,11 @@ export interface UserLibraryItem {
   child_count: number;
   publication_date: Date | string | null;
   saved_at: Date | string;
+  read_at: Date | string | null;
   availability: "available" | "unavailable" | "deleted";
   review_status: string | null;
+  annotation_count: number;
+  needs_review_count: number;
 }
 
 export interface UserLibraryFilters {
@@ -173,6 +176,9 @@ export class UserLibraryModel {
          library.child_count,
          library.publication_date,
          library.saved_at,
+         library.read_at,
+         library.annotation_count,
+         library.needs_review_count,
          library.availability,
          library.review_status
        FROM library
@@ -190,6 +196,8 @@ export class UserLibraryModel {
         compiled_document_id: row.compiled_document_id == null ? null : Number(row.compiled_document_id),
         child_count: Number(row.child_count ?? 0),
         author_names: Array.isArray(row.author_names) ? row.author_names.map(String) : [],
+        annotation_count: Number(row.annotation_count ?? 0),
+        needs_review_count: Number(row.needs_review_count ?? 0),
       })),
       totalCount,
     };
@@ -250,6 +258,15 @@ function libraryCte() {
       0::BIGINT AS child_count,
       d.publication_date,
       sd.saved_at,
+      rd.read_at,
+      COALESCE((SELECT COUNT(*) FROM user_document_annotations uda
+        WHERE uda.user_id = sd.user_id AND uda.document_id = d.id AND uda.deleted_at IS NULL
+          AND uda.source_id = (SELECT id FROM document_annotation_sources
+            WHERE document_id = d.id AND is_current IS TRUE LIMIT 1)), 0)::BIGINT AS annotation_count,
+      COALESCE((SELECT COUNT(*) FROM user_document_annotations uda
+        WHERE uda.user_id = sd.user_id AND uda.document_id = d.id AND uda.deleted_at IS NULL
+          AND uda.source_id <> COALESCE((SELECT id FROM document_annotation_sources
+            WHERE document_id = d.id AND is_current IS TRUE LIMIT 1), '00000000-0000-0000-0000-000000000000'::UUID)), 0)::BIGINT AS needs_review_count,
       CASE
         WHEN d.id IS NULL THEN 'deleted'
         WHEN d.deleted_at IS NOT NULL OR d.review_status <> 'approved' THEN 'unavailable'
@@ -258,6 +275,8 @@ function libraryCte() {
       d.review_status
     FROM user_saved_documents sd
     LEFT JOIN documents d ON d.id = sd.document_id
+    LEFT JOIN user_read_documents rd
+      ON rd.user_id = sd.user_id AND rd.document_id = sd.document_id
 
     UNION ALL
 
@@ -283,6 +302,9 @@ function libraryCte() {
       COALESCE((SELECT COUNT(*) FROM compiled_document_items cdi WHERE cdi.compiled_document_id = cd.id), 0)::BIGINT AS child_count,
       make_date(cd.end_year, 12, 31) AS publication_date,
       scd.saved_at,
+      rcd.read_at,
+      0::BIGINT AS annotation_count,
+      0::BIGINT AS needs_review_count,
       CASE
         WHEN cd.id IS NULL THEN 'deleted'
         WHEN cd.deleted_at IS NOT NULL OR cd.review_status <> 'approved' THEN 'unavailable'
@@ -291,6 +313,8 @@ function libraryCte() {
       cd.review_status
     FROM user_saved_compiled_documents scd
     LEFT JOIN compiled_documents cd ON cd.id = scd.compiled_document_id
+    LEFT JOIN user_read_compiled_documents rcd
+      ON rcd.user_id = scd.user_id AND rcd.compiled_document_id = scd.compiled_document_id
   )`;
 }
 

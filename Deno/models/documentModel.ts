@@ -25,6 +25,8 @@ export interface Document {
   category_id?: number;
   department_id?: number;
   file_path: string;
+  /** Server-derived SHA-256 of the current PDF bytes, when calculated. */
+  content_sha256?: string;
   pages?: number;
   volume?: string;
   issue?: string;

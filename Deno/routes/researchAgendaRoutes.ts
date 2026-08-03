@@ -6,7 +6,7 @@ import {
 import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authMiddleware.ts";
 import { canModifyPendingUpload, canViewDocument } from "../services/contentAuthorizationService.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
-import { getDocumentClassification, listResearchAgendas, normalizeClassificationTerm, replaceDocumentClassification, replaceDocumentKeywords } from "../services/documentClassificationService.ts";
+import { getDocumentClassification, listPublicResearchAgendas, normalizeClassificationTerm, replaceDocumentClassification, replaceDocumentKeywords } from "../services/documentClassificationService.ts";
 
 // Create a router for research agenda routes
 const router = new Router();
@@ -115,7 +115,7 @@ const createResearchAgendaItems = async (ctx: any) => {
 const searchResearchAgendaItems = async (ctx: any) => {
     const query = ctx.request.url.searchParams.get("q") || "";
     const normalized = normalizeClassificationTerm(query);
-    const agendas = await listResearchAgendas(false);
+    const agendas = await listPublicResearchAgendas(false);
     ctx.response.status = 200;
     ctx.response.headers.set("Deprecation", "true");
     ctx.response.headers.set("Sunset", "2026-12-31");

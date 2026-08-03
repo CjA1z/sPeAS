@@ -1,278 +1,305 @@
-import { client } from "../db/denopost_conn.ts";
+import { getDashboardReport, getOperationalReport, isReportRange, type OperationalReport, type ReportRange } from "../services/operationalReportingService.ts";
+import { PDFDocument, rgb } from "npm:pdf-lib@1.17.1";
+import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 
-interface DocumentStatistics {
-  active_documents: number;
-  archived_documents: number;
-  total_documents: number;
-  catalog_entries: number;
-  archived_catalog_entries: number;
-  total_catalog_entries: number;
-  stored_documents: number;
-  author_records: number;
-  document_types: Array<{document_type: string; count: number}>;
-  time_range: string;
-  metric_definitions: Record<string, string>;
+function requestedRange(ctx: any): ReportRange | null {
+  const value = ctx.request.url.searchParams.get("range") || ctx.request.url.searchParams.get("timeRange") || "30d";
+  return isReportRange(value) ? value : null;
 }
 
-const METRIC_DEFINITIONS = {
-  catalog_entries: "Active top-level repository entries. A compilation counts once and its child studies are excluded.",
-  stored_documents: "Active document records stored by PeAS. Child studies inside compilations are included.",
-  archived_catalog_entries: "Archived top-level repository entries. A compilation counts once.",
-  archived_documents: "Archived document records. Compilation parent records are not stored in the documents table.",
-  author_records: "All author directory records, including authors that are not yet linked to a published work.",
-} as const;
+const DASHBOARD_RANGES = new Set<ReportRange>(["30d", "90d", "1y"]);
 
-/**
- * Canonical operational metrics shared by Dashboard and Reports.
- * Catalog entries count top-level records; stored documents count rows in the
- * document store and therefore include studies contained by compilations.
- */
-export async function getCanonicalRepositoryMetrics(timeRange = "all"): Promise<DocumentStatistics> {
-  const startDate = getRangeStart(timeRange);
-  const params = startDate ? [startDate.toISOString()] : [];
-  const dateFilter = startDate ? "(created_at >= $1 OR updated_at >= $1)" : "TRUE";
+function reportError(ctx: any, error: unknown) {
+  const code = error instanceof Error && error.message.startsWith("REPORTING_COUNT_OVERFLOW")
+    ? "REPORTING_COUNT_OVERFLOW"
+    : error instanceof Error && error.message === "REPORTING_SCHEMA_UNAVAILABLE"
+      ? "REPORTING_SCHEMA_UNAVAILABLE"
+      : error instanceof Error && error.message === "REPORTING_NOT_READY"
+        ? "REPORTING_NOT_READY"
+      : "REPORTING_UNAVAILABLE";
+  // Keep database details out of logs as well as responses. The code is enough
+  // for alerting/correlation; SQL text and driver messages can contain schema
+  // details or values that do not belong in operational telemetry.
+  console.error("Operational report failed", { code });
+  ctx.response.status = 503;
+  ctx.response.headers.set("Cache-Control", "private, no-store");
+  ctx.response.body = { error: code, message: "Operational reporting is temporarily unavailable." };
+}
 
-  const [documentCounts, compilationCounts, authorCounts, documentTypes] = await Promise.all([
-    client.queryObject(`
-      SELECT
-        COUNT(*) FILTER (WHERE deleted_at IS NULL)::BIGINT AS active_documents,
-        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)::BIGINT AS archived_documents,
-        COUNT(*) FILTER (WHERE deleted_at IS NULL AND compiled_parent_id IS NULL)::BIGINT AS active_single_entries,
-        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND compiled_parent_id IS NULL)::BIGINT AS archived_single_entries
-      FROM documents
-      WHERE ${dateFilter}
-    `, params),
-    client.queryObject(`
-      SELECT
-        COUNT(*) FILTER (WHERE deleted_at IS NULL)::BIGINT AS active_compilations,
-        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)::BIGINT AS archived_compilations
-      FROM compiled_documents
-      WHERE ${dateFilter}
-    `, params),
-    client.queryObject("SELECT COUNT(*)::BIGINT AS author_records FROM authors"),
-    client.queryObject(`
-      SELECT document_type, COUNT(*)::BIGINT AS count
-      FROM (
-        SELECT d.document_type::TEXT AS document_type
-        FROM documents d
-        WHERE d.deleted_at IS NULL
-          AND d.compiled_parent_id IS NULL
-          AND ${startDate ? "(d.created_at >= $1 OR d.updated_at >= $1)" : "TRUE"}
-        UNION ALL
-        SELECT COALESCE(cd.category, 'CONFLUENCE')::TEXT AS document_type
-        FROM compiled_documents cd
-        WHERE cd.deleted_at IS NULL
-          AND ${startDate ? "(cd.created_at >= $1 OR cd.updated_at >= $1)" : "TRUE"}
-      ) entries
-      GROUP BY document_type
-      ORDER BY document_type
-    `, params),
-  ]);
+function markPrivateReportResponse(ctx: any): void {
+  ctx.response.headers.set("Cache-Control", "private, no-store");
+}
 
-  const documentRow = (documentCounts.rows[0] ?? {}) as Record<string, unknown>;
-  const compilationRow = (compilationCounts.rows[0] ?? {}) as Record<string, unknown>;
-  const authorRow = (authorCounts.rows[0] ?? {}) as Record<string, unknown>;
-  const activeDocuments = Number(documentRow.active_documents ?? 0);
-  const archivedDocuments = Number(documentRow.archived_documents ?? 0);
-  const catalogEntries = Number(documentRow.active_single_entries ?? 0) + Number(compilationRow.active_compilations ?? 0);
-  const archivedCatalogEntries = Number(documentRow.archived_single_entries ?? 0) + Number(compilationRow.archived_compilations ?? 0);
+export async function getAdminDashboard(ctx: any) {
+  markPrivateReportResponse(ctx);
+  const range = requestedRange(ctx);
+  if (!range || !DASHBOARD_RANGES.has(range)) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_REPORT_RANGE" };
+    return;
+  }
+  try {
+    ctx.response.status = 200;
+    ctx.response.body = await getDashboardReport(range);
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
 
-  return {
-    active_documents: activeDocuments,
-    archived_documents: archivedDocuments,
-    total_documents: activeDocuments + archivedDocuments,
-    catalog_entries: catalogEntries,
-    archived_catalog_entries: archivedCatalogEntries,
-    total_catalog_entries: catalogEntries + archivedCatalogEntries,
-    stored_documents: activeDocuments,
-    author_records: Number(authorRow.author_records ?? 0),
-    document_types: documentTypes.rows.map((row) => ({
-      document_type: String((row as Record<string, unknown>).document_type ?? "unknown"),
-      count: Number((row as Record<string, unknown>).count ?? 0),
-    })),
-    time_range: startDate ? timeRange : "all",
-    metric_definitions: { ...METRIC_DEFINITIONS },
+export async function getAdminOperationalReport(ctx: any) {
+  markPrivateReportResponse(ctx);
+  const range = requestedRange(ctx);
+  if (!range) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_REPORT_RANGE" };
+    return;
+  }
+  try {
+    ctx.response.status = 200;
+    ctx.response.body = await getOperationalReport(range);
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
+
+/** Compatibility shape for older administrator clients during migration. */
+export async function getLegacyStatistics(ctx: any) {
+  markPrivateReportResponse(ctx);
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
+  const requested = ctx.request.url.searchParams.get("timeRange") || "all";
+  const range: ReportRange = requested === "daily" ? "24h" : requested === "weekly" ? "7d" : requested === "monthly" ? "30d" : requested === "yearly" ? "1y" : isReportRange(requested) ? requested : "all";
+  try {
+    const report = await getOperationalReport(range);
+    ctx.response.status = 200;
+    ctx.response.body = {
+      active_documents: report.inventory.storedDocuments,
+      archived_documents: report.inventory.archivedDocuments,
+      total_documents: report.inventory.storedDocuments + report.inventory.archivedDocuments,
+      catalog_entries: report.inventory.catalogEntries,
+      archived_catalog_entries: report.inventory.archivedCatalogEntries,
+      total_catalog_entries: report.inventory.catalogEntries + report.inventory.archivedCatalogEntries,
+      stored_documents: report.inventory.storedDocuments,
+      author_records: report.inventory.authorRecords,
+      document_types: report.distributions.documentTypes.map((item) => ({ document_type: item.label, count: item.count })),
+      time_range: report.meta.range.key,
+      metric_definitions: report.metricDefinitions,
+    };
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
+
+export function csvCell(value: unknown): string {
+  let text = String(value ?? "");
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+export function reportRows(report: OperationalReport): string[][] {
+  const range = report.meta.range.label;
+  const generated = report.meta.generatedAt;
+  const rows: string[][] = [["Section", "Metric", "Label", "Value", "Range", "Generated At"]];
+  const add = (section: string, metric: string, label: string, value: unknown, scope = range) => rows.push([section, metric, label, String(value ?? 0), scope, generated]);
+
+  rows.push(["Metadata", "report_range", "Selected range", report.meta.range.label, range, generated]);
+  rows.push(["Metadata", "report_timezone", "Reporting timezone", report.meta.timezone, "Current configuration", generated]);
+  rows.push(["Metadata", "activity_coverage", "Activity coverage begins", report.meta.activityCoverageStartedAt ?? "No activity recorded", "Historical coverage", generated]);
+  for (const [key, label, coverage] of [
+    ["repository", "Repository", report.meta.coverage.repository],
+    ["home", "Home", report.meta.coverage.home],
+    ["authors", "Author", report.meta.coverage.authors],
+  ] as const) {
+    rows.push(["Metadata", `${key}_precision`, `${label} activity precision`, coverage.precision, range, generated]);
+    rows.push(["Metadata", `${key}_coverage_complete`, `${label} coverage complete`, String(coverage.isCompleteForSelectedRange), range, generated]);
+    if (coverage.warning) rows.push(["Metadata", `${key}_coverage_warning`, `${label} coverage warning`, coverage.warning, range, generated]);
+  }
+
+  add("Inventory", "catalog_entries", "Catalog entries", report.inventory.catalogEntries, "Current snapshot");
+  add("Inventory", "stored_documents", "Stored documents", report.inventory.storedDocuments, "Current snapshot");
+  add("Inventory", "archived_catalog_entries", "Archived catalog entries", report.inventory.archivedCatalogEntries, "Current snapshot");
+  add("Inventory", "archived_documents", "Archived documents", report.inventory.archivedDocuments, "Current snapshot");
+  add("Inventory", "author_records", "Author records", report.inventory.authorRecords, "Current snapshot");
+  add("Inventory", "published_authors", "Published authors", report.inventory.publishedAuthors, "Current snapshot");
+  add("Workflow", "pending_uploads", "Pending uploads", report.workflow.pendingUploads, "Current snapshot");
+  add("Workflow", "pending_access_requests", "Pending access requests", report.workflow.pendingAccessRequests, "Current snapshot");
+  add("Activity", "uploaded_entries", "Uploaded entries", report.activity.uploadedEntries);
+  add("Activity", "repository_views", "Repository views", report.activity.repositoryViews);
+  add("Activity", "repository_downloads", "Repository downloads", report.activity.repositoryDownloads);
+  add("Activity", "active_registered_users", "Active registered readers", report.activity.activeRegisteredUsers);
+  add("Activity", "home_visits", "Home visits", report.activity.homeVisits.total);
+  add("Activity", "home_guest_visits", "Guest home visits", report.activity.homeVisits.guest);
+  add("Activity", "home_registered_visits", "Registered-user home visits", report.activity.homeVisits.registered);
+  add("Activity", "registered_views", "Registered repository views", report.activity.registeredViews);
+  add("Activity", "guest_views", "Guest repository views", report.activity.guestViews);
+  add("Activity", "approved_request_downloads", "Approved-request downloads", report.activity.approvedRequestDownloads);
+  add("Registered-reader summary", "active_users", "Active registered readers", report.registeredReaderSummary.activeUsers);
+  add("Registered-reader summary", "views", "Registered-reader views", report.registeredReaderSummary.views);
+  add("Registered-reader summary", "downloads", "Registered-reader downloads", report.registeredReaderSummary.downloads);
+  add("Registered-reader summary", "average_interactions", "Average interactions per active reader", report.registeredReaderSummary.averageInteractionsPerActiveUser);
+  for (const item of report.series.uploads) add("Trend", "uploads", item.bucket, item.count);
+  for (const item of report.series.repositoryActivity) {
+    add("Trend", "repository_views", item.bucket, item.views);
+    add("Trend", "repository_downloads", item.bucket, item.downloads);
+  }
+  for (const item of report.series.homeVisits) {
+    add("Trend", "home_guest", item.bucket, item.guest);
+    add("Trend", "home_registered", item.bucket, item.registered);
+    add("Trend", "home_total", item.bucket, item.total);
+  }
+  for (const item of report.rankings.mostViewedEntries) add("Ranking", "most_viewed", item.title, item.views);
+  for (const item of report.rankings.mostDownloadedEntries) add("Ranking", "most_downloaded", item.title, item.downloads);
+  for (const item of report.rankings.mostVisitedAuthors) add("Ranking", "most_visited_authors", item.name, item.visits);
+  for (const item of report.rankings.trendingTopics) add("Ranking", "trending_topics", item.name, item.views);
+  for (const item of report.distributions.documentTypes) add("Distribution", "document_type", item.label, item.count, "Current snapshot");
+  for (const item of report.distributions.requestStatuses) add("Distribution", "request_status", item.status, item.count);
+  for (const [key, definition] of Object.entries(report.metricDefinitions)) add("Definition", key, key, definition, "Canonical definition");
+  return rows;
+}
+
+export function csvReport(report: OperationalReport): Uint8Array {
+  const content = "\uFEFF" + reportRows(report).map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  return new TextEncoder().encode(content);
+}
+
+export async function exportOperationalReport(ctx: any) {
+  markPrivateReportResponse(ctx);
+  const range = requestedRange(ctx);
+  const format = ctx.request.url.searchParams.get("format");
+  if (!range) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_REPORT_RANGE" };
+    return;
+  }
+  if (format !== "csv" && format !== "pdf") {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_REPORT_FORMAT" };
+    return;
+  }
+  try {
+    const report = await getOperationalReport(range);
+    if (format === "csv") {
+      ctx.response.headers.set("Content-Type", "text/csv; charset=utf-8");
+      ctx.response.headers.set("Content-Disposition", `attachment; filename="peas-operational-report-${range}-${new Date().toISOString().slice(0, 10)}.csv"`);
+      ctx.response.body = csvReport(report);
+      ctx.response.status = 200;
+      return;
+    }
+    const pdf = await createPdfReport(report);
+    ctx.response.headers.set("Content-Type", "application/pdf");
+    ctx.response.headers.set("Content-Disposition", `attachment; filename="peas-operational-report-${range}-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    ctx.response.body = pdf;
+    ctx.response.status = 200;
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
+
+export async function deprecatedExportEndpoint(ctx: any) {
+  markPrivateReportResponse(ctx);
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
+  ctx.response.status = 410;
+  ctx.response.body = {
+    error: "REPORT_EXPORT_ENDPOINT_DEPRECATED",
+    message: "Use GET /api/admin/reports/operational/export?range=30d&format=csv|pdf.",
   };
 }
 
-function getRangeStart(timeRange: string): Date | null {
-  if (timeRange === "all") return null;
-  const start = new Date();
-  if (timeRange === "daily") start.setDate(start.getDate() - 1);
-  else if (timeRange === "weekly") start.setDate(start.getDate() - 7);
-  else if (timeRange === "monthly") start.setMonth(start.getMonth() - 1);
-  else if (timeRange === "yearly") start.setFullYear(start.getFullYear() - 1);
-  else return null;
-  return start;
-}
+export async function createPdfReport(report: OperationalReport): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
+  const regular = await pdf.embedFont(await readBundledFont("LiberationSans-Regular.ttf"));
+  const bold = await pdf.embedFont(await readBundledFont("LiberationSans-Bold.ttf"));
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 42;
+  const contentWidth = pageWidth - margin * 2;
+  let page = pdf.addPage([pageWidth, pageHeight]);
+  let cursorY = pageHeight - margin;
 
-/**
- * Get document statistics with time range filtering
- * @param ctx Context object
- */
-export async function getDocumentStatistics(ctx: any) {
-  try {
-    const timeRange = ctx.request.url.searchParams.get("timeRange") || "all";
-    ctx.response.body = await getCanonicalRepositoryMetrics(timeRange);
-    ctx.response.status = 200;
-  } catch (error: unknown) {
-    ctx.response.body = {
-      success: false,
-      error: error instanceof Error ? error.message : "Error fetching document statistics"
-    };
-    ctx.response.status = 500;
-  }
-}
-
-/**
- * Generate and export PDF report
- * @param ctx Context object
- */
-export async function exportPdfReport(ctx: any) {
-  try {
-    // Get request body
-    const body = await ctx.request.body().value;
-    
-        
-    const { reportType, timeRange, data } = body;
-    
-    // In a real implementation, you would use a PDF generation library
-    // For this demo, we'll create a simple PDF with text content
-    
-    // Mock PDF generation - in a real app you would use a library like PDFKit
-    const pdfContent = generateMockPdfContent(reportType, timeRange, data);
-    
-    // Set response headers for PDF download
-    ctx.response.headers.set("Content-Type", "application/pdf");
-    ctx.response.headers.set("Content-Disposition", `attachment; filename="archive-report-${timeRange}-${new Date().toISOString().split('T')[0]}.pdf"`);
-    
-    // Convert string to Uint8Array for response
-    const encoder = new TextEncoder();
-    ctx.response.body = encoder.encode(pdfContent);
-    ctx.response.status = 200;
-    
-  } catch (error: unknown) {
-    ctx.response.body = {
-      success: false,
-      error: error instanceof Error ? error.message : "Error generating PDF report"
-    };
-    ctx.response.status = 500;
-  }
-}
-
-/**
- * Generate and export CSV report
- * @param ctx Context object
- */
-export async function exportCsvReport(ctx: any) {
-  try {
-    // Get request body
-    const body = await ctx.request.body().value;
-    
-        
-    const { reportType, timeRange, data } = body;
-    
-    // Generate CSV content based on report type and data
-    let csvContent = "Category,Count,TimeRange\r\n";
-    
-    if (data) {
-      if (data.uploaded !== undefined) {
-        csvContent += `Uploaded Documents,${data.uploaded},${timeRange}\r\n`;
+  const newPage = () => {
+    page = pdf.addPage([pageWidth, pageHeight]);
+    cursorY = pageHeight - margin;
+  };
+  const ensureSpace = (height: number) => {
+    if (cursorY - height < margin + 24) newPage();
+  };
+  const drawWrapped = (text: string, font: typeof regular, size: number, color = rgb(0.12, 0.16, 0.22)) => {
+    const lines = wrapPdfText(text, font, size, contentWidth);
+    ensureSpace(lines.length * (size + 4));
+    for (const line of lines) {
+      page.drawText(line, { x: margin, y: cursorY, size, font, color });
+      cursorY -= size + 4;
+    }
+  };
+  const drawSection = (title: string, rows: string[][]) => {
+    ensureSpace(34);
+    page.drawText(title, { x: margin, y: cursorY, size: 13, font: bold, color: rgb(0.02, 0.35, 0.26) });
+    cursorY -= 20;
+    for (const row of rows) {
+      const text = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]}`;
+      const lines = wrapPdfText(text, regular, 8.5, contentWidth);
+      ensureSpace(lines.length * 13 + 5);
+      for (const line of lines) {
+        page.drawText(line, { x: margin, y: cursorY, size: 8.5, font: regular, color: rgb(0.16, 0.18, 0.22) });
+        cursorY -= 13;
       }
-      if (data.active !== undefined) {
-        csvContent += `Active Documents,${data.active},${timeRange}\r\n`;
-      }
-      if (data.archived !== undefined) {
-        csvContent += `Archived Documents,${data.archived},${timeRange}\r\n`;
-      }
+      page.drawLine({ start: { x: margin, y: cursorY + 5 }, end: { x: pageWidth - margin, y: cursorY + 5 }, thickness: 0.35, color: rgb(0.82, 0.84, 0.86) });
+      cursorY -= 5;
     }
-    
-    // Set response headers for CSV download
-    ctx.response.headers.set("Content-Type", "text/csv");
-    ctx.response.headers.set("Content-Disposition", `attachment; filename="archive-report-${timeRange}-${new Date().toISOString().split('T')[0]}.csv"`);
-    
-    // Set the response body
-    ctx.response.body = csvContent;
-    ctx.response.status = 200;
-    
-  } catch (error: unknown) {
-    ctx.response.body = {
-      success: false,
-      error: error instanceof Error ? error.message : "Error generating CSV report"
-    };
-    ctx.response.status = 500;
-  }
+    cursorY -= 8;
+  };
+
+  page.drawText("PeAS / SPUD Operational Report", { x: margin, y: cursorY, size: 20, font: bold, color: rgb(0.02, 0.35, 0.26) });
+  cursorY -= 25;
+  drawWrapped(`Selected range: ${report.meta.range.label} | Reporting timezone: ${report.meta.timezone}`, regular, 9);
+  drawWrapped(`Generated: ${report.meta.generatedAt}`, regular, 9);
+  cursorY -= 10;
+
+  const rows = reportRows(report).slice(1);
+  const bySection = (section: string) => rows.filter((row) => row[0] === section);
+  drawSection("Coverage and metadata", bySection("Metadata"));
+  drawSection("Current inventory", bySection("Inventory"));
+  drawSection("Workflow", bySection("Workflow"));
+  drawSection(`Activity during ${report.meta.range.label}`, bySection("Activity"));
+  drawSection("Registered-reader activity", bySection("Registered-reader summary"));
+  drawSection("Uploads and repository activity over time", [
+    ...report.series.uploads.map((item) => ["Uploads", "uploads", item.bucket, String(item.count)]),
+    ...report.series.repositoryActivity.map((item) => ["Repository activity", "views", item.bucket, String(item.views)]),
+    ...report.series.repositoryActivity.map((item) => ["Repository activity", "downloads", item.bucket, String(item.downloads)]),
+    ...report.series.homeVisits.map((item) => ["Home traffic", "guest", item.bucket, String(item.guest)]),
+    ...report.series.homeVisits.map((item) => ["Home traffic", "registered", item.bucket, String(item.registered)]),
+  ]);
+  drawSection("Rankings", bySection("Ranking"));
+  drawSection("Breakdowns", bySection("Distribution"));
+  drawSection("Metric definitions", Object.entries(report.metricDefinitions).map(([key, definition]) => ["Definition", key, definition, ""]));
+
+  const pages = pdf.getPages();
+  pages.forEach((pdfPage, index) => {
+    pdfPage.drawText(`PeAS / SPUD Operational Report | Page ${index + 1} | ${report.meta.generatedAt}`, { x: margin, y: 18, size: 7, font: regular, color: rgb(0.35, 0.38, 0.42) });
+  });
+  return await pdf.save();
 }
 
-/**
- * Helper function to generate mock PDF content
- * In a real implementation, you would use a PDF generation library
- */
-function generateMockPdfContent(reportType: string, timeRange: string, data: any): string {
-  // This is a simplified mock - real PDFs are binary files with specific format
-  // In production, use a proper PDF generation library
-  
-  let content = "%PDF-1.4\n";
-  content += "1 0 obj\n";
-  content += "<< /Type /Catalog /Pages 2 0 R >>\n";
-  content += "endobj\n";
-  content += "2 0 obj\n";
-  content += "<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n";
-  content += "endobj\n";
-  content += "3 0 obj\n";
-  content += "<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>\n";
-  content += "endobj\n";
-  content += "4 0 obj\n";
-  content += "<< /Font << /F1 6 0 R >> >>\n";
-  content += "endobj\n";
-  content += "5 0 obj\n";
-  content += "<< /Length 171 >>\n";
-  content += "stream\n";
-  content += "BT\n";
-  content += "/F1 24 Tf\n";
-  content += "100 700 Td\n";
-  content += "(Archive System Report) Tj\n";
-  content += "/F1 12 Tf\n";
-  content += "0 -50 Td\n";
-  content += `(Report Type: ${reportType}) Tj\n`;
-  content += "0 -20 Td\n";
-  content += `(Time Range: ${timeRange}) Tj\n`;
-  content += "0 -20 Td\n";
-  
-  if (data) {
-    if (data.uploaded !== undefined) {
-      content += `(Uploaded Documents: ${data.uploaded}) Tj\n`;
-      content += "0 -20 Td\n";
-    }
-    if (data.active !== undefined) {
-      content += `(Active Documents: ${data.active}) Tj\n`;
-      content += "0 -20 Td\n";
-    }
-    if (data.archived !== undefined) {
-      content += `(Archived Documents: ${data.archived}) Tj\n`;
-    }
+async function readBundledFont(filename: string): Promise<Uint8Array> {
+  const candidates = [`${Deno.cwd()}/assets/fonts/${filename}`, `${Deno.cwd()}/Deno/assets/fonts/${filename}`];
+  for (const candidate of candidates) {
+    try { return await Deno.readFile(candidate); } catch { /* try the workspace-relative fallback */ }
   }
-  
-  content += "ET\n";
-  content += "endstream\n";
-  content += "endobj\n";
-  content += "6 0 obj\n";
-  content += "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\n";
-  content += "endobj\n";
-  content += "xref\n";
-  content += "0 7\n";
-  content += "0000000000 65535 f\n";
-  content += "0000000010 00000 n\n";
-  content += "0000000059 00000 n\n";
-  content += "0000000118 00000 n\n";
-  content += "0000000217 00000 n\n";
-  content += "0000000262 00000 n\n";
-  content += "0000000485 00000 n\n";
-  content += "trailer\n";
-  content += "<< /Size 7 /Root 1 0 R >>\n";
-  content += "startxref\n";
-  content += "553\n";
-  content += "%%EOF";
-  
-  return content;
+  throw new Error(`Bundled report font is missing: ${filename}`);
+}
+
+function wrapPdfText(value: string, font: any, size: number, maxWidth: number): string[] {
+  const words = String(value ?? "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) current = candidate;
+    else if (current) { lines.push(current); current = word; }
+    else { lines.push(word.slice(0, 120)); current = word.slice(120); }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
 }

@@ -47,9 +47,10 @@ export async function canViewCompilation(
   `, [id]);
   const compiled = result.rows[0];
   if (!compiled) return false;
+  const role = String(actor?.role ?? "").toLowerCase();
   if (compiled.review_status === "approved") return true;
-  if (actor?.role === "admin") return true;
-  return actor?.role === "publisher" && compiled.uploaded_by === actor.id;
+  if (role === "admin") return true;
+  return role === "publisher" && compiled.uploaded_by === actor?.id;
 }
 
 export async function canViewDocument(
@@ -70,7 +71,11 @@ export async function canViewDocument(
   `, [id]);
   const document = result.rows[0];
   if (!document) return false;
-  if (document.review_status === "approved") return true;
-  if (actor?.role === "admin") return true;
-  return actor?.role === "publisher" && document.uploaded_by === actor.id;
+  const role = String(actor?.role ?? "").toLowerCase();
+  // Reader activity is defined only for public approved records.  Admins and
+  // owning publishers retain their existing preview capability, but that
+  // capability must never be mistaken for public readership access.
+  if (document.review_status === "approved" && document.is_public === true) return true;
+  if (role === "admin") return true;
+  return role === "publisher" && document.uploaded_by === actor?.id;
 }

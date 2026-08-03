@@ -15,5 +15,4 @@ Deno.test("classification normalization preserves display values while comparing
 Deno.test("classification limits match the implementation contract", () => {
   if (CLASSIFICATION_LIMITS.agendasMin !== 1 || CLASSIFICATION_LIMITS.agendasMax !== 3) throw new Error("Agenda limits changed");
   if (CLASSIFICATION_LIMITS.topicsMin !== 1 || CLASSIFICATION_LIMITS.topicsMax !== 5) throw new Error("Topic limits changed");
-  if (CLASSIFICATION_LIMITS.keywordsMax !== 10) throw new Error("Keyword limit changed");
 });

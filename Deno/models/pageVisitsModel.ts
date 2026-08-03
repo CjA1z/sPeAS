@@ -77,7 +77,7 @@ export class PageVisitsModel {
       // For regular page visits, use the page_visits_counter table
       const result = await client.queryObject(
         `INSERT INTO page_visits_counter (page_path, date, visitor_type, visit_count)
-         VALUES ($1, CURRENT_DATE, $2, 1)
+         VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date, $2, 1)
          ON CONFLICT (page_path, date, visitor_type)
          DO UPDATE SET visit_count = page_visits_counter.visit_count + 1
          RETURNING visit_count`,
@@ -101,7 +101,7 @@ export class PageVisitsModel {
     try {
       const result = await client.queryObject(
         `INSERT INTO document_visits (doc_id, date, visitor_type, visit_count)
-         VALUES ($1, CURRENT_DATE, $2, 1)
+         VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date, $2, 1)
          ON CONFLICT (doc_id, date, visitor_type)
          DO UPDATE SET visit_count = document_visits.visit_count + 1
          RETURNING visit_count`,
@@ -134,19 +134,6 @@ export class PageVisitsModel {
     try {
       // First, increment the counter in the new table
       await PageVisitsModel.recordVisitCounter(pageUrl, visitorType, metadata);
-      
-      // Then, create the page_visits table if it doesn't exist (keeping for backward compatibility)
-      await client.queryObject(`
-        CREATE TABLE IF NOT EXISTS page_visits (
-          id SERIAL PRIMARY KEY,
-          page_url VARCHAR(255) NOT NULL,
-          visitor_type VARCHAR(10) NOT NULL,
-          user_id VARCHAR(50),
-          ip_address VARCHAR(45),
-          visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          metadata JSONB
-        )
-      `);
       
       const result = await client.queryObject(
         `INSERT INTO page_visits (
@@ -693,4 +680,4 @@ export class PageVisitsModel {
       return { pagesDeleted: 0, documentsDeleted: 0 };
     }
   }
-} 
+}

@@ -10,7 +10,7 @@ import { Application, Router, FormDataReader } from "./deps.ts";
 import type { Context, RouterContext } from "./deps.ts";
 import { getErrorMessage } from "./utils/errorHandler.ts";
 import { ensureDir } from "https://deno.land/std@0.190.0/fs/ensure_dir.ts";
-import { join } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { join, resolve } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { connectToDb, diagnoseDatabaseIssues } from "./db/denopost_conn.ts"; // Using connectToDb from conn.ts
 import { client } from "./db/denopost_conn.ts"; // Client for database queries
 import { routes } from "./routes/index.ts"; // All route handlers in one file
@@ -24,6 +24,7 @@ import documentAuthorRoutes from "./routes/documentAuthorRoutes.ts";
 import fileRoutes from "./routes/fileRoutes.ts"; // Import file routes
 import { uploadRoutes, uploadRoutesAllowedMethods } from "./routes/uploadRoutes.ts"; // Import upload routes
 import reportsRoutes from "./routes/reportsRoutes.ts"; // Import reports routes
+import { getLegacyStatistics } from "./controllers/reportsController.ts";
 import { categoryRoutes, categoryAllowedMethods } from "./routes/categoryRoutes.ts";
 import { getChildDocuments } from "./controllers/documentController.ts";
 import { handleUpdateDocument } from "./api/document.ts";
@@ -32,6 +33,9 @@ import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
 import { getDocumentClassification, replaceDocumentClassification, replaceDocumentKeywords } from "./services/documentClassificationService.ts";
 import { ensureDocumentClassificationSchema } from "./services/documentClassificationSchemaService.ts";
+import { ensureDocumentReadStatusSchema } from "./services/documentReadStatusSchemaService.ts";
+import { ensureDocumentAnnotationSchema } from "./services/documentAnnotationSchemaService.ts";
+import { recordRepositoryActivity, verifyOperationalReportingSchema } from "./services/operationalReportingService.ts";
 import { documentClassificationRoutes, documentClassificationAllowedMethods } from "./routes/documentClassificationRoutes.ts";
 import { unifiedArchiveRoutes, unifiedArchiveAllowedMethods } from "./routes/unifiedArchiveRoutes.ts";
 import { authRoutes } from "./routes/authRoutes.ts"; // Transitional logout shims
@@ -52,7 +56,6 @@ import { isAuthenticated, isAdmin, requireCapability } from "./middleware/authMi
 import { canModifyPendingUpload, canViewCompilation } from "./services/contentAuthorizationService.ts";
 import { AuthorReferenceValidationError, ensureAuthorReferenceDataExists, listAffiliationsCompatibility, validateAuthorReferenceValues } from "./services/authorReferenceDataService.ts";
 import { getSessionFromHeaders } from "./services/sessionService.ts";
-import { UserDocumentHistoryModel } from "./models/userDocumentHistoryModel.ts";
 import { auth } from "./config/auth.ts"; // Better Auth instance
 import { webHandler } from "./utils/oakAdapter.ts"; // web Request/Response -> oak bridge
 import { analyticsRateLimit } from "./middleware/rateLimit.ts"; // Per-IP rate limiting
@@ -60,7 +63,11 @@ import { STORAGE_ROOT } from "./config/storage.ts";
 import experienceRoutes from "./routes/experienceRoutes.ts";
 import { ensureExperienceTablesExist } from "./services/experienceService.ts";
 import newsRoutes from "./routes/newsRoutes.ts";
+import userReadStatusRoutes from "./routes/userReadStatusRoutes.ts";
+import documentAnnotationRoutes from "./routes/documentAnnotationRoutes.ts";
+import { cleanupDocumentAnnotations } from "./services/documentAnnotationCleanupService.ts";
 import { ensureNewsTableExists } from "./services/newsService.ts";
+import { cleanupNewsMedia, startNewsMediaWorker } from "./services/newsMediaService.ts";
 import contactInquiryRoutes from "./routes/contactInquiryRoutes.ts";
 import { ensureContactInquiryTablesExist, getContactNotificationConfiguration, startContactNotificationWorker } from "./services/contactInquiryService.ts";
 import adminNotificationRoutes from "./routes/adminNotificationRoutes.ts";
@@ -151,53 +158,17 @@ async function servePublicErrorPage(ctx: Context, status: number) {
   }
 }
 
-// Setup visit counters tables if needed
-async function ensureVisitCounterTablesExist() {
-  try {
-        
-    // Document visits table
-    await client.queryObject(`
-      CREATE TABLE IF NOT EXISTS document_visits (
-        doc_id VARCHAR(50),
-        date DATE DEFAULT CURRENT_DATE,
-        visitor_type VARCHAR(10) NOT NULL CHECK (visitor_type IN ('guest', 'user')),
-        visit_count INT DEFAULT 1,
-        PRIMARY KEY (doc_id, date, visitor_type)
-      )
-    `);
-    
-    // Author visits counter table
-    await client.queryObject(`
-      CREATE TABLE IF NOT EXISTS author_visits_counter (
-        author_id VARCHAR(50),
-        date DATE DEFAULT CURRENT_DATE,
-        visitor_type VARCHAR(10) NOT NULL CHECK (visitor_type IN ('guest', 'user')),
-        visit_count INT DEFAULT 1,
-        PRIMARY KEY (author_id, date, visitor_type)
-      )
-    `);
-    
-    // Page visits counter table
-    await client.queryObject(`
-      CREATE TABLE IF NOT EXISTS page_visits_counter (
-        page_path VARCHAR(255),
-        date DATE DEFAULT CURRENT_DATE,
-        visitor_type VARCHAR(10) NOT NULL CHECK (visitor_type IN ('guest', 'user')),
-        visit_count INT DEFAULT 1,
-        PRIMARY KEY (page_path, date, visitor_type)
-      )
-    `);
-    
-    // Create indexes for performance
-    await client.queryObject(`
-      CREATE INDEX IF NOT EXISTS idx_document_visits_date ON document_visits(date);
-      CREATE INDEX IF NOT EXISTS idx_author_visits_counter_date ON author_visits_counter(date);
-      CREATE INDEX IF NOT EXISTS idx_page_visits_counter_date ON page_visits_counter(date);
-    `);
-    
-  } catch (error) {
-    // Non-fatal: the server can run without the analytics counter tables.
-    console.error("Failed to ensure visit counter tables exist:", error);
+// Legacy counter tables remain readable for compatibility endpoints, but schema
+// creation is an explicit migration concern. Startup performs only a readiness
+// probe so it cannot mutate reporting state on an otherwise healthy boot.
+async function verifyLegacyVisitCounterTables() {
+  const result = await client.queryObject<{ name: string; present: boolean }>(`
+    SELECT name, to_regclass(name) IS NOT NULL AS present
+    FROM unnest(ARRAY['document_visits', 'author_visits_counter', 'page_visits_counter']) AS names(name)
+  `);
+  const missing = result.rows.filter((row) => !row.present).map((row) => row.name);
+  if (missing.length) {
+    console.warn("Legacy analytics tables are unavailable; compatibility counters are disabled", { missing });
   }
 }
 
@@ -334,7 +305,7 @@ app.use(async (ctx, next) => {
       
       // Determine which path to use based on the URL pattern
       let correctPath;
-      const workspaceRoot = Deno.cwd().replace(/[\\/]Deno$/, '');
+      const workspaceRoot = resolve(Deno.cwd().replace(/[\\/]Deno$/, ''));
       if (ctx.request.url.pathname.includes('users/profile-picture')) {
         await ctx.send({ root: STORAGE_ROOT, path: join("users", "profile-picture", filename) });
         return;
@@ -402,6 +373,11 @@ app.use(async (ctx, next) => {
 // sign-in/social, callback/microsoft, get-session, sign-out, password
 // reset...). Registered first so nothing can shadow it.
 router.all("/api/auth/(.*)", webHandler((req) => auth.handler(req)));
+
+// Compatibility aliases must be registered before the broad
+// /api/documents/:id route so "statistics" is not parsed as a document ID.
+router.get("/api/documents/statistics", isAuthenticated, requireCapability("reports:view"), getLegacyStatistics);
+router.get("/api/stats/summary", isAuthenticated, requireCapability("reports:view"), getLegacyStatistics);
 
 // Register all routes with the router, including any per-route middleware
 // (e.g. isAuthenticated / isAdmin declared on the Route object)
@@ -1037,6 +1013,12 @@ app.use(experienceRoutes.allowedMethods());
 app.use(newsRoutes.routes());
 app.use(newsRoutes.allowedMethods());
 
+// Owner-scoped document reading status is distinct from repository analytics.
+app.use(userReadStatusRoutes.routes());
+app.use(userReadStatusRoutes.allowedMethods());
+app.use(documentAnnotationRoutes.routes());
+app.use(documentAnnotationRoutes.allowedMethods());
+
 // Register durable public Contact and administrator triage routes
 app.use(contactInquiryRoutes.routes());
 app.use(contactInquiryRoutes.allowedMethods());
@@ -1193,7 +1175,10 @@ async function setupDirectories() {
       join(storageBase, 'synergy'),
       join(storageBase, 'hello'),
       join(storageBase, 'authors', 'profile-pictures'), // Updated path to match existing structure
-      join(storageBase, 'site-branding')
+      join(storageBase, 'site-branding'),
+      join(storageBase, 'news-media', 'staging'),
+      join(storageBase, 'news-media', 'source'),
+      join(storageBase, 'news-media', 'variants'),
     ];
     
     // Create all directories
@@ -1250,11 +1235,29 @@ async function startServer() {
 
     // Install the additive classification schema before dependent routes run.
     await ensureDocumentClassificationSchema();
+    await ensureDocumentReadStatusSchema();
+    await ensureDocumentAnnotationSchema();
+    setInterval(() => void cleanupDocumentAnnotations().catch((error) => console.error("Document annotation cleanup failed:", error)), 15 * 60 * 1000);
     
-    // Ensure the visit counter tables exist
-    await ensureVisitCounterTablesExist();
+    try {
+      await verifyLegacyVisitCounterTables();
+    } catch {
+      // A missing legacy table must not prevent content delivery or v2 startup.
+    }
+    try {
+      // Reporting migrations are explicit deployment operations. Startup only
+      // performs a read-only readiness probe and never mutates the schema or
+      // silently backfills legacy analytics.
+      await verifyOperationalReportingSchema();
+    } catch (error) {
+      // Core content delivery remains available; report endpoints return a
+      // reporting-specific 503 until the migration is applied.
+      console.error("Operational reporting schema is unavailable:", error instanceof Error ? error.message : error);
+    }
     await ensureExperienceTablesExist();
     await ensureNewsTableExists();
+    if (Deno.env.get("NEWS_MEDIA_WORKER_ENABLED") !== "false") await startNewsMediaWorker();
+    setInterval(() => void cleanupNewsMedia().catch((error) => console.error("News media cleanup failed:", error)), 60 * 60 * 1000);
     await ensureContactInquiryTablesExist();
     await ensureAuthorNotificationTablesExist();
     await ensureLegacyPublicSoakTablesExist();
@@ -1606,51 +1609,18 @@ router.post("/api/user/profile/picture", isAuthenticated, async (ctx) => {
 
 // Add route for recording document view
 router.post("/api/document-views", analyticsRateLimit, async (ctx) => {
-  try {
-        // TODO: Fix DocumentViewController implementation
-    // const request = new Request(ctx.request.url.toString(), {
-    //   method: ctx.request.method,
-    //   headers: ctx.request.headers,
-    //   body: ctx.request.hasBody ? await ctx.request.body({ type: "json" }).value : undefined
-    // });
-    
-    // const response = await DocumentViewController.recordView(request);
-    
-    // ctx.response.status = response.status;
-    // ctx.response.headers = response.headers;
-    // ctx.response.body = await response.json();
-    
-    // Temporary mock response
-    ctx.response.status = 200;
-    ctx.response.body = { success: true };
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
+  ctx.response.status = 204;
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
 });
 
-// Add route for getting document view statistics
-router.get("/api/document-views/stats", async (ctx) => {
-  try {
-        // TODO: Fix DocumentViewController implementation
-    // const request = new Request(ctx.request.url.toString(), {
-    //   method: ctx.request.method,
-    //   headers: ctx.request.headers
-    // });
-    
-    // const response = await DocumentViewController.getStats(request);
-    
-    // ctx.response.status = response.status;
-    // ctx.response.headers = response.headers;
-    // ctx.response.body = await response.json();
-    
-    // Temporary mock response
-    ctx.response.status = 200;
-    ctx.response.body = { stats: {} };
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
+// Compatibility statistics reads delegate to the canonical administrator
+// report.  This route is protected and deprecated; it must never expose the
+// old mock response or an unauthenticated aggregate.
+router.get("/api/document-views/stats", isAuthenticated, requireCapability("reports:view"), async (ctx) => {
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
+  await getLegacyStatistics(ctx);
 });
 
 // Add endpoint to fetch the foreword specifically for a category type of compiled document
@@ -1660,6 +1630,13 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
   if (!id) {
     ctx.response.status = 400;
     ctx.response.body = { error: "Compiled document ID is required" };
+    return;
+  }
+
+  const numericId = Number(id);
+  if (!Number.isSafeInteger(numericId) || numericId <= 0 || !await canViewCompilation(ctx.state.user, numericId)) {
+    ctx.response.status = 404;
+    ctx.response.body = { error: "Compiled document not found" };
     return;
   }
   
@@ -1677,7 +1654,7 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       WHERE id = $1
     `;
     
-    const categoryResult = await client.queryObject(categoryQuery, [id]);
+    const categoryResult = await client.queryObject(categoryQuery, [numericId]);
     
     if (!categoryResult.rowCount || categoryResult.rowCount === 0) {
       ctx.response.status = 404;
@@ -1698,7 +1675,7 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       WHERE id = $1
     `;
     
-    const forewordResult = await client.queryObject(forewordQuery, [id]);
+    const forewordResult = await client.queryObject(forewordQuery, [numericId]);
     
     if (!forewordResult.rowCount || forewordResult.rowCount === 0) {
       ctx.response.status = 404;
@@ -1723,15 +1700,24 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       
       // Remove any leading slash from the path if present
       const normalizedPath = forewordPath.startsWith('/') ? forewordPath.substring(1) : forewordPath;
+      const pathParts = normalizedPath.split(/[\\/]+/u);
+      if (pathParts.includes('..') || pathParts.some((part: string) => /^[A-Za-z]:$/u.test(part))) {
+        throw new Error('Unsafe foreword path');
+      }
       
       // Create absolute path from workspace root
-      const absolutePath = join(workspaceRoot, normalizedPath);
+      const absolutePath = resolve(workspaceRoot, normalizedPath);
+      const workspacePrefix = workspaceRoot.endsWith('/') ? workspaceRoot : `${workspaceRoot}/`;
+      if (absolutePath !== workspaceRoot && !absolutePath.startsWith(workspacePrefix)) {
+        throw new Error('Unsafe foreword path');
+      }
             
       // Check if the file exists
       await Deno.stat(absolutePath);
       
       // Check if the file is a PDF based on extension
       const isPdf = normalizedPath.toLowerCase().endsWith('.pdf');
+      const countedDownload = isPdf && format !== "json";
       
       // If it's a PDF and format isn't explicitly set to 'json', serve it directly with the proper content type
       if (isPdf && format !== 'json') {
@@ -1745,14 +1731,26 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
         
         // Read and serve the file directly
         const file = await Deno.readFile(absolutePath);
-        await UserDocumentHistoryModel.recordAction(String(ctx.state.user.id), Number(id), "DOWNLOAD", "compiled");
+        const pdfSignature = new TextDecoder().decode(file.subarray(0, 5));
+        if (file.byteLength < 5 || pdfSignature !== "%PDF-") {
+          throw new Error("Invalid PDF signature");
+        }
+        if (countedDownload) {
+          if (String(ctx.state.user.role).toLowerCase() === "user") {
+            await recordRepositoryActivity({ recordType: "compiled", recordId: numericId, audience: "registered", action: "download", registeredUserId: String(ctx.state.user.id) }).catch(() => undefined);
+          }
+        }
         ctx.response.body = file;
         return;
       }
       
       // If not a PDF or format is explicitly 'json', return as text in JSON
       const forewordContent = await Deno.readTextFile(absolutePath);
-      await UserDocumentHistoryModel.recordAction(String(ctx.state.user.id), Number(id), "DOWNLOAD", "compiled");
+      if (countedDownload) {
+        if (String(ctx.state.user.role).toLowerCase() === "user") {
+          await recordRepositoryActivity({ recordType: "compiled", recordId: numericId, audience: "registered", action: "download", registeredUserId: String(ctx.state.user.id) }).catch(() => undefined);
+        }
+      }
       
       // Return the foreword content
       ctx.response.status = 200;
@@ -1763,10 +1761,8 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       };
     } catch (fileError) {
       ctx.response.status = 404;
-      ctx.response.body = { 
-        error: `Failed to read foreword file for compiled document ${id}`,
-        details: fileError instanceof Error ? fileError.message : String(fileError)
-      };
+      console.error("Compiled foreword delivery failed", { code: "FOREWORD_DELIVERY_FAILED" });
+      ctx.response.body = { error: "Failed to read foreword file", code: "FOREWORD_DELIVERY_FAILED" };
     }
   } catch (error) {
     ctx.response.status = 500;
@@ -1964,111 +1960,22 @@ router.post("/api/library/save-compiled", isAuthenticated, async (ctx) => {
 
 // Import user document history handlers
 import { 
-  handleDocumentViewRecording, 
-  handleDocumentDownloadRecording, 
-  handleUserHistoryRequest 
+  handleUserHistoryRequest
 } from "./api/userDocumentHistory.ts";
 
-// Add route for analytics document view recording
+// Legacy client-side document analytics are compatibility no-ops. Authoritative
+// v2 activity is written by the successful server operation itself, preventing
+// browser-supplied IDs and classifications from inflating reports.
 router.post("/api/analytics/document-view", analyticsRateLimit, async (ctx) => {
-  try {
-        
-    // Convert Oak request to standard Request
-    const headers = new Headers(ctx.request.headers);
-    
-    // Create body if needed
-    let body = null;
-    if (ctx.request.hasBody) {
-      const reqBody = ctx.request.body({ type: "json" });
-      body = await reqBody.value;
-    }
-    
-    // Create a Request object
-    const request = new Request(ctx.request.url.toString(), {
-      method: ctx.request.method,
-      headers: headers,
-      body: body ? JSON.stringify(body) : undefined
-    });
-    
-    // Process through the API handler
-    const response = await handleDocumentViewRecording(request);
-    
-    // Set status and headers
-    ctx.response.status = response.status;
-    for (const [key, value] of response.headers.entries()) {
-      ctx.response.headers.set(key, value);
-    }
-    
-    // Set body
-    if (response.status !== 204) {
-      const responseBody = await response.text();
-      try {
-        // Try to parse as JSON first
-        const jsonBody = JSON.parse(responseBody);
-        ctx.response.body = jsonBody;
-      } catch {
-        // If not JSON, use as is
-        ctx.response.body = responseBody;
-      }
-    }
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Internal server error recording document view",
-      details: error instanceof Error ? error.message : String(error)
-    };
-  }
+  ctx.response.status = 204;
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
 });
 
-// Add route for analytics document download recording
 router.post("/api/analytics/document-download", analyticsRateLimit, async (ctx) => {
-  try {
-        
-    // Convert Oak request to standard Request
-    const headers = new Headers(ctx.request.headers);
-    
-    // Create body if needed
-    let body = null;
-    if (ctx.request.hasBody) {
-      const reqBody = ctx.request.body({ type: "json" });
-      body = await reqBody.value;
-    }
-    
-    // Create a Request object
-    const request = new Request(ctx.request.url.toString(), {
-      method: ctx.request.method,
-      headers: headers,
-      body: body ? JSON.stringify(body) : undefined
-    });
-    
-    // Process through the API handler
-    const response = await handleDocumentDownloadRecording(request);
-    
-    // Set status and headers
-    ctx.response.status = response.status;
-    for (const [key, value] of response.headers.entries()) {
-      ctx.response.headers.set(key, value);
-    }
-    
-    // Set body
-    if (response.status !== 204) {
-      const responseBody = await response.text();
-      try {
-        // Try to parse as JSON first
-        const jsonBody = JSON.parse(responseBody);
-        ctx.response.body = jsonBody;
-      } catch {
-        // If not JSON, use as is
-        ctx.response.body = responseBody;
-      }
-    }
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Internal server error recording document download",
-      details: error instanceof Error ? error.message : String(error)
-    };
-  }
+  ctx.response.status = 204;
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
 });
 
 // Add route for user history

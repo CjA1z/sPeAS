@@ -3,7 +3,6 @@ export const CLASSIFICATION_LIMITS = {
   agendasMax: 3,
   topicsMin: 1,
   topicsMax: 5,
-  keywordsMax: 10,
   agendaMaxLength: 255,
   topicMaxLength: 120,
   keywordMaxLength: 80,

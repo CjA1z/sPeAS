@@ -4,6 +4,7 @@ import { AuthorReferenceValidationError, validateAuthorReferenceValues } from ".
 import { authorNameKey, AuthorNameValidationError, normalizeAuthorName } from "../../shared/authorName.ts";
 import { syncAuthorProfileNotification } from "../services/authorNotificationService.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
+import { recordAuthorActivity } from "../services/operationalReportingService.ts";
 
 interface Author {
   id: string;
@@ -570,6 +571,19 @@ export const getAuthorProfile = async (ctx: Context) => {
       publicationsByYear,
       works: publicWorks,
     };
+
+    // The profile response is the authoritative successful public-profile
+    // operation.  Derive the audience from the HttpOnly session and keep
+    // analytics best-effort so a reporting outage cannot break the profile.
+    try {
+      const role = String((await getSessionFromHeaders(ctx.request.headers))?.role ?? "").toLowerCase();
+      if (role !== "admin" && role !== "publisher") {
+        await recordAuthorActivity(authorId, role === "user" ? "registered" : "guest").catch(() => undefined);
+      }
+    } catch {
+      // Audience resolution/reporting is best-effort and must not turn a
+      // successful public profile into a 500 response.
+    }
   } catch (error) {
     ctx.response.status = 500;
     ctx.response.body = { error: error instanceof Error ? error.message : "Unable to load author profile" };

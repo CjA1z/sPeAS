@@ -1,7 +1,7 @@
 import type { RouterContext } from "../deps.ts";
 import type { Route } from "./index.ts";
 import { DocumentModel } from "../models/documentModel.ts";
-import { UserDocumentHistoryModel } from "../models/userDocumentHistoryModel.ts";
+import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
 import { canViewDocument } from "../services/contentAuthorizationService.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
 import {
@@ -97,11 +97,9 @@ const streamPaper = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.body = bytes;
 
     if (download) {
-      await UserDocumentHistoryModel.recordAction(
-        session.id,
-        paperId,
-        "DOWNLOAD",
-      ).catch(() => false);
+      if (String(session.role ?? "").toLowerCase() === "user") {
+        await recordRepositoryActivity({ recordType: "document", recordId: paperId, audience: "registered", action: "download", registeredUserId: session.id }).catch(() => undefined);
+      }
     }
   } catch (error) {
     respondWithPaperError(ctx, error);

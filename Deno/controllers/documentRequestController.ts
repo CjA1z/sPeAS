@@ -4,6 +4,7 @@ import { DocumentModel } from "../models/documentModel.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { sendRequestConfirmationEmail, sendApprovedRequestEmail, sendRejectedRequestEmail } from "../services/emailService.ts";
 import { client } from "../db/denopost_conn.ts";
+import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
 
 function getAccessTokenExpiry(): Date {
     const configuredHours = Number(Deno.env.get("DOCUMENT_ACCESS_TOKEN_TTL_HOURS") || "168");
@@ -550,12 +551,11 @@ export class DocumentRequestController {
             ctx.response.headers.set("Content-Type", getContentType(fileName));
             ctx.response.headers.set("Cache-Control", "no-store");
             ctx.response.body = await Deno.readFile(filePath);
+            await recordRepositoryActivity({ recordType: "document", recordId: documentId, audience: "approved_request", action: "download" }).catch(() => undefined);
         } catch (error) {
             ctx.response.status = 500;
-            ctx.response.body = {
-                error: "Failed to download approved document",
-                details: error instanceof Error ? error.message : String(error),
-            };
+            console.error("Approved document delivery failed", { code: "APPROVED_DOCUMENT_DELIVERY_FAILED" });
+            ctx.response.body = { error: "Failed to download approved document", code: "APPROVED_DOCUMENT_DELIVERY_FAILED" };
         }
     }
 
