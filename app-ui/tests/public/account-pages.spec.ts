@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { source as axeSource } from "axe-core";
 
 const sessionPayload = {
   session: { id: "session-1" },
@@ -11,11 +12,11 @@ const sessionPayload = {
   },
 };
 
-async function mockSignedIn(page: Page, role = "admin") {
+async function mockSignedIn(page: Page, role = "admin", userOverrides: Partial<typeof sessionPayload.user> = {}) {
   await page.route("**/api/auth/get-session", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ ...sessionPayload, user: { ...sessionPayload.user, role } }),
+    body: JSON.stringify({ ...sessionPayload, user: { ...sessionPayload.user, role, ...userOverrides } }),
   }));
 }
 
@@ -92,21 +93,30 @@ test("saved documents renders document and compiled cards with optimistic undo",
   });
 
   await page.goto("/pages/SavedDocument.html");
-  await expect(page.getByRole("heading", { name: "Saved Documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Saved Items" })).toBeVisible();
   if (testInfo.project.name === "pixel-7") {
     await page.getByRole("button", { name: "Open navigation" }).click();
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
   } else {
-    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
+    const accountTrigger = page.getByRole("button", { name: "Open account menu for Admin M User" });
+    await expect(accountTrigger).toBeVisible();
+    await accountTrigger.click();
+    const accountMenu = page.getByRole("menu");
+    await expect(accountMenu.getByRole("menuitem", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
+    await expect(accountMenu.getByRole("menuitem", { name: "Saved Items" })).toHaveAttribute("href", "/pages/SavedDocument.html");
+    await expect(accountMenu.getByRole("menuitem", { name: "History" })).toHaveAttribute("href", "/pages/UserHistory.html");
+    await expect(accountMenu.getByRole("menuitem", { name: "Profile" })).toHaveAttribute("href", "/pages/UserProfile.html");
+    await expect(accountMenu.getByText("Logout", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(accountMenu).toBeHidden();
+    await expect(accountTrigger).toBeFocused();
   }
   if (testInfo.project.name === "pixel-7") {
-    await expect(page.getByRole("banner").getByRole("link", { name: "Saved Documents", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Saved Items", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
     await expect(page.getByRole("banner").getByRole("link", { name: "History", exact: true }).locator("svg.lucide-clock-3")).toBeVisible();
-  } else {
-    await expect(page.getByRole("link", { name: "Saved documents", exact: true }).locator("svg.lucide-book-marked")).toBeVisible();
-    await expect(page.getByRole("link", { name: "User history" }).locator("svg.lucide-clock-3")).toBeVisible();
+    await page.getByRole("button", { name: "Close navigation" }).click();
   }
-  await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "Saved Documents" }).locator("svg.lucide-book-marked")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "Saved Items" }).locator("svg.lucide-book-marked")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "History" }).locator("svg.lucide-clock-3")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
   await expect(page.locator(".peas-account-record")).toHaveCount(2);
@@ -119,6 +129,48 @@ test("saved documents renders document and compiled cards with optimistic undo",
   await expect(page.locator(".peas-account-record")).toHaveCount(2);
 });
 
+test("saved items news view renders cards and supports optimistic remove/undo", async ({ page }) => {
+  await mockSignedIn(page, "user");
+  await page.route("**/api/user/saved-news**", async (route) => {
+    if (route.request().method() === "DELETE" || route.request().method() === "POST") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, saved: false, count: 0 }) });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        items: [{
+          id: 8,
+          title: "Research milestone",
+          slug: "research-milestone",
+          excerpt: "A formatted story from the research office.",
+          cover_image_url: "/Components/images/peas-news-1-p-500.png",
+          cover_image_alt: "Researchers presenting their findings",
+          author_name: "Office of Research & Publications",
+          published_at: "2026-08-01T00:00:00.000Z",
+          saved_at: "2026-08-02T00:00:00.000Z",
+          availability: "available",
+        }],
+        count: 1,
+        totalCount: 1,
+        totalPages: 1,
+        currentPage: 1,
+      }),
+    });
+  });
+
+  await page.goto("/pages/SavedDocument.html?content=news");
+  await expect(page.getByRole("heading", { name: "Saved Items" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "News" })).toHaveClass(/is-active/);
+  await expect(page.getByRole("link", { name: /Research milestone/ })).toHaveAttribute("href", "/news.html?slug=research-milestone");
+  await page.getByRole("button", { name: /Remove Research milestone/ }).click();
+  await expect(page.locator(".peas-account-news-record")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.locator(".peas-account-news-record")).toHaveCount(1);
+});
+
 test("regular users do not receive the admin dashboard shortcut", async ({ page }) => {
   await mockSignedIn(page, "user");
   await page.route("**/api/user/library**", (route) => route.fulfill({
@@ -128,7 +180,14 @@ test("regular users do not receive the admin dashboard shortcut", async ({ page 
   }));
 
   await page.goto("/pages/SavedDocument.html");
-  await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
+  if (page.viewportSize()?.width && page.viewportSize()!.width <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
+  } else {
+    const accountTrigger = page.getByRole("button", { name: "Open account menu for Admin M User" });
+    await accountTrigger.click();
+    await expect(page.getByRole("menu").getByRole("menuitem", { name: "Dashboard" })).toHaveCount(0);
+  }
 });
 
 test("admin dashboard remains available from the mobile account menu", async ({ page }) => {
@@ -144,6 +203,113 @@ test("admin dashboard remains available from the mobile account menu", async ({ 
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin/dashboard.html");
+  await expect(page.locator(".peas-public-account-fluid")).toHaveCount(0);
+});
+
+test("account menu keeps the GlassSurface fallback accessible with reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockSignedIn(page);
+  await page.route("**/api/user/library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ success: true, items: [], documents: [], count: 0, totalCount: 0, totalPages: 0, currentPage: 1, filters: { availableCategories: [] } }),
+  }));
+
+  await page.goto("/pages/SavedDocument.html");
+  if ((page.viewportSize()?.width ?? 0) <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.locator(".peas-public-account-fluid")).toHaveCount(0);
+    return;
+  }
+  await page.getByRole("button", { name: "Open account menu for Admin M User" }).click();
+  await expect(page.locator(".peas-public-account-surface")).toBeVisible();
+  await expect(page.locator(".peas-public-account-fluid")).toHaveCount(0);
+  await expect(page.getByRole("menu").getByRole("menuitem", { name: "Profile" })).toBeVisible();
+});
+
+test("account menu has no serious or critical accessibility violations", async ({ page }) => {
+  await mockSignedIn(page);
+  await page.route("**/api/user/library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ success: true, items: [], documents: [], count: 0, totalCount: 0, totalPages: 0, currentPage: 1, filters: { availableCategories: [] } }),
+  }));
+
+  await page.goto("/pages/SavedDocument.html");
+  if ((page.viewportSize()?.width ?? 0) <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Profile" })).toBeVisible();
+    return;
+  }
+  await page.getByRole("button", { name: "Open account menu for Admin M User" }).click();
+  await page.addScriptTag({ content: axeSource });
+  const results = await page.evaluate(async () => {
+    const axe = (window as Window & { axe?: { run: (context?: Element) => Promise<{ violations: Array<{ impact?: string | null }> }> } }).axe;
+    return axe ? axe.run(document.querySelector('[role="menu"]') ?? document.body) : { violations: [] };
+  });
+  expect(results.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical")).toEqual([]);
+});
+
+test("account identity normalizes profile images and truncates long names without overflow", async ({ page }) => {
+  const longName = "Alexandria Maximilian Researcher With A Very Long Display Name";
+  await mockSignedIn(page, "user", { name: longName, image: "storage/users/avatar.png" });
+  await page.route("**/api/user/library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ success: true, items: [], documents: [], count: 0, totalCount: 0, totalPages: 0, currentPage: 1, filters: { availableCategories: [] } }),
+  }));
+
+  await page.goto("/pages/SavedDocument.html");
+  if ((page.viewportSize()?.width ?? 0) <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    const identity = page.locator(".peas-public-mobile-identity");
+    await expect(identity.locator("img")).toHaveAttribute("src", "/storage/users/avatar.png");
+    await expect(identity.locator("strong")).toHaveText(longName);
+  } else {
+    const trigger = page.getByRole("button", { name: `Open account menu for ${longName}` });
+    await expect(trigger.locator("img")).toHaveAttribute("src", "/storage/users/avatar.png");
+    await expect(trigger.locator(".peas-public-account-trigger__name")).toHaveText(longName);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+});
+
+test("account identity falls back to name-derived initials", async ({ page }) => {
+  await mockSignedIn(page, "user", { name: "Ada Lovelace", image: null });
+  await page.route("**/api/user/library**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ success: true, items: [], documents: [], count: 0, totalCount: 0, totalPages: 0, currentPage: 1, filters: { availableCategories: [] } }),
+  }));
+
+  await page.goto("/pages/SavedDocument.html");
+  if ((page.viewportSize()?.width ?? 0) <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.locator(".peas-public-mobile-identity .peas-public-account-avatar")).toHaveText("AL");
+  } else {
+    const trigger = page.getByRole("button", { name: "Open account menu for Ada Lovelace" });
+    await expect(trigger.locator(".peas-public-account-avatar")).toHaveText("AL");
+  }
+});
+
+test("account menu logout invokes the existing sign-out flow", async ({ page }) => {
+  let signOutCalls = 0;
+  await mockSignedIn(page);
+  await page.route("**/api/auth/sign-out", (route) => {
+    signOutCalls += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+  });
+
+  await page.goto("/index.html");
+  const navigation = page.waitForURL(/\/index\.html\?logout=true&t=/);
+  if ((page.viewportSize()?.width ?? 0) <= 1120) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.getByRole("button", { name: "Logout" }).click();
+  } else {
+    await page.getByRole("button", { name: "Open account menu for Admin M User" }).click();
+    await page.getByRole("menu").getByRole("menuitem", { name: "Logout" }).click();
+  }
+  await navigation;
+  expect(signOutCalls).toBe(1);
 });
 
 test("history filters are URL synchronized and empty dates stay visibly empty", async ({ page }) => {
@@ -219,6 +385,62 @@ test("profile provides a managed identity state and accessible avatar picker", a
   const picker = page.locator('input[type="file"]');
   await picker.setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) });
   await expect(page.getByText("Profile picture updated")).toBeVisible();
+});
+
+test("password form stays compact and reveals validation progressively", async ({ page }) => {
+  await mockSignedIn(page);
+  let submittedPassword: Record<string, unknown> | null = null;
+  await page.route("**/api/user/profile", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      id: "user-01",
+      name: "Registered User",
+      first_name: "Registered",
+      last_name: "User",
+      email: "reader@example.com",
+      role: "user",
+      created_at: "2025-04-29T15:19:33.059Z",
+      profile_picture: null,
+      can_change_password: true,
+    }),
+  }));
+  await page.route("**/api/auth/change-password", async (route) => {
+    submittedPassword = await route.request().postDataJSON();
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+  });
+
+  await page.goto("/pages/UserProfile.html");
+  const security = page.locator(".peas-profile-card--security");
+  const save = security.getByRole("button", { name: "Save new password" });
+  const current = security.getByLabel("Current password", { exact: true });
+  const next = security.getByLabel("New password", { exact: true });
+  const confirmation = security.getByLabel("Confirm new password", { exact: true });
+
+  await expect(security.getByRole("heading", { name: "Change password" })).toBeVisible();
+  await expect(security.getByText("0 of 3 met")).toBeVisible();
+  await expect(save).toBeDisabled();
+  await current.fill("Old-password-1!");
+  await next.fill("Secure1!");
+  await expect(security.getByText("3 of 3 met")).toBeVisible();
+  await confirmation.fill("Secure1?");
+  await expect(security.getByText("Passwords do not match")).toBeVisible();
+  await expect(confirmation).toHaveAttribute("aria-invalid", "true");
+  await confirmation.fill("Secure1!");
+  await expect(security.getByText("Passwords match")).toBeVisible();
+  await expect(save).toBeEnabled();
+
+  await security.getByRole("button", { name: "Show new password" }).click();
+  await expect(next).toHaveAttribute("type", "text");
+  await security.getByRole("button", { name: "Hide new password" }).click();
+  await expect(next).toHaveAttribute("type", "password");
+  await save.click();
+  await expect(page.getByText("Password updated successfully")).toBeVisible();
+  expect(submittedPassword).toEqual({ currentPassword: "Old-password-1!", newPassword: "Secure1!", revokeOtherSessions: true });
+
+  await page.addScriptTag({ content: axeSource });
+  const violations = await page.evaluate(async () => (await (window as any).axe.run(document.querySelector(".peas-profile-card--security"))).violations.filter((item: any) => item.impact === "serious" || item.impact === "critical"));
+  expect(violations).toEqual([]);
 });
 
 test("saved documents exposes a retryable error state", async ({ page }) => {

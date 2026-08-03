@@ -32,7 +32,10 @@ export function NewsPreviewCard({ post, index = 0, transitionOnNavigate = false 
           <h3 id={titleId}>{post.title}</h3>
           <p>{post.excerpt}</p>
           <div className="peas-news-meta">
-            <span><CalendarDays aria-hidden="true" /> {formatNewsDate(post.publishedAt)}</span>
+            <span>
+              <CalendarDays aria-hidden="true" />
+              <time dateTime={post.publishedAt || post.createdAt}>{formatNewsDate(post.publishedAt || post.createdAt)}</time>
+            </span>
             <span>By {post.authorName}</span>
           </div>
         </div>
@@ -78,5 +81,7 @@ function handleNewsNavigation(event: MouseEvent<HTMLAnchorElement>) {
 
 function formatNewsDate(value: string | null) {
   if (!value) return "Publication date unavailable";
-  return new Intl.DateTimeFormat("en-PH", { dateStyle: "long" }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Publication date unavailable";
+  return new Intl.DateTimeFormat("en-PH", { dateStyle: "long", timeStyle: "short" }).format(date);
 }

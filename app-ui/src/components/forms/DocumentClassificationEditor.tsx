@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { searchTopics, proposeTopic } from "../../lib/api/upload";
 import { normalizeClassificationTerm } from "../../../../shared/classification";
 
@@ -15,8 +16,8 @@ export interface DocumentClassificationEditorValue {
 
 interface AgendaOption {
   id: number;
-  code?: string;
   name: string;
+  is_active?: boolean;
 }
 
 export function DocumentClassificationEditor({
@@ -32,10 +33,12 @@ export function DocumentClassificationEditor({
   idPrefix?: string;
   onChange: (value: DocumentClassificationEditorValue) => void;
 }) {
+  const [agendaQuery, setAgendaQuery] = useState("");
   const [topicQuery, setTopicQuery] = useState("");
   const [topicMatches, setTopicMatches] = useState<Array<{ id: number; name: string; status?: string }>>([]);
   const [topicBusy, setTopicBusy] = useState(false);
   const [keywordDraft, setKeywordDraft] = useState("");
+  const visibleAgendas = agendas.filter((agenda) => agenda.name.toLocaleLowerCase().includes(agendaQuery.trim().toLocaleLowerCase()));
 
   useEffect(() => {
     const query = topicQuery.trim();
@@ -85,7 +88,7 @@ export function DocumentClassificationEditor({
 
   function addKeyword(raw: string) {
     const term = raw.trim().replace(/\s+/gu, " ");
-    if (!term || value.keywords.some((keyword) => normalizeClassificationTerm(keyword) === normalizeClassificationTerm(term)) || value.keywords.length >= 10) return;
+    if (!term || value.keywords.some((keyword) => normalizeClassificationTerm(keyword) === normalizeClassificationTerm(term))) return;
     onChange({ ...value, keywords: [...value.keywords, term] });
     setKeywordDraft("");
   }
@@ -93,26 +96,31 @@ export function DocumentClassificationEditor({
   return <div className="peas-classification-editor" aria-label="Document classification editor">
     <fieldset className="peas-classification-editor__group">
       <legend>Research agendas</legend>
-      <p>Official institutional priorities. Select 1–3 and identify one primary agenda.</p>
-      <select
-        id={`${idPrefix}-agendas`}
-        multiple
-        size={Math.min(Math.max(agendas.length, 3), 6)}
-        value={value.researchAgendaIds.map(String)}
-        disabled={disabled}
-        aria-label="Research agendas"
-        onChange={(event) => {
-          const next = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
-          onChange({ ...value, researchAgendaIds: next, primaryResearchAgendaId: next.includes(value.primaryResearchAgendaId ?? 0) ? value.primaryResearchAgendaId : next[0] ?? null });
-        }}
-      >
-        {agendas.map((agenda) => <option key={agenda.id} value={agenda.id}>{agenda.code ? `${agenda.code} · ` : ""}{agenda.name}</option>)}
-      </select>
-      <label htmlFor={`${idPrefix}-primary-agenda`}>Primary agenda</label>
-      <select id={`${idPrefix}-primary-agenda`} value={value.primaryResearchAgendaId ? String(value.primaryResearchAgendaId) : ""} disabled={disabled || !value.researchAgendaIds.length} onChange={(event) => onChange({ ...value, primaryResearchAgendaId: event.currentTarget.value ? Number(event.currentTarget.value) : null })}>
-        <option value="">Choose primary agenda</option>
-        {value.researchAgendaIds.map((id) => { const agenda = agendas.find((item) => item.id === id); return agenda ? <option key={id} value={id}>{agenda.name}</option> : null; })}
-      </select>
+      <p>Select 1–3 of {agendas.length} official priorities and choose one primary agenda.</p>
+      <div className="peas-agenda-selection-summary" aria-live="polite"><strong>{value.researchAgendaIds.length} selected</strong><span>Maximum 3 per document</span></div>
+      {agendas.length > 6 ? <Input id={`${idPrefix}-agenda-search`} className="peas-agenda-search" aria-label="Search research agendas" value={agendaQuery} disabled={disabled} placeholder="Search research agendas…" onChange={(event) => setAgendaQuery(event.currentTarget.value)} /> : null}
+      <div className="peas-agenda-options" role="group" aria-label="Research agendas">
+        {visibleAgendas.length ? visibleAgendas.map((agenda) => {
+          const selected = value.researchAgendaIds.includes(agenda.id);
+          return <label className={`peas-agenda-option${selected ? " is-selected" : ""}`} key={agenda.id}>
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={disabled || (!selected && value.researchAgendaIds.length >= 3) || (agenda.is_active === false && !selected)}
+              onChange={() => {
+                const next = selected ? value.researchAgendaIds.filter((id) => id !== agenda.id) : [...value.researchAgendaIds, agenda.id];
+                onChange({ ...value, researchAgendaIds: next, primaryResearchAgendaId: next.includes(value.primaryResearchAgendaId ?? 0) ? value.primaryResearchAgendaId : next[0] ?? null });
+              }}
+            />
+            <span>{agenda.name}{agenda.is_active === false ? " · Retired (historical)" : ""}</span>
+          </label>;
+        }) : <span className="peas-agenda-empty">No research agendas match your search.</span>}
+      </div>
+      <label htmlFor={`${idPrefix}-primary-agenda`}>Primary research agenda</label>
+      <Select value={value.primaryResearchAgendaId ? String(value.primaryResearchAgendaId) : undefined} disabled={disabled || !value.researchAgendaIds.length} onValueChange={(selected) => onChange({ ...value, primaryResearchAgendaId: selected ? Number(selected) : null })}>
+        <SelectTrigger id={`${idPrefix}-primary-agenda`} aria-label="Primary agenda"><SelectValue placeholder="Choose primary agenda" /></SelectTrigger>
+        <SelectContent>{value.researchAgendaIds.map((id) => { const agenda = agendas.find((item) => item.id === id); return agenda ? <SelectItem key={id} value={String(id)}>{agenda.name}{agenda.is_active === false ? " · Retired (historical)" : ""}</SelectItem> : null; })}</SelectContent>
+      </Select>
     </fieldset>
 
     <fieldset className="peas-classification-editor__group">
@@ -127,9 +135,8 @@ export function DocumentClassificationEditor({
 
     <fieldset className="peas-classification-editor__group">
       <legend>Keywords</legend>
-      <p>Optional normalized search terms, up to 10. Keywords remain independent from agendas and topics.</p>
       {value.keywords.length ? <div className="peas-keyword-input__badges" role="list" aria-label="Selected keywords">{value.keywords.map((keyword, index) => <Badge key={`${keyword}-${index}`} tone="green" role="listitem">{keyword}<button type="button" aria-label={`Remove keyword ${keyword}`} disabled={disabled} onClick={() => onChange({ ...value, keywords: value.keywords.filter((_, itemIndex) => itemIndex !== index) })}><X aria-hidden="true" /></button></Badge>)}</div> : null}
-      <Input id={`${idPrefix}-keyword-input`} aria-label="Add keyword" value={keywordDraft} disabled={disabled || value.keywords.length >= 10} placeholder="Add keyword and press Enter" onChange={(event) => { const next = event.currentTarget.value; if (next.includes(";")) { const parts = next.split(";"); parts.slice(0, -1).forEach(addKeyword); setKeywordDraft(parts[parts.length - 1]?.trim() ?? ""); } else setKeywordDraft(next); }} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === ";") && keywordDraft.trim()) { event.preventDefault(); addKeyword(keywordDraft); } else if (event.key === "Backspace" && !keywordDraft && value.keywords.length) { onChange({ ...value, keywords: value.keywords.slice(0, -1) }); } }} onBlur={() => addKeyword(keywordDraft)} />
+      <Input id={`${idPrefix}-keyword-input`} aria-label="Add keyword" value={keywordDraft} disabled={disabled} placeholder="Add keyword and press Enter" onChange={(event) => { const next = event.currentTarget.value; if (next.includes(";")) { const parts = next.split(";"); parts.slice(0, -1).forEach(addKeyword); setKeywordDraft(parts[parts.length - 1]?.trim() ?? ""); } else setKeywordDraft(next); }} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === ";") && keywordDraft.trim()) { event.preventDefault(); addKeyword(keywordDraft); } else if (event.key === "Backspace" && !keywordDraft && value.keywords.length) { onChange({ ...value, keywords: value.keywords.slice(0, -1) }); } }} onBlur={() => addKeyword(keywordDraft)} />
     </fieldset>
   </div>;
 }

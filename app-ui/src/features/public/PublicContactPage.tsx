@@ -1,7 +1,16 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { CheckCircle2, Mail, Send } from "lucide-react";
+import { Check, CheckCircle2, Copy, Mail, Send } from "lucide-react";
+import Grainient from "../../components/Grainient";
 import { PublicPageShell } from "../../components/public/PublicPageShell";
 import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { submitContactInquiry, type ContactInquiryInput } from "../../lib/api/contact";
 import { getErrorMessage } from "../../lib/api/http";
 
@@ -21,6 +30,8 @@ export function PublicContactPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ referenceCode?: string; error?: string }>({});
+  const [referenceDialogOpen, setReferenceDialogOpen] = useState(false);
+  const [referenceCopied, setReferenceCopied] = useState(false);
   const inputIds = useMemo(() => ({
     firstName: "contact-first-name",
     lastName: "contact-last-name",
@@ -50,6 +61,8 @@ export function PublicContactPage() {
     try {
       const receipt = await submitContactInquiry(form);
       setResult({ referenceCode: receipt.referenceCode });
+      setReferenceCopied(false);
+      setReferenceDialogOpen(true);
       setForm(emptyForm);
     } catch (error) {
       setResult({ error: getErrorMessage(error) });
@@ -58,26 +71,80 @@ export function PublicContactPage() {
     }
   };
 
+  const copyReferenceCode = async () => {
+    const referenceCode = result.referenceCode;
+    if (!referenceCode) return;
+
+    const copyWithSelectionFallback = () => {
+      const fallback = document.createElement("textarea");
+      fallback.value = referenceCode;
+      fallback.setAttribute("readonly", "");
+      fallback.style.position = "fixed";
+      fallback.style.opacity = "0";
+      document.body.appendChild(fallback);
+      try {
+        fallback.focus();
+        fallback.select();
+        if (!document.execCommand("copy")) throw new Error("Copy command was rejected");
+      } finally {
+        fallback.remove();
+      }
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(referenceCode);
+        } catch {
+          copyWithSelectionFallback();
+        }
+      } else {
+        copyWithSelectionFallback();
+      }
+      setReferenceCopied(true);
+    } catch {
+      setReferenceCopied(false);
+    }
+  };
+
   return (
     <PublicPageShell mainClassName="peas-contact-page">
-      <section className="peas-contact-intro" aria-labelledby="contact-title">
-        <span>Contact the Office</span>
-        <h1 id="contact-title">How can we help?</h1>
-        <p>
-          Ask about research documents, submissions, repository access, technical concerns,
-          or other Office of Research &amp; Publications matters.
-        </p>
-      </section>
+      <div className="peas-contact-background" aria-hidden="true">
+        <div className="peas-contact-facade" />
+        <div className="peas-contact-grainient">
+          <Grainient
+            color1="#e6f2ee"
+            color2="#d4a017"
+            color3="#f6f7f9"
+            contrast={1.08}
+            grainAmount={0.045}
+            saturation={0.65}
+            timeSpeed={0.08}
+            warpAmplitude={70}
+            zoom={1.05}
+          />
+        </div>
+      </div>
 
-      <div className="peas-contact-layout">
-        <aside className="peas-contact-aside" aria-label="Contact guidance">
-          <Mail aria-hidden="true" />
-          <h2>Send an inquiry</h2>
-          <p>Your message is stored securely before our notification is sent, so it will not be lost if email delivery is temporarily unavailable.</p>
-          <p>After submitting, keep the reference code shown on screen for follow-up.</p>
-        </aside>
+      <div className="peas-contact-page__content">
+        <section className="peas-contact-intro" aria-labelledby="contact-title">
+          <span>Contact the Office</span>
+          <h1 id="contact-title">How can we help?</h1>
+          <p>
+            Ask about research documents, submissions, repository access, technical concerns,
+            or other Office of Research &amp; Publications matters.
+          </p>
+        </section>
 
-        <form className="peas-contact-form" onSubmit={submit} noValidate>
+        <div className="peas-contact-layout">
+          <aside className="peas-contact-aside" aria-label="Contact guidance">
+            <Mail aria-hidden="true" />
+            <h2>Send an inquiry</h2>
+            <p>Your message is stored securely before our notification is sent, so it will not be lost if email delivery is temporarily unavailable.</p>
+            <p>After submitting, keep the reference code from the confirmation dialog for follow-up.</p>
+          </aside>
+
+          <form className="peas-contact-form" onSubmit={submit} noValidate>
           <div className="peas-contact-name-row">
             <ContactField id={inputIds.firstName} label="First name" error={errors.firstName}>
               <input id={inputIds.firstName} autoComplete="given-name" maxLength={80} value={form.firstName} onChange={(event) => update("firstName", event.currentTarget.value)} aria-invalid={Boolean(errors.firstName)} aria-describedby={errors.firstName ? `${inputIds.firstName}-error` : undefined} />
@@ -104,12 +171,40 @@ export function PublicContactPage() {
             <Send aria-hidden="true" /> {submitting ? "Sending…" : "Send inquiry"}
           </Button>
           <div className="peas-contact-result" aria-live="polite" aria-atomic="true">
-            {result.referenceCode ? (
-              <div className="peas-contact-success"><CheckCircle2 aria-hidden="true" /><p><strong>Inquiry received.</strong> Your reference code is <code>{result.referenceCode}</code>.</p></div>
-            ) : result.error ? <p className="peas-contact-error">{result.error} Your entries have been kept so you can retry.</p> : null}
+            {result.referenceCode
+              ? <div className="peas-contact-success"><CheckCircle2 aria-hidden="true" /><p><strong>Inquiry received.</strong> Your reference code is available in the confirmation dialog.</p></div>
+              : result.error ? <p className="peas-contact-error">{result.error} Your entries have been kept so you can retry.</p> : null}
           </div>
-        </form>
+          </form>
+        </div>
       </div>
+
+      <Dialog
+        open={referenceDialogOpen && Boolean(result.referenceCode)}
+        onOpenChange={(open) => {
+          setReferenceDialogOpen(open);
+          if (!open) setReferenceCopied(false);
+        }}
+      >
+        <DialogContent className="peas-contact-reference-dialog">
+          <DialogHeader>
+            <DialogTitle>Inquiry received</DialogTitle>
+            <DialogDescription>
+              Keep this reference code for follow-up with the Office of Research &amp; Publications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="peas-contact-reference-code" role="status" aria-live="polite">
+            <code>{result.referenceCode}</code>
+            <Button type="button" variant="outline" onClick={() => void copyReferenceCode()}>
+              {referenceCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+              {referenceCopied ? "Copied" : "Copy code"}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setReferenceDialogOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PublicPageShell>
   );
 }

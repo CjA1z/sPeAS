@@ -13,7 +13,18 @@ export interface AccountLibraryItem extends LooseRecord {
   author_names: string[];
   child_count: number;
   saved_at: string;
+  read_at: string | null;
   availability: "available" | "unavailable" | "deleted";
+  annotation_count?: number;
+  needs_review_count?: number;
+}
+
+export interface DocumentReadStatus {
+  success: boolean;
+  read: boolean;
+  readAt: string | null;
+  recordId: number;
+  recordType: AccountRecordType;
 }
 
 export interface AccountHistoryItem extends LooseRecord {
@@ -62,6 +73,12 @@ export function addSavedDocument(documentId: string | number, recordType: Accoun
 }
 export function checkSavedDocument(documentId: string | number, recordType: AccountRecordType = "document") {
   return apiFetch<{ inLibrary: boolean; count: number }>(`/api/user/library/check?documentId=${encodeURIComponent(documentId)}&recordType=${recordType}`);
+}
+export function checkDocumentReadStatus(documentId: string | number, recordType: AccountRecordType = "document") {
+  return apiFetch<DocumentReadStatus>(`/api/user/read-status?documentId=${encodeURIComponent(documentId)}&recordType=${recordType}`);
+}
+export function markDocumentAsRead(documentId: string | number, recordType: AccountRecordType = "document") {
+  return apiFetch<DocumentReadStatus>("/api/user/read-status", { method: "POST", json: { documentId, recordType } });
 }
 export function fetchUserHistory(params: URLSearchParams) {
   return apiFetch<HistoryResponse>(`/api/user/history?${params}`);

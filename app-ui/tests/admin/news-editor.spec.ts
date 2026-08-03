@@ -112,10 +112,7 @@ test("news workspace provides a full composer and submits formatted articles", a
     name: "@Dr. Elena Santos",
   })).toBeVisible();
 
-  await editor.locator(".peas-editor-status-options").getByRole("button", {
-    name: /Published/,
-  }).click();
-  await editor.getByRole("button", { name: "Publish article" }).click();
+  await editor.getByRole("button", { name: "Publish", exact: true }).click();
   await expect.poll(() => submitted).toBeTruthy();
   expect(submitted).toMatchObject({
     title: "New research milestone",
@@ -130,6 +127,31 @@ test("news workspace provides a full composer and submits formatted articles", a
   );
   expect(String(submitted?.body)).not.toContain("author:d3f1b8a6-2e6f-4eb4-9b98-8d1d1382ee41");
   await expect(editor).toHaveCount(0);
+});
+
+test("news editor schedules an article in Asia/Manila", async ({ page }) => {
+  let submitted: Record<string, unknown> | undefined;
+  await page.route("**/api/admin/news", async (route) => {
+    if (route.request().method() !== "POST") return route.fulfill({ json: { posts: [] } });
+    submitted = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: { post: { id: 43, slug: "scheduled-news", publishedAt: submitted.publishAt, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...submitted } } });
+  });
+
+  await page.goto("/admin/Components/news.html");
+  await page.getByRole("button", { name: "New article" }).click();
+  const editor = page.getByRole("dialog", { name: "New article" });
+  await editor.getByPlaceholder("Write a clear, compelling headline…").fill("Scheduled milestone");
+  await editor.getByPlaceholder("Give readers the essential context in one or two sentences.").fill("A scheduled update.");
+  await editor.getByPlaceholder(/Begin the story here/).fill("The update will appear later.");
+  await editor.getByRole("button", { name: "Publish options" }).click();
+  await page.getByRole("menuitem", { name: "Schedule publish" }).click();
+  const dialog = page.getByRole("dialog", { name: "Schedule publish" });
+  await expect(dialog.getByText("Asia/Manila (GMT+8)")).toBeVisible();
+  await dialog.getByLabel("Publish date").fill("2030-01-02");
+  await dialog.getByLabel("Publish time").fill("10:30");
+  await dialog.getByRole("button", { name: "Schedule", exact: true }).click();
+  await expect.poll(() => submitted).toMatchObject({ status: "published" });
+  expect(String(submitted?.publishAt)).toContain("2030-01-02T02:30:00.000Z");
 });
 
 test("news composer remains usable on a mobile viewport", async ({ page }) => {
@@ -149,6 +171,24 @@ test("news composer remains usable on a mobile viewport", async ({ page }) => {
   await expect(editor.getByText("Cover image", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(390);
+});
+
+test("news list keeps the search label hidden and places publish above row actions", async ({ page }) => {
+  let updated: Record<string, unknown> | undefined;
+  await page.route("**/api/admin/news**", async (route) => {
+    if (route.request().method() === "PUT") {
+      updated = route.request().postDataJSON();
+      return route.fulfill({ json: { post: { id: 9, title: "Draft story", slug: "draft-story", excerpt: "Summary", body: "Body", bodyFormat: "plain", coverImageUrl: null, coverImageAlt: "", authorName: "Office", status: "published", publishedAt: new Date().toISOString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), taggedAuthors: [], taggedWorks: [] } } });
+    }
+    return route.fulfill({ json: { posts: [{ id: 9, title: "Draft story", slug: "draft-story", excerpt: "Summary", body: "Body", bodyFormat: "plain", coverImageUrl: null, coverImageAlt: "", authorName: "Office", status: "draft", publishedAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), taggedAuthors: [], taggedWorks: [] }] } });
+  });
+  await page.goto("/admin/Components/news.html");
+  await expect(page.getByText("Search news posts", { exact: true })).toBeHidden();
+  const row = page.locator(".peas-admin-news-row");
+  await expect(row.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect.poll(() => updated).toMatchObject({ status: "published", publishAt: null });
 });
 
 async function mockAdminIdentity(page: Page) {

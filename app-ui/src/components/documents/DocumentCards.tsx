@@ -111,6 +111,9 @@ export function PeasCompiledDocumentCard({
         </div>
 
         <div className="peas-document-card__actions">
+          <Button size="sm" onClick={() => onPreview(document)}>
+            <Eye aria-hidden="true" /> View
+          </Button>
           <PeasActionMenu
             label={`Actions for ${document.title}`}
             items={[

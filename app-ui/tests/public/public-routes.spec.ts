@@ -455,6 +455,80 @@ test("formatted news articles render semantic, safe public content", async ({ pa
   );
 });
 
+test("guests can share a news article and are returned to it when they choose Save", async ({ page }) => {
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: "null" }));
+  await page.route("**/api/news/save-intent-story", (route) => route.fulfill({ json: { post: {
+    id: 19,
+    title: "Save intent story",
+    slug: "save-intent-story",
+    excerpt: "A story a reader may want to revisit.",
+    body: "Article body",
+    bodyFormat: "plain",
+    coverImageUrl: null,
+    coverImageAlt: "",
+    authorName: "Office of Research & Publications",
+    status: "published",
+    publishedAt: "2026-08-01T00:00:00.000Z",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    taggedAuthors: [],
+    taggedWorks: [],
+  } } }));
+
+  await page.goto("/news.html?slug=save-intent-story");
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Share", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/log-in\.html\?redirect=.*news\.html.*save-intent-story/);
+});
+
+test("authenticated news readers can save, unsave, and use the collapsible share options", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+  });
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: { id: "session-1" }, user: { id: "user-1", name: "Ada Researcher", role: "user" } }) }));
+  await page.route("**/api/news/authenticated-save-story", (route) => route.fulfill({ json: { post: {
+    id: 20,
+    title: "Authenticated save story",
+    slug: "authenticated-save-story",
+    excerpt: "A story saved by a registered reader.",
+    body: "Article body",
+    bodyFormat: "plain",
+    coverImageUrl: null,
+    coverImageAlt: "",
+    authorName: "Office of Research & Publications",
+    status: "published",
+    publishedAt: "2026-08-01T00:00:00.000Z",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    taggedAuthors: [],
+    taggedWorks: [],
+  } } }));
+  await page.route("**/api/user/saved-news/20/status", (route) => route.fulfill({ json: { success: true, saved: false, count: 0 } }));
+  await page.route("**/api/user/saved-news/20", (route) => route.fulfill({ json: { success: true, saved: route.request().method() === "POST", count: 1 } }));
+
+  await page.goto("/news.html?slug=authenticated-save-story");
+  const saveButton = page.getByRole("button", { name: "Save", exact: true });
+  await expect(saveButton).toBeVisible();
+  await saveButton.click();
+  await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Saved", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  const shareButton = page.getByRole("button", { name: "Share", exact: true });
+  await expect(shareButton).toHaveAttribute("aria-expanded", "false");
+  await shareButton.click();
+  await expect(shareButton).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: "Facebook" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "X (Twitter)" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "WhatsApp" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "LinkedIn" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Email article" })).toBeVisible();
+  await shareButton.click();
+  await expect(shareButton).toHaveAttribute("aria-expanded", "false");
+});
+
 test("contact validates fields and preserves values after a failed submission", async ({ page }) => {
   await page.route("/api/contact-inquiries", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Temporarily unavailable" }) }));
   await page.goto("/contact.html");
@@ -464,6 +538,29 @@ test("contact validates fields and preserves values after a failed submission", 
   await page.getByRole("button", { name: "Send inquiry" }).click();
   await expect(page.locator(".peas-contact-error")).toBeVisible();
   await expect(page.locator("#contact-message")).toHaveValue("Please help me access the repository record.");
+});
+
+test("contact shows the reference code in a copyable confirmation dialog", async ({ page, context }) => {
+  await page.route("**/api/contact-inquiries", (route) => route.fulfill({
+    status: 201,
+    contentType: "application/json",
+    body: JSON.stringify({ referenceCode: "PEAS-20260803-ABC12345" }),
+  }));
+  await page.goto("/contact.html");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin }).catch(() => undefined);
+  await page.locator("#contact-first-name").fill("Jane");
+  await page.locator("#contact-last-name").fill("Doe");
+  await page.locator("#contact-email").fill("jane@example.com");
+  await page.locator("#contact-subject").fill("Repository access");
+  await page.locator("#contact-message").fill("Please help me access the repository record.");
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("PEAS-20260803-ABC12345", { exact: true })).toBeVisible();
+  const copyButton = dialog.getByRole("button", { name: "Copy code" });
+  await copyButton.click();
+  await expect(dialog.getByRole("button", { name: "Copied" })).toBeVisible();
 });
 
 test("home has no critical Axe violations and mobile navigation opens", async ({ page }, testInfo) => {
@@ -630,9 +727,19 @@ test("repository search presents focused filters and scannable results", async (
   await expect(page.getByRole("heading", { name: "Results for “community health”" })).toBeVisible();
   expect(new URL(page.url()).searchParams.get("q")).toBe("community health");
 
-  await page.getByRole("combobox", { name: "Sort search results" }).selectOption("earliest");
+  const sortResults = page.getByRole("combobox", { name: "Sort search results" });
+  await expect(searchPanel.getByRole("combobox", { name: "Sort search results" })).toHaveCount(0);
+  await sortResults.selectOption("earliest");
   await expect(page.getByText("Oldest publications appear first.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
+  const clearFilters = page.getByRole("button", { name: "Clear filters" });
+  await expect(clearFilters).toBeVisible();
+  const actionOrder = await page.locator(".peas-public-results-actions").evaluate((actions) => Array.from(actions.children).map((child) => child.className));
+  expect(actionOrder[0]).toContain("peas-public-results-clear");
+  expect(actionOrder[1]).toContain("peas-public-results-sort");
+  await clearFilters.click();
+  await expect(sortResults).toHaveValue("latest");
+  await expect(page.getByText("Newest publications appear first.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Clear filters" })).toHaveCount(0);
 
   const viewportWidth = page.viewportSize()?.width ?? 0;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewportWidth);

@@ -5,6 +5,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "/react-ui/",
   plugins: [react()],
+  resolve: { dedupe: ["react", "react-dom"] },
   build: {
     outDir: resolve(__dirname, "../Deno/Public/react-ui"),
     emptyOutDir: true,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Mail, MessageSquarePlus, RefreshCw, Search, X } from "lucide-react";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
 import { PeasEmptyState, PeasErrorState } from "../../components/feedback/PeasStates";
@@ -27,8 +27,14 @@ export function AdminContactInquiriesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof fetchAdminContactSummary>> | null>(null);
   const [selected, setSelected] = useState<AdminContactInquiry | null>(null);
+  const [detailClosing, setDetailClosing] = useState(false);
+  const detailCloseTimer = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => () => {
+    if (detailCloseTimer.current !== null) window.clearTimeout(detailCloseTimer.current);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -45,6 +51,11 @@ export function AdminContactInquiriesPage() {
   useEffect(() => { void load(); }, [load]);
 
   const openInquiry = async (item: AdminContactInquiry) => {
+    if (detailCloseTimer.current !== null) {
+      window.clearTimeout(detailCloseTimer.current);
+      detailCloseTimer.current = null;
+    }
+    setDetailClosing(false);
     setSelected(item);
     if (item.status === "new") {
       const read = await updateAdminContactStatus(item.referenceCode, "read");
@@ -53,6 +64,16 @@ export function AdminContactInquiriesPage() {
       setSelected(await fetchAdminContactInquiry(item.referenceCode));
     }
   };
+
+  const closeInquiry = useCallback(() => {
+    if (detailClosing || detailCloseTimer.current !== null) return;
+    setDetailClosing(true);
+    detailCloseTimer.current = window.setTimeout(() => {
+      setSelected(null);
+      setDetailClosing(false);
+      detailCloseTimer.current = null;
+    }, 220);
+  }, [detailClosing]);
 
   return (
     <main className="peas-admin-island peas-contact-admin" aria-labelledby="contact-inbox-title">
@@ -79,29 +100,48 @@ export function AdminContactInquiriesPage() {
         </div>
       )}
       {totalCount > 0 ? <PeasPagination page={page} totalPages={totalPages} totalCount={totalCount} visibleCount={items.length} label="Contact inquiry pages" onPageChange={setPage} /> : null}
-      {selected ? <InquiryDetail inquiry={selected} onClose={() => setSelected(null)} onChanged={async (next) => { setSelected(next); await load(); }} /> : null}
+      {selected ? <InquiryDetail inquiry={selected} isClosing={detailClosing} onClose={closeInquiry} onChanged={async (next) => { setSelected(next); await load(); }} /> : null}
     </main>
   );
 }
 
-function InquiryDetail({ inquiry, onClose, onChanged }: { inquiry: AdminContactInquiry; onClose: () => void; onChanged: (inquiry: AdminContactInquiry) => Promise<void> }) {
+function InquiryDetail({ inquiry, isClosing, onClose, onChanged }: { inquiry: AdminContactInquiry; isClosing: boolean; onClose: () => void; onChanged: (inquiry: AdminContactInquiry) => Promise<void> }) {
   const [notes, setNotes] = useState<ContactNote[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { fetchAdminContactNotes(inquiry.referenceCode).then((result) => setNotes(result.notes)).catch((caught) => setError(getErrorMessage(caught))); }, [inquiry.referenceCode]);
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [onClose]);
   const mailto = useMemo(() => `mailto:${encodeURIComponent(inquiry.email)}?subject=${encodeURIComponent(`[PeAS Contact][${inquiry.referenceCode}] Re: ${inquiry.subject}`)}`, [inquiry]);
   const changeStatus = async (status: ContactInquiryStatus) => { setBusy(true); try { await onChanged(await updateAdminContactStatus(inquiry.referenceCode, status)); } catch (caught) { setError(getErrorMessage(caught)); } finally { setBusy(false); } };
   const addNote = async (event: FormEvent) => { event.preventDefault(); if (!note.trim() || busy) return; setBusy(true); try { const created = await addAdminContactNote(inquiry.referenceCode, note.trim()); setNotes((current) => [...current, created]); setNote(""); } catch (caught) { setError(getErrorMessage(caught)); } finally { setBusy(false); } };
   const retry = async () => { setBusy(true); try { await retryAdminContactNotification(inquiry.referenceCode); await onChanged({ ...inquiry, notificationStatus: "pending" }); } catch (caught) { setError(getErrorMessage(caught)); } finally { setBusy(false); } };
 
-  return <div className="peas-contact-detail-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="peas-contact-detail" role="dialog" aria-modal="true" aria-labelledby="inquiry-detail-title">
-    <header><div><span>{inquiry.referenceCode}</span><h2 id="inquiry-detail-title">{inquiry.subject}</h2></div><button type="button" aria-label="Close inquiry" onClick={onClose}><X aria-hidden="true" /></button></header>
-    {error ? <p className="peas-contact-error" role="alert">{error}</p> : null}
-    <dl><div><dt>From</dt><dd>{inquiry.firstName} {inquiry.lastName} &lt;{inquiry.email}&gt;</dd></div><div><dt>Received</dt><dd>{formatDate(inquiry.createdAt)}</dd></div><div><dt>Status</dt><dd>{inquiry.status}</dd></div><div><dt>Notification</dt><dd>{inquiry.notificationStatus}</dd></div></dl>
-    <div className="peas-contact-detail__message">{inquiry.message}</div>
-    <div className="peas-contact-detail__actions"><a className="peas-ui-button peas-ui-button--default peas-ui-button--md" href={mailto}><Mail aria-hidden="true" /> Reply by email</a>{inquiry.status === "new" || inquiry.status === "read" ? <><Button disabled={busy} onClick={() => void changeStatus("resolved")}>Resolve</Button><Button disabled={busy} variant="outline" onClick={() => void changeStatus("spam")}>Mark spam</Button></> : <Button disabled={busy} variant="outline" onClick={() => void changeStatus("read")}>Reopen</Button>}{inquiry.notificationStatus === "failed" ? <Button disabled={busy} variant="outline" onClick={() => void retry()}><RefreshCw aria-hidden="true" /> Retry notification</Button> : null}</div>
-    <section className="peas-contact-notes"><h3>Private notes</h3>{notes.length ? notes.map((item) => <article key={item.id}><p>{item.note}</p><small>{item.administratorUserId} · {formatDate(item.createdAt)}</small></article>) : <p>No private notes yet.</p>}<form onSubmit={addNote}><textarea rows={3} maxLength={5000} placeholder="Add an administrator-only note" value={note} onChange={(event) => setNote(event.currentTarget.value)} /><Button disabled={busy || !note.trim()} type="submit"><MessageSquarePlus aria-hidden="true" /> Add note</Button></form></section>
+  return <div className={`peas-contact-detail-backdrop${isClosing ? " is-closing" : ""}`} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className={`peas-contact-detail${isClosing ? " is-closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="inquiry-detail-title" aria-busy={busy}>
+    <header className="peas-contact-detail__header"><div><span className="peas-contact-detail__reference">{inquiry.referenceCode}</span><h2 id="inquiry-detail-title">{inquiry.subject}</h2><p>Inquiry details and internal follow-up</p></div><button className="peas-contact-detail__close" type="button" aria-label="Close inquiry" onClick={onClose} ref={closeButtonRef}><X aria-hidden="true" /></button></header>
+    <div className="peas-contact-detail__body">
+      {error ? <p className="peas-contact-error peas-contact-detail__error" role="alert">{error}</p> : null}
+      <dl className="peas-contact-detail__metadata"><div><dt>From</dt><dd>{inquiry.firstName} {inquiry.lastName} &lt;{inquiry.email}&gt;</dd></div><div><dt>Received</dt><dd>{formatDate(inquiry.createdAt)}</dd></div><div><dt>Status</dt><dd><span className={`peas-contact-status is-${inquiry.status}`}>{inquiry.status}</span></dd></div><div><dt>Notification</dt><dd><span className={`peas-notification-status is-${inquiry.notificationStatus}`}>{inquiry.notificationStatus}</span></dd></div></dl>
+      <section className="peas-contact-detail__message-section" aria-labelledby="inquiry-message-title"><h3 id="inquiry-message-title">Message</h3><div className="peas-contact-detail__message">{inquiry.message}</div></section>
+      <section className="peas-contact-detail__actions-section" aria-label="Inquiry actions"><p>Next steps</p><div className="peas-contact-detail__actions"><a className="peas-ui-button peas-ui-button--default peas-ui-button--size-default" href={mailto}><Mail aria-hidden="true" /> Reply by email</a>{inquiry.status === "new" || inquiry.status === "read" ? <><Button disabled={busy} onClick={() => void changeStatus("resolved")}>Resolve</Button><Button disabled={busy} variant="outline" onClick={() => void changeStatus("spam")}>Mark spam</Button></> : <Button disabled={busy} variant="outline" onClick={() => void changeStatus("read")}>Reopen</Button>}{inquiry.notificationStatus === "failed" ? <Button disabled={busy} variant="outline" onClick={() => void retry()}><RefreshCw aria-hidden="true" /> Retry notification</Button> : null}</div></section>
+      <section className="peas-contact-notes" aria-labelledby="private-notes-title"><div className="peas-contact-notes__header"><div><h3 id="private-notes-title">Private notes</h3><p id="private-notes-help">Visible only to administrators.</p></div><span className="peas-contact-notes__count">{notes.length} {notes.length === 1 ? "note" : "notes"}</span></div>{notes.length ? notes.map((item) => <article key={item.id}><p>{item.note}</p><small>{item.administratorUserId} · {formatDate(item.createdAt)}</small></article>) : <p className="peas-contact-notes__empty">No private notes yet.</p>}<form onSubmit={addNote}><label className="sr-only" htmlFor="private-inquiry-note">Private note</label><textarea id="private-inquiry-note" rows={4} maxLength={5000} placeholder="Add an administrator-only note" value={note} onChange={(event) => setNote(event.currentTarget.value)} aria-describedby="private-notes-help" /><div className="peas-contact-notes__form-footer"><small>{note.length.toLocaleString()}/5,000 characters</small><Button disabled={busy || !note.trim()} type="submit"><MessageSquarePlus aria-hidden="true" /> Add note</Button></div></form></section>
+    </div>
   </aside></div>;
 }
 

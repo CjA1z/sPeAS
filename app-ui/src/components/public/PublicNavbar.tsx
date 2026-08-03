@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
-import { BookMarked, Clock3, LayoutDashboard, LogOut, Menu, UserRound, X } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { BookMarked, ChevronDown, Clock3, Highlighter, LayoutDashboard, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { usePublicSession } from "./PublicSessionProvider";
 
 const links = [
@@ -17,6 +24,7 @@ export function PublicNavbar() {
   const authenticated = Boolean(session?.authenticated);
   const isAdmin = session?.role === "admin";
   const userName = String(session?.user?.name ?? session?.username ?? session?.userId ?? "User");
+  const userImage = normalizeProfileImage(session?.user?.image);
 
   useEffect(() => {
     if (alwaysGreen) return;
@@ -56,26 +64,7 @@ export function PublicNavbar() {
       <div className="peas-public-nav-actions">
         {authenticated ? (
           <>
-            {isAdmin ? (
-              <a className="peas-public-user-link peas-public-dashboard-link" href="/admin/dashboard.html">
-                <LayoutDashboard aria-hidden="true" />
-                <span>Dashboard</span>
-              </a>
-            ) : null}
-            <a className="peas-public-icon-link" href="/pages/SavedDocument.html" aria-label="Saved documents">
-              <BookMarked aria-hidden="true" />
-            </a>
-            <a className="peas-public-icon-link" href="/pages/UserHistory.html" aria-label="User history">
-              <Clock3 aria-hidden="true" />
-            </a>
-            <a className="peas-public-user-link" href="/pages/UserProfile.html">
-              {session?.user?.image ? <img className="peas-public-user-avatar" src={String(session.user.image)} alt="" /> : <UserRound aria-hidden="true" />}
-              <span>{userName}</span>
-            </a>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut aria-hidden="true" />
-              Logout
-            </Button>
+            <AccountMenu isAdmin={isAdmin} userImage={userImage} userName={userName} onLogout={handleLogout} />
           </>
         ) : (
           <Button className="peas-public-login-button" size="sm" onClick={() => (window.location.href = "/log-in.html")}>
@@ -109,8 +98,10 @@ export function PublicNavbar() {
             ))}
             {authenticated ? (
               <>
+                <MobileAccountIdentity userImage={userImage} userName={userName} />
                 {isAdmin ? <a href="/admin/dashboard.html"><LayoutDashboard aria-hidden="true" /> Dashboard</a> : null}
-                <a href="/pages/SavedDocument.html"><BookMarked aria-hidden="true" /> Saved Documents</a>
+                <a href="/pages/SavedDocument.html"><BookMarked aria-hidden="true" /> Saved Items</a>
+                <a href="/pages/UserAnnotations.html"><Highlighter aria-hidden="true" /> Annotations</a>
                 <a href="/pages/UserHistory.html"><Clock3 aria-hidden="true" /> History</a>
                 <a href="/pages/UserProfile.html"><UserRound aria-hidden="true" /> Profile</a>
                 <Button variant="outline" onClick={handleLogout}>
@@ -125,6 +116,93 @@ export function PublicNavbar() {
       ) : null}
     </header>
   );
+}
+
+function AccountMenu({ isAdmin, userImage, userName, onLogout }: { isAdmin: boolean; userImage: string; userName: string; onLogout: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const initials = getInitials(userName);
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button className="peas-public-account-trigger" type="button" aria-label={`Open account menu for ${userName}`}>
+          <AccountAvatar image={userImage} initials={initials} />
+          <span className="peas-public-account-trigger__name">{userName}</span>
+          <ChevronDown className="peas-public-account-trigger__chevron" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="peas-public-account-menu" align="end" sideOffset={10} collisionPadding={12}>
+        <div className="peas-public-account-surface">
+          <div className="peas-public-account-surface__body">
+            <div className="peas-public-account-menu__content">
+              <div className="peas-public-account-menu__identity">
+                <AccountAvatar image={userImage} initials={initials} large />
+                <div>
+                  <strong>{userName}</strong>
+                  <small>{isAdmin ? "Administrator" : "Registered User"}</small>
+                </div>
+              </div>
+              <div className="peas-public-account-menu__items">
+                {isAdmin ? <AccountMenuLink href="/admin/dashboard.html" icon={<LayoutDashboard aria-hidden="true" />} label="Dashboard" /> : null}
+                <AccountMenuLink href="/pages/SavedDocument.html" icon={<BookMarked aria-hidden="true" />} label="Saved Items" />
+                <AccountMenuLink href="/pages/UserAnnotations.html" icon={<Highlighter aria-hidden="true" />} label="Annotations" />
+                <AccountMenuLink href="/pages/UserHistory.html" icon={<Clock3 aria-hidden="true" />} label="History" />
+                <AccountMenuLink href="/pages/UserProfile.html" icon={<UserRound aria-hidden="true" />} label="Profile" />
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="peas-public-account-menu__logout" onSelect={() => void onLogout()}>
+                <LogOut aria-hidden="true" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </div>
+          </div>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function AccountMenuLink({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
+  return (
+    <DropdownMenuItem asChild>
+      <a href={href}>
+        {icon}
+        <span>{label}</span>
+      </a>
+    </DropdownMenuItem>
+  );
+}
+
+function MobileAccountIdentity({ userImage, userName }: { userImage: string; userName: string }) {
+  return (
+    <div className="peas-public-mobile-identity">
+      <AccountAvatar image={userImage} initials={getInitials(userName)} large />
+      <div>
+        <strong>{userName}</strong>
+        <small>Signed in to PeAS</small>
+      </div>
+    </div>
+  );
+}
+
+function AccountAvatar({ image, initials, large = false }: { image: string; initials: string; large?: boolean }) {
+  return (
+    <span className={`peas-public-account-avatar${large ? " is-large" : ""}`} aria-hidden="true">
+      {image ? <img src={image} alt="" /> : <span>{initials}</span>}
+    </span>
+  );
+}
+
+function normalizeProfileImage(value: unknown) {
+  const image = String(value ?? "").trim();
+  if (!image) return "";
+  return image.startsWith("http") || image.startsWith("/") || image.startsWith("data:") ? image : `/${image}`;
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return (parts[0]?.[0] || "U").toUpperCase();
 }
 
 function usesAlwaysGreenNavbar() {

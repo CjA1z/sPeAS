@@ -25,6 +25,8 @@ export function PublicLoginPage() {
   const [busy, setBusy] = useState<"password" | "microsoft" | "forgot" | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "success"; text: string } | null>(null);
 
+  const redirect = safeSameOriginRedirect(new URLSearchParams(window.location.search).get("redirect"), "");
+
   const submitLogin = async (event: FormEvent) => {
     event.preventDefault();
     if (canvasMode) return;
@@ -37,7 +39,7 @@ export function PublicLoginPage() {
         : session.role === "publisher"
           ? "/admin/Components/news.html"
           : "/index.html";
-      window.location.assign(safeSameOriginRedirect(new URLSearchParams(window.location.search).get("redirect"), fallback));
+      window.location.assign(redirect || fallback);
     } catch (error) { setNotice({ kind: "error", text: getErrorMessage(error) }); }
     finally { setBusy(null); }
   };
@@ -131,7 +133,7 @@ export function PublicLoginPage() {
             onClick={async () => {
               setBusy("microsoft");
               setNotice(null);
-              try { await signInMicrosoft(); }
+              try { await signInMicrosoft(redirect || "/auth/landing.html"); }
               catch (error) { setNotice({ kind: "error", text: getErrorMessage(error) }); setBusy(null); }
             }}
           >

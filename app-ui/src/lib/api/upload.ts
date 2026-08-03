@@ -1,4 +1,4 @@
-import { apiFetch } from "./http";
+import { ApiError, apiFetch } from "./http";
 import type { DocumentAuthorReference, DocumentAuthorSelection } from "../authorSelection";
 import type { UploadCompiledDocumentPayload, UploadSingleDocumentPayload } from "./types";
 import type { DocumentClassification } from "./types";
@@ -17,6 +17,12 @@ export interface UploadedFileResult {
   fileType?: string;
   status?: string;
   details?: Record<string, unknown>;
+}
+
+export interface UploadTransferProgress {
+  loaded: number;
+  total: number;
+  percent: number;
 }
 
 export interface CreatedDocumentResult {
@@ -54,7 +60,7 @@ export function uploadDocumentFile(formData: FormData) {
   });
 }
 
-export function uploadFile(file: File, options: { storagePath: string; documentType: string; category?: string; isForeword?: boolean }) {
+export function uploadFile(file: File, options: { storagePath: string; documentType: string; category?: string; isForeword?: boolean }, onProgress?: (progress: UploadTransferProgress) => void) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("storagePath", options.storagePath);
@@ -62,10 +68,44 @@ export function uploadFile(file: File, options: { storagePath: string; documentT
   if (options.category) formData.append("category", options.category);
   if (options.isForeword) formData.append("is_foreword", "true");
 
-  return apiFetch<UploadedFileResult>("/api/content/upload", {
-    method: "POST",
-    body: formData,
+  return new Promise<UploadedFileResult>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "/api/content/upload");
+    request.withCredentials = true;
+    request.upload.addEventListener("progress", (event) => {
+      const total = event.lengthComputable ? event.total : file.size;
+      const loaded = Math.min(event.loaded, total || event.loaded);
+      const percent = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+      onProgress?.({ loaded, total, percent });
+    });
+    request.addEventListener("load", () => {
+      const payload = parseUploadResponse(request.responseText);
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
+        resolve(payload as UploadedFileResult);
+        return;
+      }
+      reject(new ApiError(uploadErrorMessage(payload, request.statusText), request.status, payload));
+    });
+    request.addEventListener("error", () => reject(new Error("The PDF upload was interrupted. Check your connection and try again.")));
+    request.addEventListener("abort", () => reject(new Error("The PDF upload was cancelled.")));
+    request.send(formData);
   });
+}
+
+function parseUploadResponse(text: string): unknown {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+function uploadErrorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    const message = record.message ?? record.error ?? record.details;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  if (typeof payload === "string" && payload.trim()) return payload;
+  return fallback || "The PDF could not be uploaded.";
 }
 
 export function uploadAuthorProfilePicture(file: File) {
@@ -92,19 +132,23 @@ export function createDocumentRecord(payload: Record<string, unknown>) {
 }
 
 export function fetchResearchAgendas() {
-  return apiFetch<Array<{ id: number; code?: string; name: string }>>("/api/research-agendas");
+  return apiFetch<Array<{ id: number; name: string; is_active?: boolean }>>("/api/research-agendas");
 }
 
 export function fetchAdminResearchAgendas() {
-  return apiFetch<Array<{ id: number; code?: string; name: string; is_active?: boolean }>>("/api/research-agendas?include_inactive=true");
+  return apiFetch<Array<{ id: number; name: string; isActive: boolean; sortOrder: number; documentCount: number; primaryDocumentCount: number }>>("/api/admin/research-agendas");
 }
 
 export function createAdminResearchAgenda(payload: Record<string, unknown>) {
-  return apiFetch<{ id: number; code?: string; name: string }>("/api/admin/research-agendas", { method: "POST", json: payload });
+  return apiFetch<{ id: number; name: string }>("/api/admin/research-agendas", { method: "POST", json: payload });
 }
 
 export function updateAdminResearchAgenda(id: number, payload: Record<string, unknown>) {
-  return apiFetch<{ id: number; code?: string; name: string }>(`/api/admin/research-agendas/${id}`, { method: "PUT", json: payload });
+  return apiFetch<{ id: number; name: string }>(`/api/admin/research-agendas/${id}`, { method: "PUT", json: payload });
+}
+
+export function reorderAdminResearchAgendas(agendaIds: number[]) {
+  return apiFetch<Array<{ id: number; name: string }>>("/api/admin/research-agendas/order", { method: "PUT", json: { agendaIds } });
 }
 
 export function fetchAdminTopics(status = "all") {
@@ -117,6 +161,21 @@ export function createAdminTopic(name: string) {
 
 export function reviewAdminTopic(id: number, decision: "approve" | "reject") {
   return apiFetch<{ id: number; name: string; status?: string }>(`/api/admin/topics/${id}/${decision}`, { method: "POST" });
+}
+
+export interface AdminKeyword {
+  id: number;
+  term: string;
+  documentCount: number;
+}
+
+export function fetchAdminKeywords(query = "") {
+  const params = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+  return apiFetch<AdminKeyword[]>(`/api/admin/keywords${params}`);
+}
+
+export function updateAdminKeyword(id: number, term: string) {
+  return apiFetch<AdminKeyword>(`/api/admin/keywords/${id}`, { method: "PUT", json: { term } });
 }
 
 export interface ClassificationMigrationReview {

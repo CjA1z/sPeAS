@@ -51,7 +51,7 @@ const PAGE_SIZE = 10;
 type RequestStatusFilter = NonNullable<PermissionListParams["status"]>;
 
 export function DocumentPermissionsPage() {
-  const [status, setStatus] = useState<RequestStatusFilter>("all");
+  const [status, setStatus] = useState<RequestStatusFilter>(() => readStatusFromUrl());
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 250);
   const [from, setFrom] = useState("");
@@ -334,6 +334,11 @@ export function DocumentPermissionsPage() {
       />
     </main>
   );
+}
+
+function readStatusFromUrl(): RequestStatusFilter {
+  const value = new URLSearchParams(window.location.search).get("status");
+  return value === "pending" || value === "approved" || value === "rejected" ? value : "all";
 }
 
 function SummaryCard({

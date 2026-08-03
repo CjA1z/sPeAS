@@ -27,3 +27,7 @@ export function fetchAdminNotifications() {
 export function markAdminNotificationRead(id: number) {
   return apiFetch<{ status: "read" }>(`/api/admin/notifications/${id}/read`, { method: "PATCH" });
 }
+
+export function clearAdminNotifications() {
+  return apiFetch<{ status: "cleared"; cleared: number }>("/api/admin/notifications", { method: "DELETE" });
+}

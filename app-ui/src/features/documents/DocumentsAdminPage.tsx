@@ -282,7 +282,7 @@ export function DocumentsAdminPage() {
         eyebrow="Repository catalog"
         title="Documents"
         description="Manage active catalog entries, publication, and review status."
-        actions={<a className="peas-ui-button peas-ui-button--default" href="/admin/Components/upload_document.html">Upload document</a>}
+        actions={<a className="peas-ui-button peas-ui-button--default peas-ui-button--size-default" href="/admin/Components/upload_document.html">Upload document</a>}
       />
       <DocumentToolbar
         filter={filter}
@@ -305,7 +305,7 @@ export function DocumentsAdminPage() {
           <PeasEmptyState
             title={filter.search || filter.category !== "All" || filter.status !== "approved" ? "No matching documents" : "No documents yet"}
             description={filter.search || filter.category !== "All" || filter.status !== "approved" ? "Try a different search or clear one of the active filters." : "Upload a document to start building the repository catalog."}
-            action={!filter.search && filter.category === "All" && filter.status === "approved" ? <a className="peas-ui-button peas-ui-button--default" href="/admin/Components/upload_document.html">Upload document</a> : <Button variant="outline" onClick={clearFilters}>Clear filters</Button>}
+            action={!filter.search && filter.category === "All" && filter.status === "approved" ? <a className="peas-ui-button peas-ui-button--default peas-ui-button--size-default" href="/admin/Components/upload_document.html">Upload document</a> : <Button variant="outline" onClick={clearFilters}>Clear filters</Button>}
           />
         </Reveal>
       ) : (
@@ -455,7 +455,7 @@ function EditDocumentDialog({
   const [issue, setIssue] = useState("");
   const [authors, setAuthors] = useState<DocumentAuthorSelection[]>([]);
   const [classification, setClassification] = useState<DocumentClassificationEditorValue>({ researchAgendaIds: [], primaryResearchAgendaId: null, topicIds: [], topicNames: [], keywords: [] });
-  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; code?: string; name: string }>>([]);
+  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; name: string }>>([]);
   const [classificationLoading, setClassificationLoading] = useState(false);
   const [authorDirectory, setAuthorDirectory] = useState<AuthorRecord[]>([]);
   const [authorDirectoryLoading, setAuthorDirectoryLoading] = useState(false);
@@ -525,7 +525,8 @@ function EditDocumentDialog({
             keywords: raw.keywords.map((item) => item.name),
           };
           setClassification(loadedClassification);
-          setResearchAgendas(agendas);
+          const historicalAgendas = raw.researchAgendas.filter((item) => item.is_active === false).map((item) => ({ id: item.id, name: item.name, is_active: false }));
+          setResearchAgendas([...agendas, ...historicalAgendas.filter((item) => !agendas.some((agenda) => agenda.id === item.id))]);
           initialValuesRef.current = JSON.stringify({ ...nextValues, classification: loadedClassification });
         })
         .catch(() => undefined)

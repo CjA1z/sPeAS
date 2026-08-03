@@ -13,6 +13,7 @@ import { fetchCategories, fetchDocuments } from "../../lib/api/documents";
 import { getErrorMessage } from "../../lib/api/http";
 import type { CategoryCount, DocumentsPageResult } from "../../lib/api/types";
 import { CATEGORY_ORDER, getCategoryMeta, normalizeCategory, type DocumentCategory } from "../../lib/constants/categories";
+import { fetchPublicResearchAgendas, type PublicResearchAgenda } from "../../lib/api/public";
 
 const PAGE_SIZE = 8;
 
@@ -28,6 +29,7 @@ export function PublicSearchPage() {
   const [sort, setSort] = useState<"latest" | "earliest">(initial.sort);
   const [page, setPage] = useState(initial.page);
   const [categories, setCategories] = useState<CategoryCount[]>([]);
+  const [researchAgendas, setResearchAgendas] = useState<PublicResearchAgenda[]>([]);
   const [result, setResult] = useState<DocumentsPageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,10 +59,16 @@ export function PublicSearchPage() {
 
   useEffect(() => {
     let mounted = true;
-    fetchCategories().then((payload) => {
-      if (mounted) setCategories(payload);
+    Promise.all([fetchCategories(), fetchPublicResearchAgendas(true)]).then(([categoryPayload, agendaPayload]) => {
+      if (mounted) {
+        setCategories(categoryPayload);
+        setResearchAgendas(agendaPayload);
+      }
     }).catch(() => {
-      if (mounted) setCategories([]);
+      if (mounted) {
+        setCategories([]);
+        setResearchAgendas([]);
+      }
     });
 
     return () => {
@@ -164,17 +172,17 @@ export function PublicSearchPage() {
               </span>
             </label>
             <label>
-              <span>Sort results</span>
+              <span>Research agenda</span>
               <select
-                aria-label="Sort search results"
-                value={sort}
+                aria-label="Filter by research agenda"
+                value={agendaFilter}
                 onChange={(event) => {
                   setPage(1);
-                  setSort(event.currentTarget.value as "latest" | "earliest");
+                  setAgendaFilter(event.currentTarget.value);
                 }}
               >
-                <option value="latest">Latest to Earliest</option>
-                <option value="earliest">Earliest to Latest</option>
+                <option value="">All research agendas</option>
+                {researchAgendas.map((agenda) => <option value={String(agenda.id)} key={agenda.id}>{agenda.name}{agenda.historical ? " · Historical" : ""}</option>)}
               </select>
             </label>
             <Button type="submit">
@@ -225,17 +233,33 @@ export function PublicSearchPage() {
               <h2 id="public-results-title">{resultLabel}</h2>
               <p>{sort === "latest" ? "Newest publications appear first." : "Oldest publications appear first."}</p>
             </div>
-            {hasFilters ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="peas-public-results-clear"
-                onClick={clearFilters}
-              >
-                <X aria-hidden="true" />
-                Clear filters
-              </Button>
-            ) : null}
+            <div className="peas-public-results-actions">
+              {hasFilters ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="peas-public-results-clear"
+                  onClick={clearFilters}
+                >
+                  <X aria-hidden="true" />
+                  Clear filters
+                </Button>
+              ) : null}
+              <label className="peas-public-results-sort">
+                <span>Sort results</span>
+                <select
+                  aria-label="Sort search results"
+                  value={sort}
+                  onChange={(event) => {
+                    setPage(1);
+                    setSort(event.currentTarget.value as "latest" | "earliest");
+                  }}
+                >
+                  <option value="latest">Latest to Earliest</option>
+                  <option value="earliest">Earliest to Latest</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {loading ? (

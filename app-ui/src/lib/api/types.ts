@@ -17,6 +17,7 @@ export interface ClassificationTerm {
   code?: string;
   status?: "pending" | "approved" | "retired";
   primary?: boolean;
+  is_active?: boolean;
 }
 
 export interface DocumentClassification {
@@ -195,6 +196,55 @@ export interface DashboardStats {
 }
 
 export interface ReportStats {
+  meta: {
+    dataVersion?: number;
+    generatedAt: string;
+    timezone: string;
+    range: { key: string; label: string; startInclusive: string | null; endExclusive: string; bucket: string };
+    activityCoverageStartedAt: string | null;
+    coverage?: {
+      repository: ActivityCoverage;
+      home: ActivityCoverage;
+      authors: ActivityCoverage;
+    };
+  };
+  inventory: {
+    catalogEntries: number;
+    storedDocuments: number;
+    archivedCatalogEntries: number;
+    archivedDocuments: number;
+    authorRecords: number;
+    publishedAuthors: number;
+  };
+  workflow: { pendingUploads: number; pendingAccessRequests: number };
+  activity: {
+    uploadedEntries: number;
+    repositoryViews: number;
+    repositoryDownloads: number;
+    guestViews: number;
+    registeredViews: number;
+    approvedRequestDownloads: number;
+    activeRegisteredUsers: number;
+    homeVisits: { total: number; guest: number; registered: number };
+  };
+  series: {
+    uploads: Array<{ bucket: string; count: number }>;
+    repositoryActivity: Array<{ bucket: string; views: number; downloads: number }>;
+    homeVisits: Array<{ bucket: string; guest: number; registered: number; total: number }>;
+  };
+  rankings: {
+    mostViewedEntries: Array<{ id: number; recordType: string; title: string; category: string; views: number; downloads: number; href?: string }>;
+    mostDownloadedEntries: Array<{ id: number; recordType: string; title: string; category: string; views: number; downloads: number; href?: string }>;
+    mostVisitedAuthors: Array<{ id: string; name: string; visits: number; profilePicture: string | null; href?: string }>;
+    trendingTopics: Array<{ id: number; name: string; views: number; entryCount: number; href?: string }>;
+  };
+  distributions: {
+    documentTypes: Array<{ label: string; count: number }>;
+    requestStatuses: Array<{ status: string; count: number }>;
+  };
+  registeredReaderSummary: { activeUsers: number; views: number; downloads: number; averageInteractionsPerActiveUser: number };
+  metricDefinitions: Record<string, string>;
+  // Compatibility aliases used by existing admin components during migration.
   activeDocuments: number;
   archivedDocuments: number;
   totalDocuments: number;
@@ -205,8 +255,15 @@ export interface ReportStats {
   authorRecords: number;
   documentTypes: Array<{ documentType: string; count: number }>;
   timeRange: string;
-  metricDefinitions: Record<string, string>;
   raw: Record<string, unknown>;
+}
+
+export interface ActivityCoverage {
+  startedAt: string | null;
+  hourlyStartedAt: string | null;
+  precision: "hourly" | "daily" | "mixed";
+  isCompleteForSelectedRange: boolean;
+  warning: string | null;
 }
 
 export interface SystemLogRecord {

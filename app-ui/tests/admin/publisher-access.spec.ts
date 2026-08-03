@@ -4,6 +4,9 @@ test("publisher and role-management APIs reject unauthenticated access", async (
   const checks = [
     request.get(`${baseURL}/api/admin/news`),
     request.get(`${baseURL}/api/admin/users`),
+    request.get(`${baseURL}/api/admin/dashboard?range=30d`),
+    request.get(`${baseURL}/api/admin/reports/operational?range=30d`),
+    request.get(`${baseURL}/api/admin/reports/operational/export?range=30d&format=csv`),
     request.post(`${baseURL}/api/content/upload`),
   ];
 
@@ -53,9 +56,38 @@ test("publisher workspace only exposes news and document upload", async ({ page 
   await expect(page.getByRole("link", { name: "Upload Document" })).toBeVisible();
   await expect(page.getByRole("link", { name: "View Site" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documents", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Operational Reports", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Experience Studio", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Role Management" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "System Logs" })).toHaveCount(0);
   expect(contactSummaryRequests).toBe(0);
+});
+
+test("publisher profile menu omits administrator settings", async ({ page }) => {
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      session: { id: "session-publisher" },
+      user: { id: "publisher-01", name: "Content Publisher", role: "publisher", username: "publisher-01" },
+    }),
+  }));
+  await page.route("**/api/user/profile", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ id: "publisher-01", first_name: "Content", last_name: "Publisher" }),
+  }));
+  await page.route("**/api/admin/news", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ posts: [] }),
+  }));
+
+  await page.goto("/admin/Components/news.html");
+  await page.getByRole("button", { name: "Open profile menu for Content Publisher" }).click();
+
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem", { name: "Profile" })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Settings" })).toHaveCount(0);
+  await expect(menu.getByRole("menuitem", { name: "Logout" })).toBeVisible();
 });
 
 test("administrators can assign the content publisher role", async ({ page }) => {

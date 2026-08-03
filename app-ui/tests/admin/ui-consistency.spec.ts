@@ -8,10 +8,7 @@ const ADMIN_LINKS = [
   "Archived Documents",
   "Authors",
   "Document Permissions",
-  "Operational Reports",
-  "Experience Studio",
   "Department News",
-  "Role Management",
   "Contact Inquiries",
 ];
 
@@ -21,6 +18,8 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/documents?*", (route) => route.fulfill({ json: { documents: [], totalCount: 0, totalPages: 0 } }));
   await page.route("**/api/stats/summary", (route) => route.fulfill({ json: canonicalStats() }));
   await page.route("**/api/documents/statistics?*", (route) => route.fulfill({ json: canonicalStats() }));
+  await page.route("**/api/admin/dashboard?*", (route) => route.fulfill({ json: canonicalStats() }));
+  await page.route("**/api/admin/reports/operational?*", (route) => route.fulfill({ json: canonicalStats() }));
   await page.route("**/api/page-visits/stats/*", (route) => route.fulfill({ json: {
     success: true,
     stats: {
@@ -37,10 +36,74 @@ test.beforeEach(async ({ page }) => {
 
 test("admin notification bell exposes urgent author action", async ({ page }) => {
   await page.goto("/admin/dashboard.html");
-  const bell = page.getByRole("button", { name: /Notifications, 1 urgent/ });
+  const bell = page.getByRole("button", { name: /Notifications, 1 unread/ });
   await expect(bell).toBeVisible();
   await bell.click();
   await expect(page.getByRole("dialog", { name: "Notifications" })).toContainText("Complete author profile");
+});
+
+test("admin can clear the current notifications without touching their source records", async ({ page }) => {
+  let cleared = false;
+  await page.route("**/api/admin/notifications", (route) => {
+    if (route.request().method() === "DELETE") {
+      cleared = true;
+      return route.fulfill({ json: { status: "cleared", cleared: 1 } });
+    }
+    return route.fulfill({ json: { notifications: [{ id: 1, type: "document_review_pending", entityType: "document", entityId: "12", severity: "warning", title: "Review uploaded document", message: "A document is waiting for administrator review.", actionPath: "/admin/Components/documents_list.html?status=pending_review", isRead: false, resolved: false, createdAt: "2026-08-01T00:00:00.000Z" }], summary: { total: 1, unread: 1, urgent: 0 } } });
+  });
+
+  await page.goto("/admin/dashboard.html");
+  await page.getByRole("button", { name: /Notifications, 1 unread/ }).click();
+  await page.getByRole("button", { name: "Clear notifications" }).click();
+  await expect.poll(() => cleared).toBe(true);
+  await expect(page.getByText("You’re all caught up.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
+});
+
+test("admin shell uses solid surfaces and an accessible profile menu", async ({ page }) => {
+  await page.goto("/admin/Components/documents_list.html");
+
+  await expect(page.locator(".peas-admin-sidebar")).not.toHaveCSS("backdrop-filter", /blur/);
+  await expect(page.locator(".peas-admin-topbar")).not.toHaveCSS("backdrop-filter", /blur/);
+  await expect(page.locator(".peas-admin-sidebar > .peas-glass-backdrop")).toHaveCount(0);
+  await expect(page.locator(".peas-admin-topbar > .peas-glass-backdrop")).toHaveCount(0);
+
+  const trigger = page.getByRole("button", { name: "Open profile menu for Admin M User" });
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await trigger.press("Enter");
+
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  await expect(page.locator(".peas-admin-profile-menu")).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Profile" })).toHaveAttribute("href", "/pages/UserProfile.html");
+  await expect(menu.getByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/admin/Components/admin_settings.html");
+  await expect(menu.getByRole("menuitem", { name: "Logout" })).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+
+  await trigger.click();
+  await expect(menu).toBeVisible();
+  await page.getByRole("heading", { name: "Documents", level: 1 }).click();
+  await expect(menu).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Collapse sidebar" }).press("Enter");
+  await expect(page.locator(".peas-admin-shell")).toHaveClass(/is-collapsed/);
+  await expect(page.locator(".peas-admin-sidebar > .peas-glass-backdrop")).toHaveCount(0);
+  await expect(page.locator(".peas-admin-topbar > .peas-glass-backdrop")).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/admin/Components/documents_list.html");
+  await expect(page.locator(".peas-admin-sidebar > .peas-glass-backdrop")).toHaveCount(0);
+  await expect(page.locator(".peas-admin-topbar > .peas-glass-backdrop")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open profile menu for Admin M User" }).click();
+  const mobileCard = page.locator(".peas-admin-profile-menu");
+  const cardBounds = await mobileCard.boundingBox();
+  expect(cardBounds).not.toBeNull();
+  expect(cardBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(cardBounds!.x + cardBounds!.width).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("admin routes keep one shell, identity, and navigation set", async ({ page }) => {
@@ -60,10 +123,102 @@ test("admin routes keep one shell, identity, and navigation set", async ({ page 
   await expect(page.getByRole("heading", { name: "Welcome back, Admin" })).toBeVisible();
   await expect(navigation.getByRole("link")).toHaveText(ADMIN_LINKS);
 
-  await navigation.getByRole("link", { name: "Operational Reports" }).click();
-  await expect(page.getByRole("heading", { name: "Operational Reports" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Utilities" }).getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.locator(".peas-admin-shell")).toHaveAttribute("data-shell-instance", "preserved");
   await expect(navigation.getByRole("link")).toHaveText(ADMIN_LINKS);
+});
+
+test("contact inquiry drawer has animated open and close states", async ({ page }) => {
+  const referenceCode = "PEAS-20260803-767BB228";
+  const inquiry = {
+    id: 1,
+    referenceCode,
+    firstName: "Dustin",
+    lastName: "Yrad",
+    email: "dustin@example.com",
+    subject: "Sample inquiry",
+    message: "A sample message that should remain readable in the detail drawer.",
+    status: "read",
+    notificationStatus: "processing",
+    createdAt: "2026-08-03T13:00:00.000Z",
+    updatedAt: "2026-08-03T13:00:00.000Z",
+    resolvedAt: null,
+    firstReadAt: "2026-08-03T13:01:00.000Z",
+  };
+  await page.route("**/api/admin/contact-inquiries?*", (route) => route.fulfill({ json: { inquiries: [inquiry], totalCount: 1, totalPages: 1 } }));
+  await page.route(`**/api/admin/contact-inquiries/${referenceCode}/notes`, (route) => route.fulfill({ json: { notes: [] } }));
+  await page.route(`**/api/admin/contact-inquiries/${referenceCode}`, (route) => route.fulfill({ json: inquiry }));
+
+  await page.goto("/admin/Components/contact-inquiries.html");
+  await page.getByRole("button", { name: /Sample inquiry/ }).click();
+
+  const detail = page.locator(".peas-contact-detail");
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole("heading", { name: "Message" })).toBeVisible();
+  await expect(detail.getByRole("heading", { name: "Private notes" })).toBeVisible();
+  await expect(detail).toHaveCSS("animation-name", "peas-contact-detail-in");
+  await expect(detail).toHaveCSS("animation-timing-function", "ease-out");
+
+  await detail.getByRole("button", { name: "Close inquiry" }).click();
+  await expect(detail).toHaveClass(/is-closing/);
+  await expect(detail).toHaveCSS("animation-name", "peas-contact-detail-out");
+  await expect(detail).toHaveCSS("animation-timing-function", "ease-in");
+  await expect(detail).toHaveCount(0);
+});
+
+test("settings exposes the administrator tools and owns their navigation state", async ({ page }) => {
+  await page.goto("/admin/Components/admin_settings.html");
+
+  const tools = page.locator(".peas-settings-tool-card");
+  await expect(tools).toHaveCount(3);
+  await expect(tools).toHaveText([
+    /Operational Reports.*Review repository inventory, archive activity, and category distribution.*Open/s,
+    /Experience Studio.*Manage the content and presentation of the public PeAS experience.*Open/s,
+    /Role Management.*Assign administrator, content publisher, and registered-user access.*Open/s,
+  ]);
+  await expect(tools.nth(0)).toHaveAttribute("href", "/admin/Components/reports.html");
+  await expect(tools.nth(1)).toHaveAttribute("href", "/admin/Components/experience-studio.html");
+  await expect(tools.nth(2)).toHaveAttribute("href", "/admin/Components/role-management.html");
+
+  const navigation = page.getByRole("navigation", { name: "Utilities" });
+  await expect(navigation.getByRole("link", { name: "Settings" })).toHaveClass(/is-active/);
+
+  await tools.nth(0).click();
+  await expect(page).toHaveURL(/\/admin\/Components\/reports\.html$/);
+  await expect(page.getByRole("heading", { name: "Operational Reports" })).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Operational Reports" })).toHaveClass(/is-active/);
+
+  await navigation.getByRole("link", { name: "Settings" }).click();
+  await tools.nth(2).click();
+  await expect(page).toHaveURL(/\/admin\/Components\/role-management\.html$/);
+  await expect(page.getByRole("heading", { name: "Role Management" })).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Settings" })).toHaveClass(/is-active/);
+});
+
+test("collapsed navigation identifies icon-only controls with tooltips", async ({ page }) => {
+  await page.goto("/admin/Components/documents_list.html");
+  const upload = page.getByRole("link", { name: "Upload Document" });
+  const collapse = page.getByRole("button", { name: "Collapse sidebar" });
+
+  await expect(upload.locator(".peas-admin-upload-link__icon")).toBeHidden();
+  await expect(upload.getByText("Upload Document", { exact: true })).toBeVisible();
+
+  await collapse.press("Enter");
+  await expect(page.locator(".peas-admin-shell")).toHaveClass(/is-collapsed/);
+  await expect(upload.locator(".peas-admin-upload-link__icon")).toBeVisible();
+  await expect(upload.getByText("Upload Document", { exact: true })).toBeHidden();
+
+  await upload.focus();
+  await expect(page.getByRole("tooltip")).toHaveText("Upload Document");
+
+  const dashboard = page.getByRole("link", { name: "Dashboard" });
+  await dashboard.focus();
+  await expect(page.getByRole("tooltip")).toHaveText("Dashboard");
+
+  await page.getByRole("button", { name: "Expand sidebar" }).press("Enter");
+  await expect(page.locator(".peas-admin-shell")).not.toHaveClass(/is-collapsed/);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
 
 test("dashboard visit total is always derived from its visible parts", async ({ page }) => {
@@ -168,6 +323,15 @@ async function waitForWorkspace(page: Page) {
 
 function canonicalStats() {
   return {
+    meta: { generatedAt: "2026-08-03T00:00:00.000Z", timezone: "Asia/Manila", range: { key: "30d", label: "Last 30 days", startInclusive: "2026-07-04T00:00:00.000Z", endExclusive: "2026-08-03T00:00:00.000Z", bucket: "day" }, activityCoverageStartedAt: "2026-07-04T00:00:00.000Z" },
+    inventory: { catalogEntries: 3, storedDocuments: 4, archivedCatalogEntries: 1, archivedDocuments: 1, authorRecords: 14, publishedAuthors: 10 },
+    workflow: { pendingUploads: 2, pendingAccessRequests: 1 },
+    activity: { uploadedEntries: 8, repositoryViews: 15, repositoryDownloads: 7, guestViews: 5, registeredViews: 10, approvedRequestDownloads: 1, activeRegisteredUsers: 4, homeVisits: { total: 5, guest: 2, registered: 3 } },
+    series: { uploads: [{ bucket: "2026-07-31", count: 2 }], repositoryActivity: [{ bucket: "2026-07-31", views: 5, downloads: 2 }], homeVisits: [{ bucket: "2026-07-31", guest: 2, registered: 3, total: 5 }] },
+    rankings: { mostViewedEntries: [], mostDownloadedEntries: [], mostVisitedAuthors: [], trendingTopics: [] },
+    distributions: { documentTypes: [{ label: "THESIS", count: 2 }, { label: "CONFLUENCE", count: 1 }], requestStatuses: [{ status: "pending", count: 1 }] },
+    registeredReaderSummary: { activeUsers: 4, views: 10, downloads: 7, averageInteractionsPerActiveUser: 4.25 },
+    metricDefinitions: { catalog_entries: "Active top-level repository entries.", stored_documents: "Active document records, including compilation studies.", archived_catalog_entries: "Archived top-level repository entries.", author_records: "All author directory records." },
     active_documents: 4,
     archived_documents: 1,
     total_documents: 5,

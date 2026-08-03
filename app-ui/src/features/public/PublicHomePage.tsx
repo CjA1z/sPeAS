@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Building2, FileSearch, GraduationCap, Pause, Play, Search, Sparkles, UsersRound } from "lucide-react";
 import { motion } from "motion/react";
 import { CategoryIcon } from "../../components/documents/CategoryIcon";
@@ -8,9 +8,11 @@ import { OrgChart, type OrgChartRoleContent } from "../../components/public/OrgC
 import { PublicPageShell } from "../../components/public/PublicPageShell";
 import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { PrismDiagram } from "../../components/public/PrismDiagram";
+import Grainient from "../../components/Grainient";
+import SpecularButton from "../../components/SpecularButton/SpecularButton";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
-import { fetchPublicHomeData, fetchPublicResearchAgendas, keywordSearchUrl, searchResultsUrl, type PublicHomeData, type PublicResearchAgenda } from "../../lib/api/public";
+import { fetchPublicHomeData, fetchPublicResearchAgendas, keywordSearchUrl, recordHomePageVisit, searchResultsUrl, type PublicHomeData, type PublicResearchAgenda } from "../../lib/api/public";
 import { fetchPublishedNews, type NewsPost } from "../../lib/api/news";
 import { CATEGORY_ORDER, getCategoryMeta, type DocumentCategory } from "../../lib/constants/categories";
 import { experienceBlockProps, usePublicExperience } from "../../lib/api/experience";
@@ -30,8 +32,13 @@ export function PublicHomePage() {
   const [heroSlideshowPaused, setHeroSlideshowPaused] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  const homeVisitSent = useRef(false);
 
   useEffect(() => {
+    if (!homeVisitSent.current) {
+      homeVisitSent.current = true;
+      void recordHomePageVisit().catch(() => undefined);
+    }
     let mounted = true;
     fetchPublicHomeData()
       .then((homeData) => {
@@ -412,8 +419,9 @@ export function PublicHomePage() {
         ) : null}
 
         <section className="peas-public-contact-cta" aria-labelledby="public-contact-cta-title">
-          <div><span>Connect</span><h2 id="public-contact-cta-title">{String(contactCta.title || "Contact the Office of Research & Publications")}</h2><p>{String(contactCta.body || "Questions about research, publications, or repository access? Send the office an inquiry.")}</p></div>
-          <a href="/contact.html">{String(contactCta.label || "Get in touch")}</a>
+          <Grainient className="peas-public-contact-cta__shader" color1="#0b5c47" color2="#087658" color3="#043e32" timeSpeed={0.12} warpStrength={0.55} warpFrequency={3.2} warpSpeed={0.35} warpAmplitude={90} rotationAmount={70} noiseScale={1.3} grainAmount={0.025} grainScale={1.5} contrast={1.05} saturation={0.9} zoom={1.1} />
+          <div className="peas-public-contact-cta__content"><span>Connect</span><h2 id="public-contact-cta-title">{String(contactCta.title || "Contact the Office of Research & Publications")}</h2><p>{String(contactCta.body || "Questions about research, publications, or repository access? Send the office an inquiry.")}</p></div>
+          <SpecularButton href="/contact.html" className="peas-public-contact-cta__button">{String(contactCta.label || "Get in touch")}</SpecularButton>
         </section>
     </PublicPageShell>
   );

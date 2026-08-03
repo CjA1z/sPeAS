@@ -2,6 +2,7 @@
 // shadcn registry item @react-bits/GlassSurface. Apple-style frosted glass
 // using an SVG displacement filter, with backdrop-filter fallbacks.
 import React, { useEffect, useRef, useState, useId } from "react";
+import "./glass-surface.css";
 
 export interface GlassSurfaceProps {
   children?: React.ReactNode;
@@ -23,7 +24,7 @@ export interface GlassSurfaceProps {
   yChannel?: "R" | "G" | "B";
   /** Override OS color-scheme detection; PeAS is light-only so surfaces pin this. */
   dark?: boolean;
-  /** Render nothing when the SVG displacement filter isn't supported (Safari/Firefox). */
+  /** Render nothing when the SVG displacement filter isn't supported. */
   svgOnly?: boolean;
   mixBlendMode?:
     | "normal"
@@ -201,6 +202,8 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
       return false;
     }
 
+    // Keep the existing browser fallback: SVG backdrop filters are not
+    // reliable in Safari or Firefox, even when the CSS parser accepts them.
     const isWebkit = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
     const isFirefox = /Firefox/.test(navigator.userAgent);
 
@@ -210,8 +213,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
 
     const div = document.createElement("div");
     div.style.backdropFilter = `url(#${filterId})`;
-
-    return div.style.backdropFilter !== "";
+    return div.style.backdropFilter !== "" && CSS.supports("backdrop-filter", `url(#${filterId})`);
   };
 
   const supportsBackdropFilter = () => {
@@ -227,12 +229,12 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
       borderRadius: `${borderRadius}px`,
       "--glass-frost": backgroundOpacity,
       "--glass-saturation": saturation,
+      "--filter-id": `url(#${filterId})`,
     } as React.CSSProperties;
 
     const backdropFilterSupported = supportsBackdropFilter();
-    // The registry version hardcodes the fallback alphas and only honors
-    // backgroundOpacity on the SVG path, leaving Safari/Firefox far more
-    // transparent than Chrome for the same props.
+    // Keep the fallback alpha aligned with the SVG path so supported browsers
+    // receive the same frosted tint even when SVG filter rendering is absent.
     const fallbackAlpha = (defaultAlpha: number) => (backgroundOpacity > 0 ? backgroundOpacity : defaultAlpha);
 
     if (svgSupported) {
@@ -240,6 +242,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         ...baseStyles,
         background: isDarkMode ? `hsl(0 0% 0% / ${backgroundOpacity})` : `hsl(0 0% 100% / ${backgroundOpacity})`,
         backdropFilter: `url(#${filterId}) saturate(${saturation})`,
+        WebkitBackdropFilter: `url(#${filterId}) saturate(${saturation})`,
         boxShadow: isDarkMode
           ? `0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
              0 0 10px 4px color-mix(in oklch, white, transparent 85%) inset,
@@ -305,23 +308,18 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
     }
   };
 
-  const glassSurfaceClasses =
-    "relative flex items-center justify-center overflow-hidden transition-opacity duration-[260ms] ease-out";
-
-  const focusVisibleClasses = isDarkMode
-    ? "focus-visible:outline-2 focus-visible:outline-[#0A84FF] focus-visible:outline-offset-2"
-    : "focus-visible:outline-2 focus-visible:outline-[#007AFF] focus-visible:outline-offset-2";
+  const glassSurfaceClasses = `glass-surface ${svgSupported ? "glass-surface--svg" : "glass-surface--fallback"}`;
 
   if (svgOnly && !svgSupported) return null;
 
   return (
     <div
       ref={containerRef}
-      className={`${glassSurfaceClasses} ${focusVisibleClasses} ${className}`}
+      className={`${glassSurfaceClasses} ${className}`.trim()}
       style={getContainerStyles()}
     >
       <svg
-        className="w-full h-full pointer-events-none absolute inset-0 opacity-0 -z-10"
+        className="glass-surface__filter"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
@@ -374,7 +372,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
         </defs>
       </svg>
 
-      <div className="w-full h-full flex items-center justify-center p-2 rounded-[inherit] relative z-10">
+      <div className="glass-surface__content">
         {children}
       </div>
     </div>

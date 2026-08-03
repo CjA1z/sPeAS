@@ -71,6 +71,30 @@ test("catalog rows use labeled actions and dashboard-aligned metadata", async ({
   expect(documentCardBorder).toBe("1px");
 });
 
+test("compiled collection rows expose the same view action as documents", async ({ page }) => {
+  await page.route("**/api/documents?*", (route) => route.fulfill({ json: {
+    documents: [{
+      id: 3,
+      title: "CONFLUENCE Vol. 3 (2017-2018)",
+      document_type: "CONFLUENCE",
+      is_compiled: true,
+      child_count: 2,
+      start_year: 2017,
+      end_year: 2018,
+      review_status: "approved",
+    }],
+    totalCount: 1,
+    totalPages: 1,
+  } }));
+
+  await page.goto("/admin/Components/documents_list.html");
+
+  const collection = page.locator(".peas-compiled-card");
+  await expect(collection.getByText("CONFLUENCE Vol. 3 (2017-2018)", { exact: true })).toBeVisible();
+  await expect(collection.getByRole("button", { name: "View", exact: true })).toBeVisible();
+  await expect(collection.getByRole("button", { name: "Actions for CONFLUENCE Vol. 3 (2017-2018)" })).toBeVisible();
+});
+
 test("review status filter updates the request and URL", async ({ page }) => {
   await page.goto("/admin/Components/documents_list.html");
 

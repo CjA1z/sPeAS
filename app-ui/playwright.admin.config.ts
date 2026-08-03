@@ -7,6 +7,12 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
     {
+      name: "reporting-mobile",
+      testMatch: /reporting\.spec\.ts/,
+      grep: /@reporting/,
+      use: { ...devices["Pixel 7"] },
+    },
+    {
       name: "author-modal-webkit",
       testMatch: /authors-reference-data\.spec\.ts/,
       grep: /author edit modal preserves/,

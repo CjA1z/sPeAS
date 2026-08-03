@@ -34,7 +34,7 @@ test.describe("guided upload workflow", () => {
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Classification" })).toBeVisible();
 
-    await page.getByLabel("Research agendas").selectOption("14");
+    await page.getByRole("checkbox", { name: "Environmental Discipline and Stewardship" }).check();
     await page.locator("#single-topic-search").fill("waste");
     await expect(page.getByRole("option", { name: "Waste-material-based concrete paving blocks" })).toBeVisible();
     await page.locator("#single-topic-search").press("Enter");
@@ -76,6 +76,40 @@ test.describe("guided upload workflow", () => {
     expect(titleAfterValidation).not.toBeNull();
     expect(categoryAfterValidation).not.toBeNull();
     expect(categoryAfterValidation!.y).toBeCloseTo(titleAfterValidation!.y, 0);
+  });
+
+  test("publication date and PDF are separate validated steps", async ({ page }) => {
+    await page.goto("/admin/Components/upload_document.html");
+    await waitForWorkspace(page);
+    await page.locator("#single-title").fill("Separated workflow fixture");
+    await page.getByRole("combobox", { name: "Add author" }).click();
+    await page.getByRole("option", { name: "Juan Dela Cruz" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Publication date" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("Choose a publication month.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Enter a four-digit year.", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Publication month" }).click();
+    await page.getByRole("option", { name: "August" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("Enter a four-digit year.", { exact: true })).toBeVisible();
+
+    await page.locator("#single-year").fill("2026");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Classification" })).toBeVisible();
+    await page.getByRole("checkbox", { name: "Environmental Discipline and Stewardship" }).check();
+    await page.locator("#single-topic-search").fill("waste");
+    await expect(page.getByRole("option", { name: "Waste-material-based concrete paving blocks" })).toBeVisible();
+    await page.locator("#single-topic-search").press("Enter");
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page.getByRole("combobox", { name: "Publication month" })).toHaveText("August");
+    await expect(page.locator("#single-year")).toHaveValue("2026");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Upload PDF" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("Attach the document PDF.", { exact: true })).toBeVisible();
   });
 
   test("author picker stages multiple names, prevents normalized duplicates, and removes chips", async ({ page }) => {
@@ -130,7 +164,7 @@ test.describe("guided upload workflow", () => {
 
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Study classification" })).toBeVisible();
-    await page.getByLabel("Research agendas").selectOption("14");
+    await page.getByRole("checkbox", { name: "Environmental Discipline and Stewardship" }).check();
     await page.getByLabel("Search approved topics").fill("waste");
     await expect(page.getByRole("option", { name: "Waste-material-based concrete paving blocks" })).toBeVisible();
     await page.getByLabel("Search approved topics").press("Enter");

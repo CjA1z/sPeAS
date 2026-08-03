@@ -17,6 +17,7 @@ const routes: Array<{ paths: string[]; component: ComponentType }> = [
   { paths: ["/pages/SavedDocument.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicSavedDocumentsPage }) => ({ default: PublicSavedDocumentsPage }))) },
   { paths: ["/pages/UserHistory.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicHistoryPage }) => ({ default: PublicHistoryPage }))) },
   { paths: ["/pages/UserProfile.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicProfilePage }) => ({ default: PublicProfilePage }))) },
+  { paths: ["/pages/UserAnnotations.html"], component: lazy(() => import("./features/public/PublicAccountPages").then(({ PublicAnnotationsPage }) => ({ default: PublicAnnotationsPage }))) },
   { paths: ["/pages/authorprofile.html"], component: lazy(() => import("./features/public/PublicAuthorPage").then(({ PublicAuthorPage }) => ({ default: PublicAuthorPage }))) },
   { paths: ["/pages/guest-single.html", "/pages/user-single.html", "/pages/guest-compiled.html", "/pages/user-compiled.html"], component: lazy(() => import("./features/public/PublicDocumentDetailPage").then(({ PublicDocumentDetailPage }) => ({ default: PublicDocumentDetailPage }))) },
 ];

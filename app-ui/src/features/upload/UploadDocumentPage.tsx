@@ -12,6 +12,7 @@ import {
   searchTopics,
   proposeTopic,
   uploadFile,
+  type UploadTransferProgress,
   type UploadedFileResult,
 } from "../../lib/api/upload";
 import { PeasField } from "../../components/forms/PeasField";
@@ -82,6 +83,13 @@ interface UploadReceipt {
   pendingReview: boolean;
 }
 
+interface SubmissionProgress {
+  label: string;
+  value: number;
+  stage: number;
+  detail: string;
+}
+
 const MONTHS = [
   ["01", "January"], ["02", "February"], ["03", "March"], ["04", "April"], ["05", "May"], ["06", "June"],
   ["07", "July"], ["08", "August"], ["09", "September"], ["10", "October"], ["11", "November"], ["12", "December"],
@@ -116,19 +124,19 @@ export function UploadDocumentPage() {
   const [singleForm, setSingleForm] = useState<SingleFormState>(initialSingleForm);
   const [compiledForm, setCompiledForm] = useState<CompiledFormState>(initialCompiledForm);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [busyStep, setBusyStep] = useState<string | null>(null);
+  const [submissionProgress, setSubmissionProgress] = useState<SubmissionProgress | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [pendingFocusKey, setPendingFocusKey] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<UploadReceipt | null>(null);
   const [authors, setAuthors] = useState<AuthorRecord[]>([]);
-  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; code?: string; name: string }>>([]);
+  const [researchAgendas, setResearchAgendas] = useState<Array<{ id: number; name: string }>>([]);
 
   useEffect(() => {
     void fetchAuthors().then(setAuthors).catch(() => setAuthors([]));
     void fetchResearchAgendas().then(setResearchAgendas).catch(() => setResearchAgendas([]));
   }, []);
 
-  const busy = Boolean(busyStep);
+  const busy = Boolean(submissionProgress);
   const steps = mode === "single" ? singleSteps : compiledSteps;
   const dirty = useMemo(() => isSingleFormDirty(singleForm) || isCompiledFormDirty(compiledForm), [compiledForm, singleForm]);
 
@@ -224,9 +232,19 @@ export function UploadDocumentPage() {
     setReceipt(null);
     setSubmissionError(null);
     try {
-      setBusyStep("Uploading PDF…");
-      const upload = await uploadDocumentPdf(singleForm.file, singleForm.category, singleForm.category);
-      setBusyStep("Creating document record…");
+      setSubmissionProgress({ label: "Preparing PDF…", value: 2, stage: 0, detail: `Preparing ${singleForm.file?.name ?? "the selected PDF"} for secure transfer.` });
+      const upload = await uploadDocumentPdf(singleForm.file, singleForm.category, singleForm.category, false, (transfer) => {
+        const sent = transfer.percent >= 100;
+        setSubmissionProgress({
+          label: sent ? "Validating and storing PDF…" : `Uploading PDF… ${transfer.percent}%`,
+          value: sent ? 64 : Math.max(3, Math.round(3 + transfer.percent * 0.57)),
+          stage: sent ? 1 : 0,
+          detail: sent
+            ? "The PDF has reached PeAS. The server is checking its file signature and saving it securely."
+            : `Sent ${formatBytes(transfer.loaded)} of ${formatBytes(transfer.total)}.`,
+        });
+      });
+      setSubmissionProgress({ label: "Creating repository record…", value: 72, stage: 2, detail: "The PDF is stored. PeAS is saving the title, publication date, authors, and classification." });
       const document = await createDocumentRecord({
         title: singleForm.title.trim(),
         abstract: upload.metadata?.abstract || "Abstract will be processed by the server.",
@@ -244,7 +262,9 @@ export function UploadDocumentPage() {
           keywords: singleForm.keywords,
         },
       });
+      setSubmissionProgress({ label: "Finalizing document…", value: 94, stage: 3, detail: "The repository record was created. PeAS is refreshing related author and document information." });
       await fetchAuthors().then(setAuthors).catch(() => undefined);
+      setSubmissionProgress({ label: "Upload complete", value: 100, stage: 3, detail: "The PDF and repository information were saved successfully." });
       const pendingReview = document.review_status === "pending_review";
       setReceipt({ type: "single", title: singleForm.title.trim(), documentId: document.id, pendingReview });
       setSingleForm(initialSingleForm);
@@ -264,7 +284,7 @@ export function UploadDocumentPage() {
       setSubmissionError(message);
       toast.error(message);
     } finally {
-      setBusyStep(null);
+      setSubmissionProgress(null);
     }
   }
 
@@ -282,12 +302,30 @@ export function UploadDocumentPage() {
     setSubmissionError(null);
     try {
       const documentType = compiledForm.category;
+      const sectionsWithFiles = compiledForm.sections.filter((section) => section.file);
+      const totalFiles = sectionsWithFiles.length + (compiledForm.forewordFile ? 1 : 0);
+      const totalRecords = sectionsWithFiles.length + 1;
+      let completedFiles = 0;
+      let completedRecords = 0;
+      const weightedProgress = (currentFileRatio = 0) => Math.min(92, Math.round(2 + ((completedFiles + currentFileRatio) / Math.max(totalFiles, 1)) * 60 + (completedRecords / totalRecords) * 30));
+      const reportFileTransfer = (label: string, transfer: UploadTransferProgress) => {
+        const sent = transfer.percent >= 100;
+        setSubmissionProgress({
+          label: sent ? `Validating and storing ${label}…` : `Uploading ${label}… ${transfer.percent}%`,
+          value: weightedProgress(transfer.percent / 100),
+          stage: sent ? 1 : 0,
+          detail: sent
+            ? `${label} reached PeAS and is being checked and saved securely.`
+            : `Sent ${formatBytes(transfer.loaded)} of ${formatBytes(transfer.total)} for ${label}.`,
+        });
+      };
+      setSubmissionProgress({ label: "Preparing publication files…", value: 2, stage: 0, detail: `Preparing ${totalFiles} ${totalFiles === 1 ? "PDF" : "PDFs"} for secure transfer.` });
       let foreword: UploadedFileResult | null = null;
       if (compiledForm.forewordFile) {
-        setBusyStep("Uploading foreword…");
-        foreword = await uploadDocumentPdf(compiledForm.forewordFile, documentType, compiledForm.category, true);
+        foreword = await uploadDocumentPdf(compiledForm.forewordFile, documentType, compiledForm.category, true, (transfer) => reportFileTransfer("foreword PDF", transfer));
+        completedFiles += 1;
       }
-      setBusyStep("Creating compiled publication…");
+      setSubmissionProgress({ label: "Creating publication record…", value: weightedProgress(), stage: 2, detail: "PeAS is saving the publication years, volume, issue, department, and foreword information." });
       const compiled = await createCompiledDocumentRecord({
         compiledDoc: {
           start_year: safeInt(compiledForm.startYear),
@@ -301,12 +339,13 @@ export function UploadDocumentPage() {
         },
         documentIds: [],
       });
+      completedRecords += 1;
       const childDocumentIds: number[] = [];
-      const sectionsWithFiles = compiledForm.sections.filter((section) => section.file);
       for (const [index, section] of sectionsWithFiles.entries()) {
-        setBusyStep(`Uploading study ${index + 1} of ${sectionsWithFiles.length}…`);
-        const upload = await uploadDocumentPdf(section.file, documentType, compiledForm.category);
-        setBusyStep(`Creating study ${index + 1} of ${sectionsWithFiles.length}…`);
+        const studyLabel = `study ${index + 1} of ${sectionsWithFiles.length}`;
+        const upload = await uploadDocumentPdf(section.file, documentType, compiledForm.category, false, (transfer) => reportFileTransfer(studyLabel, transfer));
+        completedFiles += 1;
+        setSubmissionProgress({ label: `Creating record for ${studyLabel}…`, value: weightedProgress(), stage: 2, detail: `The PDF is stored. PeAS is saving the study title, authors, abstract, and classification.` });
         const childDocument = await createDocumentRecord({
           title: section.title.trim(),
           abstract: section.abstract.trim() || upload.metadata?.abstract || "No abstract provided",
@@ -326,10 +365,13 @@ export function UploadDocumentPage() {
           },
         });
         childDocumentIds.push(childDocument.id);
+        completedRecords += 1;
       }
+      setSubmissionProgress({ label: "Refreshing author information…", value: 93, stage: 3, detail: "All publication and study records are saved. PeAS is refreshing the linked author directory." });
       await fetchAuthors().then(setAuthors).catch(() => undefined);
-      setBusyStep("Linking studies to publication…");
+      setSubmissionProgress({ label: "Linking studies to publication…", value: 96, stage: 3, detail: `PeAS is connecting ${childDocumentIds.length} ${childDocumentIds.length === 1 ? "study" : "studies"} to the compiled publication.` });
       await linkDocumentsToCompilation(compiled.id, childDocumentIds);
+      setSubmissionProgress({ label: "Upload complete", value: 100, stage: 3, detail: "All PDFs, records, classifications, and publication links were saved successfully." });
       const pendingReview = compiled.reviewStatus === "pending_review";
       setReceipt({ type: "compiled", title: compiledTitle, compiledDocumentId: compiled.id, childDocumentIds, pendingReview });
       setCompiledForm({ ...initialCompiledForm, sections: [createResearchSection()] });
@@ -349,7 +391,7 @@ export function UploadDocumentPage() {
       setSubmissionError(message);
       toast.error(message);
     } finally {
-      setBusyStep(null);
+      setSubmissionProgress(null);
     }
   }
 
@@ -389,9 +431,9 @@ export function UploadDocumentPage() {
                   <CompletionPanel receipt={receipt} isPublisher={isPublisher} onUploadAnother={() => { setReceipt(null); setStep(1); setErrors({}); setSubmissionError(null); }} />
                 ) : (
                   <>
-                    <SingleDocumentForm form={singleForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setSingleForm} onError={markError} />
+                    <SingleDocumentForm form={singleForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} allowPendingTopics={isPublisher} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setSingleForm} onError={markError} />
                     {submissionError ? <SubmissionError message={submissionError} /> : null}
-                    <UploadActions step={step} busy={busy} busyStep={busyStep} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
+                    <UploadActions step={step} busy={busy} progress={submissionProgress} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
                   </>
                 )}
               </form>
@@ -403,9 +445,9 @@ export function UploadDocumentPage() {
                   <CompletionPanel receipt={receipt} isPublisher={isPublisher} onUploadAnother={() => { setReceipt(null); setStep(1); setErrors({}); setSubmissionError(null); }} />
                 ) : (
                   <>
-                    <CompiledDocumentForm form={compiledForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setCompiledForm} onError={markError} />
+                    <CompiledDocumentForm form={compiledForm} step={step} errors={errors} busy={busy} authors={authors} researchAgendas={researchAgendas} allowPendingTopics={isPublisher} onAuthorCreated={(author) => setAuthors((current) => [...current, author])} onChange={setCompiledForm} onError={markError} />
                     {submissionError ? <SubmissionError message={submissionError} /> : null}
-                    <UploadActions step={step} busy={busy} busyStep={busyStep} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
+                    <UploadActions step={step} busy={busy} progress={submissionProgress} label={actionLabel} onBack={goBack} onContinue={continueWorkflow} />
                   </>
                 )}
               </form>
@@ -445,7 +487,7 @@ function UploadProgress({ mode, step, steps, busy, onStepChange }: { mode: Uploa
   );
 }
 
-function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas, onAuthorCreated, onChange, onError }: { form: SingleFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; code?: string; name: string }>; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: SingleFormState) => void; onError: (key: string, error?: string) => void }) {
+function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas, allowPendingTopics, onAuthorCreated, onChange, onError }: { form: SingleFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; name: string }>; allowPendingTopics: boolean; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: SingleFormState) => void; onError: (key: string, error?: string) => void }) {
   const field = (key: string) => fieldA11y(key, errors[key]);
   return (
     <div className="peas-upload-section">
@@ -478,10 +520,9 @@ function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas
               </Select>
             </PeasField>
             <PeasField label="Publication year" htmlFor="single-year" fieldKey="single.pubYear" required error={errors["single.pubYear"]} description="Use four digits, for example 2026.">
-              <Input id="single-year" {...field("single.pubYear")} type="number" min="1000" max="9999" value={form.pubYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("single.pubYear", validateYear(form.pubYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, pubYear: event.currentTarget.value })} />
+              <Input id="single-year" {...field("single.pubYear")} type="text" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={form.pubYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("single.pubYear", validateYear(form.pubYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, pubYear: event.currentTarget.value.replace(/\D/gu, "").slice(0, 4) })} />
             </PeasField>
           </div>
-          <p className="peas-upload-inline-hint">PeAS stores the selected month and year as the first day of that month.</p>
         </WorkflowPanel>
       ) : null}
 
@@ -497,6 +538,7 @@ function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas
             keywords={form.keywords}
             errors={errors}
             disabled={busy}
+            allowPendingTopics={allowPendingTopics}
             onChange={(updates) => onChange({ ...form, ...updates })}
             onError={onError}
           />
@@ -514,7 +556,7 @@ function SingleDocumentForm({ form, step, errors, busy, authors, researchAgendas
   );
 }
 
-function CompiledDocumentForm({ form, step, errors, busy, authors, researchAgendas, onAuthorCreated, onChange, onError }: { form: CompiledFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; code?: string; name: string }>; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: CompiledFormState) => void; onError: (key: string, error?: string) => void }) {
+function CompiledDocumentForm({ form, step, errors, busy, authors, researchAgendas, allowPendingTopics, onAuthorCreated, onChange, onError }: { form: CompiledFormState; step: UploadStep; errors: FieldErrors; busy: boolean; authors: AuthorRecord[]; researchAgendas: Array<{ id: number; name: string }>; allowPendingTopics: boolean; onAuthorCreated: (author: AuthorRecord) => void; onChange: (form: CompiledFormState) => void; onError: (key: string, error?: string) => void }) {
   const synergy = form.category === "SYNERGY";
   const field = (key: string) => fieldA11y(key, errors[key]);
   function updateSection(id: string, updates: Partial<ResearchSection>) {
@@ -528,8 +570,8 @@ function CompiledDocumentForm({ form, step, errors, busy, authors, researchAgend
             <PeasField label="Category" fieldKey="compiled.category" required>
               <Select value={form.category} disabled={busy} onValueChange={(value) => onChange({ ...form, category: value as CompiledCategory })}><SelectTrigger aria-label="Compiled document category"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="CONFLUENCE">Confluence</SelectItem><SelectItem value="SYNERGY">Synergy</SelectItem></SelectContent></Select>
             </PeasField>
-            <PeasField label="Start year" htmlFor="compiled-start-year" fieldKey="compiled.startYear" required error={errors["compiled.startYear"]}><Input id="compiled-start-year" {...field("compiled.startYear")} type="number" min="1000" max="9999" value={form.startYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.startYear", validateYear(form.startYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, startYear: event.currentTarget.value })} /></PeasField>
-            <PeasField label="End year" htmlFor="compiled-end-year" fieldKey="compiled.endYear" required error={errors["compiled.endYear"]}><Input id="compiled-end-year" {...field("compiled.endYear")} type="number" min="1000" max="9999" value={form.endYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.endYear", validateYear(form.endYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, endYear: event.currentTarget.value })} /></PeasField>
+          <PeasField label="Start year" htmlFor="compiled-start-year" fieldKey="compiled.startYear" required error={errors["compiled.startYear"]}><Input id="compiled-start-year" {...field("compiled.startYear")} type="text" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={form.startYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.startYear", validateYear(form.startYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, startYear: event.currentTarget.value.replace(/\D/gu, "").slice(0, 4) })} /></PeasField>
+          <PeasField label="End year" htmlFor="compiled-end-year" fieldKey="compiled.endYear" required error={errors["compiled.endYear"]}><Input id="compiled-end-year" {...field("compiled.endYear")} type="text" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={form.endYear} disabled={busy} placeholder="YYYY" onBlur={() => onError("compiled.endYear", validateYear(form.endYear, "Enter a four-digit year."))} onChange={(event) => onChange({ ...form, endYear: event.currentTarget.value.replace(/\D/gu, "").slice(0, 4) })} /></PeasField>
           </div>
           <div className="peas-form-grid peas-form-grid--three">
             <PeasField label="Volume" htmlFor="compiled-volume" fieldKey="compiled.volume" optional><Input id="compiled-volume" value={form.volume} disabled={busy} placeholder="3" onChange={(event) => onChange({ ...form, volume: event.currentTarget.value })} /></PeasField>
@@ -555,7 +597,7 @@ function CompiledDocumentForm({ form, step, errors, busy, authors, researchAgend
       {step === 3 ? (
         <WorkflowPanel title="Study classification" description="Classify each study independently using the official agendas, approved topics, and optional keywords.">
           <div className="peas-study-list">
-            {form.sections.map((section, index) => <StudyClassificationCard key={section.id} section={section} index={index} errors={errors} busy={busy} researchAgendas={researchAgendas} onChange={(updates) => updateSection(section.id, updates)} onError={onError} />)}
+            {form.sections.map((section, index) => <StudyClassificationCard key={section.id} section={section} index={index} errors={errors} busy={busy} researchAgendas={researchAgendas} allowPendingTopics={allowPendingTopics} onChange={(updates) => updateSection(section.id, updates)} onError={onError} />)}
           </div>
           {errors["compiled.sections"] ? <p className="peas-upload-inline-error" role="alert">{errors["compiled.sections"]}</p> : null}
         </WorkflowPanel>
@@ -600,7 +642,7 @@ function StudyDetailsCard({ section, index, complete, errors, sectionError, busy
   );
 }
 
-function StudyClassificationCard({ section, index, errors, busy, researchAgendas, onChange, onError }: { section: ResearchSection; index: number; errors: FieldErrors; busy: boolean; researchAgendas: Array<{ id: number; code?: string; name: string }>; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void }) {
+function StudyClassificationCard({ section, index, errors, busy, researchAgendas, allowPendingTopics, onChange, onError }: { section: ResearchSection; index: number; errors: FieldErrors; busy: boolean; researchAgendas: Array<{ id: number; name: string }>; allowPendingTopics: boolean; onChange: (updates: Partial<ResearchSection>) => void; onError: (key: string, error?: string) => void }) {
   return <Card className="peas-study-card peas-study-card--classification">
     <CardContent className="peas-study-card__content">
       <header className="peas-study-card__heading"><div><h3>Study {index + 1}</h3><p>{section.title || "Complete study details first"}</p></div><Badge tone={section.researchAgendaIds.length && section.topicIds.length ? "green" : "slate"}>{section.researchAgendaIds.length && section.topicIds.length ? "Classified" : "Needs classification"}</Badge></header>
@@ -614,6 +656,7 @@ function StudyClassificationCard({ section, index, errors, busy, researchAgendas
         keywords={section.keywords}
         errors={errors}
         disabled={busy}
+        allowPendingTopics={allowPendingTopics}
         onChange={onChange}
         onError={onError}
       />
@@ -704,11 +747,12 @@ function ClassificationControls({
   keywords,
   errors,
   disabled,
+  allowPendingTopics,
   onChange,
   onError,
 }: {
   prefix: string;
-  agendas: Array<{ id: number; code?: string; name: string }>;
+  agendas: Array<{ id: number; name: string }>;
   researchAgendaIds: number[];
   primaryResearchAgendaId: number | null;
   topicIds: number[];
@@ -716,15 +760,18 @@ function ClassificationControls({
   keywords: string[];
   errors: FieldErrors;
   disabled: boolean;
+  allowPendingTopics: boolean;
   onChange: (updates: Partial<ClassificationUpdates>) => void;
   onError: (key: string, error?: string) => void;
 }) {
+  const [agendaQuery, setAgendaQuery] = useState("");
   const [topicQuery, setTopicQuery] = useState("");
   const [topicMatches, setTopicMatches] = useState<Array<{ id: number; name: string; status?: string }>>([]);
   const [topicBusy, setTopicBusy] = useState(false);
   const topicKey = `${prefix}.topicIds`;
   const agendaKey = `${prefix}.researchAgendaIds`;
   const keywordKey = `${prefix}.keywords`;
+  const visibleAgendas = agendas.filter((agenda) => agenda.name.toLocaleLowerCase().includes(agendaQuery.trim().toLocaleLowerCase()));
 
   useEffect(() => {
     const query = topicQuery.trim();
@@ -753,8 +800,16 @@ function ClassificationControls({
     };
   }, [disabled, topicQuery]);
 
-  function addTopic(id: number, name: string) {
+  function canSelectTopic(topic: { status?: string }) {
+    return topic.status === "approved" || (allowPendingTopics && topic.status === "pending");
+  }
+
+  function addTopic(id: number, name: string, status = "approved") {
     if (topicIds.includes(id) || topicIds.length >= 5) return;
+    if (!canSelectTopic({ status })) {
+      onError(topicKey, "Choose an approved topic. Proposed topics must be approved before publication.");
+      return;
+    }
     onChange({ topicIds: [...topicIds, id], topicNames: [...topicNames, name] });
     onError(topicKey);
     setTopicQuery("");
@@ -767,7 +822,13 @@ function ClassificationControls({
     try {
       setTopicBusy(true);
       const proposal = await proposeTopic(name);
-      addTopic(Number(proposal.id), proposal.name);
+      if (allowPendingTopics) {
+        addTopic(Number(proposal.id), proposal.name, proposal.status ?? "pending");
+      } else {
+        setTopicQuery("");
+        setTopicMatches([]);
+        toast.success("Topic proposed for administrator review. It will be available after approval.");
+      }
     } finally {
       setTopicBusy(false);
     }
@@ -778,34 +839,35 @@ function ClassificationControls({
       <strong>Classify this document</strong>
       <span>Research agendas are institutional priorities; topics are approved subject headings; keywords are specific search terms.</span>
     </div>
-    <PeasField label="Research agendas" fieldKey={agendaKey} required error={errors[agendaKey]} description="Select 1–3 official priorities and choose one primary agenda.">
-      <select
-        multiple
-        size={Math.min(Math.max(agendas.length, 3), 6)}
-        value={researchAgendaIds.map(String)}
-        disabled={disabled}
-        aria-label="Research agendas"
-        onChange={(event) => {
-          const next = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
-          onChange({ researchAgendaIds: next, primaryResearchAgendaId: next.includes(primaryResearchAgendaId ?? 0) ? primaryResearchAgendaId : next[0] ?? null });
-          onError(agendaKey, next.length >= 1 && next.length <= 3 ? undefined : "Select between one and three research agendas.");
-        }}
-      >
-        {agendas.map((agenda) => <option value={agenda.id} key={agenda.id}>{agenda.code ? `${agenda.code} · ` : ""}{agenda.name}</option>)}
-      </select>
+    <PeasField label="Research agendas" fieldKey={agendaKey} required error={errors[agendaKey]} description={`Select 1–3 of ${agendas.length} official priorities and choose one primary agenda.`}>
+      <div className="peas-agenda-selection-summary" aria-live="polite"><strong>{researchAgendaIds.length} selected</strong><span>Maximum 3 per document</span></div>
+      {agendas.length > 6 ? <Input className="peas-agenda-search" aria-label="Search research agendas" value={agendaQuery} placeholder="Search research agendas…" onChange={(event) => setAgendaQuery(event.currentTarget.value)} /> : null}
+      <div className="peas-agenda-options" role="group" aria-label="Research agendas">
+        {visibleAgendas.length ? visibleAgendas.map((agenda) => {
+          const selected = researchAgendaIds.includes(agenda.id);
+          return <label className={`peas-agenda-option${selected ? " is-selected" : ""}`} key={agenda.id}>
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={disabled || (!selected && researchAgendaIds.length >= 3)}
+              onChange={() => {
+                const next = selected ? researchAgendaIds.filter((id) => id !== agenda.id) : [...researchAgendaIds, agenda.id];
+                onChange({ researchAgendaIds: next, primaryResearchAgendaId: next.includes(primaryResearchAgendaId ?? 0) ? primaryResearchAgendaId : next[0] ?? null });
+                onError(agendaKey, next.length >= 1 && next.length <= 3 ? undefined : "Select between one and three research agendas.");
+              }}
+            />
+            <span>{agenda.name}</span>
+          </label>;
+        }) : <span className="peas-agenda-empty">No research agendas match your search.</span>}
+      </div>
     </PeasField>
     <PeasField label="Primary research agenda" fieldKey={`${prefix}.primaryResearchAgendaId`} required>
-      <select
-        value={primaryResearchAgendaId ? String(primaryResearchAgendaId) : ""}
-        disabled={disabled || researchAgendaIds.length === 0}
-        aria-label="Primary research agenda"
-        onChange={(event) => onChange({ primaryResearchAgendaId: event.currentTarget.value ? Number(event.currentTarget.value) : null })}
-      >
-        <option value="">Choose primary agenda</option>
-        {researchAgendaIds.map((id) => { const agenda = agendas.find((item) => item.id === id); return agenda ? <option value={id} key={id}>{agenda.name}</option> : null; })}
-      </select>
+      <Select value={primaryResearchAgendaId ? String(primaryResearchAgendaId) : undefined} disabled={disabled || researchAgendaIds.length === 0} onValueChange={(value) => onChange({ primaryResearchAgendaId: value ? Number(value) : null })}>
+        <SelectTrigger aria-label="Primary research agenda"><SelectValue placeholder="Choose primary agenda" /></SelectTrigger>
+        <SelectContent>{researchAgendaIds.map((id) => { const agenda = agendas.find((item) => item.id === id); return agenda ? <SelectItem value={String(id)} key={id}>{agenda.name}</SelectItem> : null; })}</SelectContent>
+      </Select>
     </PeasField>
-    <PeasField label="Topics" fieldKey={topicKey} required error={errors[topicKey]} description="Choose 1–5 approved topics. Publishers can propose a new topic for administrator review.">
+    <PeasField label="Topics" fieldKey={topicKey} required error={errors[topicKey]} description={allowPendingTopics ? "Choose 1–5 approved topics. You may also submit a new topic for administrator review." : "Choose 1–5 approved topics. Proposed topics must be approved before publication."}>
       {topicNames.length ? <div className="peas-keyword-input__badges" role="list" aria-label="Selected topics">{topicNames.map((name, index) => <Badge key={`${name}-${index}`} tone="blue" className="peas-keyword-input__badge">{name}<button type="button" aria-label={`Remove topic ${name}`} disabled={disabled} onClick={() => onChange({ topicIds: topicIds.filter((_, itemIndex) => itemIndex !== index), topicNames: topicNames.filter((_, itemIndex) => itemIndex !== index) })}><X aria-hidden="true" /></button></Badge>)}</div> : null}
       <div className="peas-document-tag-editor__input">
         <Input
@@ -815,16 +877,20 @@ function ClassificationControls({
           disabled={disabled || topicIds.length >= 5}
           placeholder="Search approved topics…"
           onChange={(event) => setTopicQuery(event.currentTarget.value)}
-          onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const first = topicMatches[0]; if (first) addTopic(first.id, first.name); else void proposeCurrentTopic(); } }}
+          onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const first = topicMatches.find(canSelectTopic); if (first) addTopic(first.id, first.name, first.status); else if (topicMatches.length) onError(topicKey, "Those topics are awaiting approval. Choose an approved topic before publication."); else void proposeCurrentTopic(); } }}
         />
         {topicQuery.trim().length >= 2 ? <div className="peas-document-tag-editor__suggestions" role="listbox" aria-label="Approved topic suggestions">
-          {topicBusy ? <span>Searching topics…</span> : topicMatches.map((topic) => <button type="button" role="option" key={topic.id} onMouseDown={(event) => { event.preventDefault(); addTopic(topic.id, topic.name); }}>{topic.name}{topic.status === "pending" ? " · pending" : ""}</button>)}
+          {topicBusy ? <span>Searching topics…</span> : topicMatches.map((topic) => {
+            const selectable = canSelectTopic(topic);
+            const statusLabel = topic.status === "pending" ? " · awaiting approval" : topic.status === "retired" ? " · retired" : "";
+            return <button type="button" role="option" key={topic.id} disabled={!selectable} aria-disabled={!selectable} onMouseDown={(event) => { event.preventDefault(); if (selectable) addTopic(topic.id, topic.name, topic.status); }}>{topic.name}{statusLabel}</button>;
+          })}
           {!topicBusy && !topicMatches.length ? <button type="button" onMouseDown={(event) => { event.preventDefault(); void proposeCurrentTopic(); }}>Propose “{topicQuery.trim()}”</button> : null}
         </div> : null}
       </div>
     </PeasField>
-    <PeasField label="Keywords" htmlFor={`${prefix}-keywords`} fieldKey={keywordKey} optional error={errors[keywordKey]} description="Optional. Add up to 10 specific terms; press Enter or semicolon after each term.">
-      <KeywordBadgeInput id={`${prefix}-keywords`} value={keywords} disabled={disabled} placeholder="crumb rubber tire; compressive strength" onChange={(next) => { onChange({ keywords: next }); onError(keywordKey, next.length <= 10 ? undefined : "Use no more than ten keywords."); }} />
+    <PeasField label="Keywords" htmlFor={`${prefix}-keywords`} fieldKey={keywordKey} optional error={errors[keywordKey]}>
+      <KeywordBadgeInput id={`${prefix}-keywords`} value={keywords} disabled={disabled} placeholder="crumb rubber tire; compressive strength" onChange={(next) => { onChange({ keywords: next }); onError(keywordKey, undefined); }} />
     </PeasField>
   </div>;
 }
@@ -843,50 +909,77 @@ function WorkflowPanel({ title, description, children }: { title: string; descri
 
 function UploadChecklist({ mode, step, singleForm, compiledForm, compiledTitle, receipt }: { mode: UploadMode; step: UploadStep; singleForm: SingleFormState; compiledForm: CompiledFormState; compiledTitle: string; receipt: UploadReceipt | null }) {
   const isSingle = mode === "single";
+  const documentType = singleForm.category === "THESIS" ? "Thesis" : "Dissertation";
+  const detailsReady = Boolean(singleForm.title.trim() && singleForm.authors.length);
+  const publicationReady = Boolean(singleForm.pubMonth && /^\d{4}$/.test(singleForm.pubYear));
+  const agendasReady = singleForm.researchAgendaIds.length >= 1 && singleForm.researchAgendaIds.length <= 3 && Boolean(singleForm.primaryResearchAgendaId && singleForm.researchAgendaIds.includes(singleForm.primaryResearchAgendaId));
+  const topicsReady = singleForm.topicIds.length >= 1 && singleForm.topicIds.length <= 5;
+  const pdfReady = Boolean(singleForm.file && isPdf(singleForm.file));
   const preparedStudies = compiledForm.sections.filter((section) => section.title.trim() || section.file).length;
   const readyStudies = compiledForm.sections.filter((section) => section.title.trim() && section.file && isPdf(section.file)).length;
+  const classifiedStudies = compiledForm.sections.filter((section) => section.researchAgendaIds.length >= 1 && section.researchAgendaIds.length <= 3 && section.primaryResearchAgendaId && section.researchAgendaIds.includes(section.primaryResearchAgendaId) && section.topicIds.length >= 1 && section.topicIds.length <= 5).length;
+  const yearsReady = Boolean(/^\d{4}$/.test(compiledForm.startYear) && /^\d{4}$/.test(compiledForm.endYear) && Number(compiledForm.startYear) <= Number(compiledForm.endYear));
+  const allStudyDetailsReady = Boolean(compiledForm.sections.length && compiledForm.sections.every((section) => section.title.trim()));
+  const allStudiesClassified = Boolean(compiledForm.sections.length && classifiedStudies === compiledForm.sections.length);
+  const allStudyPdfsReady = Boolean(compiledForm.sections.length && readyStudies === compiledForm.sections.length);
+  const stepName = (isSingle ? singleSteps : compiledSteps)[step - 1];
   return <aside className="peas-upload-preview peas-upload-checklist" aria-label="Upload checklist">
     {receipt ? <div className="peas-upload-receipt"><CheckCircle2 aria-hidden="true" /><h2>{receipt.pendingReview ? "Submitted for review" : "Published successfully"}</h2><p>{receipt.title}</p>{receipt.pendingReview ? <p>An administrator must approve this upload before it appears publicly.</p> : null}<div className="peas-upload-receipt__facts">{receipt.documentId ? <span>Document ID: {receipt.documentId}</span> : null}{receipt.compiledDocumentId ? <span>Publication ID: {receipt.compiledDocumentId}</span> : null}{receipt.childDocumentIds ? <span>{receipt.childDocumentIds.length} studies</span> : null}</div><Button type="button" onClick={() => receipt.pendingReview ? window.location.reload() : window.location.assign("/admin/Components/documents_list.html")}>{receipt.pendingReview ? "Upload another" : "View documents"}</Button></div> : <>
-      <div><h2>{step === FINAL_UPLOAD_STEP ? "Final checklist" : "Upload checklist"}</h2><p className="peas-upload-checklist__intro">{isSingle ? "One document will be added to the repository." : "Your publication will include the studies you prepare below."}</p></div>
+      <div><h2>{step === FINAL_UPLOAD_STEP ? "Ready to submit?" : "What you need to complete"}</h2><p className="peas-upload-checklist__intro">{isSingle ? `${documentType}${singleForm.title.trim() ? ` · ${singleForm.title.trim()}` : ""}` : `${compiledTitle} · ${compiledForm.sections.length} ${compiledForm.sections.length === 1 ? "study" : "studies"}`}</p><p className="peas-upload-checklist__step">Step {step} of {FINAL_UPLOAD_STEP}: {stepName}</p></div>
       <dl>
-        <ChecklistRow label="Type" value={isSingle ? (singleForm.category === "THESIS" ? "Thesis" : "Dissertation") : compiledForm.category === "CONFLUENCE" ? "Confluence" : "Synergy"} />
-        <ChecklistRow label={isSingle ? "Title" : "Category"} value={isSingle ? singleForm.title || "Not entered" : compiledTitle} />
-        {isSingle ? <ChecklistRow label="Publication" value={formatPublicationDate(singleForm.pubMonth, singleForm.pubYear)} /> : <ChecklistRow label="Year range" value={compiledForm.startYear && compiledForm.endYear ? `${compiledForm.startYear}–${compiledForm.endYear}` : "Not entered"} />}
-        {isSingle ? <ChecklistRow label="Classification" value={singleForm.researchAgendaIds.length && singleForm.topicIds.length ? "Ready" : "Not complete"} /> : <ChecklistRow label="Studies" value={`${preparedStudies} prepared · ${readyStudies} PDFs ready`} />}
-        <ChecklistRow label={isSingle ? "PDF" : "Foreword"} value={isSingle ? singleForm.file?.name || "Not selected" : compiledForm.forewordFile?.name || "Not selected"} />
-        <ChecklistRow label="Step" value={`${step} of ${FINAL_UPLOAD_STEP}`} />
+        {isSingle ? <>
+          <ChecklistRow label="Document details" value={detailsReady ? `${singleForm.authors.length} ${singleForm.authors.length === 1 ? "author" : "authors"} added` : !singleForm.title.trim() ? "Add a title and at least one author" : "Add at least one author"} ready={detailsReady} />
+          <ChecklistRow label="Publication date" value={publicationReady ? formatPublicationDate(singleForm.pubMonth, singleForm.pubYear) : "Choose a month and four-digit year"} ready={publicationReady} />
+          <ChecklistRow label="Research agendas" value={agendasReady ? `${singleForm.researchAgendaIds.length} selected · primary chosen` : "Select 1–3 and choose one as primary"} ready={agendasReady} />
+          <ChecklistRow label="Topics" value={topicsReady ? `${singleForm.topicIds.length} selected` : "Select 1–5 approved topics"} ready={topicsReady} />
+          <ChecklistRow label="Document PDF" value={pdfReady ? singleForm.file?.name || "PDF selected" : "Attach one PDF file"} ready={pdfReady} />
+        </> : <>
+          <ChecklistRow label="Publication years" value={yearsReady ? `${compiledForm.startYear}–${compiledForm.endYear}` : "Enter a valid start and end year"} ready={yearsReady} />
+          <ChecklistRow label="Study details" value={allStudyDetailsReady ? `${preparedStudies} ${preparedStudies === 1 ? "study" : "studies"} prepared` : "Add a title for every study"} ready={allStudyDetailsReady} />
+          <ChecklistRow label="Study classification" value={allStudiesClassified ? `${classifiedStudies} ${classifiedStudies === 1 ? "study" : "studies"} classified` : `${classifiedStudies} of ${compiledForm.sections.length} classified`} ready={allStudiesClassified} />
+          <ChecklistRow label="Study PDFs" value={allStudyPdfsReady ? `${readyStudies} PDFs ready` : `${readyStudies} of ${compiledForm.sections.length} PDFs ready`} ready={allStudyPdfsReady} />
+          <ChecklistRow label="Foreword PDF" value={compiledForm.forewordFile ? (isPdf(compiledForm.forewordFile) ? compiledForm.forewordFile.name : "Choose a valid PDF file") : "Optional"} ready={!compiledForm.forewordFile || isPdf(compiledForm.forewordFile)} optional />
+        </>}
       </dl>
     </>}
   </aside>;
 }
 
-function ChecklistRow({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
+function ChecklistRow({ label, value, ready, optional = false }: { label: string; value: string; ready: boolean; optional?: boolean }) {
+  return <div className={`peas-upload-checklist__row ${ready ? "is-ready" : "needs-action"}`}>
+    <dt>{label}</dt>
+    <dd>{value}</dd>
+    <span className="peas-upload-checklist__status">{ready ? <Check aria-hidden="true" /> : null}{optional ? "Optional" : ready ? "Complete" : "Action needed"}</span>
+  </div>;
+}
 
 function CompletionPanel({ receipt, isPublisher, onUploadAnother }: { receipt: UploadReceipt; isPublisher: boolean; onUploadAnother: () => void }) {
   return <section className="peas-upload-completion"><CheckCircle2 aria-hidden="true" /><h2>{receipt.pendingReview ? "Your upload is awaiting review" : "Your upload is published"}</h2><p><strong>{receipt.title}</strong> has been processed successfully.</p><p>{receipt.pendingReview ? (isPublisher ? "An administrator will review the document before it appears publicly." : "The document is queued for administrator review.") : "The document is now available in the repository."}</p><div className="peas-upload-receipt__facts">{receipt.documentId ? <span>Document ID: {receipt.documentId}</span> : null}{receipt.compiledDocumentId ? <span>Publication ID: {receipt.compiledDocumentId}</span> : null}{receipt.childDocumentIds ? <span>{receipt.childDocumentIds.length} studies</span> : null}</div><div className="peas-upload-completion__actions"><Button type="button" variant="outline" onClick={onUploadAnother}>Upload another</Button>{!receipt.pendingReview && !isPublisher ? <Button type="button" onClick={() => window.location.assign("/admin/Components/documents_list.html")}>View documents</Button> : null}</div></section>;
 }
 
-function SubmissionError({ message }: { message: string }) { return <div className="peas-upload-alert" role="alert"><strong>We couldn’t finish this upload.</strong><span>{message} Your entered details are still here. Check the fields and try again.</span></div>; }
+function SubmissionError({ message }: { message: string }) {
+  const readableMessage = /[.!?]$/u.test(message.trim()) ? message.trim() : `${message.trim()}.`;
+  return <div className="peas-upload-alert" role="alert"><strong>We couldn’t finish this upload.</strong><span>{readableMessage} Your entered details are still here. Check the highlighted fields and try again.</span></div>;
+}
 
-function UploadActions({ step, busy, busyStep, label, onBack, onContinue }: { step: UploadStep; busy: boolean; busyStep: string | null; label: string; onBack: () => void; onContinue: () => void }) {
+function UploadActions({ step, busy, progress, label, onBack, onContinue }: { step: UploadStep; busy: boolean; progress: SubmissionProgress | null; label: string; onBack: () => void; onContinue: () => void }) {
   return <div className="peas-upload-actions">
-    {busyStep ? <UploadProgressDetails busyStep={busyStep} /> : null}
+    {progress ? <UploadProgressDetails progress={progress} /> : null}
     {step > 1 ? <Button type="button" variant="outline" disabled={busy} onClick={(event) => { event.preventDefault(); onBack(); }}><ChevronLeft aria-hidden="true" /> Back</Button> : null}
     {step < FINAL_UPLOAD_STEP ? <Button type="button" disabled={busy} onClick={(event) => { event.preventDefault(); onContinue(); }}>Continue <ChevronRight aria-hidden="true" /></Button> : <Button type="submit" disabled={busy} onClick={(event) => { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }}><UploadCloud aria-hidden="true" />{busy ? "Working…" : label}</Button>}
   </div>;
 }
 
-function UploadProgressDetails({ busyStep }: { busyStep: string }) {
-  const progress = getUploadProgress(busyStep);
-  const stages = ["Upload and validate PDF", "Create repository record", "Link metadata"];
+function UploadProgressDetails({ progress }: { progress: SubmissionProgress }) {
+  const stages = ["Transfer PDF files", "Validate and store files", "Create repository records", "Finalize metadata and links"];
 
-  return <details className="peas-upload-progress-status">
+  return <details className="peas-upload-progress-status" open>
     <summary aria-live="polite">
       <span className="peas-upload-progress-status__summary">
-        <strong>{busyStep}</strong>
-        <span>{progress.value}% · View details</span>
+        <strong>{progress.label}</strong>
+        <span>{progress.value}%</span>
       </span>
-      <span className="peas-upload-progress-bar" role="progressbar" aria-label="Upload workflow progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.value} aria-valuetext={`${progress.value}% complete`}>
+      <span className="peas-upload-progress-bar" role="progressbar" aria-label="Upload workflow progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.value} aria-valuetext={`${progress.value}% complete. ${progress.label}`}>
         <span style={{ width: `${progress.value}%` }} />
       </span>
     </summary>
@@ -901,24 +994,6 @@ function UploadProgressDetails({ busyStep }: { busyStep: string }) {
       </ol>
     </div>
   </details>;
-}
-
-function getUploadProgress(busyStep: string) {
-  const normalized = busyStep.toLowerCase();
-  const studyMatch = busyStep.match(/uploading study (\d+) of (\d+)/i);
-  if (studyMatch) {
-    const currentStudy = Number(studyMatch[1]);
-    const totalStudies = Number(studyMatch[2]);
-    const value = Math.round(18 + (currentStudy / Math.max(totalStudies, 1)) * 26);
-    return { value, stage: 0, detail: `Sending study ${currentStudy} of ${totalStudies} and checking that it is a valid PDF.` };
-  }
-  if (normalized.includes("linking")) {
-    return { value: 84, stage: 2, detail: "Connecting the document to its authors, keywords, or compiled publication." };
-  }
-  if (normalized.includes("creating")) {
-    return { value: 58, stage: 1, detail: "Saving the publication details and preparing the repository record." };
-  }
-  return { value: 24, stage: 0, detail: "Sending the PDF securely and validating its file signature." };
 }
 
 function validateSingleStep(form: SingleFormState, step: UploadStep, requireClassification: boolean): FieldErrors {
@@ -997,7 +1072,6 @@ function validateCompiledAll(form: CompiledFormState, requireClassification: boo
 function addClassificationErrors(errors: FieldErrors, prefix: string, form: Pick<SingleFormState, "researchAgendaIds" | "primaryResearchAgendaId" | "topicIds" | "keywords">, requireClassification: boolean) {
   if (form.researchAgendaIds.length > 3) errors[`${prefix}.researchAgendaIds`] = "Select no more than three research agendas.";
   if (form.topicIds.length > 5) errors[`${prefix}.topicIds`] = "Select no more than five topics.";
-  if (form.keywords.length > 10) errors[`${prefix}.keywords`] = "Use no more than ten keywords.";
   if (form.researchAgendaIds.length && !form.primaryResearchAgendaId) errors[`${prefix}.primaryResearchAgendaId`] = "Choose a primary agenda.";
   if (form.researchAgendaIds.length && form.primaryResearchAgendaId && !form.researchAgendaIds.includes(form.primaryResearchAgendaId)) errors[`${prefix}.primaryResearchAgendaId`] = "Choose one of the selected agendas.";
   if (requireClassification && form.researchAgendaIds.length < 1) errors[`${prefix}.researchAgendaIds`] = "Select at least one research agenda.";
@@ -1031,4 +1105,5 @@ function safeInt(value: string) { const numberValue = Number.parseInt(value, 10)
 function isPdf(file: File) { return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"); }
 function isSingleFormDirty(form: SingleFormState) { return Boolean(form.title.trim() || form.authors.length || form.pubMonth || form.pubYear || form.researchAgendaIds.length || form.primaryResearchAgendaId || form.topicIds.length || form.topicNames.length || form.keywords.length || form.file || form.category !== initialSingleForm.category); }
 function isCompiledFormDirty(form: CompiledFormState) { return Boolean(form.category !== initialCompiledForm.category || form.startYear || form.endYear || form.volume || form.issueNumber || form.department || form.forewordFile || form.sections.length !== 1 || form.sections.some((section) => section.title.trim() || section.authors.length || section.researchAgendaIds.length || section.primaryResearchAgendaId || section.topicIds.length || section.topicNames.length || section.keywords.length || section.abstract.trim() || section.file)); }
-async function uploadDocumentPdf(file: File | null, documentType: SingleCategory | CompiledCategory, category: string, isForeword = false) { if (!file) throw new Error("Please choose a PDF file."); if (!isPdf(file)) throw new Error(`${file.name} is not a PDF file.`); return uploadFile(file, { storagePath: `storage/${documentType.toLowerCase()}${isForeword ? "/forewords" : ""}`, documentType, category, isForeword }); }
+async function uploadDocumentPdf(file: File | null, documentType: SingleCategory | CompiledCategory, category: string, isForeword = false, onProgress?: (progress: UploadTransferProgress) => void) { if (!file) throw new Error("Please choose a PDF file."); if (!isPdf(file)) throw new Error(`${file.name} is not a PDF file.`); return uploadFile(file, { storagePath: `storage/${documentType.toLowerCase()}${isForeword ? "/forewords" : ""}`, documentType, category, isForeword }, onProgress); }
+function formatBytes(value: number) { if (!Number.isFinite(value) || value <= 0) return "0 B"; const units = ["B", "KB", "MB", "GB"]; const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1); const amount = value / 1024 ** index; return `${amount >= 10 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`; }

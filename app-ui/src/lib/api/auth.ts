@@ -90,10 +90,10 @@ export async function signInUsername(username: string, password: string) {
   } satisfies SessionResponse;
 }
 
-export async function signInMicrosoft() {
+export async function signInMicrosoft(callbackURL = "/auth/landing.html") {
   const response = await apiFetch<{ url: string }>("/api/auth/sign-in/social", {
     method: "POST",
-    json: { provider: "microsoft", callbackURL: "/auth/landing.html", errorCallbackURL: "/log-in.html" },
+    json: { provider: "microsoft", callbackURL, errorCallbackURL: "/log-in.html" },
   });
   window.location.assign(response.url);
 }

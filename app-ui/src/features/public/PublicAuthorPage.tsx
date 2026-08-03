@@ -51,6 +51,7 @@ function AuthorProfileContent({ profile }: { profile: PublicAuthorProfile }) {
   const { session } = usePublicSession();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sort, setSort] = useState<WorksSort>("newest");
+  const [biographyExpanded, setBiographyExpanded] = useState(false);
   const categoryOptions = profile.categoryDistribution;
   const totalWorks = profile.statistics.publicWorksCount;
   const publicationYears = [...profile.publicationsByYear].sort((left, right) => left.year - right.year);
@@ -74,18 +75,24 @@ function AuthorProfileContent({ profile }: { profile: PublicAuthorProfile }) {
   }, [profile.works, selectedCategory, sort]);
 
   const activeSpan = formatPublicationSpan(profile.statistics.firstPublicationYear, profile.statistics.latestPublicationYear);
-  const identityMeta = [
-    profile.author.department ? `Department: ${profile.author.department}` : "Department not listed",
-    profile.author.affiliation ? `Affiliation: ${profile.author.affiliation}` : "Affiliation not listed",
-  ].join(" · ");
+  const biography = profile.author.biography?.trim() ?? "";
+  const biographyCanExpand = biography.length > 240;
 
   return <>
     <header className="peas-author-profile-hero">
       <div className="peas-author-avatar"><AuthorImage src={profile.author.profilePicture} name={profile.author.fullName} alt={`${profile.author.fullName} profile`} /></div>
       <div>
         <h1>{profile.author.fullName}</h1>
-        <p>{identityMeta}</p>
-        {profile.author.biography ? <p className="peas-author-profile-bio">{profile.author.biography}</p> : null}
+        <dl className="peas-author-profile-meta">
+          <div><dt>Department</dt><dd>{profile.author.department || "Not listed"}</dd></div>
+          <div><dt>Affiliation</dt><dd>{profile.author.affiliation || "Not listed"}</dd></div>
+        </dl>
+        {biography ? <div className="peas-author-profile-bio-wrap">
+          <div className={`peas-author-profile-bio-clip${biographyExpanded ? " is-expanded" : ""}`}>
+            <p id="author-biography" className="peas-author-profile-bio">{biography}</p>
+          </div>
+          {biographyCanExpand ? <button type="button" className="peas-author-profile-bio-toggle" aria-controls="author-biography" aria-expanded={biographyExpanded} aria-label={biographyExpanded ? "Show less" : "Read full biography"} onClick={() => setBiographyExpanded((expanded) => !expanded)}><span className={!biographyExpanded ? "is-visible" : ""} aria-hidden="true">Read full biography</span><span className={biographyExpanded ? "is-visible" : ""} aria-hidden="true">Show less</span></button> : null}
+        </div> : null}
       </div>
     </header>
 
