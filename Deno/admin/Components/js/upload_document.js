@@ -376,7 +376,7 @@ async function handleSingleDocumentSubmit(e) {
         // Create document object with the file path from pre-upload
         const documentData = {
             title: formData.get('title'),
-            abstract: fileInput.dataset.abstract || 'Abstract will be processed by the server.',
+            abstract: fileInput.dataset.abstract || null,
             publication_date: publicationDate,
             file_path: filePath,
             is_public: true, // Default to public
@@ -767,19 +767,8 @@ async function handleCompiledDocumentSubmit(e) {
                 const forewordResult = await forewordFileResponse.json();
                 forewordFilePath = forewordResult.filePath;
                                 
-                // Try to extract abstract from foreword file
-                    if (forewordFile.type === 'application/pdf') {
-                    try {
-                                                    forewordAbstract = await extractPDFAbstractPromise(forewordFile);
-                                            } catch (extractionError) {
-                        forewordAbstract = 'Failed to extract abstract from foreword document.';
-                    }
-                    
-                    // Use server-provided metadata as fallback
-                    if ((!forewordAbstract || forewordAbstract.trim() === '') && forewordResult.metadata && forewordResult.metadata.abstract) {
-                        forewordAbstract = forewordResult.metadata.abstract;
-                                            }
-                }
+                // Abstract extraction is deferred to the self-hosted worker.
+                forewordAbstract = null;
                 }
             } catch (error) {
                 forewordFilePath = null;
@@ -898,13 +887,13 @@ async function handleCompiledDocumentSubmit(e) {
             const abstractContent = section.querySelector('.abstract-content');
             
             // Prioritize extracted abstract from PDF visible in the UI first
-            let abstractText = 'No abstract provided';
+            let abstractText = null;
             
             if (abstractContent && abstractContent.textContent && 
                 abstractContent.textContent.trim() !== '' && 
                 !abstractContent.textContent.includes('Abstract will be extracted') &&
                 !abstractContent.textContent.includes('Extracting abstract')) {
-                                abstractText = abstractContent.textContent.trim();
+                abstractText = abstractContent.textContent.trim();
             }
             
             // Create study document data (will be linked to the compiled document)
@@ -920,12 +909,8 @@ async function handleCompiledDocumentSubmit(e) {
                 compiled_parent_id: compiledDocEntryId  // Reference to the compiled document ID
             };
             
-            // Extract metadata from PDF if available from the server
+            // The upload response contains no abstract candidate. Extraction is queued after record creation.
             if (fileResult.metadata && fileResult.fileType === 'pdf') {
-                // Only override abstract if we don't already have one from the UI extraction
-                if (abstractText === 'No abstract provided' && fileResult.metadata.abstract) {
-                    studyData.abstract = fileResult.metadata.abstract;
-                                    }
                 studyData.pages = fileResult.metadata.pageCount || 0;
             }
             
@@ -1361,24 +1346,9 @@ function updateDocumentPreview(file) {
             }
         }
         
-        // Extract abstract from PDF if possible
+        // Abstract extraction is deferred to the server worker after upload.
         if (file.type === 'application/pdf' && previewAbstract) {
-            previewAbstract.textContent = 'Extracting abstract...';
-            
-            // Load PDF.js script if not already loaded
-            if (!window.pdfjsLib) {
-                // Add PDF.js script to document
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
-                script.onload = function() {
-                    // Once PDF.js is loaded, extract the abstract
-                    extractPDFAbstract(file, previewAbstract);
-                };
-                document.head.appendChild(script);
-            } else {
-                // PDF.js already loaded, extract the abstract
-                extractPDFAbstract(file, previewAbstract);
-            }
+            previewAbstract.textContent = 'Abstract extraction will be queued after the upload and reviewed by an administrator.';
         } else if (previewAbstract) {
             previewAbstract.textContent = file.type === 'application/pdf' 
                 ? 'Loading abstract extraction capabilities...' 
@@ -1895,12 +1865,6 @@ async function handleFileSelection(event) {
         
         // Update form with metadata if available
         if (data.metadata) {
-            // Set abstract from PDF
-            const abstractTextarea = document.getElementById('abstract');
-            if (abstractTextarea && data.metadata.abstract) {
-                abstractTextarea.value = data.metadata.abstract;
-            }
-            
             // Set extracted page count
             const pageCount = data.metadata.pageCount || 0;
             document.getElementById('page-count-value').textContent = pageCount;
