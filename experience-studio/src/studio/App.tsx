@@ -50,7 +50,12 @@ type OrganizationRole = {
   photo?: string;
   photoAlt?: string;
   group?: boolean;
-  summary?: string;
+};
+
+type OverviewPillar = {
+  id?: string;
+  label?: string;
+  description?: string;
 };
 
 type HeroImage = {
@@ -61,6 +66,7 @@ type HeroImage = {
 const landingBlocks = [
   "AnnouncementBanner",
   "HeroBlock",
+  "OverviewBlock",
   "GalleryBlock",
   "QuickLinksBlock",
   "RichTextBlock",
@@ -87,10 +93,11 @@ const pageNames: Record<PageKey, string> = {
 const sectionMeta: Record<string, { name: string; description: string }> = {
   AnnouncementBanner: { name: "Announcement Bar", description: "A thin colored strip at the top for short news." },
   HeroBlock: { name: "Welcome Banner", description: "The big opening area with a title, photos, search, and category links." },
+  OverviewBlock: { name: "PeAS Overview", description: "An interactive explanation of how PeAS preserves, discovers, and provides access to research." },
   GalleryBlock: { name: "Photo Gallery", description: "A row of pictures with a short introduction." },
   QuickLinksBlock: { name: "Quick Links", description: "Cards that take visitors to other pages or sections." },
   RichTextBlock: { name: "Text Section", description: "A heading with paragraphs of plain text." },
-  ImageFeatureBlock: { name: "Organizational Chart", description: "The people, boards, and responsibilities in the office structure." },
+  ImageFeatureBlock: { name: "Organizational Chart", description: "The people, offices, and boards in the office structure." },
   ResearchAgendaBlock: { name: "Research Agenda", description: "Presentation for the database-managed research priorities." },
   CtaBlock: { name: "Call to Action", description: "A banner inviting visitors to do something, like contacting you." },
   FooterLinksBlock: { name: "Footer", description: "The logo, copyright line, and links at the very bottom." },
@@ -104,6 +111,7 @@ const sectionName = (type: string) =>
 
 const editableFields: Record<string, readonly string[]> = {
   HeroBlock: ["eyebrow", "title", "body", "images"],
+  OverviewBlock: ["eyebrow", "title", "summary", "pillars"],
   QuickLinksBlock: ["title", "links"],
   RichTextBlock: ["eyebrow", "title", "body"],
   ImageFeatureBlock: ["eyebrow", "title", "body", "roles"],
@@ -178,6 +186,8 @@ const fieldLabels: Record<string, string> = {
   images: "Pictures",
   links: "Links",
   items: "List items",
+  summary: "Overview summary",
+  pillars: "Overview pillars",
   roles: "Organizational chart roles",
   subtitle: "Subtitle",
   description: "Short description",
@@ -205,6 +215,7 @@ const fieldHelp: Record<string, string> = {
   layout: "How this section is arranged. Try each one and watch the preview.",
   tone: "The color style of this strip.",
   caption: "Optional small text under the picture. Leave blank to hide.",
+  summary: "Describe PeAS in one concise paragraph.",
   id: "Only change this if you know a link points here.",
 };
 
@@ -301,8 +312,7 @@ function getGuardrails(config: ExperienceConfig, page: PageKey): string[] {
         const requiredRoleFields: Array<[keyof OrganizationRole, string]> = [
           ["title", "position or board name"],
           ["label", "short chart label"],
-          ["caption", "office, unit, or responsibility"],
-          ["summary", "description"],
+          ["caption", "office or unit"],
         ];
         requiredRoleFields.forEach(([field, fieldLabel]) => {
           if (!String(role[field] || "").trim()) {
@@ -462,7 +472,7 @@ function OrganizationRolesField(props: {
         <small>{roles.length} fixed roles</small>
       </div>
       <p className="xp-org-role-note">
-        Names, positions, descriptions, and photos can be updated. Placement and reporting lines stay locked so the chart remains consistent on every device.
+        Names, positions, office or unit labels, and photos can be updated. Placement and reporting lines stay locked so the chart remains consistent on every device.
       </p>
       <div className="xp-org-role-list">
         {roles.map((role, index) => {
@@ -531,23 +541,13 @@ function OrganizationRolesField(props: {
                   <small className="xp-field-help">A compact label used where the full position would not fit.</small>
                 </label>
                 <label>
-                  <span>Office, unit, or responsibility (required)</span>
+                  <span>Office or unit (required)</span>
                   <input
                     value={role.caption || ""}
                     placeholder="e.g. Research & Publications"
                     maxLength={120}
                     required
                     onChange={(event) => updateRole(index, "caption", event.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Description (required)</span>
-                  <textarea
-                    value={role.summary || ""}
-                    placeholder="Briefly explain this role's responsibilities."
-                    maxLength={1000}
-                    required
-                    onChange={(event) => updateRole(index, "summary", event.target.value)}
                   />
                 </label>
               </div>
@@ -627,6 +627,54 @@ function HeroImagesField(props: {
   );
 }
 
+function OverviewPillarsField(props: {
+  value: unknown;
+  onChange: (value: OverviewPillar[]) => void;
+}) {
+  const defaultOverview = defaultExperienceConfig.pages.landing.data.content.find((block) => block.type === "OverviewBlock");
+  const defaults = Array.isArray(defaultOverview?.props.pillars)
+    ? defaultOverview.props.pillars as OverviewPillar[]
+    : [];
+  const current = Array.isArray(props.value) ? props.value as OverviewPillar[] : [];
+  const pillars = defaults.map((fallback, index) => ({
+    ...fallback,
+    ...(current.find((item) => item?.id === fallback.id) || current[index] || {}),
+    id: fallback.id,
+    label: fallback.label,
+  }));
+
+  return (
+    <section className="xp-array-field" aria-labelledby="xp-overview-pillars-title">
+      <div className="xp-array-heading">
+        <span id="xp-overview-pillars-title">Overview pillars</span>
+        <small>3 fixed pillars</small>
+      </div>
+      <p className="xp-help-text">
+        Pillar names, icons, order, and behavior stay locked. Edit only the explanatory text shown when visitors focus a pillar.
+      </p>
+      {pillars.map((pillar, index) => (
+        <div className="xp-array-item" key={pillar.id || index}>
+          <div className="xp-array-item-top">
+            <strong>{pillar.label}</strong>
+            <small>Structure locked</small>
+          </div>
+          <label>
+            <span>Description</span>
+            <textarea
+              value={pillar.description || ""}
+              maxLength={320}
+              onChange={(event) => props.onChange(pillars.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, description: event.target.value } : item
+              ))}
+            />
+            <small className="xp-field-help">Up to 320 characters.</small>
+          </label>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function FieldEditor(props: {
   name: string;
   field: any;
@@ -637,6 +685,7 @@ function FieldEditor(props: {
   const label = friendlyLabel(name);
   const help = fieldHelp[name];
   const helpLine = help ? <small className="xp-field-help">{help}</small> : null;
+  const maxLength = name === "eyebrow" ? 80 : name === "title" ? 140 : name === "summary" ? 600 : undefined;
 
   if (field.type === "text" && (name === "url" || name === "photo" || name.endsWith("Url"))) {
     return <ImageUrlField label={label} value={value || ""} uploadKind={name === "photo" ? "org-chart" : undefined} onChange={onChange} />;
@@ -650,11 +699,15 @@ function FieldEditor(props: {
     return <HeroImagesField value={value} onChange={onChange} />;
   }
 
+  if (field.type === "array" && name === "pillars") {
+    return <OverviewPillarsField value={value} onChange={onChange} />;
+  }
+
   if (field.type === "textarea") {
     return (
       <label>
         <span>{label}</span>
-        <textarea value={value || ""} onChange={(event) => onChange(event.target.value)} />
+        <textarea value={value || ""} maxLength={maxLength} onChange={(event) => onChange(event.target.value)} />
         {helpLine}
       </label>
     );
@@ -711,6 +764,7 @@ function FieldEditor(props: {
       <span>{label}</span>
       <input
         value={value || ""}
+        maxLength={maxLength}
         placeholder={fieldPlaceholders[name] || ""}
         onChange={(event) => onChange(event.target.value)}
       />

@@ -18,6 +18,12 @@ type OrganizationRoleItem = {
   name?: string;
 };
 
+type OverviewPillarItem = {
+  id?: string;
+  label?: string;
+  description?: string;
+};
+
 const safeHref = (href?: string) => {
   const value = String(href || "").trim();
   if (!value) return "#";
@@ -85,7 +91,6 @@ const organizationRoleArrayField = {
     name: { type: "text" },
     photo: { type: "text" },
     photoAlt: { type: "text" },
-    summary: { type: "textarea" },
   },
   defaultItemProps: {
     title: "",
@@ -94,10 +99,20 @@ const organizationRoleArrayField = {
     name: "",
     photo: "",
     photoAlt: "",
-    summary: "",
   },
   getItemSummary: (item: OrganizationRoleItem, index?: number) =>
     item.name || item.title || item.label || `Role ${(index || 0) + 1}`,
+} as const;
+
+const overviewPillarArrayField = {
+  type: "array",
+  arrayFields: {
+    id: { type: "text" },
+    label: { type: "text" },
+    description: { type: "textarea" },
+  },
+  defaultItemProps: { id: "preserve", label: "Preserve", description: "" },
+  getItemSummary: (item: OverviewPillarItem) => item.label || "Pillar",
 } as const;
 
 export const experiencePuckConfig: Config = {
@@ -113,6 +128,7 @@ export const experiencePuckConfig: Config = {
       components: [
         "AnnouncementBanner",
         "HeroBlock",
+        "OverviewBlock",
         "GalleryBlock",
         "QuickLinksBlock",
         "RichTextBlock",
@@ -214,6 +230,55 @@ export const experiencePuckConfig: Config = {
           </section>
         );
       },
+    },
+    OverviewBlock: {
+      label: "PeAS Overview",
+      fields: {
+        id: { type: "text" },
+        eyebrow: { type: "text" },
+        title: { type: "text" },
+        summary: { type: "textarea" },
+        pillars: overviewPillarArrayField,
+        ctaLabel: { type: "text" },
+        ctaHref: { type: "text" },
+        visualStyle: {
+          type: "select",
+          options: [{ label: "Archive rings", value: "archive-rings" }],
+        },
+      },
+      defaultProps: {
+        id: "peas-overview",
+        eyebrow: "What is PeAS?",
+        title: "A digital home for Paulinian research",
+        summary: "The Paulinian electronic Archiving System preserves the university's academic works, makes scholarship easier to discover, and provides role-appropriate access to repository materials.",
+        pillars: [
+          { id: "preserve", label: "Preserve", description: "Safeguards theses, dissertations, Confluence, Synergy, and other scholarly outputs in one organized repository." },
+          { id: "discover", label: "Discover", description: "Connects readers with research through structured metadata, authors, topics, keywords, and collection filters." },
+          { id: "access", label: "Access", description: "Gives guests, registered readers, publishers, and administrators the right experience while protected files remain controlled." },
+        ],
+        ctaLabel: "Explore the repository",
+        ctaHref: "/pages/searchResultsPage.html",
+        visualStyle: "archive-rings",
+      },
+      render: ({ id, eyebrow, title, summary, pillars }) => (
+        <section id={id} className="xp-overview">
+          <SectionHeader eyebrow={eyebrow} title={title} body={summary} />
+          <div className="xp-overview-preview">
+            <div className="xp-overview-preview__copy">
+              <strong>Interactive archive rings</strong>
+              <p>Visitors can focus each pillar to explore how PeAS preserves, discovers, and governs access to research.</p>
+            </div>
+            <div className="xp-overview-preview__pillars">
+              {asArray<OverviewPillarItem>(pillars).map((pillar) => (
+                <div className="xp-overview-preview__pillar" key={pillar.id || pillar.label}>
+                  <strong>{pillar.label}</strong>
+                  <span>{pillar.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ),
     },
     GalleryBlock: {
       label: "Gallery",
