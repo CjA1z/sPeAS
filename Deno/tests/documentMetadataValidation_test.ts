@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
   isSupportedIsoDate,
+  validateCompiledVolume,
   validateCompiledYearRange,
   validateSinglePublicationDate,
 } from "../services/documentMetadataValidationService.ts";
@@ -29,4 +30,13 @@ Deno.test("compiled publication year range requires both ordered four-digit year
     "compiledDoc.end_year": "End year must be after the start year.",
   });
   assertEquals(validateCompiledYearRange(2024, 2024), {});
+});
+
+Deno.test("compiled publication volume requires a positive integer", () => {
+  assertEquals(validateCompiledVolume(undefined), "Enter a positive volume number.");
+  assertEquals(validateCompiledVolume(""), "Enter a positive volume number.");
+  assertEquals(validateCompiledVolume(0), "Enter a positive volume number.");
+  assertEquals(validateCompiledVolume("1.5"), "Enter a positive volume number.");
+  assertEquals(validateCompiledVolume(3), undefined);
+  assertEquals(validateCompiledVolume("12"), undefined);
 });

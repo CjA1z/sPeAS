@@ -72,6 +72,28 @@ services:
       - peas-storage:/app/storage
     restart: unless-stopped
 
+  abstract-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peas-abstract-worker
+    command: ["deno", "task", "abstract:worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: ${PGPASSWORD:-peas_dev_password}
+      PGDATABASE: peas_db
+      STORAGE_ROOT: /app/storage
+      PEAS_RELEASE_ID: ${PEAS_RELEASE_ID:-development}
+      ABSTRACT_OCR_LANGUAGES: ${ABSTRACT_OCR_LANGUAGES:-eng+fil}
+    volumes:
+      - peas-storage:/app/storage
+    restart: unless-stopped
+
   db:
     image: postgres:17-alpine
     container_name: peas-db

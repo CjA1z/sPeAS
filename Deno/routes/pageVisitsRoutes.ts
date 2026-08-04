@@ -3,8 +3,6 @@ import { PageVisitsModel } from "../models/pageVisitsModel.ts";
 import { client } from "../db/denopost_conn.ts";
 import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 import { analyticsRateLimit } from "../middleware/rateLimit.ts";
-import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
-import { normalizePageKey, recordPageActivity } from "../services/operationalReportingService.ts";
 
 // Create a router for page visit routes
 const router = new Router();
@@ -14,64 +12,10 @@ const router = new Router();
  * POST /api/page-visits
  * Body: { pageUrl: string, visitorType: "guest" | "user", userId?: string, metadata?: object }
  */
-async function recordPageVisit(ctx: RouterContext<string>) {
-  try {
-    // Get request body
-    const body = await ctx.request.body({ type: "json" }).value;
-    
-    // Validate required fields
-    if (!body.pageUrl) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Page URL is required" };
-      return;
-    }
-    
-    const session = await getSessionFromHeaders(ctx.request.headers);
-    const role = String(session?.role ?? "").toLowerCase();
-    if (role === "admin" || role === "publisher") {
-      ctx.response.status = 204;
-      return;
-    }
-    const visitorType = role === "user" ? "user" : "guest";
-    const pageUrl = normalizePageKey(String(body.pageUrl));
-    
-    // Get client IP address
-    const ipAddress = ctx.request.ip;
-    
-    // Record the visit in both counter and legacy tables
-    // Page analytics is intentionally scoped to the normalized page key.
-    // Ignore browser metadata (especially document IDs) so this compatibility
-    // endpoint cannot be used to write document readership counters.
-    const visit = await PageVisitsModel.recordVisit(
-      pageUrl,
-      visitorType,
-      undefined,
-      ipAddress,
-      undefined
-    );
-
-    // The legacy counter remains for compatibility, while the v2 report
-    // snapshot receives a privacy-safe server-derived audience row.
-    let v2Recorded = false;
-    await recordPageActivity(pageUrl, visitorType === "user" ? "registered" : "guest")
-      .then(() => { v2Recorded = true; })
-      .catch(() => undefined);
-
-    if (visit || v2Recorded) {
-      ctx.response.status = 201;
-      ctx.response.body = {
-        success: true,
-        message: "Visit recorded successfully",
-        data: visit
-      };
-    } else {
-      ctx.response.status = 500;
-      ctx.response.body = { error: "Failed to record visit." };
-    }
-  } catch (error) {
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
+export async function recordPageVisit(ctx: RouterContext<string>) {
+  ctx.response.status = 204;
+  ctx.response.headers.set("Deprecation", "true");
+  ctx.response.headers.set("Sunset", "true");
 }
 
 /**

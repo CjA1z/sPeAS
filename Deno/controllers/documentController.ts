@@ -5,6 +5,7 @@ import { fetchDocuments as fetchDocumentsService, fetchChildDocuments as fetchCh
 import { getDocumentClassification, replaceDocumentClassification, ClassificationValidationError } from "../services/documentClassificationService.ts";
 import { createDocumentAuthors } from "./documentAuthorController.ts";
 import { validateSinglePublicationDate } from "../services/documentMetadataValidationService.ts";
+import { isAbstractTooLong, normalizeManualAbstract, queueDocumentAbstract } from "../services/abstractWorkflowService.ts";
 
 /**
  * Fetch categories from the database
@@ -431,6 +432,23 @@ export async function createDocument(req: Request): Promise<Response> {
       if (body.document_type === 'HELLO' && body.parent_document_id && !body.category_id) {
         body.category_id = 5; // Default research study category ID
       }
+
+      const normalizedAbstract = normalizeManualAbstract(body.abstract);
+      if (isAbstractTooLong(body.abstract)) {
+        return new Response(JSON.stringify({ error: "Abstract must be 10,000 Unicode characters or fewer.", fields: { abstract: "Abstract must be 10,000 Unicode characters or fewer." } }), { status: 422, headers: { "Content-Type": "application/json" } });
+      }
+      body.abstract = normalizedAbstract;
+      body.abstract_source = normalizedAbstract ? "manual" : "none";
+      const hasStoredPdf = typeof body.file_path === "string"
+        && body.file_path.trim().length > 0
+        && !body.file_path.trim().endsWith("/");
+      const needsAbstractExtraction = hasStoredPdf && !normalizedAbstract;
+      if (needsAbstractExtraction) {
+        body.review_status = "pending_review";
+        body.is_public = false;
+        body.reviewed_by = null;
+        body.reviewed_at = null;
+      }
       
       const newDocument = await DocumentModel.create(body);
       if (newDocument?.id && body.classification !== undefined) {
@@ -463,6 +481,10 @@ export async function createDocument(req: Request): Promise<Response> {
             headers: { "Content-Type": "application/json" },
           });
         }
+      }
+
+      if (newDocument?.id && needsAbstractExtraction) {
+        await queueDocumentAbstract(Number(newDocument.id));
       }
       
       return new Response(JSON.stringify(newDocument), {

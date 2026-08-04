@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-export const EXPERIENCE_SCHEMA_VERSION = 2;
+export const EXPERIENCE_SCHEMA_VERSION = 3;
 
 export const EXPERIENCE_COMPONENT_TYPES = [
   "AnnouncementBanner",
   "HeroBlock",
+  "OverviewBlock",
   "GalleryBlock",
   "QuickLinksBlock",
   "RichTextBlock",
@@ -18,6 +19,43 @@ export const EXPERIENCE_COMPONENT_TYPES = [
 ] as const;
 
 export const ExperienceComponentTypeSchema = z.enum(EXPERIENCE_COMPONENT_TYPES);
+
+export const EXPERIENCE_OVERVIEW_PILLAR_IDS = [
+  "preserve",
+  "discover",
+  "access",
+] as const;
+
+export type ExperienceOverviewPillarId = typeof EXPERIENCE_OVERVIEW_PILLAR_IDS[number];
+
+export interface OverviewBlockProps {
+  id: "peas-overview";
+  eyebrow: string;
+  title: string;
+  summary: string;
+  pillars: [
+    { id: "preserve"; label: "Preserve"; description: string },
+    { id: "discover"; label: "Discover"; description: string },
+    { id: "access"; label: "Access"; description: string },
+  ];
+  ctaLabel: "Explore the repository";
+  ctaHref: "/pages/searchResultsPage.html";
+  visualStyle: "archive-rings";
+}
+
+export const ExperienceOverviewPillarIdSchema = z.enum(EXPERIENCE_OVERVIEW_PILLAR_IDS);
+
+export const ExperienceOverviewPillarSchema = z.object({
+  id: ExperienceOverviewPillarIdSchema,
+  label: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(320),
+}).strict();
+
+export const ExperienceOverviewPillarsSchema = z.tuple([
+  ExperienceOverviewPillarSchema,
+  ExperienceOverviewPillarSchema,
+  ExperienceOverviewPillarSchema,
+]);
 
 export const EXPERIENCE_ORGANIZATION_ROLE_IDS = [
   "president",
@@ -44,7 +82,6 @@ export const ExperienceOrganizationRoleSchema = z.object({
   }),
   photoAlt: z.string().trim().max(255),
   group: z.boolean(),
-  summary: z.string().trim().min(1).max(1000),
 }).strict();
 
 const EXPERIENCE_ORGANIZATION_ROLE_GROUPS: Readonly<
@@ -108,8 +145,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: false,
-      summary:
-        "Provides overall institutional leadership and sets the strategic direction that the university's research and publication programs support.",
     },
     {
       id: "vp-student-affairs",
@@ -120,8 +155,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: false,
-      summary:
-        "Oversees the student affairs cluster and ensures the research and publications agenda stays aligned with university priorities.",
     },
     {
       id: "director-orp",
@@ -132,8 +165,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: false,
-      summary:
-        "Leads the Office of Research and Publications — coordinating research activity, publication support, and institutional scholarly output.",
     },
     {
       id: "associate-assistant",
@@ -144,8 +175,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: false,
-      summary:
-        "Supports the director in day-to-day operations, records management, and coordination with researchers and university units.",
     },
     {
       id: "editorial-board",
@@ -156,8 +185,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: true,
-      summary:
-        "Reviews manuscripts and safeguards the editorial quality of the university's journals and scholarly publications.",
     },
     {
       id: "technical-board",
@@ -168,8 +195,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: true,
-      summary:
-        "Evaluates research design and methodology, providing technical guidance to student and faculty researchers.",
     },
     {
       id: "research-ethics-board",
@@ -180,8 +205,6 @@ export const EXPERIENCE_DEFAULT_ORGANIZATION_ROLES:
       photo: "",
       photoAlt: "",
       group: true,
-      summary:
-        "Reviews research protocols to protect the rights and welfare of participants and uphold ethical standards in every study.",
     },
   ]);
 
@@ -267,7 +290,7 @@ export type ExperienceConfig = z.infer<typeof ExperienceConfigSchema>;
 export type UserExperiencePreferences = z.infer<typeof UserExperiencePreferencesSchema>;
 
 export function parseExperienceConfig(input: unknown): ExperienceConfig {
-  return ExperienceConfigSchema.parse(migrateExperienceConfigV1ToV2(input));
+  return ExperienceConfigSchema.parse(migrateExperienceConfigToV3(input));
 }
 
 export function parseUserExperiencePreferences(input: unknown): UserExperiencePreferences {
@@ -299,6 +322,35 @@ export const defaultExperienceConfig: ExperienceConfig = {
                 { url: "/Components/images/4.jpg", alt: "Research Initiative Photo 4" },
               ],
               variant: "background-slideshow",
+            },
+          },
+          {
+            type: "OverviewBlock",
+            props: {
+              id: "peas-overview",
+              eyebrow: "What is PeAS?",
+              title: "A digital home for Paulinian research",
+              summary: "The Paulinian electronic Archiving System preserves the university's academic works, makes scholarship easier to discover, and provides role-appropriate access to repository materials.",
+              pillars: [
+                {
+                  id: "preserve",
+                  label: "Preserve",
+                  description: "Safeguards theses, dissertations, Confluence, Synergy, and other scholarly outputs in one organized repository.",
+                },
+                {
+                  id: "discover",
+                  label: "Discover",
+                  description: "Connects readers with research through structured metadata, authors, topics, keywords, and collection filters.",
+                },
+                {
+                  id: "access",
+                  label: "Access",
+                  description: "Gives guests, registered readers, publishers, and administrators the right experience while protected files remain controlled.",
+                },
+              ],
+              ctaLabel: "Explore the repository",
+              ctaHref: "/pages/searchResultsPage.html",
+              visualStyle: "archive-rings",
             },
           },
           {
@@ -421,6 +473,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
 
 const EDITABLE_STRING_FIELDS: Record<string, readonly string[]> = {
   HeroBlock: ["eyebrow", "title", "body"],
+  OverviewBlock: ["eyebrow", "title", "summary"],
   QuickLinksBlock: ["title"],
   RichTextBlock: ["eyebrow", "title", "body"],
   ImageFeatureBlock: ["eyebrow", "title", "body", "imageUrl", "imageAlt", "caption"],
@@ -433,14 +486,13 @@ const EDITABLE_STRING_FIELDS: Record<string, readonly string[]> = {
 };
 
 /**
- * Canonicalizes both legacy v1 page-builder documents and v2 drafts into the
- * locked v2 layout. Only approved copy and image fields survive. Component
+ * Canonicalizes legacy v1/v2 documents and v3 drafts into the locked v3 layout. Only approved copy and image fields survive. Component
  * order, component types, link destinations, form semantics, theme, and
- * personalization are not stored in the v2 content document.
+ * personalization are not stored in the v3 content document.
  */
-export function migrateExperienceConfigV1ToV2(input: unknown): ExperienceConfig {
+export function migrateExperienceConfigToV3(input: unknown): ExperienceConfig {
   const source = asRecord(input);
-  if (typeof source.schemaVersion === "number" && source.schemaVersion !== 1 && source.schemaVersion !== 2) {
+  if (typeof source.schemaVersion === "number" && ![1, 2, 3].includes(source.schemaVersion)) {
     throw new Error(`Unsupported Experience schema version: ${source.schemaVersion}`);
   }
   const output = clone(defaultExperienceConfig);
@@ -468,6 +520,11 @@ export function migrateExperienceConfigV1ToV2(input: unknown): ExperienceConfig 
     });
   }
   return output;
+}
+
+/** @deprecated Use migrateExperienceConfigToV3. Kept for compatibility with recovery scripts. */
+export function migrateExperienceConfigV1ToV2(input: unknown): ExperienceConfig {
+  return migrateExperienceConfigToV3(input);
 }
 
 export function getExperiencePublishErrors(config: ExperienceConfig): string[] {
@@ -532,6 +589,22 @@ function migrateBlockProps(type: string, defaults: Record<string, unknown>, sour
     });
   }
 
+  if (type === "OverviewBlock" && Array.isArray(defaults.pillars)) {
+    const sourcePillars = Array.isArray(source.pillars) ? source.pillars.map(asRecord) : [];
+    const defaultPillars = defaults.pillars.map(asRecord);
+    result.pillars = defaultPillars.map((locked) => {
+      const incoming = sourcePillars.find((pillar) => pillar.id === locked.id) ?? {};
+      return {
+        id: locked.id,
+        label: locked.label,
+        description: boundedRequiredString(incoming.description, String(locked.description ?? ""), 320),
+      };
+    });
+    result.ctaLabel = defaults.ctaLabel;
+    result.ctaHref = defaults.ctaHref;
+    result.visualStyle = defaults.visualStyle;
+  }
+
   if (type === "ImageFeatureBlock" && defaults.id === "org-chart" && Array.isArray(defaults.roles)) {
     const sourceRoles = Array.isArray(source.roles) ? source.roles.map(asRecord) : [];
     result.roles = ExperienceOrganizationRolesSchema.parse(defaults.roles.map((defaultItem) => {
@@ -546,7 +619,6 @@ function migrateBlockProps(type: string, defaults: Record<string, unknown>, sour
         photo: approvedOptionalImageUrl(incoming.photo, String(locked.photo ?? "")),
         photoAlt: boundedOptionalString(incoming.photoAlt, String(locked.photoAlt ?? ""), 255),
         group: locked.group,
-        summary: boundedRequiredString(incoming.summary, String(locked.summary ?? ""), 1000),
       };
     }));
   }

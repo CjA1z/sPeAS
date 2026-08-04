@@ -17,7 +17,6 @@ import { routes } from "./routes/index.ts"; // All route handlers in one file
 import { authorRoutes } from "./routes/authorRoutes.ts"; // Import author routes directly
 import { researchAgendaRoutes } from "./routes/researchAgendaRoutes.ts"; // Import research agenda routes directly
 import { saveFile } from "./services/uploadService.ts"; // Import file upload service
-import { extractPdfMetadata } from "./services/pdfService.ts"; // Import PDF service
 import { fetchChildDocuments } from "./services/documentService.ts"; // Import document service
 import type { Document as DocumentData } from "./services/documentService.ts";
 import documentAuthorRoutes from "./routes/documentAuthorRoutes.ts";
@@ -31,11 +30,12 @@ import { handleUpdateDocument } from "./api/document.ts";
 import { getDocumentAuthors } from "./controllers/documentAuthorController.ts";
 import { AuthorModel } from "./models/authorModel.ts";
 import { DocumentModel } from "./models/documentModel.ts";
+import { SystemLogsModel } from "./models/systemLogsModel.ts";
 import { getDocumentClassification, replaceDocumentClassification, replaceDocumentKeywords } from "./services/documentClassificationService.ts";
 import { ensureDocumentClassificationSchema } from "./services/documentClassificationSchemaService.ts";
 import { ensureDocumentReadStatusSchema } from "./services/documentReadStatusSchemaService.ts";
 import { ensureDocumentAnnotationSchema } from "./services/documentAnnotationSchemaService.ts";
-import { recordRepositoryActivity, verifyOperationalReportingSchema } from "./services/operationalReportingService.ts";
+import { canonicalPublicPageKey, createAnalyticsSessionCookie, isKnownCrawler, isPrefetchRequest, readAnalyticsSessionCookie, recordPublicTraffic, recordRepositoryActivity, verifyOperationalReportingSchema } from "./services/operationalReportingService.ts";
 import { documentClassificationRoutes, documentClassificationAllowedMethods } from "./routes/documentClassificationRoutes.ts";
 import { unifiedArchiveRoutes, unifiedArchiveAllowedMethods } from "./routes/unifiedArchiveRoutes.ts";
 import { authRoutes } from "./routes/authRoutes.ts"; // Transitional logout shims
@@ -48,6 +48,7 @@ import { authorReferenceRoutes, authorReferenceAllowedMethods } from "./routes/a
 import { pageVisitsRoutes, pageVisitsAllowedMethods } from "./routes/pageVisitsRoutes.ts"; // Import page visits routes
 import { systemLogsRoutes, systemLogsAllowedMethods } from "./routes/systemLogsRoutes.ts"; // Import system logs routes
 import keywordsRoutes from "./routes/keywordsRoutes.ts"; // Import keywords routes
+import searchRoutes from "./routes/searchRoutes.ts";
 import { getCompiledDocument } from "./api/compiledDocument.ts";
 import { handleGetUserProfileForNavbar } from "./api/user.ts"; // Import user profile handler
 import { handleLibraryRequest } from "./api/userLibrary.ts"; // Import user library handler
@@ -84,6 +85,7 @@ import {
   matchLegacyPublicPath,
 } from "./shared/legacyPublicPaths.ts";
 import { authorNameKey } from "../shared/authorName.ts";
+import abstractReviewRoutes from "./routes/abstractReviewRoutes.ts";
 // Import the document view controller
 // TODO: Fix DocumentViewController implementation
 // import { DocumentViewController } from "./controllers/documentViewController.ts";
@@ -195,10 +197,15 @@ app.use(async (ctx, next) => {
 });
 
 const publicAliases: Record<string, string> = {
+  "/index": "/index.html",
+  "/news": "/news.html",
+  "/search": "/pages/searchResultsPage.html",
   "/contact": "/contact.html",
   "/terms": "/pages/miscellaneous/T&A-Public.html",
   "/privacy": "/pages/miscellaneous/Privacy.html",
   "/login": "/log-in.html",
+  "/authors/profile": "/pages/authorprofile.html",
+  "/works/detail": "/pages/guest-single.html",
   ...LEGACY_PUBLIC_REDIRECTS,
 };
 
@@ -252,6 +259,36 @@ app.use(async (ctx, next) => {
   await servePublicErrorPage(ctx, status);
 });
 
+// Server-owned public page analytics. A successful HTML response is a page
+// view; a signed, 30-minute cookie determines whether it also starts a visit.
+// This runs before static serving so refreshes and JS failures cannot bypass
+// the canonical page-view definition.
+app.use(async (ctx, next) => {
+  const pageKey = canonicalPublicPageKey(ctx.request.url.pathname);
+  await next();
+
+  if (!pageKey || ctx.request.method !== "GET" || Number(ctx.response.status) !== 200) return;
+  if (!requestAcceptsHtml(ctx) || isPrefetchRequest(ctx.request.headers)) return;
+  if (isKnownCrawler(ctx.request.headers.get("user-agent"))) return;
+
+  try {
+    const session = await getSessionFromHeaders(ctx.request.headers);
+    const role = String(session?.role ?? "").toLowerCase();
+    if (role === "admin" || role === "publisher") return;
+
+    const audience = role === "user" ? "registered" : "guest";
+    const current = await readAnalyticsSessionCookie(ctx.request.headers);
+    const startsVisit = !current || current.audience !== audience;
+    const recorded = await recordPublicTraffic({ pageKey, audience, startsVisit });
+    if (!recorded) return;
+
+    const cookie = await createAnalyticsSessionCookie(audience, Date.now(), ctx.request.url.protocol === "https:");
+    if (cookie) ctx.response.headers.append("set-cookie", cookie);
+  } catch {
+    // Analytics must never turn a successful public page into a failed page.
+  }
+});
+
 // Add static file serving middleware
 app.use(async (ctx, next) => {
   try {
@@ -280,6 +317,11 @@ app.use(async (ctx, next) => {
         root: `${Deno.cwd()}`,
         path: adminPath,
       });
+      if (adminPath.endsWith(".html") || /\/react-ui\/(main-admin\.js|style\.css)$/.test(adminPath)) {
+        ctx.response.headers.set("Cache-Control", "no-cache, must-revalidate");
+      } else if (adminPath.includes("/react-ui/chunks/") || adminPath.includes("/react-ui/assets/") || /[-.][a-f0-9]{8,}\./i.test(adminPath)) {
+        ctx.response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      }
     } catch {
       await next();
     }
@@ -1024,6 +1066,8 @@ app.use(contactInquiryRoutes.routes());
 app.use(contactInquiryRoutes.allowedMethods());
 app.use(adminNotificationRoutes.routes());
 app.use(adminNotificationRoutes.allowedMethods());
+app.use(abstractReviewRoutes.routes());
+app.use(abstractReviewRoutes.allowedMethods());
 
 // Add router to app
 app.use(router.routes());
@@ -1061,6 +1105,12 @@ router.put("/api/documents/:id/metadata", isAuthenticated, isAdmin, async (ctx) 
     
     // Get request body
     const body = await ctx.request.body({ type: "json" }).value;
+
+    if (Object.prototype.hasOwnProperty.call(body, "abstract")) {
+      ctx.response.status = 409;
+      ctx.response.body = { error: "Abstract changes must use the administrator abstract review endpoint." };
+      return;
+    }
     
     // Forward directly to the document update handler. An internal fetch would
     // create a second request without the browser session cookie and could
@@ -1298,8 +1348,10 @@ async function startServer() {
     });
     
     // Register keywords routes
-        app.use(keywordsRoutes.routes());
+    app.use(keywordsRoutes.routes());
     app.use(keywordsRoutes.allowedMethods());
+    app.use(searchRoutes.routes());
+    app.use(searchRoutes.allowedMethods());
     
     // Register reports routes
         app.use(reportsRoutes.routes());
@@ -1644,7 +1696,7 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
     // Parse the URL to check for the category query parameter
     const url = new URL(ctx.request.url);
     const categoryParam = url.searchParams.get('category');
-    const format = url.searchParams.get('format') || 'auto'; // Get format parameter
+    const disposition = url.searchParams.get('disposition') === 'inline' ? 'inline' : 'attachment';
     
         
     // First, get the category of the compiled document from the database
@@ -1713,16 +1765,20 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
       }
             
       // Check if the file exists
-      await Deno.stat(absolutePath);
+      const fileInfo = await Deno.stat(absolutePath);
+      if (!fileInfo.isFile) throw new Error('Foreword is not a file');
       
       // Check if the file is a PDF based on extension
       const isPdf = normalizedPath.toLowerCase().endsWith('.pdf');
-      const countedDownload = isPdf && format !== "json";
+      const countedDownload = isPdf && disposition === "attachment";
       
       // If it's a PDF and format isn't explicitly set to 'json', serve it directly with the proper content type
-      if (isPdf && format !== 'json') {
-        // Set PDF content type header
+      if (isPdf) {
+        // Set PDF content type and explicit disposition without exposing the
+        // source storage path.
         ctx.response.headers.set('Content-Type', 'application/pdf');
+        const safeCategory = String(category || 'compiled-publication').replace(/[^A-Za-z0-9]+/gu, '-').replace(/^-+|-+$/gu, '').toLowerCase() || 'compiled-publication';
+        ctx.response.headers.set('Content-Disposition', `${disposition}; filename="${safeCategory}-foreword.pdf"`);
         
         // Disable cache for development ease
         ctx.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -1733,7 +1789,9 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
         const file = await Deno.readFile(absolutePath);
         const pdfSignature = new TextDecoder().decode(file.subarray(0, 5));
         if (file.byteLength < 5 || pdfSignature !== "%PDF-") {
-          throw new Error("Invalid PDF signature");
+          ctx.response.status = 415;
+          ctx.response.body = { error: "Foreword file signature is invalid" };
+          return;
         }
         if (countedDownload) {
           if (String(ctx.state.user.role).toLowerCase() === "user") {
@@ -1741,24 +1799,20 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
           }
         }
         ctx.response.body = file;
+        await SystemLogsModel.createLog({
+          log_type: "document",
+          user_id: String(ctx.state.user.id),
+          username: String(ctx.state.user.id),
+          action: disposition === "inline" ? "Compiled foreword inline view" : "Compiled foreword download",
+          details: { compiled_document_id: numericId, disposition },
+          status: "success",
+          related_id: String(numericId),
+        }).catch(() => undefined);
         return;
       }
       
-      // If not a PDF or format is explicitly 'json', return as text in JSON
-      const forewordContent = await Deno.readTextFile(absolutePath);
-      if (countedDownload) {
-        if (String(ctx.state.user.role).toLowerCase() === "user") {
-          await recordRepositoryActivity({ recordType: "compiled", recordId: numericId, audience: "registered", action: "download", registeredUserId: String(ctx.state.user.id) }).catch(() => undefined);
-        }
-      }
-      
-      // Return the foreword content
-      ctx.response.status = 200;
-      ctx.response.body = {
-        category: category,
-        foreword: forewordContent,
-        foreword_path: forewordPath
-      };
+      ctx.response.status = 415;
+      ctx.response.body = { error: "Foreword file is not a PDF" };
     } catch (fileError) {
       ctx.response.status = 404;
       console.error("Compiled foreword delivery failed", { code: "FOREWORD_DELIVERY_FAILED" });
@@ -1766,10 +1820,8 @@ router.get("/api/compiled-documents/:id/foreword", isAuthenticated, async (ctx) 
     }
   } catch (error) {
     ctx.response.status = 500;
-    ctx.response.body = {
-      error: "Failed to fetch foreword for compiled document",
-      details: error instanceof Error ? error.message : String(error)
-    };
+    console.error("Compiled foreword lookup failed", { code: "COMPILED_FOREWORD_LOOKUP_FAILED", error });
+    ctx.response.body = { error: "Failed to fetch foreword for compiled document", code: "COMPILED_FOREWORD_LOOKUP_FAILED" };
   }
 });
 

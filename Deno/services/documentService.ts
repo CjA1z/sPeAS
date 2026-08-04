@@ -22,6 +22,8 @@ export interface Document {
   id: number;
   title: string;
   description: string;
+  abstract?: string | null;
+  abstract_source?: 'none' | 'manual' | 'pdf_text' | 'ocr' | 'legacy';
   publication_date?: Date | null;
   document_type: string;
   volume?: string;
@@ -80,6 +82,7 @@ export interface CompiledDocument {
   category?: string;
   foreword?: string;
   abstract_foreword?: string;
+  abstract_foreword_source?: 'none' | 'manual' | 'pdf_text' | 'ocr' | 'legacy' | null;
   created_at: string;
   updated_at?: string;
   document_count?: number;
@@ -411,9 +414,11 @@ export async function fetchDocuments(
         SELECT
           cd.id,
           CONCAT(
-            COALESCE(cd.category, ''),
-            ' Vol. ',
-            COALESCE(CAST(cd.volume AS TEXT), ''),
+            COALESCE(cd.category, 'COMPILED'),
+            CASE
+              WHEN cd.volume IS NOT NULL THEN CONCAT(' Vol. ', CAST(cd.volume AS TEXT))
+              ELSE ''
+            END,
             CASE 
               WHEN cd.start_year IS NOT NULL AND cd.end_year IS NOT NULL THEN CONCAT(' (', cd.start_year, '-', cd.end_year, ')')
               WHEN cd.start_year IS NOT NULL THEN CONCAT(' (', cd.start_year, ')')
@@ -873,6 +878,7 @@ export async function createCompiledDocument(
     category?: string;
     foreword?: string;
     abstract_foreword?: string;
+    abstract_foreword_source?: 'none' | 'manual' | 'pdf_text' | 'ocr' | 'legacy';
     uploaded_by?: string;
     review_status?: 'pending_review' | 'approved' | 'rejected';
     reviewed_by?: string;
@@ -900,13 +906,14 @@ export async function createCompiledDocument(
           category,
           foreword,
           abstract_foreword,
+          abstract_foreword_source,
           uploaded_by,
           review_status,
           reviewed_by,
           reviewed_at,
           created_at
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
         RETURNING id
       `;
       
@@ -919,6 +926,7 @@ export async function createCompiledDocument(
         compiledDoc.category || 'CONFLUENCE',
         compiledDoc.foreword || null,
         compiledDoc.abstract_foreword || null,
+        compiledDoc.abstract_foreword_source || (compiledDoc.abstract_foreword ? 'legacy' : 'none'),
         compiledDoc.uploaded_by || null,
         compiledDoc.review_status || "approved",
         compiledDoc.reviewed_by || null,
@@ -1050,18 +1058,13 @@ export async function getCompiledDocument(compiledDocId: number): Promise<Compil
     const query = `
       SELECT cd.*, 
              COUNT(cdi.document_id) as document_count,
-             COALESCE(
-               (SELECT title FROM documents WHERE id = cd.id),
-               (cd.category || ' Vol. ' || COALESCE(cd.volume::text, '1') || 
-                CASE WHEN cd.start_year IS NOT NULL 
-                     THEN ' (' || cd.start_year::text || 
-                          CASE WHEN cd.end_year IS NOT NULL 
-                               THEN '-' || cd.end_year::text 
-                               ELSE '' 
-                          END || ')'
-                     ELSE ''
-                END)
-             ) as title
+             (COALESCE(cd.category, 'Compiled publication') ||
+              CASE WHEN cd.volume IS NOT NULL THEN ' Vol. ' || cd.volume::text ELSE '' END ||
+              CASE WHEN cd.start_year IS NOT NULL
+                   THEN ' (' || cd.start_year::text ||
+                        CASE WHEN cd.end_year IS NOT NULL THEN '-' || cd.end_year::text ELSE '' END || ')'
+                   ELSE ''
+              END) as title
       FROM compiled_documents cd
       LEFT JOIN compiled_document_items cdi ON cd.id = cdi.compiled_document_id
       WHERE cd.id = $1

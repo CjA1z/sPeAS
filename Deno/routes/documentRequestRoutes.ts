@@ -9,6 +9,7 @@ export function createDocumentRequestRoutes(controller: DocumentRequestControlle
     router.post("/api/document-requests", controller.createRequest.bind(controller));
     router.get("/api/documents/:documentId/access", controller.checkDocumentAccess.bind(controller));
     router.get("/api/document-requests/:id/download", controller.downloadApprovedDocument.bind(controller));
+    router.get("/api/document-requests/:id/access", controller.downloadApprovedDocument.bind(controller));
 
     // Admin routes
     router.get("/api/document-requests", isAuthenticated, isAdmin, controller.getAllRequests.bind(controller));

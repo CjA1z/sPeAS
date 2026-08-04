@@ -5,6 +5,34 @@ export const REPORT_RANGES = ["24h", "7d", "30d", "90d", "1y", "all"] as const;
 export type ReportRange = typeof REPORT_RANGES[number];
 export const REPORTING_TIMEZONE = "Asia/Manila" as const;
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+export const ANALYTICS_SESSION_COOKIE = "peas_analytics_session";
+export const ANALYTICS_SESSION_MAX_AGE_SECONDS = 30 * 60;
+const ANALYTICS_SESSION_MAX_AGE_MS = ANALYTICS_SESSION_MAX_AGE_SECONDS * 1000;
+
+export type AnalyticsAudience = "guest" | "registered";
+
+const PUBLIC_PAGE_KEYS: Record<string, string> = {
+  "/": "/",
+  "/index.html": "/",
+  "/news.html": "/news",
+  "/pages/searchResultsPage.html": "/search",
+  "/contact.html": "/contact",
+  "/log-in.html": "/login",
+  "/reset-password.html": "/reset-password",
+  "/pages/miscellaneous/T&A-Public.html": "/terms",
+  "/pages/miscellaneous/Privacy.html": "/privacy",
+  "/pages/SavedDocument.html": "/account/saved",
+  "/pages/UserHistory.html": "/account/history",
+  "/pages/UserProfile.html": "/account/profile",
+  "/pages/UserAnnotations.html": "/account/annotations",
+  "/pages/authorprofile.html": "/authors/profile",
+  "/pages/guest-single.html": "/works/detail",
+  "/pages/user-single.html": "/works/detail",
+  "/pages/guest-compiled.html": "/works/detail",
+  "/pages/user-compiled.html": "/works/detail",
+};
+
+const KNOWN_CRAWLER_PATTERN = /(?:bot|crawler|spider|slurp|google web preview|facebookexternalhit|bingpreview)/iu;
 
 export const METRIC_DEFINITIONS = {
   catalog_entries: "Non-archived top-level records. A single or compilation counts once; child studies do not add entries.",
@@ -21,15 +49,24 @@ export const METRIC_DEFINITIONS = {
   guest_views: "Successful public repository metadata/detail requests made without a registered-reader session.",
   registered_views: "Successful public repository metadata/detail requests made by a registered-reader session.",
   approved_request_downloads: "Successful attachment responses delivered through an approved outsider request.",
-  active_registered_readers: "Distinct registered users with role user and at least one server-recorded view or download in the selected period.",
-  active_registered_users: "Distinct registered users with role user and at least one server-recorded view or download in the selected period.",
-  home_visits: "Home-page requests recorded after the page-view endpoint validates the server-derived audience. This is a request/view count, not unique visitors.",
-  home_guest_visits: "Home-page requests from guests during the selected period; this is a request/view count, not unique visitors.",
-  home_registered_visits: "Home-page requests from registered users during the selected period; this is a request/view count, not unique visitors.",
+  active_registered_readers: "Distinct signed-in readers with role user and at least one successful repository view or download in the selected period.",
+  active_registered_users: "Deprecated compatibility alias for active_registered_readers.",
+  site_page_views: "Successful tracked public HTML page loads during the selected period. Reloading counts again.",
+  site_visits: "Whole-site browsing sessions. A session ends after 30 minutes without another tracked page load.",
+  home_page_views: "Successful home-page loads during the selected period. Reloading counts again.",
+  home_visits: "Deprecated compatibility alias for home_page_views; this is a page-view count, not a session count.",
+  home_guest_visits: "Deprecated compatibility alias for guest home page views.",
+  home_registered_visits: "Deprecated compatibility alias for registered-reader home page views.",
+  author_profile_views: "Successful public author-profile responses during the selected period.",
   most_viewed_entries: "Activity rolled up to the top-level catalog entry; child-study activity contributes to its compilation.",
   most_downloaded_entries: "Successful attachment activity rolled up to the top-level catalog entry.",
-  most_visited_authors: "Successful public author-profile visits during the selected period.",
-  trending_topics: "Approved topics ranked by views. A work contributes once per distinct approved topic association.",
+  most_visited_authors: "Deprecated compatibility alias for successful public author-profile views.",
+  most_viewed_authors: "Successful public author-profile views during the selected period.",
+  trending_topics: "Approved topics ranked by associated public work views. A work contributes once per distinct approved topic association.",
+  top_activity_comparison: "Finite Top Activity ranges are compared with the immediately preceding equal period; all-time has no prior-period comparison.",
+  top_activity_author_attribution: "Engagement on a public work is attributed in full to every linked author; totals across authors can exceed repository totals for co-authored works.",
+  top_activity_topic_share: "Topic share is each topic's approved-topic work-view attributions divided by all approved-topic attributions in the filtered result.",
+  topic_work_views: "Views of public works associated with an approved topic. A work contributes once per distinct topic association.",
   document_types: "Active non-archived top-level catalog entries grouped by document type/category; current snapshot only.",
   request_statuses: "Requests submitted during the selected period grouped by their current pending, approved, or rejected status.",
   registered_reader_activity: "Aggregate registered-reader views, downloads, active users, and average interactions; no identities are exposed.",
@@ -57,7 +94,7 @@ export interface ActivityCoverage {
 
 export interface OperationalReport {
   meta: {
-    dataVersion: 2;
+    dataVersion: 2 | 3;
     generatedAt: string;
     timezone: typeof REPORTING_TIMEZONE;
     range: Omit<ReportWindow, "startInclusive" | "endExclusive" | "sourceGrain"> & {
@@ -65,8 +102,11 @@ export interface OperationalReport {
       endExclusive: string;
     };
     activityCoverageStartedAt: string | null;
+    trafficV3StartedAt: string | null;
     coverage: {
       repository: ActivityCoverage;
+      pageViews: ActivityCoverage;
+      siteVisits: ActivityCoverage;
       home: ActivityCoverage;
       authors: ActivityCoverage;
     };
@@ -81,24 +121,34 @@ export interface OperationalReport {
   };
   workflow: { pendingUploads: number; pendingAccessRequests: number };
   activity: {
+    sitePageViews: { total: number; guest: number; registered: number };
+    siteVisits: { total: number; guest: number; registered: number };
+    homePageViews: { total: number; guest: number; registered: number };
     uploadedEntries: number;
     repositoryViews: number;
     repositoryDownloads: number;
+    guestRepositoryViews: number;
+    registeredRepositoryViews: number;
+    authorProfileViews: number;
+    topicWorkViews: number;
     guestViews: number;
     registeredViews: number;
     approvedRequestDownloads: number;
     activeRegisteredUsers: number;
     homeVisits: { total: number; guest: number; registered: number };
+    activeRegisteredReaders: number;
   };
   series: {
     uploads: Array<{ bucket: string; count: number }>;
     repositoryActivity: Array<{ bucket: string; views: number; downloads: number }>;
     homeVisits: Array<{ bucket: string; guest: number; registered: number; total: number }>;
+    siteTraffic: Array<{ bucket: string; pageViews: number; visits: number; guestPageViews: number; registeredPageViews: number; guestVisits: number; registeredVisits: number }>;
   };
   rankings: {
     mostViewedEntries: RankedWork[];
     mostDownloadedEntries: RankedWork[];
     mostVisitedAuthors: RankedAuthor[];
+    mostViewedAuthors: RankedAuthor[];
     trendingTopics: RankedTopic[];
   };
   distributions: {
@@ -114,6 +164,10 @@ export interface OperationalReport {
   metricDefinitions: Record<string, string>;
 }
 
+export interface OperationalReportOptions {
+  rankingLimit?: number;
+}
+
 export interface RankedWork {
   id: number;
   recordType: "document" | "compiled";
@@ -127,6 +181,7 @@ export interface RankedWork {
 export interface RankedAuthor {
   id: string;
   name: string;
+  views: number;
   visits: number;
   profilePicture: string | null;
   href?: string;
@@ -136,6 +191,7 @@ export interface RankedTopic {
   id: number;
   name: string;
   views: number;
+  workViews: number;
   entryCount: number;
   activeCatalogEntryCount?: number;
   href?: string;
@@ -313,22 +369,42 @@ function completeSeries<T extends { bucket: string }>(
   return output;
 }
 
-async function assertReportingSchema(connection: any): Promise<void> {
+interface ReportingReadState {
+  v3ReadsEnabled: boolean;
+  pageViewColumn: "view_count" | "visit_count";
+  authorViewColumn: "view_count" | "visit_count";
+}
+
+async function assertReportingSchema(connection: any): Promise<ReportingReadState> {
   const result = await connection.queryObject(`
     SELECT to_regclass('public.repository_activity_rollups')::text AS repository,
            to_regclass('public.page_activity_rollups')::text AS page,
            to_regclass('public.author_activity_rollups')::text AS author,
+           to_regclass('public.site_session_rollups')::text AS sessions,
            to_regclass('public.operational_analytics_state')::text AS state
   `);
   const row = result.rows[0];
   if (!row?.repository || !row.page || !row.author || !row.state) {
     throw new Error("REPORTING_SCHEMA_UNAVAILABLE");
   }
-  const state = await connection.queryObject(
-    "SELECT reads_enabled FROM operational_analytics_state WHERE state_id = TRUE",
-  );
+  const state = await connection.queryObject("SELECT reads_enabled FROM operational_analytics_state WHERE state_id = TRUE");
   if (state.rows.length === 0) throw new Error("REPORTING_SCHEMA_UNAVAILABLE");
   if (state.rows[0]?.reads_enabled !== true) throw new Error("REPORTING_NOT_READY");
+  const columns = await connection.queryObject(`
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND ((table_name = 'operational_analytics_state' AND column_name = 'traffic_v3_reads_enabled')
+        OR (table_name = 'page_activity_rollups' AND column_name = 'view_count')
+        OR (table_name = 'author_activity_rollups' AND column_name = 'view_count'))
+  `);
+  const has = (tableName: string, columnName: string) => columns.rows.some((value: Record<string, unknown>) => value.table_name === tableName && value.column_name === columnName);
+  let v3ReadsEnabled = false;
+  if (has("operational_analytics_state", "traffic_v3_reads_enabled")) {
+    const v3Gate = await connection.queryObject("SELECT traffic_v3_reads_enabled FROM operational_analytics_state WHERE state_id = TRUE");
+    v3ReadsEnabled = String(row?.sessions ?? "").endsWith("site_session_rollups") && has("page_activity_rollups", "view_count") && has("author_activity_rollups", "view_count") && v3Gate.rows[0]?.traffic_v3_reads_enabled === true;
+  }
+  return { v3ReadsEnabled, pageViewColumn: v3ReadsEnabled ? "view_count" : "visit_count", authorViewColumn: v3ReadsEnabled ? "view_count" : "visit_count" };
 }
 
 async function tableExists(connection: any, table: string): Promise<boolean> {
@@ -377,6 +453,85 @@ async function isV2WriteGateOpen(connection: any): Promise<boolean> {
   return result.rows.length === 1 && Boolean(result.rows[0]?.writes_enabled);
 }
 
+async function isV3WriteGateOpen(connection: any): Promise<boolean> {
+  if (!writesEnabledByEnvironment()) return false;
+  const column = await connection.queryObject(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'operational_analytics_state'
+      AND column_name = 'traffic_v3_writes_enabled'
+  `);
+  if (column.rows.length === 0) return false;
+  const result = await connection.queryObject(
+    "SELECT traffic_v3_writes_enabled FROM operational_analytics_state WHERE state_id = TRUE",
+  );
+  return result.rows.length === 1 && Boolean(result.rows[0]?.traffic_v3_writes_enabled);
+}
+
+async function incrementPageViewRollup(
+  connection: any,
+  grain: "hour" | "day",
+  bucket: Date,
+  pageKey: string,
+  audience: AnalyticsAudience,
+): Promise<void> {
+  await connection.queryObject(`
+    INSERT INTO page_activity_rollups
+      (grain, bucket_start, page_key, audience, view_count, visit_count)
+    VALUES ($1, $2, $3, $4, 1, 1)
+    ON CONFLICT (grain, bucket_start, page_key, audience)
+    DO UPDATE SET view_count = page_activity_rollups.view_count + 1,
+                  visit_count = page_activity_rollups.visit_count + 1,
+                  last_recorded_at = CURRENT_TIMESTAMP
+  `, [grain, bucket, pageKey, audience]);
+}
+
+async function incrementSiteSessionRollup(
+  connection: any,
+  grain: "hour" | "day",
+  bucket: Date,
+  audience: AnalyticsAudience,
+): Promise<void> {
+  await connection.queryObject(`
+    INSERT INTO site_session_rollups (grain, bucket_start, audience, session_count)
+    VALUES ($1, $2, $3, 1)
+    ON CONFLICT (grain, bucket_start, audience)
+    DO UPDATE SET session_count = site_session_rollups.session_count + 1,
+                  last_recorded_at = CURRENT_TIMESTAMP
+  `, [grain, bucket, audience]);
+}
+
+export async function recordPublicTraffic(input: {
+  pageKey: string;
+  audience: AnalyticsAudience;
+  startsVisit: boolean;
+  recordedAt?: Date;
+}): Promise<boolean> {
+  if (!writesEnabledByEnvironment()) return false;
+  if (!("/" === input.pageKey || input.pageKey.startsWith("/"))) return false;
+  if (!("guest" === input.audience || "registered" === input.audience)) return false;
+  try {
+    let recorded = false;
+    await withTransaction(async (connection) => {
+      if (!await isV3WriteGateOpen(connection)) return;
+      const recordedAt = input.recordedAt ?? new Date();
+      await connection.queryObject(
+        "UPDATE operational_analytics_state SET traffic_v3_started_at = COALESCE(traffic_v3_started_at, $1), updated_at = CURRENT_TIMESTAMP WHERE state_id = TRUE",
+        [recordedAt],
+      );
+      for (const [grain, bucket] of [["hour", startOfLocalHour(recordedAt)], ["day", startOfLocalDay(recordedAt)]] as const) {
+        await incrementPageViewRollup(connection, grain, bucket, input.pageKey, input.audience);
+        if (input.startsVisit) await incrementSiteSessionRollup(connection, grain, bucket, input.audience);
+      }
+      recorded = true;
+    });
+    return recorded;
+  } catch (error) {
+    logAnalyticsFailure(`public-traffic:${input.audience}`);
+    throw error;
+  }
+}
+
 export function normalizePageKey(pathname: string): string {
   let path = String(pathname ?? "");
   try {
@@ -387,6 +542,90 @@ export function normalizePageKey(pathname: string): string {
   path = path.split(/[?#]/u, 1)[0] || "/";
   const normalized = path.toLowerCase().replace(/\/+$/u, "") || "/";
   return ["/", "/index", "/index.html"].includes(normalized) ? "/" : normalized;
+}
+
+export function canonicalPublicPageKey(pathname: string): string | null {
+  return PUBLIC_PAGE_KEYS[String(pathname ?? "")] ?? null;
+}
+
+export function isKnownCrawler(userAgent: string | null): boolean {
+  return Boolean(userAgent && KNOWN_CRAWLER_PATTERN.test(userAgent));
+}
+
+export function isPrefetchRequest(headers: Headers): boolean {
+  return headers.get("purpose")?.toLowerCase() === "prefetch" ||
+    headers.get("sec-purpose")?.toLowerCase() === "prefetch" ||
+    headers.get("x-moz")?.toLowerCase() === "prefetch";
+}
+
+export interface AnalyticsSessionPayload {
+  version: 1;
+  nonce: string;
+  audience: AnalyticsAudience;
+  expiresAt: number;
+}
+
+function encodeBase64Url(value: Uint8Array | string): string {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+}
+
+function decodeBase64Url(value: string): Uint8Array {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/") + "=".repeat((4 - value.length % 4) % 4);
+  const binary = atob(normalized);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+async function analyticsSigningKey(): Promise<CryptoKey | null> {
+  const secret = Deno.env.get("BETTER_AUTH_SECRET");
+  if (!secret) return null;
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`peas-analytics-session-v1:${secret}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+function readCookie(headers: Headers, name: string): string | null {
+  const cookieHeader = headers.get("cookie") ?? "";
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0) continue;
+    if (part.slice(0, separator).trim() === name) return part.slice(separator + 1).trim();
+  }
+  return null;
+}
+
+export async function readAnalyticsSessionCookie(headers: Headers, now = Date.now()): Promise<AnalyticsSessionPayload | null> {
+  const raw = readCookie(headers, ANALYTICS_SESSION_COOKIE);
+  if (!raw) return null;
+  const separator = raw.lastIndexOf(".");
+  if (separator < 1) return null;
+  const encoded = raw.slice(0, separator);
+  const signature = raw.slice(separator + 1);
+  try {
+    const key = await analyticsSigningKey();
+    if (!key || !await crypto.subtle.verify("HMAC", key, decodeBase64Url(signature) as unknown as BufferSource, new TextEncoder().encode(encoded))) return null;
+    const payload = JSON.parse(new TextDecoder().decode(decodeBase64Url(encoded))) as Partial<AnalyticsSessionPayload>;
+    const expiresAt = payload.expiresAt;
+    if (payload.version !== 1 || typeof payload.nonce !== "string" || !payload.nonce || !["guest", "registered"].includes(String(payload.audience)) || typeof expiresAt !== "number" || !Number.isSafeInteger(expiresAt) || expiresAt <= now) return null;
+    return { version: 1, nonce: payload.nonce, audience: payload.audience as AnalyticsAudience, expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+export async function createAnalyticsSessionCookie(audience: AnalyticsAudience, now = Date.now(), secure = false): Promise<string | null> {
+  const key = await analyticsSigningKey();
+  if (!key) return null;
+  const payload: AnalyticsSessionPayload = { version: 1, nonce: crypto.randomUUID(), audience, expiresAt: now + ANALYTICS_SESSION_MAX_AGE_MS };
+  const encoded = encodeBase64Url(JSON.stringify(payload));
+  const signature = encodeBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(encoded))));
+  return `${ANALYTICS_SESSION_COOKIE}=${encoded}.${signature}; Max-Age=${ANALYTICS_SESSION_MAX_AGE_SECONDS}; Path=/; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 export async function recordRepositoryActivity(input: {
@@ -431,9 +670,17 @@ export async function recordPageActivity(pathname: string, audience: "guest" | "
   try {
     await withTransaction(async (connection) => {
       if (!await isV2WriteGateOpen(connection)) return;
+      const v3Enabled = await isV3WriteGateOpen(connection);
       const recordedAt = new Date();
       for (const [grain, bucket] of [["hour", startOfLocalHour(recordedAt)], ["day", startOfLocalDay(recordedAt)]] as const) {
-        await connection.queryObject(`
+        await connection.queryObject(v3Enabled ? `
+          INSERT INTO page_activity_rollups (grain, bucket_start, page_key, audience, view_count, visit_count)
+          VALUES ($1, $2, $3, $4, 1, 1)
+          ON CONFLICT (grain, bucket_start, page_key, audience)
+          DO UPDATE SET view_count = page_activity_rollups.view_count + 1,
+                        visit_count = page_activity_rollups.visit_count + 1,
+                        last_recorded_at = CURRENT_TIMESTAMP
+        ` : `
           INSERT INTO page_activity_rollups (grain, bucket_start, page_key, audience, visit_count)
           VALUES ($1, $2, $3, $4, 1)
           ON CONFLICT (grain, bucket_start, page_key, audience)
@@ -452,15 +699,28 @@ export async function recordAuthorActivity(authorId: string, audience: "guest" |
   if (!(["guest", "registered"] as const).includes(audience)) return;
   try {
     await withTransaction(async (connection) => {
-      if (!await isV2WriteGateOpen(connection)) return;
+      const v2Enabled = await isV2WriteGateOpen(connection);
+      const v3Enabled = await isV3WriteGateOpen(connection);
+      if (!v2Enabled && !v3Enabled) return;
       const recordedAt = new Date();
       for (const [grain, bucket] of [["hour", startOfLocalHour(recordedAt)], ["day", startOfLocalDay(recordedAt)]] as const) {
-        await connection.queryObject(`
-          INSERT INTO author_activity_rollups (grain, bucket_start, author_id, audience, visit_count)
-          VALUES ($1, $2, $3, $4, 1)
-          ON CONFLICT (grain, bucket_start, author_id, audience)
-          DO UPDATE SET visit_count = author_activity_rollups.visit_count + 1, last_recorded_at = CURRENT_TIMESTAMP
-        `, [grain, bucket, authorId, audience]);
+        if (v3Enabled) {
+          await connection.queryObject(`
+            INSERT INTO author_activity_rollups (grain, bucket_start, author_id, audience, view_count, visit_count)
+            VALUES ($1, $2, $3, $4, 1, 1)
+            ON CONFLICT (grain, bucket_start, author_id, audience)
+            DO UPDATE SET view_count = author_activity_rollups.view_count + 1,
+                          visit_count = author_activity_rollups.visit_count + 1,
+                          last_recorded_at = CURRENT_TIMESTAMP
+          `, [grain, bucket, authorId, audience]);
+        } else {
+          await connection.queryObject(`
+            INSERT INTO author_activity_rollups (grain, bucket_start, author_id, audience, visit_count)
+            VALUES ($1, $2, $3, $4, 1)
+            ON CONFLICT (grain, bucket_start, author_id, audience)
+            DO UPDATE SET visit_count = author_activity_rollups.visit_count + 1, last_recorded_at = CURRENT_TIMESTAMP
+          `, [grain, bucket, authorId, audience]);
+        }
       }
     });
   } catch (error) {
@@ -468,6 +728,8 @@ export async function recordAuthorActivity(authorId: string, audience: "guest" |
     throw error;
   }
 }
+
+export const recordAuthorProfileView = recordAuthorActivity;
 
 export async function verifyOperationalReportingSchema(): Promise<void> {
   const result = await client.queryObject(`
@@ -508,7 +770,25 @@ function buildCoverage(row: { started_at: string | null; hourly_started_at: stri
   };
 }
 
-async function queryRankedWorks(connection: any, window: ReportWindow, metric: "views" | "downloads"): Promise<RankedWork[]> {
+function applyTrafficCutoverCoverage(
+  coverage: ActivityCoverage,
+  window: ReportWindow,
+  trafficV3StartedAt: Date | null,
+): ActivityCoverage {
+  if (!trafficV3StartedAt || (window.startInclusive && window.startInclusive >= trafficV3StartedAt)) return coverage;
+  const formatted = new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: REPORTING_TIMEZONE,
+  }).format(trafficV3StartedAt);
+  return {
+    ...coverage,
+    isCompleteForSelectedRange: false,
+    warning: `Visit tracking began ${formatted}; earlier visits in this range are unavailable.`,
+  };
+}
+
+async function queryRankedWorks(connection: any, window: ReportWindow, metric: "views" | "downloads", rankingLimit = 10): Promise<RankedWork[]> {
   const range = rollupRange("ra", window);
   const metricColumn = metric === "views" ? "views" : "downloads";
   const result = await connection.queryObject(`
@@ -559,7 +839,7 @@ async function queryRankedWorks(connection: any, window: ReportWindow, metric: "
     LEFT JOIN compiled_documents cd ON g.entry_type = 'compiled' AND cd.id = g.entry_id
     WHERE g.${metricColumn} > 0
     ORDER BY g.${metricColumn} DESC, g.views DESC, g.downloads DESC, title ASC, g.entry_id ASC
-    LIMIT 10
+    LIMIT ${rankingLimit}
   `, range.params);
   return result.rows.map((value: Record<string, unknown>) => {
     const id = count(value.id, "ranking.id");
@@ -568,19 +848,28 @@ async function queryRankedWorks(connection: any, window: ReportWindow, metric: "
   });
 }
 
-export async function getOperationalReport(rangeKey: ReportRange, now = new Date()): Promise<OperationalReport> {
+export async function getOperationalReport(rangeKey: ReportRange, now = new Date(), options: OperationalReportOptions = {}): Promise<OperationalReport> {
   if (!isReportRange(rangeKey)) throw new Error("INVALID_REPORT_RANGE");
   let window = resolveReportWindow(rangeKey, now);
   return withTransaction(async (connection: any) => {
     await connection.queryArray("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
     await connection.queryArray("SET LOCAL statement_timeout = '3000ms'");
-    await assertReportingSchema(connection);
+    const reportingReadState = await assertReportingSchema(connection);
+    const trafficCutoverResult = reportingReadState.v3ReadsEnabled
+      ? await connection.queryObject("SELECT traffic_v3_started_at FROM operational_analytics_state WHERE state_id = TRUE")
+      : { rows: [] };
+    const trafficV3StartedAt = trafficCutoverResult.rows[0]?.traffic_v3_started_at
+      ? new Date(String(trafficCutoverResult.rows[0].traffic_v3_started_at))
+      : null;
 
     const repositoryCoverageRow = await queryCoverage(connection, "repository_activity_rollups");
-    const homeCoverageRow = await queryCoverage(connection, "page_activity_rollups");
+    const pageViewsCoverageRow = await queryCoverage(connection, "page_activity_rollups");
+    const siteVisitsCoverageRow = reportingReadState.v3ReadsEnabled
+      ? await queryCoverage(connection, "site_session_rollups")
+      : { started_at: null, hourly_started_at: null };
     const authorCoverageRow = await queryCoverage(connection, "author_activity_rollups");
     if (rangeKey === "all") {
-      const earliest = [repositoryCoverageRow.started_at, homeCoverageRow.started_at, authorCoverageRow.started_at].filter(Boolean).map((value) => new Date(String(value))).sort((a, b) => a.getTime() - b.getTime())[0];
+      const earliest = [repositoryCoverageRow.started_at, pageViewsCoverageRow.started_at, siteVisitsCoverageRow.started_at, authorCoverageRow.started_at].filter(Boolean).map((value) => new Date(String(value))).sort((a, b) => a.getTime() - b.getTime())[0];
       const months = earliest ? calendarMonthSpan(earliest, window.endExclusive) : 0;
       window = { ...window, bucket: months > 36 ? "year" : "month" };
     }
@@ -642,8 +931,14 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
     `, [...uploadRange.params, ...uploadRangeSecond.params]);
 
     const pageRange = rollupRange("pa", window);
+    const pageActivityResult = await connection.queryObject(`
+      SELECT COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience IN ('guest', 'registered')), 0)::BIGINT AS views,
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'guest'), 0)::BIGINT AS guest_views,
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'registered'), 0)::BIGINT AS registered_views
+      FROM page_activity_rollups pa WHERE ${pageRange.clause}
+    `, pageRange.params);
     const homeResult = await connection.queryObject(`
-      SELECT audience, COALESCE(SUM(visit_count), 0)::BIGINT AS count
+      SELECT audience, COALESCE(SUM(${reportingReadState.pageViewColumn}), 0)::BIGINT AS count
       FROM page_activity_rollups pa
       WHERE pa.page_key = '/' AND ${pageRange.clause}
       GROUP BY audience
@@ -652,6 +947,19 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
     for (const row of homeResult.rows as Array<Record<string, unknown>>) {
       if (row.audience === "guest") home.guest = count(row.count, "home.guest");
       if (row.audience === "registered") home.registered = count(row.count, "home.registered");
+    }
+
+    const sessionRange = rollupRange("ss", window);
+    const siteVisitsResult = reportingReadState.v3ReadsEnabled ? await connection.queryObject(`
+      SELECT audience, COALESCE(SUM(session_count), 0)::BIGINT AS count
+      FROM site_session_rollups ss
+      WHERE ${sessionRange.clause}
+      GROUP BY audience
+    `, sessionRange.params) : { rows: [] };
+    const siteVisits = { guest: 0, registered: 0 };
+    for (const row of siteVisitsResult.rows as Array<Record<string, unknown>>) {
+      if (row.audience === "guest") siteVisits.guest = count(row.count, "siteVisits.guest");
+      if (row.audience === "registered") siteVisits.registered = count(row.count, "siteVisits.registered");
     }
 
     const documentHistoryExists = await tableExists(connection, "user_document_history");
@@ -700,30 +1008,61 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
     `, repositoryRange.params);
     const homeSeriesResult = await connection.queryObject(`
       SELECT ${bucketExpression("pa.bucket_start", window.bucket)}::TEXT AS bucket,
-             COALESCE(SUM(pa.visit_count) FILTER (WHERE pa.audience = 'guest'), 0)::BIGINT AS guest,
-             COALESCE(SUM(pa.visit_count) FILTER (WHERE pa.audience = 'registered'), 0)::BIGINT AS registered
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'guest'), 0)::BIGINT AS guest,
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'registered'), 0)::BIGINT AS registered
       FROM page_activity_rollups pa WHERE pa.page_key = '/' AND ${pageRange.clause}
       GROUP BY ${bucketExpression("pa.bucket_start", window.bucket)}
       ORDER BY ${bucketExpression("pa.bucket_start", window.bucket)}
     `, pageRange.params);
+    const siteTrafficPageResult = await connection.queryObject(`
+      SELECT ${bucketExpression("pa.bucket_start", window.bucket)}::TEXT AS bucket,
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'guest'), 0)::BIGINT AS guest_page_views,
+             COALESCE(SUM(pa.${reportingReadState.pageViewColumn}) FILTER (WHERE pa.audience = 'registered'), 0)::BIGINT AS registered_page_views
+      FROM page_activity_rollups pa WHERE ${pageRange.clause}
+      GROUP BY ${bucketExpression("pa.bucket_start", window.bucket)}
+      ORDER BY ${bucketExpression("pa.bucket_start", window.bucket)}
+    `, pageRange.params);
+    const siteTrafficSessionResult = reportingReadState.v3ReadsEnabled ? await connection.queryObject(`
+      SELECT ${bucketExpression("ss.bucket_start", window.bucket)}::TEXT AS bucket,
+             COALESCE(SUM(ss.session_count) FILTER (WHERE ss.audience = 'guest'), 0)::BIGINT AS guest_visits,
+             COALESCE(SUM(ss.session_count) FILTER (WHERE ss.audience = 'registered'), 0)::BIGINT AS registered_visits
+      FROM site_session_rollups ss WHERE ${sessionRange.clause}
+      GROUP BY ${bucketExpression("ss.bucket_start", window.bucket)}
+      ORDER BY ${bucketExpression("ss.bucket_start", window.bucket)}
+    `, sessionRange.params) : { rows: [] };
 
     const toUploadRows = uploadsSeriesResult.rows.map((row: Record<string, unknown>) => ({ bucket: normaliseBucket(row.bucket), count: count(row.count, "series.uploads") }));
     const toRepositoryRows = repositorySeriesResult.rows.map((row: Record<string, unknown>) => ({ bucket: normaliseBucket(row.bucket), views: count(row.views, "series.views"), downloads: count(row.downloads, "series.downloads") }));
     const toHomeRows = homeSeriesResult.rows.map((row: Record<string, unknown>) => { const guest = count(row.guest, "series.home.guest"); const registered = count(row.registered, "series.home.registered"); return { bucket: normaliseBucket(row.bucket), guest, registered, total: guest + registered }; });
+    const siteTrafficPageRows = new Map<string, { guestPageViews: number; registeredPageViews: number }>(siteTrafficPageResult.rows.map((row: Record<string, unknown>) => [normaliseBucket(row.bucket), { guestPageViews: count(row.guest_page_views, "series.page.guest"), registeredPageViews: count(row.registered_page_views, "series.page.registered") }]));
+    const siteTrafficSessionRows = new Map<string, { guestVisits: number; registeredVisits: number }>(siteTrafficSessionResult.rows.map((row: Record<string, unknown>) => [normaliseBucket(row.bucket), { guestVisits: count(row.guest_visits, "series.visits.guest"), registeredVisits: count(row.registered_visits, "series.visits.registered") }]));
     const uploads = completeSeries<{ bucket: string; count: number }>(toUploadRows, window, (bucket, row) => ({ bucket, count: row?.count ?? 0 }));
     const repositorySeries = completeSeries<{ bucket: string; views: number; downloads: number }>(toRepositoryRows, window, (bucket, row) => ({ bucket, views: row?.views ?? 0, downloads: row?.downloads ?? 0 }));
     const homeVisits = completeSeries<{ bucket: string; guest: number; registered: number; total: number }>(toHomeRows, window, (bucket, row) => { const guest = row?.guest ?? 0; const registered = row?.registered ?? 0; return { bucket, guest, registered, total: guest + registered }; });
+    const emptySiteTrafficRows: Array<{ bucket: string; pageViews: number; visits: number; guestPageViews: number; registeredPageViews: number; guestVisits: number; registeredVisits: number }> = [];
+    const siteTraffic = completeSeries(emptySiteTrafficRows, window, (bucket) => {
+      const pages = siteTrafficPageRows.get(bucket) ?? { guestPageViews: 0, registeredPageViews: 0 };
+      const sessions = siteTrafficSessionRows.get(bucket) ?? { guestVisits: 0, registeredVisits: 0 };
+      return { bucket, pageViews: pages.guestPageViews + pages.registeredPageViews, visits: sessions.guestVisits + sessions.registeredVisits, ...pages, ...sessions };
+    });
 
-    const topViews = await queryRankedWorks(connection, window, "views");
-    const topDownloads = await queryRankedWorks(connection, window, "downloads");
+    const rankingLimit = Number.isInteger(options.rankingLimit) ? Math.max(10, Math.min(1000, options.rankingLimit!)) : 10;
+    const topViews = await queryRankedWorks(connection, window, "views", rankingLimit);
+    const topDownloads = await queryRankedWorks(connection, window, "downloads", rankingLimit);
     const authorRange = rollupRange("aa", window);
+    const authorTotalsResult = await connection.queryObject(`
+      SELECT COALESCE(SUM(aa.${reportingReadState.authorViewColumn}), 0)::BIGINT AS views
+      FROM author_activity_rollups aa
+      WHERE ${authorRange.clause}
+    `, authorRange.params);
+    const authorProfileViews = count((authorTotalsResult.rows[0] as Record<string, unknown> | undefined)?.views, "activity.authorProfileViews");
     const topAuthorsResult = await connection.queryObject(`
-      SELECT a.id, a.full_name, a.profile_picture, SUM(aa.visit_count)::BIGINT AS visits
+      SELECT a.id, a.full_name, a.profile_picture, SUM(aa.${reportingReadState.authorViewColumn})::BIGINT AS views
       FROM author_activity_rollups aa JOIN authors a ON a.id = aa.author_id
       WHERE ${authorRange.clause}
       GROUP BY a.id, a.full_name, a.profile_picture
-      ORDER BY visits DESC, a.full_name ASC, a.id ASC
-      LIMIT 10
+      ORDER BY views DESC, a.full_name ASC, a.id ASC
+      LIMIT ${rankingLimit}
     `, authorRange.params);
 
     const topicRange = rollupRange("ra", window);
@@ -760,8 +1099,8 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
         FROM topic_records tr JOIN activity a ON a.record_type = tr.record_type AND a.record_id = tr.record_id
         GROUP BY tr.topic_id, tr.name
       )
-      SELECT id, name, views, entries FROM topic_views
-      ORDER BY views DESC, entries DESC, LOWER(name) ASC, name ASC, id ASC LIMIT 10
+      SELECT id, name, views, entries, SUM(views) OVER ()::BIGINT AS total_work_views FROM topic_views
+      ORDER BY views DESC, entries DESC, LOWER(name) ASC, name ASC, id ASC LIMIT ${rankingLimit}
     `, topicRange.params);
 
     const typesResult = await connection.queryObject(`
@@ -792,20 +1131,40 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
     if (repositoryViews !== guestViews + registeredViews) throw new Error("REPORTING_INVARIANT_REPOSITORY_VIEWS");
     if (repositoryDownloads !== registeredDownloads + approvedRequestDownloads) throw new Error("REPORTING_INVARIANT_REPOSITORY_DOWNLOADS");
 
+    const pageActivity = (pageActivityResult.rows[0] ?? {}) as Record<string, unknown>;
+    const sitePageViews = count(pageActivity.views, "activity.sitePageViews");
+    const guestPageViews = count(pageActivity.guest_views, "activity.guestPageViews");
+    const registeredPageViews = count(pageActivity.registered_views, "activity.registeredPageViews");
+    if (sitePageViews !== guestPageViews + registeredPageViews) throw new Error("REPORTING_INVARIANT_SITE_PAGE_VIEWS");
+    const totalSiteVisits = siteVisits.guest + siteVisits.registered;
+    const topicWorkViews = topicResult.rows.length
+      ? count((topicResult.rows[0] as Record<string, unknown>).total_work_views, "activity.topicWorkViews")
+      : 0;
+
     const repositoryCoverage = buildCoverage(repositoryCoverageRow, window);
-    const homeCoverage = buildCoverage(homeCoverageRow, window);
+    const pageViewsCoverage = buildCoverage(pageViewsCoverageRow, window);
+    const siteVisitsCoverage = applyTrafficCutoverCoverage(
+      buildCoverage(siteVisitsCoverageRow, window),
+      window,
+      trafficV3StartedAt,
+    );
     const authorCoverage = buildCoverage(authorCoverageRow, window);
     const generatedAt = now.toISOString();
-    const coverageStartedAt = [repositoryCoverage.startedAt, homeCoverage.startedAt, authorCoverage.startedAt].filter(Boolean).sort()[0] ?? null;
+    const coverageStartedAt = [repositoryCoverage.startedAt, pageViewsCoverage.startedAt, siteVisitsCoverage.startedAt, authorCoverage.startedAt].filter(Boolean).sort()[0] ?? null;
     const definitions: Record<string, string> = { ...METRIC_DEFINITIONS };
+    const mostViewedAuthors = topAuthorsResult.rows.map((value: Record<string, unknown>) => {
+      const views = count(value.views, "ranking.authorViews");
+      return { id: String(value.id ?? ""), name: String(value.full_name ?? "Unnamed author"), views, visits: views, profilePicture: value.profile_picture ? String(value.profile_picture) : null, href: `/pages/authorprofile.html?id=${encodeURIComponent(String(value.id ?? ""))}` };
+    });
     return {
       meta: {
-        dataVersion: 2,
+        dataVersion: reportingReadState.v3ReadsEnabled ? 3 : 2,
         generatedAt,
         timezone: REPORTING_TIMEZONE,
         range: { key: window.key, label: window.label, bucket: window.bucket, startInclusive: dateParam(window.startInclusive), endExclusive: window.endExclusive.toISOString() },
         activityCoverageStartedAt: coverageStartedAt,
-        coverage: { repository: repositoryCoverage, home: homeCoverage, authors: authorCoverage },
+        trafficV3StartedAt: trafficV3StartedAt?.toISOString() ?? null,
+        coverage: { repository: repositoryCoverage, pageViews: pageViewsCoverage, siteVisits: siteVisitsCoverage, home: pageViewsCoverage, authors: authorCoverage },
       },
       inventory: {
         catalogEntries: count(inventoryRow.active_single_entries, "inventory.activeSingleEntries") + count(inventoryRow.active_compilations, "inventory.activeCompilations"),
@@ -817,21 +1176,30 @@ export async function getOperationalReport(rangeKey: ReportRange, now = new Date
       },
       workflow: { pendingUploads: count((pendingUploadResult.rows[0] as Record<string, unknown> | undefined)?.count, "workflow.pendingUploads"), pendingAccessRequests: count((pendingRequestResult.rows[0] as Record<string, unknown> | undefined)?.count, "workflow.pendingAccessRequests") },
       activity: {
+        sitePageViews: { total: sitePageViews, guest: guestPageViews, registered: registeredPageViews },
+        siteVisits: { total: totalSiteVisits, guest: siteVisits.guest, registered: siteVisits.registered },
+        homePageViews: { guest: home.guest, registered: home.registered, total: home.guest + home.registered },
         uploadedEntries: count((uploadedResult.rows[0] as Record<string, unknown> | undefined)?.count, "activity.uploadedEntries"),
         repositoryViews,
         repositoryDownloads,
+        guestRepositoryViews: guestViews,
+        registeredRepositoryViews: registeredViews,
+        authorProfileViews,
+        topicWorkViews,
         guestViews,
         registeredViews,
         approvedRequestDownloads,
         activeRegisteredUsers: readerUsers,
         homeVisits: { guest: home.guest, registered: home.registered, total: home.guest + home.registered },
+        activeRegisteredReaders: readerUsers,
       },
-      series: { uploads, repositoryActivity: repositorySeries, homeVisits },
+      series: { uploads, repositoryActivity: repositorySeries, homeVisits, siteTraffic },
       rankings: {
         mostViewedEntries: topViews,
         mostDownloadedEntries: topDownloads,
-        mostVisitedAuthors: topAuthorsResult.rows.map((value: Record<string, unknown>) => ({ id: String(value.id ?? ""), name: String(value.full_name ?? "Unnamed author"), visits: count(value.visits, "ranking.authorVisits"), profilePicture: value.profile_picture ? String(value.profile_picture) : null, href: `/pages/authorprofile.html?id=${encodeURIComponent(String(value.id ?? ""))}` })),
-        trendingTopics: topicResult.rows.map((value: Record<string, unknown>) => { const entryCount = count(value.entries, "ranking.topicEntries"); return { id: count(value.id, "ranking.topicId"), name: String(value.name ?? "Unnamed topic"), views: count(value.views, "ranking.topicViews"), entryCount, activeCatalogEntryCount: entryCount, href: `/pages/searchResultsPage.html?topic=${encodeURIComponent(String(value.id ?? ""))}` }; }),
+        mostVisitedAuthors: mostViewedAuthors,
+        mostViewedAuthors,
+        trendingTopics: topicResult.rows.map((value: Record<string, unknown>) => { const entryCount = count(value.entries, "ranking.topicEntries"); const workViews = count(value.views, "ranking.topicViews"); return { id: count(value.id, "ranking.topicId"), name: String(value.name ?? "Unnamed topic"), views: workViews, workViews, entryCount, activeCatalogEntryCount: entryCount, href: `/pages/searchResultsPage.html?topic=${encodeURIComponent(String(value.id ?? ""))}` }; }),
       },
       distributions: {
         documentTypes: typesResult.rows.map((value: Record<string, unknown>) => ({ label: String(value.label ?? "Unknown"), count: count(value.count, "distribution.documentType") })),

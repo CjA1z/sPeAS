@@ -1,8 +1,10 @@
 import { Route } from "./index.ts";
 import { RouterContext } from "../deps.ts";
 import { auth } from "../config/auth.ts";
+import { microsoftSignInConfiguration } from "../config/auth.ts";
 import { getSessionFromHeaders } from "../services/sessionService.ts";
 import { client } from "../db/denopost_conn.ts";
+import { isAuthenticated, isAdmin } from "../middleware/authMiddleware.ts";
 
 /**
  * Transitional logout shims.
@@ -56,6 +58,14 @@ const logout = async (ctx: RouterContext<any, any, any>) => {
 };
 
 export const authRoutes: Route[] = [
+  {
+    method: "GET",
+    path: "/api/admin/auth/microsoft-status",
+    handler: (ctx) => {
+      ctx.response.body = microsoftSignInConfiguration;
+    },
+    middleware: [isAuthenticated, isAdmin],
+  },
   { method: "POST", path: "/logout", handler: logout },
   { method: "GET", path: "/logout", handler: logout },
   { method: "POST", path: "/auth/logout", handler: logout },

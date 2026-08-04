@@ -19,6 +19,9 @@ export interface Document {
   title: string;
   description?: string;
   abstract?: string;
+  abstract_source?: 'none' | 'manual' | 'pdf_text' | 'ocr' | 'legacy';
+  abstract_reviewed_by?: string;
+  abstract_reviewed_at?: Date;
   publication_date?: Date;
   start_year?: number;
   end_year?: number;
@@ -226,10 +229,11 @@ export class DocumentModel {
           title, description, abstract, publication_date, 
           start_year, end_year, category_id, department_id,
           file_path, pages, volume, issue, is_public, document_type,
-          compiled_parent_id, uploaded_by, review_status, reviewed_by, reviewed_at
+          compiled_parent_id, uploaded_by, review_status, reviewed_by, reviewed_at,
+          abstract_source, abstract_reviewed_by, abstract_reviewed_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-          $16, $17, $18, $19
+          $16, $17, $18, $19, $20, $21, $22
         ) RETURNING *`,
         [
           document.title,
@@ -251,6 +255,9 @@ export class DocumentModel {
           document.review_status || "approved",
           document.reviewed_by || null,
           document.reviewed_at || null,
+          document.abstract_source || (document.abstract ? 'legacy' : 'none'),
+          document.abstract_reviewed_by || null,
+          document.abstract_reviewed_at || null,
         ]
       );
       
@@ -278,6 +285,9 @@ export class DocumentModel {
         title: updates.title,
         description: updates.description,
         abstract: updates.abstract,
+        abstract_source: updates.abstract_source,
+        abstract_reviewed_by: updates.abstract_reviewed_by,
+        abstract_reviewed_at: updates.abstract_reviewed_at,
         publication_date: updates.publication_date,
         start_year: updates.start_year,
         end_year: updates.end_year,

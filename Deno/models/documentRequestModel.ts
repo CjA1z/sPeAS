@@ -19,6 +19,7 @@ export interface DocumentRequest {
     email_sent?: boolean; // Whether the confirmation email was sent successfully
     email_error?: string; // Error message if email sending failed
     // Joined document properties
+    record_type?: 'document' | 'compiled';
     book_title?: string;
     author_name?: string;
     volume?: string;
@@ -28,6 +29,7 @@ export interface DocumentAccessToken {
     id: number;
     request_id: number;
     document_id: string;
+    record_type: 'document' | 'compiled';
     email: string;
     token_hash: string;
     expires_at: Date;
@@ -51,12 +53,53 @@ export interface ValidDocumentAccessToken extends DocumentAccessToken {
 export class DocumentRequestModel {
     constructor() {}
 
+    private static readonly requestSelect = `SELECT
+                dr.*,
+                CASE
+                    WHEN dr.is_entire_collection IS TRUE OR (d.id IS NULL AND cd.id IS NOT NULL) THEN 'compiled'
+                    ELSE 'document'
+                END AS record_type,
+                CASE
+                    WHEN dr.is_entire_collection IS TRUE OR (d.id IS NULL AND cd.id IS NOT NULL) THEN CONCAT_WS(
+                        ' ',
+                        COALESCE(NULLIF(BTRIM(cd.category), ''), 'Compiled collection'),
+                        CASE WHEN cd.volume IS NOT NULL THEN 'Vol. ' || cd.volume::text END,
+                        CASE
+                            WHEN cd.start_year IS NOT NULL AND cd.end_year IS NOT NULL AND cd.end_year <> cd.start_year
+                                THEN '(' || cd.start_year::text || '-' || cd.end_year::text || ')'
+                            WHEN cd.start_year IS NOT NULL THEN '(' || cd.start_year::text || ')'
+                        END
+                    )
+                    ELSE d.title
+                END AS book_title,
+                CASE
+                    WHEN dr.is_entire_collection IS TRUE OR (d.id IS NULL AND cd.id IS NOT NULL) THEN cd.volume::text
+                    ELSE d.volume::text
+                END AS volume,
+                a.full_name AS author_name
+            FROM document_requests dr
+            LEFT JOIN documents d ON dr.document_id = d.id::text
+            LEFT JOIN compiled_documents cd ON dr.document_id = cd.id::text AND cd.deleted_at IS NULL
+            LEFT JOIN LATERAL (
+                SELECT a.full_name, da.document_id
+                FROM document_authors da
+                JOIN authors a ON da.author_id = a.id
+                WHERE da.document_id = d.id
+                ORDER BY da.author_order
+                LIMIT 1
+            ) a ON true`;
+
     static async ensureAccessTokenTableExists(): Promise<void> {
         await client.queryObject(`
+            ALTER TABLE document_requests
+                ADD COLUMN IF NOT EXISTS is_entire_collection BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS child_documents INTEGER[] DEFAULT NULL;
+
             CREATE TABLE IF NOT EXISTS document_access_tokens (
                 id SERIAL PRIMARY KEY,
                 request_id INTEGER NOT NULL REFERENCES document_requests(id) ON DELETE CASCADE,
                 document_id TEXT NOT NULL,
+                record_type VARCHAR(16) NOT NULL DEFAULT 'document',
                 email VARCHAR(255) NOT NULL,
                 token_hash TEXT NOT NULL UNIQUE,
                 expires_at TIMESTAMPTZ NOT NULL,
@@ -65,6 +108,9 @@ export class DocumentRequestModel {
                 access_count INTEGER DEFAULT 0,
                 revoked_at TIMESTAMPTZ
             );
+
+            ALTER TABLE document_access_tokens
+                ADD COLUMN IF NOT EXISTS record_type VARCHAR(16) NOT NULL DEFAULT 'document';
 
             CREATE INDEX IF NOT EXISTS idx_document_access_tokens_request_id
                 ON document_access_tokens(request_id);
@@ -96,9 +142,9 @@ export class DocumentRequestModel {
     async create(request: Omit<DocumentRequest, 'id' | 'status' | 'created_at' | 'updated_at'>): Promise<DocumentRequest> {
         const now = new Date();
         const result = await client.queryObject(
-            `INSERT INTO document_requests 
-            (document_id, full_name, email, affiliation, reason, reason_details, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $7)
+            `INSERT INTO document_requests
+            (document_id, full_name, email, affiliation, reason, reason_details, is_entire_collection, child_documents, status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $9)
             RETURNING *`,
             [
                 request.document_id,
@@ -107,6 +153,8 @@ export class DocumentRequestModel {
                 request.affiliation,
                 request.reason,
                 request.reason_details,
+                request.is_entire_collection ?? false,
+                request.child_documents ?? null,
                 now
             ]
         );
@@ -116,21 +164,7 @@ export class DocumentRequestModel {
     // Get all document requests
     async getAll(): Promise<DocumentRequest[]> {
         const result = await client.queryObject(
-            `SELECT 
-                dr.*,
-                d.title as book_title,
-                d.volume as volume,
-                a.full_name as author_name
-            FROM document_requests dr
-            LEFT JOIN documents d ON dr.document_id = d.id::text
-            LEFT JOIN LATERAL (
-                SELECT a.full_name, da.document_id
-                FROM document_authors da
-                JOIN authors a ON da.author_id = a.id
-                WHERE da.document_id = d.id
-                ORDER BY da.author_order
-                LIMIT 1
-            ) a ON true
+            `${DocumentRequestModel.requestSelect}
             ORDER BY dr.created_at DESC`
         );
         return result.rows as unknown as DocumentRequest[];
@@ -139,21 +173,7 @@ export class DocumentRequestModel {
     // Get requests by status
     async getByStatus(status: DocumentRequest['status']): Promise<DocumentRequest[]> {
         const result = await client.queryObject(
-            `SELECT 
-                dr.*,
-                d.title as book_title,
-                d.volume as volume,
-                a.full_name as author_name
-            FROM document_requests dr
-            LEFT JOIN documents d ON dr.document_id = d.id::text
-            LEFT JOIN LATERAL (
-                SELECT a.full_name, da.document_id
-                FROM document_authors da
-                JOIN authors a ON da.author_id = a.id
-                WHERE da.document_id = d.id
-                ORDER BY da.author_order
-                LIMIT 1
-            ) a ON true
+            `${DocumentRequestModel.requestSelect}
             WHERE dr.status = $1
             ORDER BY dr.created_at DESC`,
             [status]
@@ -164,21 +184,7 @@ export class DocumentRequestModel {
     // Get requests for a specific document
     async getByDocumentId(documentId: string): Promise<DocumentRequest[]> {
         const result = await client.queryObject(
-            `SELECT 
-                dr.*,
-                d.title as book_title,
-                d.volume as volume,
-                a.full_name as author_name
-            FROM document_requests dr
-            LEFT JOIN documents d ON dr.document_id = d.id::text
-            LEFT JOIN LATERAL (
-                SELECT a.full_name, da.document_id
-                FROM document_authors da
-                JOIN authors a ON da.author_id = a.id
-                WHERE da.document_id = d.id
-                ORDER BY da.author_order
-                LIMIT 1
-            ) a ON true
+            `${DocumentRequestModel.requestSelect}
             WHERE dr.document_id = $1
             ORDER BY dr.created_at DESC`,
             [documentId]
@@ -189,21 +195,7 @@ export class DocumentRequestModel {
     // Get a single request by ID
     async getById(id: number): Promise<DocumentRequest | null> {
         const result = await client.queryObject(
-            `SELECT 
-                dr.*,
-                d.title as book_title,
-                d.volume as volume,
-                a.full_name as author_name
-            FROM document_requests dr
-            LEFT JOIN documents d ON dr.document_id = d.id::text
-            LEFT JOIN LATERAL (
-                SELECT a.full_name, da.document_id
-                FROM document_authors da
-                JOIN authors a ON da.author_id = a.id
-                WHERE da.document_id = d.id
-                ORDER BY da.author_order
-                LIMIT 1
-            ) a ON true
+            `${DocumentRequestModel.requestSelect}
             WHERE dr.id = $1`,
             [id]
         );
@@ -234,6 +226,7 @@ export class DocumentRequestModel {
     async createAccessToken(
         requestId: number,
         documentId: string,
+        recordType: 'document' | 'compiled',
         email: string,
         expiresAt: Date,
     ): Promise<DocumentAccessTokenGrant> {
@@ -244,10 +237,10 @@ export class DocumentRequestModel {
 
         const result = await client.queryObject<DocumentAccessToken>(
             `INSERT INTO document_access_tokens
-                (request_id, document_id, email, token_hash, expires_at)
-             VALUES ($1, $2, $3, $4, $5)
+                (request_id, document_id, record_type, email, token_hash, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [requestId, documentId, email, tokenHash, expiresAt],
+            [requestId, documentId, recordType, email, tokenHash, expiresAt],
         );
 
         return {
@@ -299,6 +292,20 @@ export class DocumentRequestModel {
                AND revoked_at IS NULL`,
             [requestId],
         );
+    }
+
+    async returnApprovalToPending(requestId: number): Promise<void> {
+        await client.queryObject(
+            `UPDATE document_requests
+             SET status = 'pending',
+                 reviewed_by = NULL,
+                 reviewed_at = NULL,
+                 review_notes = NULL,
+                 updated_at = NOW()
+             WHERE id = $1 AND status = 'approved'`,
+            [requestId],
+        );
+        await this.revokeAccessTokensForRequest(requestId).catch(() => undefined);
     }
 
     // Delete a request

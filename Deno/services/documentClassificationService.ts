@@ -296,6 +296,17 @@ export async function searchTopics(query: string, includePending = false): Promi
   return (result.rows as Record<string, unknown>[]).map((row) => toTerm(row));
 }
 
+export async function getPublicTopic(topicId: number): Promise<ClassificationTerm | null> {
+  if (!Number.isSafeInteger(topicId) || topicId <= 0) return null;
+  const result = await client.queryObject(`
+    SELECT id, name, status
+    FROM topics
+    WHERE id = $1 AND status = 'approved'
+  `, [topicId]);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  return row ? toTerm(row) : null;
+}
+
 export async function listTopics(status: TopicStatus | "all" = "all"): Promise<ClassificationTerm[]> {
   const statusClause = status === "all" ? "" : "AND status = $1";
   const result = await client.queryObject(`

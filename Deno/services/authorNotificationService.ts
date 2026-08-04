@@ -102,6 +102,57 @@ export async function syncAdminActionNotifications() {
 
   await syncPendingSource({
     insertSql: `
+      SELECT 'abstract_review_pending', 'document', d.id::text, 'warning',
+             'Review extracted abstract', d.title || ' has an abstract extraction awaiting resolution.',
+             '/admin/Components/documents_list.html?status=pending_review'
+      FROM documents d
+      WHERE d.deleted_at IS NULL AND d.compiled_parent_id IS NULL AND d.review_status = 'pending_review'
+        AND EXISTS (
+          SELECT 1 FROM abstract_extraction_jobs j
+          WHERE j.document_id = d.id AND j.is_current IS TRUE
+            AND j.status NOT IN ('accepted', 'unavailable', 'superseded')
+        )
+      UNION ALL
+      SELECT 'abstract_review_pending', 'compiled_document', cd.id::text, 'warning',
+             'Review publication abstracts', COALESCE(NULLIF(BTRIM(cd.category), ''), 'This publication') || ' has abstracts awaiting resolution.',
+             '/admin/Components/documents_list.html?status=pending_review'
+      FROM compiled_documents cd
+      WHERE cd.deleted_at IS NULL AND cd.review_status = 'pending_review'
+        AND (
+          EXISTS (
+            SELECT 1 FROM abstract_extraction_jobs j
+            WHERE j.compiled_document_id = cd.id AND j.is_current IS TRUE
+              AND j.status NOT IN ('accepted', 'unavailable', 'superseded')
+          )
+          OR EXISTS (
+            SELECT 1 FROM documents d
+            JOIN abstract_extraction_jobs j ON j.document_id = d.id AND j.is_current IS TRUE
+            WHERE d.compiled_parent_id = cd.id AND d.deleted_at IS NULL
+              AND j.status NOT IN ('accepted', 'unavailable', 'superseded')
+          )
+        )
+    `,
+    notificationType: "abstract_review_pending",
+    activeSql: `SELECT 1 FROM (
+      SELECT d.id::text AS target_id
+      FROM documents d
+      JOIN abstract_extraction_jobs j ON j.document_id = d.id AND j.is_current IS TRUE
+      WHERE d.id::text = n.entity_id AND d.deleted_at IS NULL AND d.compiled_parent_id IS NULL
+        AND d.review_status = 'pending_review'
+        AND j.status NOT IN ('accepted', 'unavailable', 'superseded')
+      UNION ALL
+      SELECT cd.id::text
+      FROM compiled_documents cd
+      WHERE cd.id::text = n.entity_id AND cd.deleted_at IS NULL AND cd.review_status = 'pending_review'
+        AND (
+          EXISTS (SELECT 1 FROM abstract_extraction_jobs j WHERE j.compiled_document_id = cd.id AND j.is_current IS TRUE AND j.status NOT IN ('accepted', 'unavailable', 'superseded'))
+          OR EXISTS (SELECT 1 FROM documents d JOIN abstract_extraction_jobs j ON j.document_id = d.id AND j.is_current IS TRUE WHERE d.compiled_parent_id = cd.id AND d.deleted_at IS NULL AND j.status NOT IN ('accepted', 'unavailable', 'superseded'))
+        )
+    ) pending WHERE pending.target_id = n.entity_id`,
+  });
+
+  await syncPendingSource({
+    insertSql: `
       SELECT 'document_access_request_pending', 'document_request', dr.id::text, 'warning',
              'Review document access request', dr.full_name || ' requested access to a repository document.',
              '/admin/Components/document-permissions.html?status=pending'

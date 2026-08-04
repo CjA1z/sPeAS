@@ -32,9 +32,18 @@ if (!secret) {
 const microsoftClientId = Deno.env.get("MICROSOFT_CLIENT_ID") ?? "";
 const microsoftClientSecret = Deno.env.get("MICROSOFT_CLIENT_SECRET") ?? "";
 const microsoftTenantId = Deno.env.get("MICROSOFT_TENANT_ID") ?? "";
+const callbackBaseURL = baseURL.replace(/\/+$/, "");
 export const microsoftSignInEnabled = Boolean(
   microsoftClientId && microsoftClientSecret && microsoftTenantId,
 );
+export const microsoftSignInConfiguration = {
+  enabled: microsoftSignInEnabled,
+  clientIdConfigured: Boolean(microsoftClientId),
+  clientSecretConfigured: Boolean(microsoftClientSecret),
+  tenantIdConfigured: Boolean(microsoftTenantId),
+  allowedEmailDomain: ALLOWED_EMAIL_DOMAIN,
+  callbackUrl: `${callbackBaseURL}/api/auth/callback/microsoft`,
+} as const;
 if (!microsoftSignInEnabled) {
   console.warn(
     "[auth] MICROSOFT_CLIENT_ID/SECRET/TENANT_ID not set - Microsoft sign-in is disabled",

@@ -55,7 +55,9 @@ const apiPaperRoutes = paperRoutes.map(route => ({
 
 // Map compiled document routes to /api/compiled-documents path
 const apiCompiledDocumentRoutes = compiledDocumentRoutes.map(route => {
-  const newPath = route.path.replace(/^\/compiled-documents/, '/api/compiled-documents');
+  const newPath = route.path.replace(/^\/compiled-documents/, '/api/compiled-documents')
+                           .replace(/^\/guest\/compiled-documents/, '/api/guest/compiled-documents')
+                           .replace(/^\/public\/compiled-documents/, '/api/public/compiled-documents');
   console.log(`Mapping route: ${route.path} → ${newPath}`);
   return {
     ...route,

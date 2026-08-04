@@ -1,6 +1,7 @@
 import { createCompiledDocument as createCompiledDocumentService, getCompiledDocument as getCompiledDocumentService, addDocumentToCompilation as addDocumentToCompilationService, removeDocumentFromCompilation as removeDocumentFromCompilationService, softDeleteCompiledDocument as softDeleteCompiledDocumentService, updateCompiledDocument as updateCompiledDocumentService } from "../services/documentService.ts";
 import { getDocumentClassification } from "../services/documentClassificationService.ts";
-import { validateCompiledYearRange } from "../services/documentMetadataValidationService.ts";
+import { validateCompiledVolume, validateCompiledYearRange } from "../services/documentMetadataValidationService.ts";
+import { isAbstractTooLong, normalizeManualAbstract, queueCompiledForewordAbstract } from "../services/abstractWorkflowService.ts";
 
 /**
  * Creates a new compiled document
@@ -18,6 +19,7 @@ export async function createCompiledDocument(
     category?: string;
     foreword?: string;
     abstract_foreword?: string;
+    abstract_foreword_source?: 'none' | 'manual' | 'pdf_text' | 'ocr' | 'legacy';
     uploaded_by?: string;
     review_status?: 'pending_review' | 'approved' | 'rejected';
     reviewed_by?: string;
@@ -51,8 +53,8 @@ export async function getCompiledDocument(compiledDocId: number): Promise<any> {
     const response = {
       ...compiledDoc,
       classification: await getDocumentClassification(compiledDocId, false),
-      // If there's no abstract field but there is abstract_foreword, use that as the abstract
-      abstract: compiledDoc.abstract_foreword || compiledDoc.foreword || ''
+      // Expose only reviewed collection text; the foreword path is never abstract content.
+      abstract: compiledDoc.abstract_foreword || ''
     };
     
         
@@ -104,6 +106,8 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
     }
 
     const yearErrors = validateCompiledYearRange(body.compiledDoc.start_year, body.compiledDoc.end_year);
+    const volumeError = validateCompiledVolume(body.compiledDoc.volume);
+    if (volumeError) yearErrors["compiledDoc.volume"] = volumeError;
     if (Object.keys(yearErrors).length) {
       return new Response(JSON.stringify({
         error: 'A valid compiled-publication year range is required.',
@@ -117,11 +121,29 @@ export async function handleCreateCompiledDocument(request: Request): Promise<Re
     // Default to empty array if documentIds not provided
     const documentIds = Array.isArray(body.documentIds) ? body.documentIds : [];
 
+    const normalizedForewordAbstract = normalizeManualAbstract(body.compiledDoc.abstract_foreword);
+    if (isAbstractTooLong(body.compiledDoc.abstract_foreword)) {
+      return new Response(JSON.stringify({ error: 'Collection overview must be 10,000 Unicode characters or fewer.', fields: { abstract_foreword: 'Collection overview must be 10,000 Unicode characters or fewer.' } }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    }
+    body.compiledDoc.abstract_foreword = normalizedForewordAbstract;
+    body.compiledDoc.abstract_foreword_source = normalizedForewordAbstract ? "manual" : "none";
+    const hasForewordPdf = typeof body.compiledDoc.foreword === "string"
+      && body.compiledDoc.foreword.trim().length > 0
+      && !body.compiledDoc.foreword.trim().endsWith("/");
+    const needsForewordExtraction = hasForewordPdf && !normalizedForewordAbstract;
+    if (needsForewordExtraction) {
+      body.compiledDoc.review_status = "pending_review";
+      body.compiledDoc.reviewed_by = null;
+      body.compiledDoc.reviewed_at = null;
+    }
+
     // Log the abstract_foreword field if it's provided
     if (body.compiledDoc.abstract_foreword) {
           }
 
     const compiledDocId = await createCompiledDocument(body.compiledDoc, documentIds);
+
+    if (needsForewordExtraction) await queueCompiledForewordAbstract(Number(compiledDocId));
 
     return new Response(JSON.stringify({
       id: compiledDocId,

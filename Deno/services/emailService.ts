@@ -714,6 +714,7 @@ export async function sendApprovedRequestEmail(
     secureDownloadUrl?: string;
     expiresAt?: Date | string;
     attachDocument?: boolean;
+    accessLabel?: "document" | "compilation";
   } = {}
 ): Promise<boolean | {
   success: boolean;
@@ -872,8 +873,9 @@ export async function sendApprovedRequestEmail(
           minute: "2-digit",
         })
       : "the stated expiration time";
+    const accessLabel = options.accessLabel || "document";
     const accessInstruction = options.secureDownloadUrl
-      ? `Use this secure access link to download the document: ${options.secureDownloadUrl}\n\nThis link expires on ${expiresAtText}. Please do not forward it.`
+      ? `Use this secure magic link to access the approved ${accessLabel}: ${options.secureDownloadUrl}\n\nThis link expires on ${expiresAtText}. Please do not forward it.`
       : fileExists
         ? `We have attached ${attachmentCountText} to this email.`
         : `Unfortunately, we could not locate the document file. Please contact our administrator for assistance.`;
@@ -907,8 +909,8 @@ sPeAS - Library Document Management System
   <p>Your request for access to <strong>"${documentTitle}"</strong> has been approved.</p>
   
   ${options.secureDownloadUrl
-    ? `<p><strong>✓</strong> Use the secure access link below to download the approved document.</p>
-       <p><a href="${options.secureDownloadUrl}" style="display:inline-block;background:#006400;color:#E6E6E6;padding:12px 18px;border-radius:5px;text-decoration:none;">Download Approved Document</a></p>
+    ? `<p><strong>✓</strong> Use the secure magic link below to access the approved ${accessLabel}.</p>
+       <p><a href="${options.secureDownloadUrl}" style="display:inline-block;background:#006400;color:#E6E6E6;padding:12px 18px;border-radius:5px;text-decoration:none;">Access Approved ${accessLabel === "compilation" ? "Compilation" : "Document"}</a></p>
        <p>This link expires on ${expiresAtText}. Please do not forward it.</p>`
     : fileExists
       ? `<p><strong>✓</strong> We have attached ${attachmentCountText} to this email.</p>`
@@ -955,11 +957,11 @@ sPeAS - Library Document Management System
     if (options.secureDownloadUrl) {
       html = html.replace(
         /<p style="margin-bottom: 20px;">The PDF file is <strong>attached<\/strong> to this email for your convenience\.<\/p>/,
-        `<p style="margin-bottom: 20px;">Use the secure access link below to download the approved document. This link expires on ${expiresAtText}.</p>`
+        `<p style="margin-bottom: 20px;">Use the secure magic link below to access the approved ${accessLabel}. This link expires on ${expiresAtText}.</p>`
       );
       html = html.replace(
         /<a href="http:\/\/paulinian-electronic-archiving-system\/request\/[^"]*" target="_blank" class="button-link">\s*Contact Us\s*<\/a>/,
-        `<a href="${options.secureDownloadUrl}" target="_blank" class="button-link">Download Approved Document</a>`
+        `<a href="${options.secureDownloadUrl}" target="_blank" class="button-link">Access Approved ${accessLabel === "compilation" ? "Compilation" : "Document"}</a>`
       );
     }
 

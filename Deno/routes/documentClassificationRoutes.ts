@@ -6,6 +6,7 @@ import {
   createResearchAgenda,
   createTopic,
   getDocumentClassification,
+  getPublicTopic,
   listAdminResearchAgendas,
   listAdminKeywords,
   listPublicResearchAgendas,
@@ -129,6 +130,20 @@ router.get("/api/topics", async (ctx) => {
     // publisher may include a pending proposal in a submission for review;
     // administrators publish immediately and must choose approved topics.
     ctx.response.body = await searchTopics(ctx.request.url.searchParams.get("q") ?? "", session?.role === "publisher");
+  } catch (error) {
+    validationResponse(ctx, error);
+  }
+});
+
+router.get("/api/topics/:id", async (ctx) => {
+  try {
+    const topic = await getPublicTopic(Number(ctx.params.id));
+    if (!topic) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Topic not found" };
+      return;
+    }
+    ctx.response.body = topic;
   } catch (error) {
     validationResponse(ctx, error);
   }

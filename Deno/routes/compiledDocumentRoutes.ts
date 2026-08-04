@@ -12,15 +12,48 @@ import { isAuthenticated, isAdmin, requireCapability } from "../middleware/authM
 import { getSessionFromHeaders } from "../utils/sessionUtils.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewCompilation } from "../services/contentAuthorizationService.ts";
-import { getDocumentClassification } from "../services/documentClassificationService.ts";
+import { getDocumentClassification, getDocumentClassifications, type DocumentClassification } from "../services/documentClassificationService.ts";
+import { compilationAbstractsResolved, forceCompilationPrivateForAbstract, listUnresolvedAbstractTargets } from "../services/abstractWorkflowService.ts";
 import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
+import { getCompiledPreviewManifest } from "../services/compiledPreviewService.ts";
 
 const requireDocumentUpload = requireCapability("documents:upload");
 const requireDocumentReview = requireCapability("documents:review");
 
+const getCompiledPreviewManifestRoute = async (ctx: RouterContext<any, any, any>) => {
+    const id = Number(ctx.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        ctx.response.status = 400;
+        ctx.response.body = { error: "A valid compiled document ID is required" };
+        return;
+    }
+
+    try {
+        const manifest = await getCompiledPreviewManifest(id);
+        if (!manifest) {
+            ctx.response.status = 404;
+            ctx.response.body = { error: "Compiled document not found" };
+            return;
+        }
+        ctx.response.headers.set("Cache-Control", "private, no-store");
+        ctx.response.body = manifest;
+    } catch (error) {
+        console.error("Compiled preview manifest failed", { code: "COMPILED_PREVIEW_MANIFEST_FAILED", error });
+        ctx.response.status = 500;
+        ctx.response.body = { error: "Unable to load compiled document preview" };
+    }
+};
+
 function removeCompiledFileFields(value: any): any {
     if (!value || typeof value !== "object") {
         return value;
+    }
+
+    // Child queries return arrays. Preserve that shape while sanitizing each
+    // record; spreading an array into an object makes the public API silently
+    // lose its collection contents.
+    if (Array.isArray(value)) {
+        return value.map((entry) => removeCompiledFileFields(entry));
     }
 
     const sanitized = { ...value };
@@ -30,6 +63,14 @@ function removeCompiledFileFields(value: any): any {
     delete sanitized.foreword_file_path;
     delete sanitized.foreword_attachment;
     delete sanitized.attachment;
+    delete sanitized.file_path;
+    delete sanitized.file_url;
+    delete sanitized.storage_path;
+    delete sanitized.storage_key;
+    delete sanitized.object_key;
+    delete sanitized.uploaded_by;
+    delete sanitized.uploader;
+    delete sanitized.uploader_id;
 
     if (sanitized.abstract && rawForeword && sanitized.abstract === rawForeword) {
         sanitized.abstract = sanitized.abstract_foreword || "";
@@ -80,6 +121,22 @@ const createCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.headers = response.headers;
     const responseBody = await response.json();
     ctx.response.body = responseBody;
+
+    // A direct API caller may create and link child studies in the same
+    // request. Re-evaluate the complete abstract gate after the transaction
+    // has linked those children so an approved parent cannot briefly expose
+    // unresolved studies.
+    if (response.ok && responseBody?.id) {
+        try {
+            if (!await compilationAbstractsResolved(Number(responseBody.id))) {
+                await forceCompilationPrivateForAbstract(Number(responseBody.id));
+            }
+        } catch {
+            // The approval endpoint remains authoritative; if the gate cannot
+            // be evaluated here, leave the record for administrator review.
+            await forceCompilationPrivateForAbstract(Number(responseBody.id)).catch(() => undefined);
+        }
+    }
 
     if (response.ok && responseBody?.id) {
         await SystemLogsModel.createLog({
@@ -192,6 +249,9 @@ const addDocumentsToCompilation = async (ctx: RouterContext<any, any, any>) => {
     ctx.response.status = response.status;
     ctx.response.headers = response.headers;
     ctx.response.body = await response.json();
+    if (response.ok && !await compilationAbstractsResolved(Number(body.compiledDocumentId))) {
+        await forceCompilationPrivateForAbstract(Number(body.compiledDocumentId));
+    }
 };
 
 const reviewCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
@@ -223,11 +283,24 @@ const reviewCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
     const reviewerId = String(ctx.state.user.id);
     const publish = decision === "approved" && body.publish === true;
     if (decision === "approved") {
-        const classification = await getDocumentClassification(id, false);
+        if (!await compilationAbstractsResolved(id)) {
+            ctx.response.status = 422;
+            ctx.response.body = {
+                error: "All required abstracts must be accepted or marked unavailable before approval",
+                unresolvedTargets: await listUnresolvedAbstractTargets(id),
+            };
+            return;
+        }
+        // Approval happens before the parent and its pending child studies are
+        // promoted to approved/public in the transaction below. Include the
+        // active pending children while validating their classification; using
+        // the public-only scope here makes every new compilation appear to have
+        // no classified children and makes approval impossible.
+        const classification = await getDocumentClassification(id, true);
         if (!classification.complete) {
             ctx.response.status = 422;
             ctx.response.body = {
-                error: "At least one active approved child must have complete classification",
+                error: "At least one active child must have complete classification before approval",
                 classification,
             };
             return;
@@ -354,6 +427,12 @@ const updateCompiledDocument = async (ctx: RouterContext<any, any, any>) => {
             return;
         }
     }
+
+    if (Object.prototype.hasOwnProperty.call(body, "abstract_foreword")) {
+        ctx.response.status = 409;
+        ctx.response.body = { error: "Abstract changes must use the administrator abstract review endpoint." };
+        return;
+    }
     
     // Convert context to Request
     const request = new Request(`${ctx.request.url.origin}/api/compiled-documents/${id}`, {
@@ -458,7 +537,8 @@ const getCompiledDocumentChildren = async (ctx: RouterContext<any, any, any>) =>
             ORDER BY cdi.id ASC
         `, [compiledDocId]);
         
-        if (result.rows.length === 0) {
+        let childRows = result.rows as Record<string, unknown>[];
+        if (childRows.length === 0) {
             // Try alternative method
             const altResult = await client.queryObject(`
                 SELECT d.* 
@@ -467,23 +547,56 @@ const getCompiledDocumentChildren = async (ctx: RouterContext<any, any, any>) =>
                 ORDER BY d.id ASC
             `, [compiledDocId]);
             
-            if (altResult.rows.length === 0) {
+            childRows = altResult.rows as Record<string, unknown>[];
+            if (childRows.length === 0) {
                 // Return empty array instead of error for UI compatibility
                 ctx.response.body = [];
                 return;
             }
-            
-            // Return the found documents
-            ctx.response.body = sessionData?.role === "admin"
-                ? altResult.rows
-                : removeCompiledFileFields(altResult.rows);
-            return;
         }
-        
-        // Return the found documents
+
+        const childIds = childRows
+            .map((row) => Number(row.id))
+            .filter((childId) => Number.isSafeInteger(childId) && childId > 0);
+        const [authorRows, classifications] = await Promise.all([
+            client.queryObject<Record<string, unknown>>(`
+                SELECT da.document_id, a.id, a.full_name, a.affiliation, a.department, a.profile_picture
+                FROM document_authors da
+                JOIN authors a ON a.id = da.author_id
+                WHERE da.document_id = ANY($1::int[])
+                ORDER BY da.document_id, da.author_order
+            `, [childIds]).catch(() => ({ rows: [] as Record<string, unknown>[] })),
+            getDocumentClassifications(childIds, sessionData?.role === "admin").catch(() => new Map<number, DocumentClassification>()),
+        ]);
+        const authorsByDocument = new Map<number, Record<string, unknown>[]>();
+        for (const author of authorRows.rows) {
+            const documentId = Number(author.document_id);
+            const authors = authorsByDocument.get(documentId) ?? [];
+            authors.push({
+                id: author.id,
+                full_name: author.full_name,
+                affiliation: author.affiliation,
+                department: author.department,
+                profile_picture: author.profile_picture,
+            });
+            authorsByDocument.set(documentId, authors);
+        }
+        const enrichedRows = childRows.map((row) => {
+            const documentId = Number(row.id);
+            const classification = classifications.get(documentId) ?? { researchAgendas: [], topics: [], keywords: [], complete: false, source: "document" };
+            return {
+                ...row,
+                authors: authorsByDocument.get(documentId) ?? [],
+                classification,
+                topics: classification.topics,
+                keywords: classification.keywords.map((keyword) => keyword.name),
+                research_agenda: classification.researchAgendas.map((agenda) => agenda.name).join(", "),
+            };
+        });
+
         ctx.response.body = sessionData?.role === "admin"
-            ? result.rows
-            : removeCompiledFileFields(result.rows);
+            ? enrichedRows
+            : removeCompiledFileFields(enrichedRows);
     } catch (error) {
         ctx.response.status = 500;
         ctx.response.body = { 
@@ -547,6 +660,7 @@ const getCompiledDocumentItems = async (ctx: RouterContext<any, any, any>) => {
 // Export an array of routes
 export const compiledDocumentRoutes: Route[] = [
     { method: "POST", path: "/compiled-documents", handler: createCompiledDocument, middleware: [isAuthenticated, requireDocumentUpload] },
+    { method: "GET", path: "/compiled-documents/:id/preview-manifest", handler: getCompiledPreviewManifestRoute, middleware: [isAuthenticated, isAdmin] },
     { method: "GET", path: "/compiled-documents/:id", handler: getCompiledDocument },
     { method: "GET", path: "/compiled-documents/:id/children", handler: getCompiledDocumentChildren },
     { method: "GET", path: "/compiled-documents/:id/items", handler: getCompiledDocumentItems },

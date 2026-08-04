@@ -1,4 +1,5 @@
 import { getDashboardReport, getOperationalReport, isReportRange, type OperationalReport, type ReportRange } from "../services/operationalReportingService.ts";
+import { createTopActivityQuery, getTopActivityExport, getTopActivityReport, isTopActivityKind, isTopActivitySortForKind, type TopActivityKind } from "../services/topActivityReportingService.ts";
 import { PDFDocument, rgb } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 
@@ -62,6 +63,73 @@ export async function getAdminOperationalReport(ctx: any) {
   }
 }
 
+function topActivityKind(ctx: any): TopActivityKind | null {
+  const pathMatch = ctx.request.url.pathname.match(/\/top-activity\/(works|authors|topics)(?:\/export)?\/?$/u);
+  const value = ctx.params?.kind ?? pathMatch?.[1];
+  return isTopActivityKind(value) ? value : null;
+}
+
+function topActivityQuery(ctx: any, kind: TopActivityKind) {
+  const params = ctx.request.url.searchParams;
+  const rawRange = params.get("range") || "30d";
+  const rawPage = Number(params.get("page") || "1");
+  const rawPageSize = Number(params.get("pageSize") || "25");
+  const rawTopicId = params.get("topicId");
+  if (!isReportRange(rawRange) || !Number.isInteger(rawPage) || rawPage < 1 || !Number.isInteger(rawPageSize) || rawPageSize < 1 || rawPageSize > 100 || !isTopActivitySortForKind(kind, params.get("sort") || "") && params.has("sort") || !["asc", "desc"].includes(params.get("direction") || "desc") || rawTopicId && (!/^\d+$/u.test(rawTopicId) || Number(rawTopicId) < 1)) return null;
+  return createTopActivityQuery({
+    kind,
+    range: rawRange,
+    search: params.get("q") || undefined,
+    page: rawPage,
+    pageSize: rawPageSize,
+    sort: params.get("sort") as any,
+    direction: (params.get("direction") || "desc") as "asc" | "desc",
+    selected: params.get("selected") || undefined,
+    documentType: params.get("documentType") || undefined,
+    topicId: rawTopicId ? Number(rawTopicId) : undefined,
+    department: params.get("department") || undefined,
+    affiliation: params.get("affiliation") || undefined,
+  });
+}
+
+export async function getAdminTopActivity(ctx: any) {
+  markPrivateReportResponse(ctx);
+  const kind = topActivityKind(ctx);
+  const query = kind ? topActivityQuery(ctx, kind) : null;
+  if (!query) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_TOP_ACTIVITY_QUERY" };
+    return;
+  }
+  try {
+    ctx.response.status = 200;
+    ctx.response.body = await getTopActivityReport(query);
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
+
+export async function exportAdminTopActivity(ctx: any) {
+  markPrivateReportResponse(ctx);
+  const kind = topActivityKind(ctx);
+  const query = kind ? topActivityQuery(ctx, kind) : null;
+  if (!query || (ctx.request.url.searchParams.get("format") || "csv") !== "csv") {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "INVALID_TOP_ACTIVITY_EXPORT" };
+    return;
+  }
+  try {
+    const rows = await getTopActivityExport(query);
+    const content = "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+    ctx.response.status = 200;
+    ctx.response.headers.set("Content-Type", "text/csv; charset=utf-8");
+    ctx.response.headers.set("Content-Disposition", `attachment; filename="peas-top-activity-${kind}-${query.range}-${new Date().toISOString().slice(0, 10)}.csv"`);
+    ctx.response.body = new TextEncoder().encode(content);
+  } catch (error) {
+    reportError(ctx, error);
+  }
+}
+
 /** Compatibility shape for older administrator clients during migration. */
 export async function getLegacyStatistics(ctx: any) {
   markPrivateReportResponse(ctx);
@@ -96,6 +164,18 @@ export function csvCell(value: unknown): string {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
+const DEPRECATED_EXPORT_METRIC_KEYS = new Set([
+  "active_registered_users",
+  "home_visits",
+  "home_guest_visits",
+  "home_registered_visits",
+  "most_visited_authors",
+]);
+
+function canonicalExportDefinitions(report: OperationalReport): Array<[string, string]> {
+  return Object.entries(report.metricDefinitions).filter(([key]) => !DEPRECATED_EXPORT_METRIC_KEYS.has(key));
+}
+
 export function reportRows(report: OperationalReport): string[][] {
   const range = report.meta.range.label;
   const generated = report.meta.generatedAt;
@@ -105,8 +185,11 @@ export function reportRows(report: OperationalReport): string[][] {
   rows.push(["Metadata", "report_range", "Selected range", report.meta.range.label, range, generated]);
   rows.push(["Metadata", "report_timezone", "Reporting timezone", report.meta.timezone, "Current configuration", generated]);
   rows.push(["Metadata", "activity_coverage", "Activity coverage begins", report.meta.activityCoverageStartedAt ?? "No activity recorded", "Historical coverage", generated]);
+  rows.push(["Metadata", "v3_tracking_start", "Visit tracking began", report.meta.trafficV3StartedAt ?? "Not started", "Visit coverage", generated]);
   for (const [key, label, coverage] of [
     ["repository", "Repository", report.meta.coverage.repository],
+    ["page_views", "Page views", report.meta.coverage.pageViews],
+    ["site_visits", "Site visits", report.meta.coverage.siteVisits],
     ["home", "Home", report.meta.coverage.home],
     ["authors", "Author", report.meta.coverage.authors],
   ] as const) {
@@ -126,10 +209,16 @@ export function reportRows(report: OperationalReport): string[][] {
   add("Activity", "uploaded_entries", "Uploaded entries", report.activity.uploadedEntries);
   add("Activity", "repository_views", "Repository views", report.activity.repositoryViews);
   add("Activity", "repository_downloads", "Repository downloads", report.activity.repositoryDownloads);
-  add("Activity", "active_registered_users", "Active registered readers", report.activity.activeRegisteredUsers);
-  add("Activity", "home_visits", "Home visits", report.activity.homeVisits.total);
-  add("Activity", "home_guest_visits", "Guest home visits", report.activity.homeVisits.guest);
-  add("Activity", "home_registered_visits", "Registered-user home visits", report.activity.homeVisits.registered);
+  add("Activity", "active_registered_readers", "Active registered readers", report.activity.activeRegisteredReaders);
+  add("Activity", "site_page_views", "Site page views", report.activity.sitePageViews.total);
+  add("Activity", "site_guest_page_views", "Guest site page views", report.activity.sitePageViews.guest);
+  add("Activity", "site_registered_page_views", "Registered-reader site page views", report.activity.sitePageViews.registered);
+  add("Activity", "site_visits", "Site visits", report.activity.siteVisits.total);
+  add("Activity", "site_guest_visits", "Guest site visits", report.activity.siteVisits.guest);
+  add("Activity", "site_registered_visits", "Registered-reader site visits", report.activity.siteVisits.registered);
+  add("Activity", "home_page_views", "Home page views", report.activity.homePageViews.total);
+  add("Activity", "author_profile_views", "Author-profile views", report.activity.authorProfileViews);
+  add("Activity", "topic_work_views", "Topic work views", report.activity.topicWorkViews);
   add("Activity", "registered_views", "Registered repository views", report.activity.registeredViews);
   add("Activity", "guest_views", "Guest repository views", report.activity.guestViews);
   add("Activity", "approved_request_downloads", "Approved-request downloads", report.activity.approvedRequestDownloads);
@@ -142,18 +231,17 @@ export function reportRows(report: OperationalReport): string[][] {
     add("Trend", "repository_views", item.bucket, item.views);
     add("Trend", "repository_downloads", item.bucket, item.downloads);
   }
-  for (const item of report.series.homeVisits) {
-    add("Trend", "home_guest", item.bucket, item.guest);
-    add("Trend", "home_registered", item.bucket, item.registered);
-    add("Trend", "home_total", item.bucket, item.total);
+  for (const item of report.series.siteTraffic) {
+    add("Trend", "site_page_views", item.bucket, item.pageViews);
+    add("Trend", "site_visits", item.bucket, item.visits);
   }
   for (const item of report.rankings.mostViewedEntries) add("Ranking", "most_viewed", item.title, item.views);
   for (const item of report.rankings.mostDownloadedEntries) add("Ranking", "most_downloaded", item.title, item.downloads);
-  for (const item of report.rankings.mostVisitedAuthors) add("Ranking", "most_visited_authors", item.name, item.visits);
-  for (const item of report.rankings.trendingTopics) add("Ranking", "trending_topics", item.name, item.views);
+  for (const item of report.rankings.mostViewedAuthors) add("Ranking", "most_viewed_authors", item.name, item.views);
+  for (const item of report.rankings.trendingTopics) add("Ranking", "trending_topics", item.name, item.workViews);
   for (const item of report.distributions.documentTypes) add("Distribution", "document_type", item.label, item.count, "Current snapshot");
   for (const item of report.distributions.requestStatuses) add("Distribution", "request_status", item.status, item.count);
-  for (const [key, definition] of Object.entries(report.metricDefinitions)) add("Definition", key, key, definition, "Canonical definition");
+  for (const [key, definition] of canonicalExportDefinitions(report)) add("Definition", key, key, definition, "Canonical definition");
   return rows;
 }
 
@@ -268,12 +356,12 @@ export async function createPdfReport(report: OperationalReport): Promise<Uint8A
     ...report.series.uploads.map((item) => ["Uploads", "uploads", item.bucket, String(item.count)]),
     ...report.series.repositoryActivity.map((item) => ["Repository activity", "views", item.bucket, String(item.views)]),
     ...report.series.repositoryActivity.map((item) => ["Repository activity", "downloads", item.bucket, String(item.downloads)]),
-    ...report.series.homeVisits.map((item) => ["Home traffic", "guest", item.bucket, String(item.guest)]),
-    ...report.series.homeVisits.map((item) => ["Home traffic", "registered", item.bucket, String(item.registered)]),
+    ...report.series.siteTraffic.map((item) => ["Site traffic", "page_views", item.bucket, String(item.pageViews)]),
+    ...report.series.siteTraffic.map((item) => ["Site traffic", "visits", item.bucket, String(item.visits)]),
   ]);
   drawSection("Rankings", bySection("Ranking"));
   drawSection("Breakdowns", bySection("Distribution"));
-  drawSection("Metric definitions", Object.entries(report.metricDefinitions).map(([key, definition]) => ["Definition", key, definition, ""]));
+  drawSection("Metric definitions", canonicalExportDefinitions(report).map(([key, definition]) => ["Definition", key, definition, ""]));
 
   const pages = pdf.getPages();
   pages.forEach((pdfPage, index) => {

@@ -3,7 +3,7 @@
 import { join } from "../deps.ts";
 import { Context } from "../deps.ts";
 import { saveFile } from "../services/uploadService.ts";
-import { extractPdfMetadata } from "../services/pdfService.ts";
+import { inspectPdfFile } from "../services/abstractExtractionService.ts";
 import { createUploaderHashCode } from "../utils/uploaderHash.ts";
 
 export interface UploadPolicy {
@@ -236,16 +236,30 @@ export async function handleFileUpload(ctx: Context, policy: UploadPolicy = {}):
       }
     }
     
-    // Extract metadata if it's a PDF file
+    // Inspect PDF structure synchronously, but defer abstract extraction to the
+    // durable worker so uploads never store guesses or block on OCR.
     let metadata = null;
     const isPdf = getUploadedFileName(file).toLowerCase().endsWith(".pdf");
     
     if (isPdf) {
-            try {
-        metadata = await extractPdfMetadata(fullFilePath);
-              } catch (metadataError: unknown) {
-        const errorMessage = metadataError instanceof Error ? metadataError.message : String(metadataError);
+      const inspection = await inspectPdfFile(fullFilePath);
+      if (!inspection) {
+        await Deno.remove(fullFilePath).catch(() => undefined);
+        ctx.response.status = 422;
+        ctx.response.body = { error: "The PDF could not be inspected. Choose a valid, readable PDF file." };
+        return;
       }
+      if (inspection.encrypted) {
+        await Deno.remove(fullFilePath).catch(() => undefined);
+        ctx.response.status = 422;
+        ctx.response.body = { error: "Password-protected PDFs are not supported." };
+        return;
+      }
+      metadata = {
+        abstract: null,
+        pageCount: inspection.pageCount,
+        abstractExtraction: "deferred",
+      };
     }
     
     // Return response with file path and metadata

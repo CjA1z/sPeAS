@@ -45,7 +45,7 @@ await withTransaction(async (db) => {
       user_document_history, user_compiled_document_history, document_requests,
       document_topics, document_authors, compiled_document_items,
       documents, compiled_documents, topics, users, authors,
-      repository_activity_rollups, page_activity_rollups, author_activity_rollups
+      repository_activity_rollups, page_activity_rollups, author_activity_rollups, site_session_rollups
     RESTART IDENTITY CASCADE
   `);
 
@@ -105,15 +105,20 @@ await withTransaction(async (db) => {
       ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'document', 3, 'registered', 2, 1),
       ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'compiled', 1, 'guest', 3, 0),
       ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'document', 4, 'approved_request', 0, 2);
-    INSERT INTO page_activity_rollups (grain, bucket_start, page_key, audience, visit_count) VALUES
-      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'guest', 5),
-      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'registered', 2),
-      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'guest', 5),
-      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'registered', 2);
-    INSERT INTO author_activity_rollups (grain, bucket_start, author_id, audience, visit_count) VALUES
-      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '00000000-0000-4000-8000-000000000001', 'guest', 5),
-      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '00000000-0000-4000-8000-000000000001', 'guest', 5);
-    UPDATE operational_analytics_state SET writes_enabled = TRUE, reads_enabled = TRUE WHERE state_id = TRUE;
+    INSERT INTO page_activity_rollups (grain, bucket_start, page_key, audience, view_count, visit_count) VALUES
+      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'guest', 5, 5),
+      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'registered', 2, 2),
+      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'guest', 5, 5),
+      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '/', 'registered', 2, 2);
+    INSERT INTO author_activity_rollups (grain, bucket_start, author_id, audience, view_count, visit_count) VALUES
+      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '00000000-0000-4000-8000-000000000001', 'guest', 5, 5),
+      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', '00000000-0000-4000-8000-000000000001', 'guest', 5, 5);
+    INSERT INTO site_session_rollups (grain, bucket_start, audience, session_count) VALUES
+      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'guest', 2),
+      ('day', DATE_TRUNC('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'registered', 1),
+      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'guest', 2),
+      ('hour', DATE_TRUNC('hour', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila') AT TIME ZONE 'Asia/Manila', 'registered', 1);
+    UPDATE operational_analytics_state SET writes_enabled = TRUE, reads_enabled = TRUE, traffic_v3_writes_enabled = TRUE, traffic_v3_reads_enabled = TRUE, traffic_v3_started_at = CURRENT_TIMESTAMP WHERE state_id = TRUE;
   `);
 });
 

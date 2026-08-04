@@ -15,6 +15,7 @@ import { client } from "../db/denopost_conn.ts";
 import { SystemLogsModel } from "../models/systemLogsModel.ts";
 import { canViewDocument } from "../services/contentAuthorizationService.ts";
 import { getDocumentClassification } from "../services/documentClassificationService.ts";
+import { abstractTargetResolved, currentTargetStatus } from "../services/abstractWorkflowService.ts";
 import { recordRepositoryActivity } from "../services/operationalReportingService.ts";
 
 const DOCUMENT_FILE_FIELD_NAMES = new Set([
@@ -589,6 +590,11 @@ const reviewDocument = async (ctx: RouterContext<any, any, any>) => {
     const publish = decision === "approved" && body.publish === true;
     const reviewerId = String(ctx.state.user.id);
     if (decision === "approved") {
+        if (!(await abstractTargetResolved("document", id))) {
+            ctx.response.status = 422;
+            ctx.response.body = { error: "Resolve the abstract review before approving this document.", unresolvedTargets: [{ targetType: "document", targetId: id, status: await currentTargetStatus("document", id) }] };
+            return;
+        }
         const classification = await getDocumentClassification(id, false);
         if (!classification.complete) {
             ctx.response.status = 422;

@@ -19,7 +19,7 @@ FROM denoland/deno:2.7.13
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends poppler-utils webp ffmpeg \
+  && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-fil webp ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 COPY . .

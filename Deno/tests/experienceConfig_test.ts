@@ -5,7 +5,7 @@ import {
   EXPERIENCE_ORGANIZATION_ROLE_IDS,
   ExperienceOrganizationRolesSchema,
   getExperiencePublishErrors,
-  migrateExperienceConfigV1ToV2,
+  migrateExperienceConfigToV3,
 } from "../shared/experienceConfig.ts";
 
 Deno.test("v1 experience content migrates while layout and theme stay locked", () => {
@@ -18,14 +18,61 @@ Deno.test("v1 experience content migrates while layout and theme stay locked", (
   hero.props.primaryHref = "https://attacker.example";
   input.pages.landing.data.content.push({ type: "AnnouncementBanner", props: { text: "Injected" } });
 
-  const migrated = migrateExperienceConfigV1ToV2(input);
-  assertEquals(migrated.schemaVersion, 2);
+  const migrated = migrateExperienceConfigToV3(input);
+  assertEquals(migrated.schemaVersion, 3);
   assertEquals("theme" in migrated, false);
   assertEquals(migrated.pages.landing.data.content.map((block) => block.type), defaultExperienceConfig.pages.landing.data.content.map((block) => block.type));
   const migratedHero = migrated.pages.landing.data.content.find((block) => block.type === "HeroBlock")!;
   assertEquals(migratedHero.props.title, "Approved new title");
   assertEquals("primaryHref" in migratedHero.props, false);
   assertEquals(migratedHero.props.variant, "background-slideshow");
+});
+
+Deno.test("v2 content receives exactly one overview immediately after the hero", () => {
+  const input = structuredClone(defaultExperienceConfig) as any;
+  input.schemaVersion = 2;
+  input.pages.landing.data.content = input.pages.landing.data.content.filter((block: any) => block.type !== "OverviewBlock");
+
+  const migrated = migrateExperienceConfigToV3(input);
+  assertEquals(migrated.schemaVersion, 3);
+  const landingTypes = migrated.pages.landing.data.content.map((block) => block.type);
+  assertEquals(landingTypes.filter((type) => type === "OverviewBlock").length, 1);
+  assertEquals(landingTypes.slice(0, 2), ["HeroBlock", "OverviewBlock"]);
+
+  const overview = migrated.pages.landing.data.content.find((block) => block.type === "OverviewBlock")!;
+  assertEquals(overview.props.id, "peas-overview");
+  assertEquals(overview.props.ctaHref, "/pages/searchResultsPage.html");
+});
+
+Deno.test("overview migration preserves approved copy and locks structure", () => {
+  const input = structuredClone(defaultExperienceConfig) as any;
+  input.schemaVersion = 3;
+  const overview = input.pages.landing.data.content.find((block: any) => block.type === "OverviewBlock");
+  overview.props.eyebrow = "A tailored overview";
+  overview.props.title = "A shorter title";
+  overview.props.summary = "A concise explanation of the repository.";
+  overview.props.pillars = [
+    { id: "access", label: "Changed access label", description: "Approved access copy." },
+    { id: "preserve", label: "Changed preserve label", description: "Approved preserve copy." },
+    { id: "injected", label: "Injected", description: "Must be discarded." },
+  ];
+  overview.props.ctaLabel = "Injected CTA";
+  overview.props.ctaHref = "javascript:alert(1)";
+  overview.props.visualStyle = "custom-shader";
+
+  const migrated = migrateExperienceConfigToV3(input);
+  const migratedOverview = migrated.pages.landing.data.content.find((block) => block.type === "OverviewBlock")!;
+  assertEquals(migratedOverview.props.eyebrow, "A tailored overview");
+  assertEquals(migratedOverview.props.title, "A shorter title");
+  assertEquals(migratedOverview.props.summary, "A concise explanation of the repository.");
+  assertEquals(migratedOverview.props.pillars, [
+    { id: "preserve", label: "Preserve", description: "Approved preserve copy." },
+    { id: "discover", label: "Discover", description: "Connects readers with research through structured metadata, authors, topics, keywords, and collection filters." },
+    { id: "access", label: "Access", description: "Approved access copy." },
+  ]);
+  assertEquals(migratedOverview.props.ctaLabel, "Explore the repository");
+  assertEquals(migratedOverview.props.ctaHref, "/pages/searchResultsPage.html");
+  assertEquals(migratedOverview.props.visualStyle, "archive-rings");
 });
 
 Deno.test("hero keeps four stable slideshow slots while accepting replacements", () => {
@@ -36,7 +83,7 @@ Deno.test("hero keeps four stable slideshow slots while accepting replacements",
     alt: "Replacement for the first hero photo",
   }];
 
-  const migrated = migrateExperienceConfigV1ToV2(input);
+  const migrated = migrateExperienceConfigToV3(input);
   const migratedHero = migrated.pages.landing.data.content.find((block) => block.type === "HeroBlock")!;
   const images = migratedHero.props.images as Array<{ url: string; alt: string }>;
 
@@ -56,7 +103,7 @@ Deno.test("fixed quick-link destinations and agenda vocabulary cannot be changed
   quickLinks.props.links = [{ label: "Changed", description: "Changed", href: "javascript:alert(1)" }];
   const agenda = input.pages.landing.data.content.find((block: any) => block.type === "ResearchAgendaBlock");
   agenda.props.items = [{ text: "Legacy item must not be retained" }];
-  const migrated = migrateExperienceConfigV1ToV2(input);
+  const migrated = migrateExperienceConfigToV3(input);
   const nextQuickLinks = migrated.pages.landing.data.content.find((block) => block.type === "QuickLinksBlock")!;
   const nextAgenda = migrated.pages.landing.data.content.find((block) => block.type === "ResearchAgendaBlock")!;
   assertEquals((nextQuickLinks.props.links as any[])[0].href, "#mission");
@@ -102,7 +149,7 @@ Deno.test("organization roles keep fixed identity, order, and group classificati
     group: false,
   });
 
-  const migrated = migrateExperienceConfigV1ToV2(input);
+  const migrated = migrateExperienceConfigToV3(input);
   const migratedChart = migrated.pages.landing.data.content.find((block) =>
     block.type === "ImageFeatureBlock" && block.props.id === "org-chart"
   )!;
@@ -130,8 +177,8 @@ Deno.test("organization roles keep fixed identity, order, and group classificati
     photo: "/storage/site-branding/team/director.webp",
     photoAlt: "Dr. Ada Paul in university attire",
     group: false,
-    summary: "Coordinates the university research and publication program.",
   });
+  assertEquals("summary" in migratedDirector, false);
   assertEquals(migratedPresident, EXPERIENCE_DEFAULT_ORGANIZATION_ROLES[0]);
   ExperienceOrganizationRolesSchema.parse(migratedRoles);
 });
@@ -143,7 +190,7 @@ Deno.test("organization role migration supplies defaults and rejects unapproved 
     block.type === "ImageFeatureBlock" && block.props.id === "org-chart"
   );
   delete legacyChart.props.roles;
-  const migratedLegacy = migrateExperienceConfigV1ToV2(legacy);
+  const migratedLegacy = migrateExperienceConfigToV3(legacy);
   const migratedLegacyChart = migratedLegacy.pages.landing.data.content.find((
     block,
   ) => block.type === "ImageFeatureBlock" && block.props.id === "org-chart")!;
@@ -158,7 +205,7 @@ Deno.test("organization role migration supplies defaults and rejects unapproved 
   );
   chart.props.roles.find((role: any) => role.id === "president").photo =
     "https://attacker.example/president.png";
-  const migrated = migrateExperienceConfigV1ToV2(input);
+  const migrated = migrateExperienceConfigToV3(input);
   const migratedChart = migrated.pages.landing.data.content.find((block) =>
     block.type === "ImageFeatureBlock" && block.props.id === "org-chart"
   )!;

@@ -24,6 +24,12 @@ export function validateCompiledYearRange(startYear: unknown, endYear: unknown):
   return errors;
 }
 
+export function validateCompiledVolume(volume: unknown): string | undefined {
+  const text = typeof volume === "number" ? String(volume) : typeof volume === "string" ? volume.trim() : "";
+  if (!/^[1-9]\d*$/u.test(text)) return "Enter a positive volume number.";
+  return undefined;
+}
+
 function normalizeYear(value: unknown): number | null {
   const text = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
   if (!/^\d{4}$/u.test(text)) return null;
