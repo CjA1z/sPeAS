@@ -32,6 +32,14 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/author-visits/stats", (route) => route.fulfill({ json: { success: true, topAuthors: [] } }));
   await page.route("**/api/document-requests", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/admin/notifications", (route) => route.fulfill({ json: { notifications: [{ id: 1, type: "author_profile_incomplete", entityType: "author", entityId: "author-1", severity: "urgent", title: "Complete author profile", message: "Incomplete Author is missing directory information.", actionPath: "/admin/Components/author-list.html?author=author-1&action=complete", isRead: false, resolved: false, createdAt: "2026-08-01T00:00:00.000Z" }], summary: { total: 1, unread: 1, urgent: 1 } } }));
+  await page.route("**/api/admin/auth/microsoft-status", (route) => route.fulfill({ json: {
+    enabled: false,
+    clientIdConfigured: false,
+    clientSecretConfigured: false,
+    tenantIdConfigured: false,
+    allowedEmailDomain: "spud.edu.ph",
+    callbackUrl: "http://localhost:8000/api/auth/callback/microsoft",
+  } }));
 });
 
 test("admin notification bell exposes urgent author action", async ({ page }) => {
@@ -58,6 +66,39 @@ test("admin can clear the current notifications without touching their source re
   await expect.poll(() => cleared).toBe(true);
   await expect(page.getByText("You’re all caught up.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
+});
+
+test("classification management keeps mobile agenda actions contained", async ({ page }) => {
+  await page.route("**/api/admin/research-agendas", (route) => route.fulfill({ json: [
+    { id: 1, name: "Paulinian Spirituality/Identity and its impact to international community and global partnerships", isActive: true, sortOrder: 1, documentCount: 0, primaryDocumentCount: 0 },
+    { id: 2, name: "Paulinian Mission / Vision / Philosophy / Goals", isActive: true, sortOrder: 2, documentCount: 0, primaryDocumentCount: 0 },
+  ] }));
+  await page.route("**/api/admin/topics?*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/admin/keywords", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/admin/classification/summary", (route) => route.fulfill({ json: { missingDocuments: 5, pendingMigration: 0 } }));
+  await page.route("**/api/admin/classification/migration-review?*", (route) => route.fulfill({ json: [] }));
+
+  await page.setViewportSize({ width: 400, height: 783 });
+  await page.goto("/admin/Components/classification-management.html");
+  await expect(page.getByRole("heading", { name: "Classification Management" })).toBeVisible();
+  await expect(page.getByText("Paulinian Spirituality/Identity", { exact: false })).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const header = document.querySelector<HTMLElement>(".peas-classification-management > .peas-admin-page-header")!;
+    const actions = [...document.querySelectorAll<HTMLElement>(".peas-classification-row__actions")].map((element) => {
+      const box = element.getBoundingClientRect();
+      return { left: box.left, right: box.right };
+    });
+    return {
+      headerPosition: getComputedStyle(header).position,
+      actions,
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+
+  expect(metrics.headerPosition).toBe("static");
+  expect(metrics.actions.every((action) => action.left >= 0 && action.right <= 400)).toBe(true);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(400);
 });
 
 test("admin shell uses solid surfaces and an accessible profile menu", async ({ page }) => {
@@ -196,6 +237,18 @@ test("settings exposes the administrator tools and owns their navigation state",
   await expect(navigation.getByRole("link", { name: "Settings" })).toHaveClass(/is-active/);
 });
 
+test("settings explains Microsoft sign-in setup and reports server readiness", async ({ page }) => {
+  await page.goto("/admin/Components/admin_settings.html");
+
+  const setup = page.locator(".peas-microsoft-setup");
+  await expect(setup.getByRole("heading", { name: "Enable Microsoft sign-in" })).toBeVisible();
+  await expect(setup.getByText("Needs setup", { exact: true })).toBeVisible();
+  await expect(setup.getByText("0 of 3 values detected", { exact: true })).toBeVisible();
+  await expect(setup.getByText("MICROSOFT_CLIENT_SECRET", { exact: true })).toBeVisible();
+  await expect(setup.getByText("http://localhost:8000/api/auth/callback/microsoft", { exact: true })).toBeVisible();
+  await expect(setup.getByRole("link", { name: /Open Microsoft Entra admin center/ })).toHaveAttribute("href", "https://entra.microsoft.com/");
+});
+
 test("collapsed navigation identifies icon-only controls with tooltips", async ({ page }) => {
   await page.goto("/admin/Components/documents_list.html");
   const upload = page.getByRole("link", { name: "Upload Document" });
@@ -223,10 +276,18 @@ test("collapsed navigation identifies icon-only controls with tooltips", async (
 
 test("dashboard visit total is always derived from its visible parts", async ({ page }) => {
   await page.goto("/admin/dashboard.html");
-  const visitCard = page.locator(".peas-dashboard-kpi").filter({ hasText: "Home visits · last 30 days" });
+  const visitCard = page.locator(".peas-dashboard-kpi").filter({ hasText: "Visits · last 30 days" });
   await expect(visitCard.locator("strong")).toHaveText("5");
-  await expect(visitCard).toContainText("2 guest + 3 registered-user visits");
+  await expect(visitCard).not.toContainText("2 guest + 3 registered-reader visits");
   await expect(visitCard).not.toContainText("999");
+  await expect(page.locator(".peas-dashboard-kpi small")).toHaveCount(0);
+  await expect(page.locator(".peas-dashboard-kpi__help")).toHaveCount(6);
+
+  await visitCard.getByRole("button", { name: "About Visits · last 30 days" }).focus();
+  await expect(page.getByRole("tooltip")).toContainText("2 guest + 3 registered-reader visits");
+
+  const cardHeight = await visitCard.evaluate((element) => element.getBoundingClientRect().height);
+  expect(cardHeight).toBeLessThan(120);
 });
 
 test("permission date filters have an explicit empty state", async ({ page }) => {
@@ -235,6 +296,61 @@ test("permission date filters have an explicit empty state", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Clear dates" })).toHaveCount(0);
   await expect(page.getByLabel("From date")).toHaveValue("");
   await expect(page.getByLabel("To date")).toHaveValue("");
+});
+
+test("permission details link to the requested collection with a green action", async ({ page }) => {
+  await page.unroute("**/api/document-requests");
+  await page.route("**/api/document-requests", (route) => route.fulfill({ json: [{
+    id: 17,
+    document_id: "53",
+    record_type: "compiled",
+    full_name: "Maria Santos",
+    email: "maria@example.com",
+    affiliation: "SPUD",
+    reason: "Academic research",
+    reason_details: "Reviewing the collection",
+    status: "pending",
+    created_at: "2026-08-05T00:00:00.000Z",
+    book_title: "CONFLUENCE Vol. 2",
+  }] }));
+
+  await page.goto("/admin/Components/document-permissions.html");
+  await page.getByRole("button", { name: "View request details" }).click();
+
+  const link = page.getByRole("link", { name: "View Document" });
+  await expect(link).toHaveAttribute("href", "/pages/user-compiled.html?id=53");
+  await expect(link).toHaveClass(/peas-ui-button--default/);
+  await expect(link).not.toHaveClass(/peas-ui-button--outline/);
+});
+
+test("approving a request delegates reviewer identity and confirms magic-link delivery", async ({ page }) => {
+  await page.unroute("**/api/document-requests");
+  await page.route("**/api/document-requests", (route) => route.fulfill({ json: [{
+    id: 18,
+    document_id: "54",
+    record_type: "document",
+    full_name: "Ana Reyes",
+    email: "ana@example.com",
+    affiliation: "SPUD",
+    reason: "Academic research",
+    reason_details: "Thesis review",
+    status: "pending",
+    created_at: "2026-08-05T00:00:00.000Z",
+    book_title: "Community Study",
+  }] }));
+
+  let approvalBody: Record<string, unknown> | null = null;
+  await page.route("**/api/document-requests/18/status", async (route) => {
+    approvalBody = route.request().postDataJSON();
+    await route.fulfill({ json: { success: true, emailSent: true, recordType: "document" } });
+  });
+
+  await page.goto("/admin/Components/document-permissions.html");
+  await page.getByRole("button", { name: "Approve request" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Approve", exact: true }).click();
+
+  await expect.poll(() => approvalBody).toEqual({ status: "approved" });
+  await expect(page.getByText("Ana Reyes was emailed a secure access link.")).toBeVisible();
 });
 
 test("standard admin layouts stay aligned and overflow-free", async ({ page }) => {
@@ -323,15 +439,15 @@ async function waitForWorkspace(page: Page) {
 
 function canonicalStats() {
   return {
-    meta: { generatedAt: "2026-08-03T00:00:00.000Z", timezone: "Asia/Manila", range: { key: "30d", label: "Last 30 days", startInclusive: "2026-07-04T00:00:00.000Z", endExclusive: "2026-08-03T00:00:00.000Z", bucket: "day" }, activityCoverageStartedAt: "2026-07-04T00:00:00.000Z" },
+    meta: { generatedAt: "2026-08-03T00:00:00.000Z", timezone: "Asia/Manila", range: { key: "30d", label: "Last 30 days", startInclusive: "2026-07-04T00:00:00.000Z", endExclusive: "2026-08-03T00:00:00.000Z", bucket: "day" }, activityCoverageStartedAt: "2026-07-04T00:00:00.000Z", trafficV3StartedAt: "2026-08-01T00:00:00.000Z" },
     inventory: { catalogEntries: 3, storedDocuments: 4, archivedCatalogEntries: 1, archivedDocuments: 1, authorRecords: 14, publishedAuthors: 10 },
     workflow: { pendingUploads: 2, pendingAccessRequests: 1 },
-    activity: { uploadedEntries: 8, repositoryViews: 15, repositoryDownloads: 7, guestViews: 5, registeredViews: 10, approvedRequestDownloads: 1, activeRegisteredUsers: 4, homeVisits: { total: 5, guest: 2, registered: 3 } },
-    series: { uploads: [{ bucket: "2026-07-31", count: 2 }], repositoryActivity: [{ bucket: "2026-07-31", views: 5, downloads: 2 }], homeVisits: [{ bucket: "2026-07-31", guest: 2, registered: 3, total: 5 }] },
-    rankings: { mostViewedEntries: [], mostDownloadedEntries: [], mostVisitedAuthors: [], trendingTopics: [] },
+    activity: { sitePageViews: { total: 15, guest: 7, registered: 8 }, siteVisits: { total: 5, guest: 2, registered: 3 }, homePageViews: { total: 5, guest: 2, registered: 3 }, uploadedEntries: 8, repositoryViews: 15, repositoryDownloads: 7, guestRepositoryViews: 5, registeredRepositoryViews: 10, authorProfileViews: 4, topicWorkViews: 9, guestViews: 5, registeredViews: 10, approvedRequestDownloads: 1, activeRegisteredUsers: 4, activeRegisteredReaders: 4, homeVisits: { total: 5, guest: 2, registered: 3 } },
+    series: { uploads: [{ bucket: "2026-07-31", count: 2 }], repositoryActivity: [{ bucket: "2026-07-31", views: 5, downloads: 2 }], homeVisits: [{ bucket: "2026-07-31", guest: 2, registered: 3, total: 5 }], siteTraffic: [{ bucket: "2026-07-31", pageViews: 15, visits: 5, guestPageViews: 7, registeredPageViews: 8, guestVisits: 2, registeredVisits: 3 }] },
+    rankings: { mostViewedEntries: [], mostDownloadedEntries: [], mostVisitedAuthors: [], mostViewedAuthors: [], trendingTopics: [] },
     distributions: { documentTypes: [{ label: "THESIS", count: 2 }, { label: "CONFLUENCE", count: 1 }], requestStatuses: [{ status: "pending", count: 1 }] },
     registeredReaderSummary: { activeUsers: 4, views: 10, downloads: 7, averageInteractionsPerActiveUser: 4.25 },
-    metricDefinitions: { catalog_entries: "Active top-level repository entries.", stored_documents: "Active document records, including compilation studies.", archived_catalog_entries: "Archived top-level repository entries.", author_records: "All author directory records." },
+    metricDefinitions: { catalog_entries: "Active top-level repository entries.", stored_documents: "Active document records, including compilation studies.", archived_catalog_entries: "Archived top-level repository entries.", author_records: "All author directory records.", site_page_views: "Page loads.", site_visits: "Sessions.", active_registered_readers: "Distinct signed-in readers." },
     active_documents: 4,
     archived_documents: 1,
     total_documents: 5,

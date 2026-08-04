@@ -10,6 +10,10 @@ export interface PublicResearchAgenda {
 export function fetchPublicResearchAgendas(includeHistorical = false) {
   return apiFetch<PublicResearchAgenda[]>(`/api/research-agendas${includeHistorical ? "?include_historical=true" : ""}`);
 }
+
+export function fetchPublicTopic(id: number) {
+  return apiFetch<{ id: number; name: string }>(`/api/topics/${encodeURIComponent(String(id))}`);
+}
 import { fetchCategories, fetchDocuments } from "./documents";
 import type { CategoryCount, DashboardStats, DocumentRecord } from "./types";
 
@@ -43,15 +47,6 @@ export async function fetchPublicHomeData(): Promise<PublicHomeData> {
     trendingKeywords,
     stats,
   };
-}
-
-/** Records one successful public-home mount. The server derives the audience. */
-export function recordHomePageVisit() {
-  return apiFetch<void>("/api/page-visits", {
-    method: "POST",
-    keepalive: true,
-    json: { pageUrl: window.location.pathname },
-  });
 }
 
 export async function fetchTrendingKeywords(): Promise<string[]> {

@@ -28,17 +28,15 @@ export function requestDocumentAccess(payload: AccessRequest) {
 export function updatePermissionRequestStatus({
   id,
   status,
-  reviewedBy,
   reviewNotes,
 }: {
   id: number;
   status: "approved" | "rejected";
-  reviewedBy: string;
   reviewNotes?: string;
 }) {
   return apiFetch<Record<string, unknown>>(`/api/document-requests/${id}/status`, {
     method: "PATCH",
-    json: { status, reviewedBy, reviewNotes },
+    json: { status, reviewNotes },
   });
 }
 
@@ -70,9 +68,13 @@ export function sendRejectionEmail(request: DocumentRequestRecord, reason: strin
 }
 
 function normalizeDocumentRequest(raw: Record<string, unknown>): DocumentRequestRecord {
+  const recordType = String(raw.record_type ?? raw.recordType ?? "").toLowerCase();
+  const isCompiled = recordType === "compiled" || raw.is_entire_collection === true || raw.isEntireCollection === true;
+
   return {
     id: Number(raw.id),
     documentId: String(raw.document_id ?? raw.documentId ?? ""),
+    recordType: isCompiled ? "compiled" : "document",
     fullName: String(raw.full_name ?? raw.fullName ?? raw.name ?? "Unknown requester"),
     email: String(raw.email ?? ""),
     affiliation: String(raw.affiliation ?? ""),

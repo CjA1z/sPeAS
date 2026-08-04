@@ -17,7 +17,7 @@
     "test:admin": "playwright test -c app-ui/playwright.admin.config.ts",
     "test:reporting:ui": "playwright test -c app-ui/playwright.admin.config.ts --grep @reporting",
     "test:reporting-ui": "playwright test -c app-ui/playwright.admin.config.ts --grep @reporting",
-    "test:reporting:unit": "cd Deno && deno test --allow-env --allow-read tests/operationalReporting_test.ts tests/reportingContract_test.ts tests/reportingExport_test.ts",
+    "test:reporting:unit": "cd Deno && deno test --allow-env --allow-read tests/operationalReporting_test.ts tests/reportingContract_test.ts tests/reportingExport_test.ts tests/topActivityReporting_test.ts",
     "test:reporting:db": "node scripts/run-reporting-db-test.mjs",
     "test:reporting:routes": "cd Deno && deno test --allow-env --allow-read tests/reportingRoutes_test.ts",
     "codex:resets": "node scripts/codex-reset-status.mjs",

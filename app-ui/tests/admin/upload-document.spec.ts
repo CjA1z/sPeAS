@@ -153,6 +153,17 @@ test.describe("guided upload workflow", () => {
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Study details" })).toBeVisible();
     await expect(page.getByText("Study 1", { exact: true })).toBeVisible();
+    const studyAuthorsField = page.locator('[data-upload-field$=".authors"]');
+    await expect(studyAuthorsField).toBeVisible();
+    await expect(studyAuthorsField).not.toContainText("Optional");
+    const studyTitleBox = await page.getByLabel("Study title").first().boundingBox();
+    const studyAuthorsBox = await page.getByRole("combobox", { name: "Add author" }).boundingBox();
+    expect(studyTitleBox).not.toBeNull();
+    expect(studyAuthorsBox).not.toBeNull();
+    expect(studyAuthorsBox!.x).toBeCloseTo(studyTitleBox!.x, 0);
+    expect(studyAuthorsBox!.width).toBeCloseTo(studyTitleBox!.width, 0);
+    await page.getByRole("combobox", { name: "Add author" }).click();
+    await page.getByRole("option", { name: "Juan Dela Cruz" }).click();
     await page.getByRole("button", { name: "Add study" }).click();
     await expect(page.getByText("Study 2", { exact: true })).toBeVisible();
 

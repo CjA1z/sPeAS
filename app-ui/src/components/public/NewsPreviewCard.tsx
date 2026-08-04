@@ -5,16 +5,17 @@ import type { NewsPost } from "../../lib/api/news";
 
 const NEWS_NAVIGATION_DELAY_MS = 220;
 
-export function NewsPreviewCard({ post, index = 0, transitionOnNavigate = false }: {
+export function NewsPreviewCard({ post, index = 0, transitionOnNavigate = false, variant = "default" }: {
   post: NewsPost;
   index?: number;
   transitionOnNavigate?: boolean;
+  variant?: "default" | "compact";
 }) {
   const href = `/news.html?slug=${encodeURIComponent(post.slug)}`;
   const titleId = `news-card-title-${post.id}`;
 
   return (
-    <motion.article className="peas-news-card" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+    <motion.article className={`peas-news-card${variant === "compact" ? " peas-news-card--compact" : ""}`} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
       <a
         className="peas-news-card__link"
         href={href}

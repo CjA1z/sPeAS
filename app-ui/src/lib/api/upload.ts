@@ -9,7 +9,8 @@ export interface UploadedFileResult {
   originalName?: string;
   size?: number;
   metadata?: {
-    abstract?: string;
+    abstract: null;
+    abstractExtraction?: "deferred";
     pageCount?: number;
     pages?: number;
     [key: string]: unknown;

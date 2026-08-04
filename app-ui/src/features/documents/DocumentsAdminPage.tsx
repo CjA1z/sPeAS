@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, CheckCircle2, ExternalLink, FileWarning, RefreshCw, Save, X, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, ExternalLink, FileWarning, RefreshCw, Save, X, XCircle, ChevronLeft, ChevronRight, Minus, Plus, Maximize2, Minimize2, Search, Home } from "lucide-react";
+import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { AnimatePresence } from "motion/react";
 import { DocumentAuthorPicker } from "../../components/forms/DocumentAuthorPicker";
 import { DocumentClassificationEditor, type DocumentClassificationEditorValue } from "../../components/forms/DocumentClassificationEditor";
-import { archiveDocument, fetchCategories, fetchChildDocuments, fetchDocuments, reviewDocument, updateDocumentMetadata } from "../../lib/api/documents";
+import { archiveDocument, fetchAbstractReviews, fetchCategories, fetchChildDocuments, fetchDocuments, retryAbstractReview, reviewDocument, updateAbstractReview, updateDocumentMetadata, type AbstractReviewItem } from "../../lib/api/documents";
 import { fetchAuthors } from "../../lib/api/authors";
 import { fetchDocumentClassification, fetchResearchAgendas, linkDocumentAuthors, updateDocumentClassification } from "../../lib/api/upload";
 import { updateCompiledDocument as updateCompiledDocumentRecord } from "../../lib/api/compiled-documents";
+import { CompiledWorkPreviewDialog } from "./CompiledWorkPreviewDialog";
 import { getErrorMessage } from "../../lib/api/http";
 import type { AuthorRecord, CategoryCount, DocumentFilterState, DocumentRecord } from "../../lib/api/types";
 import type { DocumentAuthorSelection } from "../../lib/authorSelection";
@@ -42,6 +45,8 @@ import { PeasToaster, toast } from "../../components/ui/toast";
 import { DocumentToolbar } from "./DocumentToolbar";
 import { AdminPageHeader } from "../../components/layout/AdminPageHeader";
 
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
 const PAGE_SIZE = 10;
 
 const DEFAULT_DOCUMENT_FILTER: DocumentFilterState = {
@@ -72,6 +77,7 @@ export function DocumentsAdminPage() {
   const [editTarget, setEditTarget] = useState<DocumentRecord | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [reviewBusyId, setReviewBusyId] = useState<number | null>(null);
+  const [abstractReviewTarget, setAbstractReviewTarget] = useState<DocumentRecord | null>(null);
   const requestIdRef = useRef(0);
 
   const queryFilter = useMemo(
@@ -337,7 +343,10 @@ export function DocumentsAdminPage() {
                   )}
                   {document.reviewStatus === "pending_review" ? (
                     <div className="peas-review-actions">
-                      <div><strong>Pending administrator review</strong><span>Choose whether this upload remains private or becomes publicly visible.</span></div>
+                      <div><strong>Pending administrator review</strong><span>Resolve required abstracts before publishing. The record remains private while extraction is running.</span></div>
+                      <Button size="sm" variant="outline" onClick={() => setAbstractReviewTarget(document)}>
+                        <FileWarning aria-hidden="true" /> Review abstracts
+                      </Button>
                       <Button size="sm" variant="outline" disabled={reviewBusyId === document.id} onClick={() => void handleReview(document, "rejected")}>
                         <XCircle aria-hidden="true" /> Reject
                       </Button>
@@ -385,8 +394,137 @@ export function DocumentsAdminPage() {
       />
 
       <PdfPreviewDialog document={previewTarget} onOpenChange={(open) => !open && setPreviewTarget(null)} />
+
+      <AbstractReviewDialog
+        document={abstractReviewTarget}
+        onOpenChange={(open) => {
+          if (!open) setAbstractReviewTarget(null);
+        }}
+        onResolved={() => setReloadKey((current) => current + 1)}
+      />
     </main>
   );
+}
+
+function AbstractReviewDialog({
+  document,
+  onOpenChange,
+  onResolved,
+}: {
+  document: DocumentRecord | null;
+  onOpenChange: (open: boolean) => void;
+  onResolved: () => void;
+}) {
+  const [items, setItems] = useState<AbstractReviewItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!document) {
+      setItems([]);
+      setDrafts({});
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    void fetchAbstractReviews(document.isCompiled ? "compiled" : "document", document.id)
+      .then((result) => {
+        if (!active) return;
+        setItems(result.items);
+        setDrafts(Object.fromEntries(result.items.map((item) => [`${item.targetType}:${item.targetId}`, item.currentAbstract ?? item.candidate ?? ""])));
+      })
+      .catch((error) => toast.error(getErrorMessage(error)))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [document]);
+
+  async function act(item: AbstractReviewItem, action: "accept_candidate" | "save_manual" | "mark_unavailable") {
+    const key = `${item.targetType}:${item.targetId}`;
+    setBusyKey(key);
+    try {
+      const updated = await updateAbstractReview(item.targetType === "compiled_foreword" ? "compiled-foreword" : "document", item.targetId, {
+        action,
+        ...(action === "save_manual" ? { abstract: drafts[key] ?? "" } : {}),
+      });
+      setItems((current) => current.map((entry) => entry.targetType === item.targetType && entry.targetId === item.targetId ? updated : entry));
+      toast.success(action === "mark_unavailable" ? "Abstract marked unavailable." : action === "accept_candidate" ? "Candidate accepted." : "Manual abstract saved.");
+      onResolved();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function retry(item: AbstractReviewItem) {
+    const key = `${item.targetType}:${item.targetId}`;
+    setBusyKey(key);
+    try {
+      await retryAbstractReview(item.targetType === "compiled_foreword" ? "compiled-foreword" : "document", item.targetId);
+      setItems((current) => current.map((entry) => entry.targetType === item.targetType && entry.targetId === item.targetId ? { ...entry, status: "queued", candidate: null, errorCode: null } : entry));
+      toast.success("Abstract extraction queued again.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  return (
+    <Dialog open={Boolean(document)} onOpenChange={onOpenChange}>
+      <DialogContent className="peas-abstract-review-dialog">
+        <DialogHeader>
+          <DialogTitle>Review abstracts</DialogTitle>
+          <DialogDescription>{document?.title ?? "Record"}. Machine-extracted text is private until an administrator accepts it, edits it, or marks it unavailable.</DialogDescription>
+        </DialogHeader>
+        <div className="peas-abstract-review-list" aria-live="polite">
+          {loading ? <PeasInlineSpinner label="Loading abstract review…" /> : null}
+          {!loading && !items.length ? <p>No abstract targets were found for this record.</p> : null}
+          {items.map((item) => {
+            const key = `${item.targetType}:${item.targetId}`;
+            const busy = busyKey === key;
+            const resolved = item.status === "accepted" || item.status === "unavailable";
+            return <section className="peas-abstract-review-item" key={key}>
+              <header><div><h3>{item.title}</h3><p>{item.targetType === "compiled_foreword" ? "Collection foreword" : item.documentType}</p></div><strong>{formatAbstractStatus(item.status)}</strong></header>
+              <p>Source: {item.method}{item.confidence === null ? "" : ` · confidence ${Math.round(item.confidence * 100)}%`}{item.pageStart ? ` · pages ${item.pageStart}–${item.pageEnd ?? item.pageStart}` : ""}</p>
+              {item.qualityFlags.length ? <p>Warnings: {item.qualityFlags.join(", ")}</p> : null}
+              {item.errorCode ? <p>Extraction status: {item.errorCode}</p> : null}
+              <label className="peas-field">
+                <span>Current / edited abstract</span>
+                <Textarea
+                  value={drafts[key] ?? ""}
+                  maxLength={10000}
+                  rows={5}
+                  disabled={busy || resolved}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setDrafts((current) => ({ ...current, [key]: value }));
+                  }}
+                />
+              </label>
+              {item.candidate ? <div className="peas-abstract-review-candidate"><strong>Candidate</strong><p>{item.candidate}</p></div> : null}
+              <div className="peas-review-actions">
+                <Button size="sm" disabled={busy || resolved || !item.candidate} onClick={() => void act(item, "accept_candidate")}>Accept candidate</Button>
+                <Button size="sm" variant="outline" disabled={busy || resolved || !(drafts[key] ?? "").trim()} onClick={() => void act(item, "save_manual")}>Edit and confirm</Button>
+                <Button size="sm" variant="outline" disabled={busy || resolved} onClick={() => void act(item, "mark_unavailable")}>Mark unavailable</Button>
+                <Button size="sm" variant="ghost" disabled={busy || !["failed", "needs_review"].includes(item.status)} onClick={() => void retry(item)}><RefreshCw aria-hidden="true" /> Retry</Button>
+              </div>
+            </section>;
+          })}
+        </div>
+        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatAbstractStatus(status: AbstractReviewItem["status"]): string {
+  return status.replace(/_/gu, " ").replace(/\b\w/gu, (character) => character.toUpperCase());
 }
 
 function ArchiveDocumentDialog({
@@ -724,7 +862,13 @@ function EditDocumentDialog({
   );
 }
 
-function PdfPreviewDialog({
+function PdfPreviewDialog(props: { document: DocumentRecord | null; onOpenChange: (open: boolean) => void }) {
+  return props.document?.isCompiled
+    ? <CompiledWorkPreviewDialog key={props.document.id} document={props.document} onOpenChange={props.onOpenChange} />
+    : <SingularWorkPreviewDialog {...props} />;
+}
+
+function SingularWorkPreviewDialog({
   document,
   onOpenChange,
 }: {
@@ -733,11 +877,13 @@ function PdfPreviewDialog({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
 
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
+    setNotFound(false);
     setFrameKey((current) => current + 1);
   }, [document]);
 
@@ -751,10 +897,11 @@ function PdfPreviewDialog({
               {document ? `${document.authorsText} · ${formatPreviewDate(document.publicationDate)}` : "PDF preview from the current document record."}
             </DialogDescription>
           </div>
-          {document ? <a className="peas-ui-button peas-ui-button--outline peas-ui-button--size-sm" href={`/api/documents/${document.id}/pdf`} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" /> Open in new tab</a> : null}
+          {document ? <a className="peas-ui-button peas-ui-button--outline peas-ui-button--size-sm" href={`/api/documents/${document.id}/download?disposition=inline`} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" /> Open in new tab</a> : null}
         </DialogHeader>
         {document ? (
           failed ? (
+            notFound ? <PdfNotFoundState /> :
             <div className="peas-pdf-dialog__fallback" role="alert">
               <FileWarning aria-hidden="true" />
               <div><strong>Preview unavailable</strong><span>We could not load this PDF preview.</span><Button variant="outline" size="sm" onClick={() => { setFailed(false); setLoaded(false); setFrameKey((current) => current + 1); }}><RefreshCw aria-hidden="true" /> Retry</Button></div>
@@ -762,13 +909,12 @@ function PdfPreviewDialog({
           ) : (
             <div className="peas-pdf-dialog__surface">
               {!loaded ? <PeasInlineSpinner label="Loading PDF preview" /> : null}
-              <iframe
+              <SimplePdfReader
                 key={frameKey}
-                className="peas-pdf-dialog__frame"
-                src={`/api/documents/${document.id}/pdf`}
-                title={`Preview of ${document.title}`}
-                onLoad={() => setLoaded(true)}
-                onError={() => setFailed(true)}
+                documentId={document.id}
+                title={document.title}
+                onLoaded={() => { setLoaded(true); setFailed(false); }}
+                onError={(missing) => { setLoaded(true); setFailed(true); setNotFound(missing); }}
               />
             </div>
           )
@@ -781,6 +927,124 @@ function PdfPreviewDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function PdfNotFoundState() {
+  return <div className="peas-pdf-not-found" role="alert">
+    <div className="peas-pdf-not-found__logos">
+      <img src="/Components/images/spud_logo_s.png" alt="St. Paul University Dumaguete seal" />
+      <img src="/Components/images/peas.png" alt="Office of Research and Publications logo" />
+    </div>
+    <p className="peas-pdf-not-found__eyebrow">HTTP 404 · PAGE NOT FOUND</p>
+    <h2>There is no record at this address.</h2>
+    <p className="peas-pdf-not-found__description">The PDF may have moved, the file may be missing, or the address may contain a typo.</p>
+    <div className="peas-pdf-not-found__actions">
+      <a href="/pages/searchResultsPage.html"><Search aria-hidden="true" /> Search the repository</a>
+      <a href="/index.html"><Home aria-hidden="true" /> Return home</a>
+    </div>
+    <p className="peas-pdf-not-found__hint">If this keeps happening, contact the Office of Research &amp; Publications.</p>
+  </div>;
+}
+
+function SimplePdfReader({ documentId, title, onLoaded, onError }: { documentId: number; title: string; onLoaded: () => void; onError: (notFound: boolean) => void }) {
+  const readerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  const [page, setPage] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
+  const [fullscreen, setFullscreen] = useState(false);
+  const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
+  const onLoadedRef = useRef(onLoaded);
+  const onErrorRef = useRef(onError);
+  onLoadedRef.current = onLoaded;
+  onErrorRef.current = onError;
+
+  useEffect(() => {
+    let active = true;
+    setPdf(null); setPage(1); setZoom(1);
+    getDocument({ url: `/api/documents/${documentId}/download?disposition=inline`, withCredentials: true }).promise
+      .then((loaded) => { if (active) { setPdf(loaded); onLoadedRef.current(); } })
+      .catch((error: unknown) => { if (active) onErrorRef.current(error instanceof Error && ("status" in error ? Number((error as { status?: unknown }).status) === 404 : /404|not found/iu.test(error.message))); });
+    return () => { active = false; };
+  }, [documentId]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !pdf) return;
+    const measure = () => {
+      pdf.getPage(page).then((pdfPage) => {
+        const viewport = pdfPage.getViewport({ scale: 1 });
+        setFitScale(Math.max(0.25, Math.min((stage.clientWidth - 48) / viewport.width, (stage.clientHeight - 48) / viewport.height)));
+      }).catch(() => undefined);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [page, pdf]);
+
+  useEffect(() => {
+    if (!pdf || !canvasRef.current) return;
+    let active = true;
+    const render = async () => {
+      const previousTask = renderTaskRef.current;
+      if (previousTask) {
+        previousTask.cancel();
+        try { await previousTask.promise; } catch { /* cancellation is expected */ }
+        if (!active) return;
+      }
+      const canvas = canvasRef.current;
+      if (!canvas || !active) return;
+      const pdfPage = await pdf.getPage(page);
+      if (!active || !canvasRef.current) return;
+      const viewport = pdfPage.getViewport({ scale: fitScale * zoom });
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.ceil(viewport.width * ratio);
+      canvas.height = Math.ceil(viewport.height * ratio);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      const task = pdfPage.render({ canvas, canvasContext: context, viewport, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined });
+      renderTaskRef.current = task;
+      try { await task.promise; } catch { /* stale/cancelled renders are ignored */ }
+      finally { if (renderTaskRef.current === task) renderTaskRef.current = null; }
+    };
+    void render().catch(() => undefined);
+    return () => {
+      active = false;
+      renderTaskRef.current?.cancel();
+    };
+  }, [fitScale, page, pdf, zoom]);
+
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === readerRef.current);
+    document.addEventListener("fullscreenchange", update);
+    return () => document.removeEventListener("fullscreenchange", update);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await readerRef.current?.requestFullscreen();
+  };
+  const total = pdf?.numPages ?? 0;
+  const actualZoom = fitScale * zoom;
+  return <div ref={readerRef} className="peas-simple-pdf-reader" aria-label={`PDF reader for ${title}`}>
+    <div className="peas-simple-pdf-reader__toolbar" role="toolbar" aria-label="PDF reader controls">
+      <button type="button" aria-label="Previous page" disabled={!pdf || page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft aria-hidden="true" /></button>
+      <label><span className="peas-visually-hidden">Page number</span><input aria-label="Page number" type="number" min={1} max={total || 1} value={page} onChange={(event) => setPage(Math.min(total || 1, Math.max(1, Number(event.currentTarget.value) || 1)))} /><span>of {total || "—"}</span></label>
+      <button type="button" aria-label="Next page" disabled={!pdf || page >= total} onClick={() => setPage((value) => Math.min(total, value + 1))}><ChevronRight aria-hidden="true" /></button>
+      <span className="peas-simple-pdf-reader__divider" aria-hidden="true" />
+      <button type="button" aria-label="Zoom out" disabled={zoom <= 0.7} onClick={() => setZoom((value) => Math.max(0.7, value - 0.1))}><Minus aria-hidden="true" /></button>
+      <output aria-label="Zoom level">{Math.round(actualZoom * 100)}%</output>
+      <button type="button" aria-label="Zoom in" disabled={zoom >= 2} onClick={() => setZoom((value) => Math.min(2, value + 0.1))}><Plus aria-hidden="true" /></button>
+      <button type="button" aria-label="Fit page" aria-pressed={zoom === 1} onClick={() => setZoom(1)}>Fit</button>
+      <button type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} onClick={() => void toggleFullscreen()}>{fullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}</button>
+    </div>
+    <div ref={stageRef} className="peas-simple-pdf-reader__stage"><canvas ref={canvasRef} /></div>
+  </div>;
 }
 
 function formatPreviewDate(value: string | null) {

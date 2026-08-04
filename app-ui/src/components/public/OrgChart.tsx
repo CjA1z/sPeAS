@@ -1,6 +1,4 @@
-import { Fragment, useCallback, useEffect, useId, useMemo, useState, type CSSProperties } from "react";
-import { X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 export type OrgChartRoleContent = {
   id: string;
@@ -10,32 +8,27 @@ export type OrgChartRoleContent = {
   name?: string;
   photo?: string;
   photoAlt?: string;
-  summary?: string;
 };
 
 type OrgRole = {
   id: string;
-  /** Full role title, used in the detail panel and for accessibility. */
+  /** Full role title, shown when it adds information beyond the short label. */
   title: string;
-  /** Short text shown in the name pill until a `name` is set. */
+  /** Compact role label used as the primary heading when no person is set. */
   label: string;
-  /** Small-caps line under the pill. */
+  /** Office or unit shown as a small metadata badge. */
   caption: string;
-  /** Person currently holding the role; replaces `label` in the pill when set. */
+  /** Person currently holding the role. */
   name?: string;
-  /** Portrait shown popping out of the hexagon frame. Use a background-removed
-   *  (transparent PNG) head-and-shoulders cutout so the pop-out reads well.
-   *  Drop the file in Deno/Public/Components/images/team/ and point here,
-   *  e.g. "/Components/images/team/director.png". Falls back to a silhouette. */
+  /** Portrait shown inside the circular avatar frame. */
   photo?: string;
   /** Alternative text supplied by an administrator for an uploaded portrait. */
   photoAlt?: string;
   /** Boards and committees render a group silhouette. */
   group?: boolean;
-  /** Hexagon fill and outer ring colors. */
+  /** Card fill and avatar ring colors. */
   fill: string;
   ring: string;
-  summary: string;
 };
 
 const DEFAULT_CHAIN: OrgRole[] = [
@@ -44,30 +37,24 @@ const DEFAULT_CHAIN: OrgRole[] = [
     title: "University President",
     label: "University President",
     caption: "Administration",
-    fill: "#ffd15c",
-    ring: "#cfe6c2",
-    summary:
-      "Provides overall institutional leadership and sets the strategic direction that the university's research and publication programs support.",
+    fill: "#f5c95d",
+    ring: "#d5e8dc",
   },
   {
     id: "vp-student-affairs",
     title: "Vice President, Student Affairs",
     label: "Vice President",
     caption: "Student Affairs",
-    fill: "#79c9e8",
-    ring: "#d3c4f0",
-    summary:
-      "Oversees the student affairs cluster and ensures the research and publications agenda stays aligned with university priorities.",
+    fill: "#8cc7b3",
+    ring: "#d7e9e0",
   },
   {
     id: "director-orp",
     title: "Director, Office of Research and Publications",
     label: "Director",
     caption: "Research & Publications",
-    fill: "#f4a6c2",
-    ring: "#cfd8f5",
-    summary:
-      "Leads the Office of Research and Publications — coordinating research activity, publication support, and institutional scholarly output.",
+    fill: "#8fc6d6",
+    ring: "#d7e8ec",
   },
 ];
 
@@ -77,192 +64,87 @@ const DEFAULT_UNITS: OrgRole[] = [
     title: "Associate Assistant",
     label: "Associate Assistant",
     caption: "Office Support",
-    fill: "#f8bcd0",
-    ring: "#f3ccd7",
-    summary:
-      "Supports the director in day-to-day operations, records management, and coordination with researchers and university units.",
+    fill: "#d9b8d3",
+    ring: "#eadcea",
   },
   {
     id: "editorial-board",
     title: "Editorial Board",
     label: "Editorial Board",
     caption: "Publications",
-    fill: "#ffb64c",
-    ring: "#f3ccd7",
+    fill: "#f0c36e",
+    ring: "#f2e2c3",
     group: true,
-    summary:
-      "Reviews manuscripts and safeguards the editorial quality of the university's journals and scholarly publications.",
   },
   {
     id: "technical-board",
     title: "Technical Board",
     label: "Technical Board",
     caption: "Research Review",
-    fill: "#ffd15c",
-    ring: "#f3ccd7",
+    fill: "#f5c95d",
+    ring: "#f2e2c3",
     group: true,
-    summary:
-      "Evaluates research design and methodology, providing technical guidance to student and faculty researchers.",
   },
   {
     id: "research-ethics-board",
     title: "Research Ethics Board",
     label: "Research Ethics Board",
     caption: "Ethics Review",
-    fill: "#35b39a",
-    ring: "#f3ccd7",
+    fill: "#84c7b0",
+    ring: "#d7e9e0",
     group: true,
-    summary:
-      "Reviews research protocols to protect the rights and welfare of participants and uphold ethical standards in every study.",
   },
 ];
 
 export function OrgChart({ roles }: { roles?: readonly OrgChartRoleContent[] }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const chartId = useId();
-  const reduceMotion = useReducedMotion();
-  const { chain, units, allRoles } = useMemo(() => mergeRoleContent(roles), [roles]);
-  const selected = allRoles.find((role) => role.id === selectedId) ?? null;
-  const instructionsId = `${chartId}-instructions`;
-  const detailId = `${chartId}-details`;
-  const roleButtonId = useCallback((id: string) => `${chartId}-role-${id}`, [chartId]);
-
-  const toggle = (id: string) => {
-    setSelectedId((current) => (current === id ? null : id));
-  };
-
-  const closeDetails = () => {
-    if (!selectedId) return;
-
-    const triggerId = roleButtonId(selectedId);
-    setSelectedId(null);
-    window.requestAnimationFrame(() => document.getElementById(triggerId)?.focus());
-  };
-
-  useEffect(() => {
-    if (!selectedId) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-
-      const triggerId = roleButtonId(selectedId);
-      setSelectedId(null);
-      window.requestAnimationFrame(() => document.getElementById(triggerId)?.focus());
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [roleButtonId, selectedId]);
+  const { chain, units } = useMemo(() => mergeRoleContent(roles), [roles]);
 
   return (
-    <div className={`peas-org-chart${selected ? " has-detail" : ""}`}>
-      <p className="peas-org-instructions" id={instructionsId}>
-        Select any role to view its responsibilities.
-      </p>
-      <div className={`peas-org-content${selected ? " has-detail" : ""}`}>
-        <div
+    <div className="peas-org-chart">
+      <div className="peas-org-content">
+        <ol
           className="peas-org-tree"
-          role="group"
           aria-label="Organizational chart for the Office of Research and Publications"
-          aria-describedby={instructionsId}
         >
           {chain.map((role, index) => (
             <Fragment key={role.id}>
-              {index > 0 ? <span className="peas-org-link peas-org-link--into" aria-hidden="true" /> : null}
-              <div className="peas-org-row">
-                <OrgNodeButton
-                  role={role}
-                  selected={selectedId === role.id}
-                  onToggle={toggle}
-                  buttonId={roleButtonId(role.id)}
-                  detailId={detailId}
-                />
-              </div>
+              {index > 0 ? <li className="peas-org-link peas-org-link--into" aria-hidden="true" /> : null}
+              <li className="peas-org-row">
+                <OrgNode role={role} />
+              </li>
             </Fragment>
           ))}
 
-          <span className="peas-org-link" aria-hidden="true" />
-          <div className="peas-org-units">
-            {units.map((role) => (
-              <div className="peas-org-unit" key={role.id}>
-                <OrgNodeButton
-                  role={role}
-                  selected={selectedId === role.id}
-                  onToggle={toggle}
-                  buttonId={roleButtonId(role.id)}
-                  detailId={detailId}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {selected ? (
-            <motion.aside
-              className="peas-org-detail"
-              id={detailId}
-              key={selected.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-              aria-live="polite"
-              aria-atomic="true"
-              aria-label={`${selected.title} details`}
-            >
-              <OrgFigure role={selected} />
-              <div className="peas-org-detail__body">
-                <strong>{selected.title}</strong>
-                {selected.name ? <em>{selected.name}</em> : null}
-                <span>{selected.caption}</span>
-                <p>{selected.summary}</p>
-              </div>
-              <button
-                type="button"
-                className="peas-org-detail__close"
-                onClick={closeDetails}
-                aria-label="Close role details"
-              >
-                <X aria-hidden="true" />
-              </button>
-            </motion.aside>
-          ) : null}
-        </AnimatePresence>
+          <li className="peas-org-link" aria-hidden="true" />
+          <li>
+            <ol className="peas-org-units" aria-label="Office units and boards">
+              {units.map((role) => (
+                <li className="peas-org-unit" key={role.id}>
+                  <OrgNode role={role} />
+                </li>
+              ))}
+            </ol>
+          </li>
+        </ol>
       </div>
     </div>
   );
 }
 
-function OrgNodeButton({
-  role,
-  selected,
-  onToggle,
-  buttonId,
-  detailId,
-}: {
-  role: OrgRole;
-  selected: boolean;
-  onToggle: (id: string) => void;
-  buttonId: string;
-  detailId: string;
-}) {
+function OrgNode({ role }: { role: OrgRole }) {
+  const secondaryTitle = role.title.trim() && role.title.trim() !== role.label.trim()
+    ? role.title
+    : "";
+
   return (
-    <button
-      id={buttonId}
-      type="button"
-      className={`peas-org-node${selected ? " is-selected" : ""}`}
-      onClick={() => onToggle(role.id)}
-      aria-expanded={selected}
-      aria-controls={selected ? detailId : undefined}
-      aria-label={`${selected ? "Hide" : "View"} details for ${role.name ? `${role.name}, ${role.title}` : role.title}`}
-    >
+    <article className={`peas-org-node${role.group ? " is-group" : ""}`}>
       <OrgFigure role={role} />
-      <span className="peas-org-node__meta">
-        <span className="peas-org-pill">{role.name ?? role.label}</span>
-        <span className="peas-org-caption">{role.name ? role.label : role.caption}</span>
-      </span>
-    </button>
+      <div className="peas-org-node__meta">
+        <strong className="peas-org-node__name">{role.name || role.label}</strong>
+        {secondaryTitle ? <span className="peas-org-node__title">{secondaryTitle}</span> : null}
+        <span className="peas-org-caption">{role.caption}</span>
+      </div>
+    </article>
   );
 }
 
@@ -276,8 +158,7 @@ function OrgFigure({ role }: { role: OrgRole }) {
       className="peas-org-figure"
       style={{ "--org-fill": role.fill, "--org-ring": role.ring } as CSSProperties}
     >
-      <span className="peas-org-hex peas-org-hex--ring" aria-hidden="true" />
-      <span className="peas-org-hex" aria-hidden="true" />
+      <span className="peas-org-avatar-ring" aria-hidden="true" />
       {role.photo && !broken ? (
         <img
           className="peas-org-person"
@@ -306,13 +187,12 @@ function mergeRoleContent(roles?: readonly OrgChartRoleContent[]) {
       name: optionalText(content.name),
       photo: optionalText(content.photo),
       photoAlt: optionalText(content.photoAlt),
-      summary: editableText(content.summary, role.summary),
     };
   };
 
   const chain = DEFAULT_CHAIN.map(merge);
   const units = DEFAULT_UNITS.map(merge);
-  return { chain, units, allRoles: [...chain, ...units] };
+  return { chain, units };
 }
 
 function editableText(value: unknown, fallback: string) {
@@ -327,15 +207,15 @@ function Silhouette({ group }: { group?: boolean }) {
   if (group) {
     return (
       <svg className="peas-org-person" viewBox="0 0 120 100" aria-hidden="true">
-        <g fill="#4d5a75">
+        <g fill="#365448">
           <circle cx="38" cy="33" r="13" />
           <path d="M14 100 C14 76 25 64 38 64 C51 64 62 76 62 100 Z" />
         </g>
-        <g fill="#42506a">
+        <g fill="#476b5c">
           <circle cx="82" cy="33" r="13" />
           <path d="M58 100 C58 76 69 64 82 64 C95 64 106 76 106 100 Z" />
         </g>
-        <g fill="#2b3648">
+        <g fill="#234638">
           <circle cx="60" cy="34" r="16" />
           <path d="M30 100 C30 78 43 66 60 66 C77 66 90 78 90 100 Z" />
         </g>
@@ -345,7 +225,7 @@ function Silhouette({ group }: { group?: boolean }) {
 
   return (
     <svg className="peas-org-person" viewBox="0 0 100 100" aria-hidden="true">
-      <g fill="#2b3648">
+      <g fill="#234638">
         <circle cx="50" cy="28" r="18" />
         <path d="M14 100 C14 72 30 58 50 58 C70 58 90 72 90 100 Z" />
       </g>

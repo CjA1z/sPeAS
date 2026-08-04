@@ -85,7 +85,7 @@ const navItems: AdminNavigationItem[] = [
 
 const utilityItems: AdminNavigationItem[] = [
   { label: "View Site", href: "/index.html", icon: Home, roles: ["admin", "publisher"] as WorkspaceRole[] },
-  { label: "Operational Reports", href: "/admin/Components/reports.html", icon: ClipboardList, roles: ["admin"] as WorkspaceRole[] },
+  { label: "Operational Reports", href: "/admin/Components/reports.html", icon: ClipboardList, roles: ["admin"] as WorkspaceRole[], activePaths: ["/admin/Components/most-viewed-works.html", "/admin/Components/most-viewed-authors.html", "/admin/Components/trending-topics.html", "/admin/Components/search-analytics.html"] },
   { label: "System Logs", href: "/admin/Components/admin_logs.html", icon: ScrollText, roles: ["admin"] as WorkspaceRole[] },
   {
     label: "Settings",

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, FileSearch, Layers3, LibraryBig, Search, X } from "lucide-react";
+import { ArrowRight, FileSearch, Layers3, LibraryBig, X } from "lucide-react";
 import { motion } from "motion/react";
 import { PeasPagination } from "../../components/data-display/PeasPagination";
 import { PeasErrorState } from "../../components/feedback/PeasStates";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
 import { CategoryIcon } from "../../components/documents/CategoryIcon";
 import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { PublicSearchCombobox } from "../../components/public/PublicSearchCombobox";
 import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Button } from "../../components/ui/button";
@@ -13,7 +14,8 @@ import { fetchCategories, fetchDocuments } from "../../lib/api/documents";
 import { getErrorMessage } from "../../lib/api/http";
 import type { CategoryCount, DocumentsPageResult } from "../../lib/api/types";
 import { CATEGORY_ORDER, getCategoryMeta, normalizeCategory, type DocumentCategory } from "../../lib/constants/categories";
-import { fetchPublicResearchAgendas, type PublicResearchAgenda } from "../../lib/api/public";
+import { fetchPublicResearchAgendas, fetchPublicTopic, type PublicResearchAgenda } from "../../lib/api/public";
+import { consumePendingSearch, markPendingSearch, recordSearchEvent } from "../../lib/api/search";
 
 const PAGE_SIZE = 8;
 
@@ -30,6 +32,7 @@ export function PublicSearchPage() {
   const [page, setPage] = useState(initial.page);
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [researchAgendas, setResearchAgendas] = useState<PublicResearchAgenda[]>([]);
+  const [topicName, setTopicName] = useState("");
   const [result, setResult] = useState<DocumentsPageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -80,15 +83,40 @@ export function PublicSearchPage() {
     loadResults();
   }, [loadResults]);
 
+  useEffect(() => {
+    const topicId = Number(topicFilter);
+    if (!topicFilter || !Number.isSafeInteger(topicId) || topicId <= 0) {
+      setTopicName("");
+      return;
+    }
+    let mounted = true;
+    setTopicName("");
+    fetchPublicTopic(topicId).then((topic) => {
+      if (mounted) setTopicName(topic.name);
+    }).catch(() => {
+      if (mounted) setTopicName("");
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [topicFilter]);
+
+  useEffect(() => {
+    if (loading || !submittedQuery) return;
+    const pending = consumePendingSearch(submittedQuery);
+    if (pending?.source) void recordSearchEvent({ query: submittedQuery, source: pending.source, action: "submit", resultCount: result?.totalCount ?? 0 });
+  }, [loading, result?.totalCount, submittedQuery]);
+
   const totalCount = result?.totalCount ?? 0;
   const visibleCount = result?.documents.length ?? 0;
   const hasFilters = Boolean(submittedQuery || agendaFilter || topicFilter || category !== "All" || sort !== "latest");
+  const agendaName = researchAgendas.find((agenda) => String(agenda.id) === agendaFilter)?.name;
   const resultLabel = submittedQuery
-    ? `Results for “${submittedQuery}”`
+    ? queryMode === "keyword" ? `Keyword “${submittedQuery}”` : `Results for “${submittedQuery}”`
     : agendaFilter
-      ? `Research agenda ${agendaFilter}`
+      ? agendaName ? `Research agenda “${agendaName}”` : "Research agenda"
       : topicFilter
-        ? `Topic ${topicFilter}`
+        ? topicName ? `Topic “${topicName}”` : "Topic"
     : category !== "All"
       ? `${getCategoryMeta(category).label} research`
       : "All repository entries";
@@ -133,43 +161,28 @@ export function PublicSearchPage() {
         <section className="peas-public-search-panel" aria-label="Search filters">
           <form
             className="peas-public-search-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setPage(1);
+              onSubmit={(event) => {
+                event.preventDefault();
+                markPendingSearch(query, "results");
+                setPage(1);
               setQueryMode("search");
               setSubmittedQuery(query.trim());
             }}
           >
             <label className="peas-public-search-form__query">
               <span>Search research</span>
-              <span className="peas-public-search-field">
-                <Search aria-hidden="true" />
-                <input
-                  type="search"
-                  aria-label="Search by title, author, keyword, or topic"
-                  autoComplete="off"
-                  value={query}
-                  onChange={(event) => setQuery(event.currentTarget.value)}
-                  placeholder="Try a title, author, keyword, or topic"
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    aria-label="Clear search"
-                    className="peas-public-search-field__clear"
-                    onClick={() => {
-                      setQuery("");
-                      if (submittedQuery) {
-                        setSubmittedQuery("");
-                        setQueryMode("search");
-                        setPage(1);
-                      }
-                    }}
-                  >
-                    <X aria-hidden="true" />
-                  </button>
-                ) : null}
-              </span>
+              <PublicSearchCombobox
+                value={query}
+                category={category}
+                source="results"
+                onChange={(next) => {
+                  setQuery(next);
+                  if (!next && submittedQuery) { setSubmittedQuery(""); setQueryMode("search"); setPage(1); }
+                }}
+                onSubmit={() => { setPage(1); setQueryMode("search"); setSubmittedQuery(query.trim()); }}
+                ariaLabel="Search by title, author, keyword, or topic"
+                placeholder="Try a title, author, keyword, or topic"
+              />
             </label>
             <label>
               <span>Research agenda</span>

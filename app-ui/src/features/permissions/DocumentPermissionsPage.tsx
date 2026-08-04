@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Eye, FileText, MailWarning, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
-import { fetchSession } from "../../lib/api/auth";
-import { getErrorMessage } from "../../lib/api/http";
+import { ApiError, getErrorMessage } from "../../lib/api/http";
 import {
   fetchPermissionRequests,
   updatePermissionRequestStatus,
@@ -15,7 +14,7 @@ import { PeasStatusBadge } from "../../components/data-display/PeasStatusBadge";
 import { PeasDateRange } from "../../components/forms/PeasDateRange";
 import { PeasSearchInput } from "../../components/forms/PeasSearchInput";
 import { PeasEmptyState, PeasErrorState, PeasLoadingState } from "../../components/feedback/PeasStates";
-import { Button } from "../../components/ui/button";
+import { Button, buttonVariants } from "../../components/ui/button";
 import { Textarea } from "../../components/ui/textarea";
 import { PeasIconButton } from "../../components/ui/peas-button";
 import { PeasToaster, toast } from "../../components/ui/toast";
@@ -115,31 +114,26 @@ export function DocumentPermissionsPage() {
   const totalPages = Math.ceil(requests.length / PAGE_SIZE);
   const visibleRequests = requests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const reviewedByLoader = useCallback(async () => {
-    const session = await fetchSession();
-    return String(session?.user?.id ?? session?.userId ?? session?.username ?? "admin");
-  }, []);
-
   const handleApprove = useCallback(async () => {
     if (!approveTarget) return;
     setMutationBusy(true);
 
     try {
-      const reviewedBy = await reviewedByLoader();
       const result = await updatePermissionRequestStatus({
         id: approveTarget.id,
         status: "approved",
-        reviewedBy,
       });
-      toastStatusResult(`${approveTarget.fullName}'s request was approved.`, result);
+      toastStatusResult(`${approveTarget.fullName} was emailed a secure access link.`, result);
       setApproveTarget(null);
       setReloadKey((current) => current + 1);
     } catch (caughtError) {
-      toast.error(getErrorMessage(caughtError));
+      toast.error(caughtError instanceof ApiError && caughtError.status === 401
+        ? "Your admin session expired. Sign in again before approving this request."
+        : getErrorMessage(caughtError));
     } finally {
       setMutationBusy(false);
     }
-  }, [approveTarget, reviewedByLoader]);
+  }, [approveTarget]);
 
   const handleReject = useCallback(async () => {
     if (!rejectTarget) return;
@@ -152,11 +146,9 @@ export function DocumentPermissionsPage() {
     setMutationBusy(true);
 
     try {
-      const reviewedBy = await reviewedByLoader();
       const result = await updatePermissionRequestStatus({
         id: rejectTarget.id,
         status: "rejected",
-        reviewedBy,
         reviewNotes: reason,
       });
       toastStatusResult(`${rejectTarget.fullName}'s request was rejected.`, result);
@@ -168,7 +160,7 @@ export function DocumentPermissionsPage() {
     } finally {
       setMutationBusy(false);
     }
-  }, [rejectReason, rejectTarget, reviewedByLoader]);
+  }, [rejectReason, rejectTarget]);
 
   const columns: Array<PeasDataTableColumn<DocumentRequestRecord>> = [
     {
@@ -443,15 +435,20 @@ function PermissionDetailSheet({
         ) : null}
         <SheetFooter>
           {request?.documentId ? (
-            <Button variant="outline" onClick={() => window.open(`/api/documents/${request.documentId}/pdf`, "_blank")}>
+            <a className={buttonVariants({ variant: "default" })} href={permissionDocumentHref(request)} target="_blank" rel="noopener noreferrer">
               <FileText aria-hidden="true" />
               View Document
-            </Button>
+            </a>
           ) : null}
         </SheetFooter>
       </SheetContent>
     </Sheet>
   );
+}
+
+function permissionDocumentHref(request: DocumentRequestRecord) {
+  const route = request.recordType === "compiled" ? "user-compiled" : "user-single";
+  return `/pages/${route}.html?id=${encodeURIComponent(request.documentId)}`;
 }
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {

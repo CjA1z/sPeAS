@@ -39,6 +39,22 @@ export function PublicNavbar() {
     return () => window.removeEventListener("scroll", updateScrolled);
   }, [alwaysGreen]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
   const handleLogout = useCallback(async () => {
     await signOut();
   }, [signOut]);
@@ -78,10 +94,12 @@ export function PublicNavbar() {
       </button>
 
       {open ? (
-        <div className="peas-public-mobile-menu">
-          <div className="peas-public-mobile-panel">
+        <div className="peas-public-mobile-menu" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}>
+          <div className="peas-public-mobile-panel" role="dialog" aria-modal="true" aria-labelledby="peas-mobile-menu-title">
             <div className="peas-public-mobile-head">
-              <span>PeAS</span>
+              <span id="peas-mobile-menu-title">PeAS</span>
               <button type="button" aria-label="Close navigation" onClick={() => setOpen(false)}>
                 <X aria-hidden="true" />
               </button>

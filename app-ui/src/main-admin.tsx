@@ -46,6 +46,22 @@ const routes: Record<string, AdminRoute> = {
     title: "Operational Reports | PeAS Admin",
     Component: lazyNamed(() => import("./features/reports/OperationalReportsPage"), "OperationalReportsPage"),
   },
+  "/admin/Components/most-viewed-works.html": {
+    title: "Most Viewed Works | PeAS Admin",
+    Component: lazyNamed(() => import("./features/topActivity/TopActivityDetailPage"), "MostViewedWorksPage"),
+  },
+  "/admin/Components/most-viewed-authors.html": {
+    title: "Most Viewed Authors | PeAS Admin",
+    Component: lazyNamed(() => import("./features/topActivity/TopActivityDetailPage"), "MostViewedAuthorsPage"),
+  },
+  "/admin/Components/trending-topics.html": {
+    title: "Trending Topics | PeAS Admin",
+    Component: lazyNamed(() => import("./features/topActivity/TopActivityDetailPage"), "TrendingTopicsPage"),
+  },
+  "/admin/Components/search-analytics.html": {
+    title: "Search Analytics | PeAS Admin",
+    Component: lazyNamed(() => import("./features/searchAnalytics/SearchAnalyticsPage"), "SearchAnalyticsPage"),
+  },
   "/admin/Components/news.html": {
     title: "Department News | PeAS",
     allowedRoles: ADMIN_AND_PUBLISHER,

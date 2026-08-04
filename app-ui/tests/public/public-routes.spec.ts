@@ -19,6 +19,20 @@ for (const route of routes) {
   });
 }
 
+test("terms page provides a focused reading path", async ({ page }) => {
+  await page.goto("/pages/miscellaneous/T&A-Public.html");
+
+  await expect(page.getByRole("heading", { name: "Terms & Conditions", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Start reading/ })).toHaveAttribute("href", "#legal-0");
+  await expect(page.getByRole("navigation", { name: "Terms & Conditions sections" }).getByRole("link")).toHaveCount(5);
+  await expect(page.locator(".peas-legal-section")).toHaveCount(5);
+  await expect(page.locator(".peas-legal-nav__links a.is-active")).toHaveText(/Introduction/);
+  await expect(page.getByRole("link", { name: /Contact the office/ })).toHaveAttribute("href", "/contact.html");
+
+  await page.setViewportSize({ width: 375, height: 667 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});
+
 test("status routes share one shader error page and preserve HTTP status codes", async ({ page }) => {
   const statuses = [400, 401, 403, 404, 408, 429, 500, 503] as const;
 
@@ -69,6 +83,92 @@ test("missing document records use the shared 404 experience", async ({ page }) 
   await expect(page.locator(".peas-public-navbar, .peas-public-footer")).toHaveCount(0);
   await expect(page.locator(".peas-grid-motion__item")).toHaveCount(28);
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(await page.evaluate(() => window.innerHeight));
+});
+
+test("guest compiled records render the collection overview and child works", async ({ page }) => {
+  const requestedUrls: string[] = [];
+  let accessRequestBody: Record<string, unknown> | null = null;
+  await page.route("**/api/auth/get-session", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: "null",
+  }));
+  await page.route("**/api/guest/compiled-documents/53", (route) => {
+    requestedUrls.push(new URL(route.request().url()).pathname);
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 53,
+        title: "CONFLUENCE Vol. 2 (2010-2012)",
+        category: "CONFLUENCE",
+        volume: 2,
+        start_year: 2010,
+        end_year: 2012,
+        abstract: "A public collection overview.",
+        child_count: 1,
+        classification: { researchAgendas: [], topics: [], keywords: [] },
+      }),
+    });
+  });
+  await page.route("**/api/guest/compiled-documents/53/children", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ children: [{
+      id: 31,
+      title: "Study One",
+      document_type: "THESIS",
+      publication_date: "2020-05-01",
+      pages: 18,
+      abstract: "This study examines a practical research problem through a structured review and analysis of the available evidence. The findings provide a useful reference for future researchers, institutional planning, and related community applications across the university.",
+      authors: [{ full_name: "Ana Reyes" }],
+      classification: {
+        researchAgendas: [{ id: 1, name: "Environmental Discipline and Stewardship" }],
+        topics: [{ id: 2, name: "Sustainable construction" }],
+        keywords: [{ id: 3, name: "rice hull" }],
+      },
+    }] }),
+  }));
+
+  await page.goto("/pages/guest-compiled.html?id=53");
+
+  await expect(page.getByRole("heading", { name: "CONFLUENCE Vol. 2 (2010-2012)" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Collection overview" })).toBeVisible();
+  await expect(page.getByText("A public collection overview.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documents in this collection" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Study One" })).toBeVisible();
+  await expect(page.getByText("Ana Reyes", { exact: true })).toBeVisible();
+  await expect(page.getByText("Publication date", { exact: true })).toBeVisible();
+  await expect(page.getByText("Environmental Discipline and Stewardship", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View details for Study One" })).toHaveText("View");
+  await expect(page.getByRole("link", { name: "View details for Study One" })).toHaveAttribute("href", "/pages/guest-single.html?id=31");
+  const abstractToggle = page.getByRole("button", { name: "Show full abstract" });
+  await expect(abstractToggle).toHaveAttribute("aria-expanded", "false");
+  await abstractToggle.click();
+  await expect(page.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
+  await page.route("**/api/document-requests", (route) => {
+    accessRequestBody = route.request().postDataJSON() as Record<string, unknown>;
+    return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: 71 }) });
+  });
+  await page.getByRole("button", { name: "Request access", exact: true }).click();
+  const requestDialog = page.locator(".peas-request-dialog");
+  await expect(requestDialog).toBeVisible();
+  await expect(requestDialog.locator("#request-full-name")).toBeFocused();
+  await expect(requestDialog.getByRole("heading", { name: "CONFLUENCE Vol. 2 (2010-2012)" })).toBeVisible();
+  await expect(requestDialog.getByRole("button", { name: "Submit access request" })).toHaveAttribute("type", "submit");
+  await requestDialog.locator("#request-full-name").fill("Maria Santos");
+  await requestDialog.getByLabel("Email Required").fill("maria@example.com");
+  await requestDialog.getByLabel("Affiliation Required").fill("St. Paul University Dumaguete");
+  await requestDialog.getByRole("checkbox").check();
+  await requestDialog.getByRole("button", { name: "Submit access request" }).click();
+  expect(accessRequestBody).toMatchObject({ document_id: "53", record_type: "compiled", is_entire_collection: true });
+  await expect(requestDialog.getByRole("status")).toContainText("We’ve received your request.");
+  await expect(requestDialog.getByText("REQ-71", { exact: true })).toBeVisible();
+  await expect(requestDialog.getByRole("button", { name: "Done" })).toBeFocused();
+  await requestDialog.getByRole("button", { name: "Done" }).click();
+  await expect(requestDialog).toHaveCount(0);
+  await expect(page.locator(".peas-error-page")).toHaveCount(0);
+  expect(requestedUrls).toContain("/api/guest/compiled-documents/53");
 });
 
 test("public author profiles render publication analytics and filterable works", async ({ page }) => {
@@ -296,6 +396,38 @@ test("the public navbar login button follows the navbar contrast state", async (
   await expect(greenNavbarLogin).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
+test("the mobile navigation drawer keeps links compact and contained", async ({ page }) => {
+  const viewport = { width: 400, height: 1550 };
+  await page.setViewportSize(viewport);
+  await page.goto("/index.html");
+  await page.getByRole("button", { name: "Open navigation" }).click();
+
+  const panel = page.locator(".peas-public-mobile-panel");
+  await expect(panel).toHaveRole("dialog");
+  const metrics = await panel.evaluate((element) => {
+    const panelBox = element.getBoundingClientRect();
+    const links = [...element.querySelectorAll(":scope > a")].map((link) => {
+      const box = link.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, height: box.height };
+    });
+    return {
+      panel: { left: panelBox.left, right: panelBox.right, top: panelBox.top, bottom: panelBox.bottom },
+      links,
+      display: getComputedStyle(element).display,
+    };
+  });
+
+  expect(metrics.display).toBe("flex");
+  expect(metrics.panel.left).toBeGreaterThanOrEqual(0);
+  expect(metrics.panel.right).toBeLessThanOrEqual(viewport.width);
+  expect(metrics.panel.top).toBeGreaterThanOrEqual(0);
+  expect(metrics.panel.bottom).toBeLessThanOrEqual(viewport.height);
+  expect(metrics.links).toHaveLength(3);
+  expect(metrics.links.every((link) => link.height <= 56)).toBe(true);
+  expect(metrics.links[2].top - metrics.links[0].top).toBeLessThan(180);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+});
+
 test("news cards use the branded editorial preview layout", async ({ page }) => {
   const posts = [
     {
@@ -372,6 +504,13 @@ test("news cards use the branded editorial preview layout", async ({ page }) => 
   const homeNews = page.locator(".peas-public-news-preview");
   await expect(homeNews.getByRole("heading", { name: "Latest news" })).toBeVisible();
   await expect(homeNews.locator(".peas-news-card")).toHaveCount(3);
+  await expect(homeNews.locator(".peas-news-card--compact")).toHaveCount(3);
+  const compactLayout = await homeNews.locator(".peas-news-card").first().evaluate((card) => ({
+    height: card.getBoundingClientRect().height,
+    width: card.getBoundingClientRect().width,
+  }));
+  expect(compactLayout.height).toBeLessThan(layout.height);
+  expect(compactLayout.height).toBeGreaterThan(compactLayout.width * 0.9);
   await expect(homeNews.getByRole("link", { name: "View all news" })).toHaveAttribute("href", "/news.html");
 
   await page.route("**/api/news/research-collaboration", (route) => route.fulfill({
@@ -628,6 +767,60 @@ test("home presents recent research as scannable repository cards", async ({ pag
 
   await page.goto("/index.html");
 
+  const overview = page.locator(".peas-overview");
+  await expect(overview.getByRole("heading", { name: "A digital home for Paulinian research" })).toBeVisible();
+  await expect(overview.getByRole("link", { name: "Explore the repository" })).toHaveAttribute("href", "/pages/searchResultsPage.html");
+  const overviewTabs = overview.getByRole("tab");
+  await expect(overviewTabs).toHaveCount(3);
+  await expect(overviewTabs.locator("img")).toHaveCount(0);
+  await expect(overview.getByRole("tab", { name: "Preserve" })).toHaveAttribute("aria-selected", "true");
+  await overview.getByRole("tab", { name: "Discover" }).hover();
+  await expect(overview.getByRole("tab", { name: "Discover" })).toHaveAttribute("aria-selected", "true");
+  await expect(overview.getByRole("tabpanel")).toContainText("structured metadata");
+  await expect(overview.locator(".peas-overview__stage")).toHaveClass(/peas-overview__stage--discover/);
+  await expect(overview.locator(".peas-overview__wordmark")).toContainText("Discovery field");
+  await page.waitForTimeout(450);
+  const activeCardLayout = await overview.locator(".peas-overview__active-copy.is-active").evaluate((card) => {
+    const cardBox = card.getBoundingClientRect();
+    const stackBox = card.closest(".peas-overview__card-swap")?.getBoundingClientRect();
+    const tabsBox = card.closest(".peas-overview__stage-content")
+      ?.querySelector(".peas-overview__tabs")
+      ?.getBoundingClientRect();
+
+    return {
+      isContained: Boolean(stackBox)
+        && cardBox.left >= stackBox!.left - 1
+        && cardBox.right <= stackBox!.right + 1
+        && cardBox.top >= stackBox!.top - 1
+        && cardBox.bottom <= stackBox!.bottom + 1,
+      staysAboveTabs: Boolean(tabsBox) && cardBox.bottom <= tabsBox!.top + 1,
+    };
+  });
+  expect(activeCardLayout.isContained).toBe(true);
+  expect(activeCardLayout.staysAboveTabs).toBe(true);
+  await overview.getByRole("tab", { name: "Access" }).click();
+  await page.mouse.move(0, 0);
+  await expect(overview.getByRole("tab", { name: "Access" })).toHaveAttribute("aria-selected", "true");
+  await expect(overview.locator(".peas-overview__stage")).toHaveClass(/peas-overview__stage--access/);
+  await expect(overview.locator(".peas-overview__wordmark")).toContainText("Protected gateway");
+  await overview.getByRole("tab", { name: "Access" }).press("Home");
+  await expect(overview.getByRole("tab", { name: "Preserve" })).toHaveAttribute("aria-selected", "true");
+  await overview.getByRole("tab", { name: "Preserve" }).press("End");
+  await expect(overview.getByRole("tab", { name: "Access" })).toHaveAttribute("aria-selected", "true");
+  await expect(overview.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "peas-overview-tab-access");
+  await expect(overview.locator(".peas-overview-shader")).toHaveAttribute("data-renderer", /webgl2|css-fallback/);
+
+  const collectionSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Browse the repository by collection" }) });
+  const collectionCards = collectionSection.locator(".peas-public-category-card");
+  await expect(collectionCards).toHaveCount(4);
+  const firstCollectionHref = await collectionCards.first().getAttribute("href");
+  expect(new URL(firstCollectionHref ?? "", page.url()).pathname).toBe("/pages/searchResultsPage.html");
+  expect(new URL(firstCollectionHref ?? "", page.url()).searchParams.get("category")).toBe("CONFLUENCE");
+  await expect(collectionCards.first().locator(".peas-public-category-card__action")).toContainText("Explore");
+  await expect(collectionCards.first().locator(".peas-public-category-card__share-fill")).toHaveAttribute("style", /width:/);
+  await collectionCards.first().hover();
+  await expect(collectionCards.first().locator(".peas-public-category-card__action")).toHaveCSS("opacity", "1");
+
   const section = page.locator(".peas-public-latest");
   await expect(section.getByRole("heading", { name: "Recently added research" })).toBeVisible();
   await expect(section.getByRole("link", { name: "Browse all research" })).toHaveAttribute("href", "/pages/searchResultsPage.html");
@@ -657,6 +850,29 @@ test("home presents recent research as scannable repository cards", async ({ pag
     await (window as any).axe.run(element)
   ).violations.filter((item: any) => item.impact === "critical"));
   expect(critical).toEqual([]);
+});
+
+test("PeAS overview keeps a static shader fallback for reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/experience/public", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      config: {
+        schemaVersion: 2,
+        pages: {
+          landing: { data: { content: [] } },
+          login: { data: { content: [] } },
+        },
+      },
+    }),
+  }));
+
+  await page.goto("/index.html");
+  const shader = page.locator(".peas-overview-shader");
+  await expect(shader).toHaveAttribute("data-renderer", "css-fallback");
+  await expect(shader).toHaveAttribute("data-motion", "static");
+  await expect(page.getByRole("heading", { name: "A digital home for Paulinian research" })).toBeVisible();
 });
 
 test("repository search presents focused filters and scannable results", async ({ page }, testInfo) => {
@@ -866,6 +1082,39 @@ test("home hero covers the initial viewport without a trailing gap", async ({ pa
   }
 });
 
+test("repository topic filters display the topic name instead of its ID", async ({ page }) => {
+  await page.route("**/api/categories*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/research-agendas*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/topics/2", (route) => route.fulfill({ json: { id: 2, name: "Sustainable construction" } }));
+  await page.route("**/api/documents?*", (route) => route.fulfill({ json: { documents: [], totalCount: 0, totalPages: 0, currentPage: 1 } }));
+
+  await page.goto("/pages/searchResultsPage.html?topic=2");
+
+  await expect(page.getByRole("heading", { name: "Topic “Sustainable construction”" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Topic 2" })).toHaveCount(0);
+});
+
+test("repository agenda filters display the agenda name instead of its ID", async ({ page }) => {
+  await page.route("**/api/categories*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/research-agendas*", (route) => route.fulfill({ json: [{ id: 4, name: "Environmental Discipline and Stewardship" }] }));
+  await page.route("**/api/documents?*", (route) => route.fulfill({ json: { documents: [], totalCount: 0, totalPages: 0, currentPage: 1 } }));
+
+  await page.goto("/pages/searchResultsPage.html?agenda=4");
+
+  await expect(page.getByRole("heading", { name: "Research agenda “Environmental Discipline and Stewardship”" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Research agenda 4" })).toHaveCount(0);
+});
+
+test("repository keyword filters display the keyword name", async ({ page }) => {
+  await page.route("**/api/categories*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/research-agendas*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/documents?*", (route) => route.fulfill({ json: { documents: [], totalCount: 0, totalPages: 0, currentPage: 1 } }));
+
+  await page.goto("/pages/searchResultsPage.html?keyword=rice%20hull");
+
+  await expect(page.getByRole("heading", { name: "Keyword “rice hull”" })).toBeVisible();
+});
+
 test("login uses paired branding and a centered university seal on the campus facade", async ({ page }, testInfo) => {
   await page.route("/api/experience/public", (route) => route.fulfill({
     status: 200,
@@ -949,6 +1198,37 @@ test("login uses paired branding and a centered university seal on the campus fa
   expect(critical).toEqual([]);
 });
 
+test("login keeps the mobile composition compact on tall viewports", async ({ page }) => {
+  const mobileViewport = { width: 400, height: 1550 };
+  await page.setViewportSize(mobileViewport);
+  await page.goto("/log-in.html");
+  await page.locator(".peas-login-page").waitFor();
+
+  const metrics = await page.evaluate(() => {
+    const art = document.querySelector<HTMLElement>(".peas-login-art")!.getBoundingClientRect();
+    const panel = document.querySelector<HTMLElement>(".peas-login-panel")!.getBoundingClientRect();
+    const content = document.querySelector<HTMLElement>(".peas-login-panel__content")!.getBoundingClientRect();
+    return {
+      art: { bottom: art.bottom, height: art.height },
+      panel: { top: panel.top, height: panel.height },
+      content: { top: content.top },
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+
+  expect(metrics.art.height).toBeLessThanOrEqual(200);
+  expect(metrics.panel.top).toBeCloseTo(metrics.art.bottom, 0);
+  expect(metrics.content.top - metrics.panel.top).toBeLessThanOrEqual(44);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(mobileViewport.width);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/log-in.html");
+  await page.locator(".peas-login-page").waitFor();
+  const desktopArt = await page.locator(".peas-login-art").boundingBox();
+  expect(desktopArt?.x ?? 0).toBeGreaterThan(0);
+  expect(desktopArt?.width ?? 0).toBeGreaterThan(0);
+});
+
 test("login keeps the static campus image when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/log-in.html");
@@ -1011,13 +1291,15 @@ test("home renders published organization-chart content", async ({ page }) => {
 
   await page.goto("/index.html");
   await expect(page.getByRole("heading", { name: "Our research leadership" })).toBeVisible();
-  const director = page.getByRole("button", { name: /Dr\. Ada Paul, Research Office Director/ });
+  const director = page.locator(".peas-org-node").filter({ hasText: "Dr. Ada Paul" });
   await expect(director).toBeVisible();
-  await director.click();
-  await expect(page.getByText("Coordinates the university research program.")).toBeVisible();
+  await expect(director).toContainText("Research Office Director");
+  await expect(director).toContainText("Research Leadership");
+  await expect(page.locator(".peas-org-chart button")).toHaveCount(0);
+  await expect(page.getByText("Coordinates the university research program.")).toHaveCount(0);
 });
 
-test("organization chart details stay within the responsive layout", async ({ page }, testInfo) => {
+test("organization chart stays within the responsive layout", async ({ page }, testInfo) => {
   const tablet = testInfo.project.name !== "pixel-7";
   const viewport = tablet ? { width: 820, height: 1180 } : { width: 390, height: 844 };
   await page.setViewportSize(viewport);
@@ -1028,35 +1310,42 @@ test("organization chart details stay within the responsive layout", async ({ pa
   expect(menuBox).not.toBeNull();
   expect(viewport.width - (menuBox?.x ?? 0) - (menuBox?.width ?? 0)).toBeLessThanOrEqual(20);
 
-  await page.getByRole("button", { name: /details for Associate Assistant/ }).click();
   const chart = page.locator(".peas-org-chart");
   const tree = page.locator(".peas-org-tree");
-  const detail = page.locator(".peas-org-detail");
-  await expect(detail).toBeVisible();
-
-  const [chartBox, treeBox, detailBox, detailPosition, pageWidth] = await Promise.all([
+  const units = page.locator(".peas-org-units");
+  const unitNodes = units.locator(".peas-org-node");
+  const [chartBox, treeBox, unitBoxes, connectorBoxes, pageWidth] = await Promise.all([
     chart.boundingBox(),
     tree.boundingBox(),
-    detail.boundingBox(),
-    detail.evaluate((element) => getComputedStyle(element).position),
+    unitNodes.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, right: box.right, width: box.width };
+    })),
+    unitNodes.evaluateAll((elements) => elements.map((element) => {
+      const connector = getComputedStyle(element.closest(".peas-org-unit")!, "::before");
+      return {
+        width: Number.parseFloat(connector.width),
+        height: Number.parseFloat(connector.height),
+      };
+    })),
     page.evaluate(() => document.documentElement.scrollWidth),
   ]);
 
   expect(pageWidth).toBeLessThanOrEqual(viewport.width);
   expect(chartBox).not.toBeNull();
   expect(treeBox).not.toBeNull();
-  expect(detailBox).not.toBeNull();
-
-  if (tablet) {
-    expect(detailPosition).toBe("sticky");
-    expect(detailBox?.x ?? 0).toBeGreaterThan((treeBox?.x ?? 0) + (treeBox?.width ?? 0));
-    expect((detailBox?.x ?? 0) + (detailBox?.width ?? 0)).toBeLessThanOrEqual(
-      (chartBox?.x ?? 0) + (chartBox?.width ?? 0),
-    );
-  } else {
-    expect(detailPosition).toBe("fixed");
-    expect(detailBox?.height ?? Infinity).toBeLessThanOrEqual(viewport.height * 0.45 + 1);
-    expect((detailBox?.y ?? 0) + (detailBox?.height ?? 0)).toBeLessThan(viewport.height);
+  expect(unitBoxes).toHaveLength(4);
+  const distinctX = new Set(unitBoxes.map((box) => Math.round(box.x))).size;
+  expect(distinctX).toBe(tablet ? 2 : 1);
+  unitBoxes.forEach((box) => {
+    expect(box.x).toBeGreaterThanOrEqual((chartBox?.x ?? 0) - 1);
+    expect(box.right).toBeLessThanOrEqual((chartBox?.x ?? 0) + (chartBox?.width ?? 0) + 1);
+  });
+  if (!tablet) {
+    connectorBoxes.forEach((connector) => {
+      expect(connector.width).toBeLessThanOrEqual(20);
+      expect(connector.height).toBeLessThanOrEqual(2);
+    });
   }
 });
 

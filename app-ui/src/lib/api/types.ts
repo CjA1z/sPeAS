@@ -93,7 +93,7 @@ export interface UploadSingleDocumentPayload {
 export interface UploadCompiledDocumentPayload {
   title?: string;
   category: "CONFLUENCE" | "SYNERGY";
-  volume?: string;
+  volume: string;
   issue?: string;
   start_year: number;
   end_year: number;
@@ -125,6 +125,7 @@ export interface ArchivedDocumentsPageResult extends PaginationState {
 export interface DocumentRequestRecord {
   id: number;
   documentId: string;
+  recordType: "document" | "compiled";
   fullName: string;
   email: string;
   affiliation: string;
@@ -202,8 +203,11 @@ export interface ReportStats {
     timezone: string;
     range: { key: string; label: string; startInclusive: string | null; endExclusive: string; bucket: string };
     activityCoverageStartedAt: string | null;
+    trafficV3StartedAt: string | null;
     coverage?: {
       repository: ActivityCoverage;
+      pageViews: ActivityCoverage;
+      siteVisits: ActivityCoverage;
       home: ActivityCoverage;
       authors: ActivityCoverage;
     };
@@ -218,25 +222,35 @@ export interface ReportStats {
   };
   workflow: { pendingUploads: number; pendingAccessRequests: number };
   activity: {
+    sitePageViews: { total: number; guest: number; registered: number };
+    siteVisits: { total: number; guest: number; registered: number };
+    homePageViews: { total: number; guest: number; registered: number };
     uploadedEntries: number;
     repositoryViews: number;
     repositoryDownloads: number;
+    guestRepositoryViews: number;
+    registeredRepositoryViews: number;
+    authorProfileViews: number;
+    topicWorkViews: number;
     guestViews: number;
     registeredViews: number;
     approvedRequestDownloads: number;
     activeRegisteredUsers: number;
     homeVisits: { total: number; guest: number; registered: number };
+    activeRegisteredReaders: number;
   };
   series: {
     uploads: Array<{ bucket: string; count: number }>;
     repositoryActivity: Array<{ bucket: string; views: number; downloads: number }>;
     homeVisits: Array<{ bucket: string; guest: number; registered: number; total: number }>;
+    siteTraffic: Array<{ bucket: string; pageViews: number; visits: number; guestPageViews: number; registeredPageViews: number; guestVisits: number; registeredVisits: number }>;
   };
   rankings: {
     mostViewedEntries: Array<{ id: number; recordType: string; title: string; category: string; views: number; downloads: number; href?: string }>;
     mostDownloadedEntries: Array<{ id: number; recordType: string; title: string; category: string; views: number; downloads: number; href?: string }>;
     mostVisitedAuthors: Array<{ id: string; name: string; visits: number; profilePicture: string | null; href?: string }>;
-    trendingTopics: Array<{ id: number; name: string; views: number; entryCount: number; href?: string }>;
+    mostViewedAuthors: Array<{ id: string; name: string; views: number; visits: number; profilePicture: string | null; href?: string }>;
+    trendingTopics: Array<{ id: number; name: string; views: number; workViews: number; entryCount: number; href?: string }>;
   };
   distributions: {
     documentTypes: Array<{ label: string; count: number }>;

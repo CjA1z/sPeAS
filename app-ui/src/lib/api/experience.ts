@@ -63,5 +63,5 @@ export function experienceBlockProps(config: PublicExperienceConfig | null, page
 function isExperienceConfig(value: unknown): value is PublicExperienceConfig {
   if (!value || typeof value !== "object") return false;
   const candidate = value as PublicExperienceConfig;
-  return candidate.schemaVersion === 2 && Array.isArray(candidate.pages?.landing?.data?.content) && Array.isArray(candidate.pages?.login?.data?.content);
+  return (candidate.schemaVersion === 2 || candidate.schemaVersion === 3) && Array.isArray(candidate.pages?.landing?.data?.content) && Array.isArray(candidate.pages?.login?.data?.content);
 }

@@ -76,8 +76,9 @@ export async function fetchDocuments(params: FetchDocumentsParams): Promise<Docu
 }
 
 export async function fetchChildDocuments(parentId: number): Promise<DocumentRecord[]> {
-  const payload = await apiFetch<RawDocumentsResponse>(`/api/documents/${parentId}/children`);
-  return (payload.documents ?? []).map(normalizeDocumentRecord);
+  const payload = await apiFetch<RawDocumentsResponse | DocumentRecord[]>(`/api/compiled-documents/${parentId}/children`);
+  const rows = Array.isArray(payload) ? payload : (payload.documents ?? []);
+  return (rows as Array<Record<string, unknown>>).map(normalizeDocumentRecord);
 }
 
 export async function archiveDocument(request: ArchiveRequest) {
@@ -147,6 +148,39 @@ export function reviewDocument(
     method: "PUT",
     json: { decision, publish },
   });
+}
+
+export interface AbstractReviewItem {
+  targetType: "document" | "compiled_foreword";
+  targetId: number;
+  title: string;
+  documentType: "THESIS" | "DISSERTATION" | "CONFLUENCE" | "SYNERGY";
+  status: "queued" | "processing" | "needs_review" | "accepted" | "unavailable" | "failed";
+  currentAbstract: string | null;
+  candidate: string | null;
+  method: "manual" | "pdf_text" | "ocr" | "none";
+  confidence: number | null;
+  qualityFlags: string[];
+  pageStart: number | null;
+  pageEnd: number | null;
+  attemptCount: number;
+  errorCode: string | null;
+  updatedAt: string;
+}
+
+export function fetchAbstractReviews(recordType: "document" | "compiled", recordId: number) {
+  return apiFetch<{ items: AbstractReviewItem[] }>(`/api/admin/abstract-reviews?record_type=${recordType}&record_id=${recordId}`);
+}
+
+export function updateAbstractReview(targetType: "document" | "compiled-foreword", targetId: number, payload: { action: "accept_candidate" | "save_manual" | "mark_unavailable"; abstract?: string }) {
+  return apiFetch<AbstractReviewItem>(`/api/admin/abstract-reviews/${targetType}/${targetId}`, {
+    method: "PUT",
+    json: payload,
+  });
+}
+
+export function retryAbstractReview(targetType: "document" | "compiled-foreword", targetId: number) {
+  return apiFetch<{ status: string }>(`/api/admin/abstract-reviews/${targetType}/${targetId}/retry`, { method: "POST" });
 }
 
 function normalizeAuthors(value: unknown): ApiAuthor[] {

@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, Building2, FileSearch, GraduationCap, Pause, Play, Search, Sparkles, UsersRound } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, ArrowUpRight, Building2, FileSearch, GraduationCap, Pause, Play, Sparkles, UsersRound } from "lucide-react";
 import { motion } from "motion/react";
 import { CategoryIcon } from "../../components/documents/CategoryIcon";
 import { PublicDocumentResultCard } from "../../components/public/PublicDocumentResultCard";
 import { NewsPreviewCard } from "../../components/public/NewsPreviewCard";
 import { OrgChart, type OrgChartRoleContent } from "../../components/public/OrgChart";
+import { PeasOverview } from "../../components/public/PeasOverview";
 import { PublicPageShell } from "../../components/public/PublicPageShell";
+import { PublicSearchCombobox } from "../../components/public/PublicSearchCombobox";
+import { markPendingSearch } from "../../lib/api/search";
 import { usePublicSession } from "../../components/public/PublicSessionProvider";
 import { PrismDiagram } from "../../components/public/PrismDiagram";
+import BorderGlow from "../../components/BorderGlow/BorderGlow";
 import Grainient from "../../components/Grainient";
 import SpecularButton from "../../components/SpecularButton/SpecularButton";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
-import { fetchPublicHomeData, fetchPublicResearchAgendas, keywordSearchUrl, recordHomePageVisit, searchResultsUrl, type PublicHomeData, type PublicResearchAgenda } from "../../lib/api/public";
+import { fetchPublicHomeData, fetchPublicResearchAgendas, keywordSearchUrl, searchResultsUrl, type PublicHomeData, type PublicResearchAgenda } from "../../lib/api/public";
 import { fetchPublishedNews, type NewsPost } from "../../lib/api/news";
 import { CATEGORY_ORDER, getCategoryMeta, type DocumentCategory } from "../../lib/constants/categories";
 import { experienceBlockProps, usePublicExperience } from "../../lib/api/experience";
@@ -32,13 +36,7 @@ export function PublicHomePage() {
   const [heroSlideshowPaused, setHeroSlideshowPaused] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  const homeVisitSent = useRef(false);
-
   useEffect(() => {
-    if (!homeVisitSent.current) {
-      homeVisitSent.current = true;
-      void recordHomePageVisit().catch(() => undefined);
-    }
     let mounted = true;
     fetchPublicHomeData()
       .then((homeData) => {
@@ -91,6 +89,7 @@ export function PublicHomePage() {
   const latestDocuments = data?.latestDocuments ?? [];
   const trendingKeywords = data?.trendingKeywords ?? [];
   const hero = experienceBlockProps(config, "landing", "HeroBlock");
+  const overview = experienceBlockProps(config, "landing", "OverviewBlock");
   const mission = experienceBlockProps(config, "landing", "RichTextBlock");
   const quickLinks = experienceBlockProps(config, "landing", "QuickLinksBlock");
   const organization = experienceBlockProps(config, "landing", "ImageFeatureBlock");
@@ -125,7 +124,7 @@ export function PublicHomePage() {
   }, [category, query]);
 
   return (
-    <PublicPageShell>
+    <PublicPageShell pageClassName="peas-public-home-page">
         <section className="peas-public-hero" aria-labelledby="public-home-title">
           <div className="peas-public-hero__images" aria-label="Featured research photos" aria-live="off">
             {displayedHeroImages.map((image, index) => (
@@ -160,15 +159,18 @@ export function PublicHomePage() {
               className="peas-public-hero-search"
               onSubmit={(event) => {
                 event.preventDefault();
+                markPendingSearch(query, "home");
                 submitSearch();
               }}
             >
-              <Search aria-hidden="true" />
-              <input
-                aria-label="Search documents"
-                placeholder="Search by title, author, keyword, or topic"
+              <PublicSearchCombobox
                 value={query}
-                onChange={(event) => setQuery(event.currentTarget.value)}
+                category={category}
+                source="home"
+                onChange={setQuery}
+                onSubmit={submitSearch}
+                ariaLabel="Search documents"
+                placeholder="Search by title, author, keyword, or topic"
               />
               <select
                 aria-label="Filter search category"
@@ -224,6 +226,8 @@ export function PublicHomePage() {
           ) : null}
         </section>
 
+        <PeasOverview {...overview} />
+
         <section className="peas-public-band peas-public-news-preview" aria-labelledby="home-news-title">
           <div className="peas-public-news-preview__head">
             <div className="peas-public-section-head">
@@ -236,7 +240,7 @@ export function PublicHomePage() {
           {newsLoading ? (
             <div className="peas-news-grid peas-public-news-skeleton" aria-label="Loading latest news">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div className="peas-news-card" key={index}>
+                <div className="peas-news-card peas-news-card--compact" key={index}>
                   <div className="peas-news-card__body">
                     <Skeleton className="peas-skeleton-line" />
                     <Skeleton className="peas-skeleton-line peas-skeleton-line--wide" />
@@ -249,7 +253,7 @@ export function PublicHomePage() {
           ) : latestNews.length ? (
             <div className="peas-news-grid">
               {latestNews.map((post, index) => (
-                <NewsPreviewCard post={post} index={index} transitionOnNavigate key={post.id} />
+                <NewsPreviewCard post={post} index={index} transitionOnNavigate variant="compact" key={post.id} />
               ))}
             </div>
           ) : (
@@ -274,28 +278,85 @@ export function PublicHomePage() {
             {CATEGORY_ORDER.filter((item) => item !== "All").map((item, index) => {
               const meta = getCategoryMeta(item);
               const count = categoryCounts.find((row) => row.name === item)?.count ?? 0;
+              const countLabel = `${count} ${count === 1 ? "entry" : "entries"}`;
+              const share = totalWorks > 0 ? Math.round((count / totalWorks) * 100) : 0;
               return (
                 <motion.a
+                  aria-label={`Explore ${meta.label} collection, ${countLabel}`}
                   className={`peas-public-category-card peas-category-tone-${meta.tone}`}
                   href={searchResultsUrl("", item)}
                   key={item}
                   initial={{ opacity: 0, y: 14 }}
                   whileInView={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -6 }}
+                  whileTap={{ scale: 0.985 }}
                   viewport={{ once: true, amount: 0.4 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <span className="peas-public-category-card__icon">
-                    <CategoryIcon category={item} />
+                  <span className="peas-public-category-card__topline">
+                    <span className="peas-public-category-card__index">0{index + 1} / COLLECTION</span>
+                    <span className="peas-public-category-card__icon">
+                      <CategoryIcon category={item} />
+                    </span>
                   </span>
-                  <strong>{meta.label}</strong>
-                  <small>{count} {count === 1 ? "entry" : "entries"}</small>
+                  <span className="peas-public-category-card__copy">
+                    <strong>{meta.label}</strong>
+                    <span>{categoryDescription(item)}</span>
+                  </span>
+                  <span className="peas-public-category-card__footer">
+                    <span className="peas-public-category-card__count">
+                      <motion.strong
+                        key={`${item}-${count}`}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.24 }}
+                      >
+                        {count}
+                      </motion.strong>
+                      <small>{count === 1 ? "entry" : "entries"}</small>
+                    </span>
+                    <span className="peas-public-category-card__action">
+                      Explore <ArrowUpRight aria-hidden="true" />
+                    </span>
+                  </span>
+                  <span className="peas-public-category-card__share" aria-hidden="true">
+                    <span className="peas-public-category-card__share-fill" style={{ width: `${share}%` }} />
+                  </span>
                 </motion.a>
               );
             })}
           </div>
         </section>
 
-        {quickLinkItems.length ? <section className="peas-public-quick-links" aria-labelledby="quick-links-title"><div className="peas-public-section-head"><span>Explore</span><h2 id="quick-links-title">{String(quickLinks.title || "Explore PeAS")}</h2></div><div>{quickLinkItems.map((item, index) => <a href={String(item.href || ["#mission", "#org-chart", "#research-agenda"][index] || "#")} key={`${item.label}-${index}`}><strong>{item.label}</strong><span>{item.description}</span></a>)}</div></section> : null}
+        {quickLinkItems.length ? (
+          <section className="peas-public-quick-links" aria-labelledby="quick-links-title">
+            <div className="peas-public-section-head">
+              <span>Explore</span>
+              <h2 id="quick-links-title">{String(quickLinks.title || "Explore PeAS")}</h2>
+            </div>
+            <div>
+              {quickLinkItems.map((item, index) => (
+                <BorderGlow
+                  className="peas-public-quick-link-glow"
+                  key={`${item.label}-${index}`}
+                  borderRadius={18}
+                  colors={["#0b7659", "#c39416", "#3b9c7d"]}
+                  fillOpacity={0.1}
+                  glowIntensity={0.35}
+                  glowRadius={22}
+                >
+                  <a
+                    className="peas-public-quick-link"
+                    href={String(item.href || ["#mission", "#org-chart", "#research-agenda"][index] || "#")}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{item.description}</span>
+                  </a>
+                </BorderGlow>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="peas-public-split" id="mission" aria-labelledby="mission-title">
           <div className="peas-public-section-head">
@@ -312,11 +373,10 @@ export function PublicHomePage() {
           </div>
         </section>
 
-        <section className="peas-public-band" aria-labelledby="prism-title">
+        <section className="peas-public-band peas-public-framework" aria-labelledby="prism-title">
           <div className="peas-public-section-head">
             <span>Framework</span>
             <h2 id="prism-title">The PRISM framework</h2>
-            <p>Right mindset, right method, and right motivation driving transformative outcome-based education.</p>
           </div>
           <PrismDiagram />
         </section>
@@ -425,6 +485,21 @@ export function PublicHomePage() {
         </section>
     </PublicPageShell>
   );
+}
+
+function categoryDescription(category: DocumentCategory) {
+  switch (category) {
+    case "CONFLUENCE":
+      return "Collected volumes and collaborative studies";
+    case "SYNERGY":
+      return "Cross-disciplinary research and initiatives";
+    case "DISSERTATION":
+      return "Advanced scholarly work and inquiry";
+    case "THESIS":
+      return "Student research and academic projects";
+    default:
+      return "Published research in the repository";
+  }
 }
 
 function StatItem({ label, value }: { label: string; value: string }) {

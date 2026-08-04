@@ -35,6 +35,9 @@ function normalizeReportStats(raw: Record<string, unknown>): ReportStats {
   const workflow = object(raw.workflow);
   const activity = object(raw.activity);
   const homeVisits = object(activity.homeVisits);
+  const homePageViews = object(activity.homePageViews ?? homeVisits);
+  const sitePageViews = object(activity.sitePageViews);
+  const siteVisits = object(activity.siteVisits);
   const series = object(raw.series);
   const rankings = object(raw.rankings);
   const distributions = object(raw.distributions);
@@ -44,6 +47,8 @@ function normalizeReportStats(raw: Record<string, unknown>): ReportStats {
   const rawCoverage = object(meta.coverage);
   const coverage = {
     repository: normalizeCoverage(rawCoverage.repository),
+    pageViews: normalizeCoverage(rawCoverage.pageViews ?? rawCoverage.home),
+    siteVisits: normalizeCoverage(rawCoverage.siteVisits),
     home: normalizeCoverage(rawCoverage.home),
     authors: normalizeCoverage(rawCoverage.authors),
   };
@@ -64,6 +69,7 @@ function normalizeReportStats(raw: Record<string, unknown>): ReportStats {
       timezone: String(meta.timezone ?? "Asia/Manila"),
       range: { key: String(range.key ?? "30d"), label: String(range.label ?? "Last 30 days"), startInclusive: range.startInclusive ? String(range.startInclusive) : null, endExclusive: String(range.endExclusive ?? new Date().toISOString()), bucket: String(range.bucket ?? "day") },
       activityCoverageStartedAt: meta.activityCoverageStartedAt ? String(meta.activityCoverageStartedAt) : null,
+      trafficV3StartedAt: meta.trafficV3StartedAt ? String(meta.trafficV3StartedAt) : null,
       coverage,
     },
     inventory: {
@@ -72,17 +78,23 @@ function normalizeReportStats(raw: Record<string, unknown>): ReportStats {
     },
     workflow: { pendingUploads: number(workflow.pendingUploads ?? raw.pending_uploads), pendingAccessRequests: number(workflow.pendingAccessRequests ?? raw.pending_access_requests) },
     activity: {
-      uploadedEntries: number(activity.uploadedEntries ?? raw.uploaded_entries), repositoryViews: number(activity.repositoryViews ?? raw.repository_views), repositoryDownloads: number(activity.repositoryDownloads ?? raw.repository_downloads), guestViews: number(activity.guestViews ?? raw.guest_views), registeredViews: number(activity.registeredViews ?? raw.registered_views), approvedRequestDownloads: number(activity.approvedRequestDownloads ?? raw.approved_request_downloads), activeRegisteredUsers: number(activity.activeRegisteredUsers ?? raw.active_registered_users), homeVisits: { total: number(homeVisits.total), guest: number(homeVisits.guest), registered: number(homeVisits.registered) },
+      sitePageViews: { total: number(sitePageViews.total), guest: number(sitePageViews.guest), registered: number(sitePageViews.registered) },
+      siteVisits: { total: number(siteVisits.total), guest: number(siteVisits.guest), registered: number(siteVisits.registered) },
+      homePageViews: { total: number(homePageViews.total), guest: number(homePageViews.guest), registered: number(homePageViews.registered) },
+      uploadedEntries: number(activity.uploadedEntries ?? raw.uploaded_entries), repositoryViews: number(activity.repositoryViews ?? raw.repository_views), repositoryDownloads: number(activity.repositoryDownloads ?? raw.repository_downloads), guestRepositoryViews: number(activity.guestRepositoryViews ?? activity.guestViews ?? raw.guest_repository_views ?? raw.guest_views), registeredRepositoryViews: number(activity.registeredRepositoryViews ?? activity.registeredViews ?? raw.registered_repository_views ?? raw.registered_views), authorProfileViews: number(activity.authorProfileViews ?? raw.author_profile_views), topicWorkViews: number(activity.topicWorkViews ?? raw.topic_work_views), guestViews: number(activity.guestViews ?? activity.guestRepositoryViews ?? raw.guest_views), registeredViews: number(activity.registeredViews ?? activity.registeredRepositoryViews ?? raw.registered_views), approvedRequestDownloads: number(activity.approvedRequestDownloads ?? raw.approved_request_downloads), activeRegisteredUsers: number(activity.activeRegisteredUsers ?? raw.active_registered_users), homeVisits: { total: number(homeVisits.total), guest: number(homeVisits.guest), registered: number(homeVisits.registered) },
+      activeRegisteredReaders: number(activity.activeRegisteredReaders ?? activity.active_registered_readers ?? activity.activeRegisteredUsers ?? raw.active_registered_users),
     },
     series: {
       uploads: array(series.uploads).map((row) => ({ bucket: String(object(row).bucket ?? ""), count: number(object(row).count) })),
       repositoryActivity: array(series.repositoryActivity).map((row) => ({ bucket: String(object(row).bucket ?? ""), views: number(object(row).views), downloads: number(object(row).downloads) })),
       homeVisits: array(series.homeVisits).map((row) => ({ bucket: String(object(row).bucket ?? ""), guest: number(object(row).guest), registered: number(object(row).registered), total: number(object(row).total) })),
+      siteTraffic: array(series.siteTraffic).map((row) => ({ bucket: String(object(row).bucket ?? ""), pageViews: number(object(row).pageViews), visits: number(object(row).visits), guestPageViews: number(object(row).guestPageViews), registeredPageViews: number(object(row).registeredPageViews), guestVisits: number(object(row).guestVisits), registeredVisits: number(object(row).registeredVisits) })),
     },
     rankings: {
       mostViewedEntries: array(rankings.mostViewedEntries).map(rankWork), mostDownloadedEntries: array(rankings.mostDownloadedEntries).map(rankWork),
-      mostVisitedAuthors: array(rankings.mostVisitedAuthors).map((row) => { const item = object(row); return { id: String(item.id ?? ""), name: String(item.name ?? "Unnamed author"), visits: number(item.visits), profilePicture: item.profilePicture ? String(item.profilePicture) : null, href: stringOrUndefined(item.href) }; }),
-      trendingTopics: array(rankings.trendingTopics).map((row) => { const item = object(row); return { id: number(item.id), name: String(item.name ?? "Unnamed topic"), views: number(item.views), entryCount: number(item.entryCount ?? item.activeCatalogEntryCount), href: stringOrUndefined(item.href) }; }),
+      mostVisitedAuthors: array(rankings.mostVisitedAuthors ?? rankings.mostViewedAuthors).map((row) => { const item = object(row); const views = number(item.views ?? item.visits); return { id: String(item.id ?? ""), name: String(item.name ?? "Unnamed author"), views, visits: number(item.visits ?? views), profilePicture: item.profilePicture ? String(item.profilePicture) : null, href: stringOrUndefined(item.href) }; }),
+      mostViewedAuthors: array(rankings.mostViewedAuthors ?? rankings.mostVisitedAuthors).map((row) => { const item = object(row); const views = number(item.views ?? item.visits); return { id: String(item.id ?? ""), name: String(item.name ?? "Unnamed author"), views, visits: number(item.visits ?? views), profilePicture: item.profilePicture ? String(item.profilePicture) : null, href: stringOrUndefined(item.href) }; }),
+      trendingTopics: array(rankings.trendingTopics).map((row) => { const item = object(row); const workViews = number(item.workViews ?? item.views); return { id: number(item.id), name: String(item.name ?? "Unnamed topic"), views: workViews, workViews, entryCount: number(item.entryCount ?? item.activeCatalogEntryCount), href: stringOrUndefined(item.href) }; }),
     },
     distributions: { documentTypes, requestStatuses: array(distributions.requestStatuses).map((row) => ({ status: String(object(row).status ?? "unknown"), count: number(object(row).count) })) },
     registeredReaderSummary: { activeUsers: number(registeredReaderSummary.activeUsers), views: number(registeredReaderSummary.views), downloads: number(registeredReaderSummary.downloads), averageInteractionsPerActiveUser: number(registeredReaderSummary.averageInteractionsPerActiveUser) },
