@@ -9,10 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { usePublicSession } from "./PublicSessionProvider";
+import { PublicSearchCombobox } from "./PublicSearchCombobox";
+import { searchResultsUrl } from "../../lib/api/public";
+import { markPendingSearch } from "../../lib/api/search";
 
 const links = [
   { label: "Home", href: "/index.html" },
   { label: "News", href: "/news.html" },
+  { label: "FAQ", href: "/faq.html" },
   { label: "Contact", href: "/contact.html" },
 ];
 
@@ -69,6 +73,8 @@ export function PublicNavbar() {
         </span>
       </a>
 
+      <NavbarSearch className="peas-public-navbar-search" />
+
       <nav className="peas-public-navlinks" aria-label="Public navigation">
         {links.map((link) => (
           <a href={link.href} key={link.href} aria-current={isActivePath(link.href) ? "page" : undefined}>
@@ -104,6 +110,7 @@ export function PublicNavbar() {
                 <X aria-hidden="true" />
               </button>
             </div>
+            <NavbarSearch className="peas-public-mobile-search" />
             {links.map((link) => (
               <a
                 href={link.href}
@@ -133,6 +140,36 @@ export function PublicNavbar() {
         </div>
       ) : null}
     </header>
+  );
+}
+
+function NavbarSearch({ className }: { className: string }) {
+  const [query, setQuery] = useState("");
+
+  const submitSearch = useCallback(() => {
+    window.location.href = searchResultsUrl(query, "All");
+  }, [query]);
+
+  return (
+    <form
+      className={className}
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        markPendingSearch(query, "results");
+        submitSearch();
+      }}
+    >
+      <PublicSearchCombobox
+        value={query}
+        category="All"
+        source="results"
+        onChange={setQuery}
+        onSubmit={submitSearch}
+        ariaLabel="Search the repository from navigation"
+        placeholder="Search the repository"
+      />
+    </form>
   );
 }
 
@@ -224,7 +261,7 @@ function getInitials(name: string) {
 }
 
 function usesAlwaysGreenNavbar() {
-  return ["/news.html", "/contact", "/contact.html"].includes(window.location.pathname);
+  return ["/news.html", "/faq.html", "/contact", "/contact.html"].includes(window.location.pathname);
 }
 
 function isActivePath(href: string) {

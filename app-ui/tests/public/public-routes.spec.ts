@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { source as axeSource } from "axe-core";
 
 const routes = [
-  "/index.html", "/news.html", "/pages/searchResultsPage.html", "/contact.html",
+  "/index.html", "/news.html", "/faq.html", "/pages/searchResultsPage.html", "/contact.html",
   "/pages/miscellaneous/T&A-Public.html", "/pages/miscellaneous/Privacy.html",
   "/log-in.html", "/reset-password.html", "/pages/authorprofile.html",
   "/pages/guest-single.html", "/pages/guest-compiled.html",
@@ -18,6 +18,45 @@ for (const route of routes) {
     expect(forbidden).toBe(0);
   });
 }
+
+test("FAQ page supports searchable, categorized, accessible answers", async ({ page }) => {
+  await page.goto("/faq.html");
+
+  await expect(page).toHaveTitle("Frequently Asked Questions | PeAS");
+  await expect(page.getByRole("heading", { name: "Frequently asked questions", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "All topics", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Getting started", exact: true })).toBeVisible();
+  await expect(page.getByText("What is PeAS?", { exact: true })).toBeVisible();
+
+  const search = page.getByRole("searchbox", { name: "Search frequently asked questions" });
+  await search.fill("full paper");
+  await expect(page.getByText("Why can't I open or download a full paper?", { exact: true })).toBeVisible();
+  await expect(page.locator(".peas-faq-result-count")).toHaveText("1 answer");
+
+  const question = page.getByRole("button", { name: "Why can't I open or download a full paper?" });
+  await expect(question).toHaveAttribute("aria-expanded", "false");
+  await question.click();
+  await expect(question).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText(/does not expose protected files through direct storage links/i)).toBeVisible();
+
+  await page.getByRole("button", { name: "Clear FAQ search" }).click();
+  await page.getByRole("button", { name: "Accounts and access", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Accounts and access", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".peas-faq-group")).toHaveCount(1);
+  await expect(page.locator(".peas-faq-item")).toHaveCount(4);
+
+  await search.fill("not a real FAQ question");
+  await expect(page.getByRole("status")).toContainText("No questions match");
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByText("What is PeAS?", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Contact the office" })).toHaveAttribute("href", "/contact.html");
+
+  await page.setViewportSize({ width: 375, height: 667 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+
+  await page.goto("/faq");
+  expect(new URL(page.url()).pathname).toBe("/faq.html");
+});
 
 test("terms page provides a focused reading path", async ({ page }) => {
   await page.goto("/pages/miscellaneous/T&A-Public.html");
@@ -353,8 +392,8 @@ test("guest document details place the abstract after the title and expose autho
   await expect(profileLink).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
-test("news and contact keep the navbar green at the top of the page", async ({ page }) => {
-  for (const route of ["/news.html", "/contact.html", "/contact"] as const) {
+test("news, FAQ, and contact keep the navbar green at the top of the page", async ({ page }) => {
+  for (const route of ["/news.html", "/faq.html", "/contact.html", "/contact"] as const) {
     await page.goto(route);
     const navbar = page.locator(".peas-public-navbar");
 
@@ -422,7 +461,7 @@ test("the mobile navigation drawer keeps links compact and contained", async ({ 
   expect(metrics.panel.right).toBeLessThanOrEqual(viewport.width);
   expect(metrics.panel.top).toBeGreaterThanOrEqual(0);
   expect(metrics.panel.bottom).toBeLessThanOrEqual(viewport.height);
-  expect(metrics.links).toHaveLength(3);
+  expect(metrics.links).toHaveLength(4);
   expect(metrics.links.every((link) => link.height <= 56)).toBe(true);
   expect(metrics.links[2].top - metrics.links[0].top).toBeLessThan(180);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);

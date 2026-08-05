@@ -13,6 +13,7 @@ export function PublicFooter() {
       </div>
       <nav aria-label="Footer navigation">
         <a href="/index.html">Home</a>
+        <a href="/faq.html">FAQ</a>
         <a href="/contact.html">Contact</a>
         <a href="/pages/miscellaneous/T&A-Public.html">Terms</a>
         <a href="/pages/miscellaneous/Privacy.html">Privacy</a>
