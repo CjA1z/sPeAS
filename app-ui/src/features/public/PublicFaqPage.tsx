@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChevronDown, MessageCircleQuestion, Search, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Search, X } from "lucide-react";
 import { defaultExperienceConfig } from "../../../../Deno/shared/experienceConfig";
 import { PublicPageShell } from "../../components/public/PublicPageShell";
 import { Button } from "../../components/ui/button";
@@ -71,7 +71,10 @@ export function PublicFaqPage() {
             <h1 id="faq-title">{String(content.title || "Frequently asked questions")}</h1>
             <p>{String(content.description || "Find answers about PeAS.")}</p>
           </div>
-          <div className="peas-faq-hero__mark" aria-hidden="true"><MessageCircleQuestion /></div>
+          <div className="peas-faq-hero__mark" aria-hidden="true">
+            <img className="peas-faq-hero__mark-university" src="/Components/images/spud_logo_s.png" alt="" />
+            <img className="peas-faq-hero__mark-peas" src="/Components/images/peas.png" alt="" />
+          </div>
         </div>
       </section>
 

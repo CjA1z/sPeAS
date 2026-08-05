@@ -2,6 +2,7 @@ import { lazy, Suspense, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { PublicErrorBoundary, PublicErrorPage } from "./components/public/PublicPageShell";
 import { PublicSessionProvider } from "./components/public/PublicSessionProvider";
+import { PublicRouteLoader, PublicRouteLoadingScreen } from "./components/public/PublicRouteLoader";
 import "./styles/globals.css";
 
 const routes: Array<{ paths: string[]; component: ComponentType }> = [
@@ -33,9 +34,8 @@ if (root) {
   createRoot(root).render(
     <PublicSessionProvider>
       <PublicErrorBoundary>
-        <Suspense fallback={<div className="peas-public-route-loading" role="status">Loading page…</div>}>
-          <Page />
-        </Suspense>
+        <PublicRouteLoader />
+        <Suspense fallback={<PublicRouteLoadingScreen />}><Page /></Suspense>
       </PublicErrorBoundary>
     </PublicSessionProvider>,
   );

@@ -278,7 +278,7 @@ export const experiencePuckConfig: Config = {
         title: "A digital home for Paulinian research",
         summary: "The Paulinian electronic Archiving System preserves the university's academic works, makes scholarship easier to discover, and provides role-appropriate access to repository materials.",
         pillars: [
-          { id: "preserve", label: "Preserve", description: "Safeguards theses, dissertations, Confluence, Synergy, and other scholarly outputs in one organized repository." },
+          { id: "preserve", label: "Preserve", description: "Safeguards Thesis, Dissertation, Confluence, and Synergy collections in one organized repository." },
           { id: "discover", label: "Discover", description: "Connects readers with research through structured metadata, authors, topics, keywords, and collection filters." },
           { id: "access", label: "Access", description: "Gives guests, registered readers, publishers, and administrators the right experience while protected files remain controlled." },
         ],
