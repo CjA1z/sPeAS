@@ -199,6 +199,7 @@ app.use(async (ctx, next) => {
 const publicAliases: Record<string, string> = {
   "/index": "/index.html",
   "/news": "/news.html",
+  "/faq": "/faq.html",
   "/search": "/pages/searchResultsPage.html",
   "/contact": "/contact.html",
   "/terms": "/pages/miscellaneous/T&A-Public.html",
