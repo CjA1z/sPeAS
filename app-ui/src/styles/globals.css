@@ -6651,7 +6651,8 @@ body:has(#react-public-root) {
   overflow: hidden;
 }
 
-.peas-public-search-overlay__scope {
+.peas-public-search-overlay__scope,
+.peas-public-search-overlay__sidebar {
   background: rgba(238, 243, 240, .7);
   border-right: 1px solid rgba(211, 219, 214, .9);
   display: flex;
@@ -6660,7 +6661,8 @@ body:has(#react-public-root) {
   padding: 18px 14px;
 }
 
-.peas-public-search-overlay__scope > span {
+.peas-public-search-overlay__scope > span,
+.peas-public-search-overlay__sidebar-title {
   color: var(--muted-foreground);
   font-size: .67rem;
   font-weight: 850;
@@ -6669,7 +6671,8 @@ body:has(#react-public-root) {
   text-transform: uppercase;
 }
 
-.peas-public-search-overlay__scope button {
+.peas-public-search-overlay__scope button,
+.peas-public-search-overlay__sidebar-tab {
   align-items: center;
   background: transparent;
   border: 0;
@@ -6680,30 +6683,40 @@ body:has(#react-public-root) {
   font: inherit;
   font-size: .8rem;
   font-weight: 700;
-  gap: 8px;
+  gap: 10px;
   justify-content: space-between;
   min-height: 42px;
-  padding: 9px 10px;
+  padding: 9px 12px;
   text-align: left;
   transition: background-color .18s ease, box-shadow .2s ease, color .18s ease, transform .2s cubic-bezier(.22, 1, .36, 1);
   width: 100%;
 }
 
+.peas-public-search-overlay__sidebar-icon {
+  flex: 0 0 auto;
+  height: 17px;
+  width: 17px;
+}
+
 .peas-public-search-overlay__scope button:hover,
-.peas-public-search-overlay__scope button:focus-visible {
+.peas-public-search-overlay__scope button:focus-visible,
+.peas-public-search-overlay__sidebar-tab:hover,
+.peas-public-search-overlay__sidebar-tab:focus-visible {
   background: rgba(255, 255, 255, .72);
   color: var(--brand-green);
   outline: none;
   transform: translateX(2px);
 }
 
-.peas-public-search-overlay__scope button.is-active {
+.peas-public-search-overlay__scope button.is-active,
+.peas-public-search-overlay__sidebar-tab.is-active {
   background: #fff;
   box-shadow: 0 5px 14px rgba(15, 43, 33, .07);
   color: var(--brand-green);
 }
 
 .peas-public-search-overlay__scope button small,
+.peas-public-search-overlay__sidebar-tab small,
 .peas-public-search-overlay__result-group h3 small {
   align-items: center;
   background: var(--brand-green-soft);
@@ -6715,6 +6728,72 @@ body:has(#react-public-root) {
   justify-content: center;
   min-width: 24px;
   padding: 3px 7px;
+}
+
+.peas-public-search-overlay__collection-grid,
+.peas-public-search-overlay__agenda-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.peas-public-search-overlay__collection-card,
+.peas-public-search-overlay__agenda-card {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(15, 43, 33, 0.04);
+  color: var(--foreground);
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 14px 16px;
+  text-align: left;
+  transition: border-color .18s ease, box-shadow .2s ease, transform .2s cubic-bezier(.22, 1, .36, 1);
+}
+
+.peas-public-search-overlay__collection-card:hover,
+.peas-public-search-overlay__collection-card:focus-visible,
+.peas-public-search-overlay__agenda-card:hover,
+.peas-public-search-overlay__agenda-card:focus-visible {
+  border-color: var(--brand-green);
+  box-shadow: 0 8px 20px rgba(15, 43, 33, 0.1);
+  color: var(--brand-green);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.peas-public-search-overlay__collection-card svg:first-child {
+  color: var(--brand-green);
+  flex: 0 0 auto;
+  height: 22px;
+  width: 22px;
+}
+
+.peas-public-search-overlay__collection-card strong,
+.peas-public-search-overlay__agenda-card strong {
+  display: block;
+  font-size: .94rem;
+  font-weight: 800;
+}
+
+.peas-public-search-overlay__collection-card small {
+  color: var(--muted-foreground);
+  font-size: .76rem;
+}
+
+.peas-public-search-overlay__badge {
+  background: var(--brand-gold-soft, #fef3c7);
+  border-radius: 999px;
+  color: var(--brand-gold-dark, #92400e);
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 800;
+  margin-top: 4px;
+  padding: 2px 7px;
+  text-transform: uppercase;
 }
 
 .peas-public-search-overlay__results {
