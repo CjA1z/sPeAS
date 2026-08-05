@@ -27,22 +27,34 @@ Deno/.env.*
 !Deno/.env.example
 !Deno/.env.*.example
 
-# Node/Deno
+# Node/Deno/Python
 node_modules/
 **/node_modules/
 .npm/
 .pnpm-store/
 .deno/
 deno-dir/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
 
 # Build, Cache & Test Output
 dist/
 build/
+output/
 coverage/
 .nyc_output/
 .cache/
 .tmp/
+.next/
+out/
+.turbo/
+.vite/
 test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
 Deno/admin/experience-studio/
 Deno/admin/react-ui/
 Deno/Public/react-ui/
