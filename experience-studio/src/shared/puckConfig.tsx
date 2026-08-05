@@ -24,6 +24,9 @@ type OverviewPillarItem = {
   description?: string;
 };
 
+type FaqItem = { question?: string; answer?: string };
+type FaqCategory = { label?: string; items?: FaqItem[] };
+
 const safeHref = (href?: string) => {
   const value = String(href || "").trim();
   if (!value) return "#";
@@ -115,6 +118,24 @@ const overviewPillarArrayField = {
   getItemSummary: (item: OverviewPillarItem) => item.label || "Pillar",
 } as const;
 
+const faqCategoryArrayField = {
+  type: "array",
+  arrayFields: {
+    label: { type: "text" },
+    items: {
+      type: "array",
+      arrayFields: {
+        question: { type: "text" },
+        answer: { type: "textarea" },
+      },
+      defaultItemProps: { id: "new-item", question: "New question", answer: "Write an answer." },
+      getItemSummary: (item: FaqItem) => item.question || "Question",
+    },
+  },
+  defaultItemProps: { id: "new-category", label: "New category", items: [{ id: "new-item", question: "New question", answer: "Write an answer." }] },
+  getItemSummary: (item: FaqCategory) => item.label || "Category",
+} as const;
+
 export const experiencePuckConfig: Config = {
   root: {
     fields: {
@@ -142,6 +163,11 @@ export const experiencePuckConfig: Config = {
     login: {
       title: "Login",
       components: ["LoginShellBlock", "BrandPanelBlock", "HelpPanelBlock"],
+      defaultExpanded: true,
+    },
+    faq: {
+      title: "FAQ",
+      components: ["FaqBlock"],
       defaultExpanded: true,
     },
   },
@@ -331,6 +357,41 @@ export const experiencePuckConfig: Config = {
               </a>
             ))}
           </div>
+        </section>
+      ),
+    },
+    FaqBlock: {
+      label: "FAQ Content",
+      fields: {
+        eyebrow: { type: "text" },
+        title: { type: "text" },
+        description: { type: "textarea" },
+        categories: faqCategoryArrayField,
+        contactTitle: { type: "text" },
+        contactBody: { type: "textarea" },
+        contactLabel: { type: "text" },
+      },
+      defaultProps: {
+        id: "faq-content",
+        eyebrow: "Help for readers",
+        title: "Frequently asked questions",
+        description: "Find answers about PeAS.",
+        categories: [{ id: "getting-started", label: "Getting started", items: [{ id: "what-is-peas", question: "What is PeAS?", answer: "PeAS is the Paulinian electronic Archiving System." }] }],
+        contactTitle: "Still have a question?",
+        contactBody: "Send the office an inquiry.",
+        contactLabel: "Contact the office",
+        contactHref: "/contact.html",
+      },
+      render: ({ id, eyebrow, title, description, categories, contactTitle, contactBody, contactLabel, contactHref }) => (
+        <section id={id} className="xp-faq-preview">
+          <SectionHeader eyebrow={eyebrow} title={title} body={description} />
+          {asArray<FaqCategory>(categories).map((category) => (
+            <div className="xp-faq-preview__group" key={category.label}>
+              <h3>{category.label}</h3>
+              {asArray<FaqItem>(category.items).map((item) => <div className="xp-faq-preview__item" key={item.question}><strong>{item.question}</strong><p>{item.answer}</p></div>)}
+            </div>
+          ))}
+          <div className="xp-cta"><h2>{contactTitle}</h2><p>{contactBody}</p><a className="xp-button-primary" href={safeHref(contactHref)}>{contactLabel}</a></div>
         </section>
       ),
     },
