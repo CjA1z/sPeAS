@@ -404,7 +404,7 @@ export const defaultExperienceConfig: ExperienceConfig = {
                 {
                   id: "preserve",
                   label: "Preserve",
-                  description: "Safeguards theses, dissertations, Confluence, Synergy, and other scholarly outputs in one organized repository.",
+                  description: "Safeguards Thesis, Dissertation, Confluence, and Synergy collections in one organized repository.",
                 },
                 {
                   id: "discover",
